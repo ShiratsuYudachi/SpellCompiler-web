@@ -8,6 +8,7 @@ A web-based AST (Abstract Syntax Tree) interpreter with a React frontend.
 - **UI**: Mantine + Tailwind CSS
 - **Build Tool**: Vite
 - **AST Engine**: Custom TypeScript implementation
+- **Node Editor**: React Flow
 
 ## Project Structure
 
@@ -28,6 +29,25 @@ SpellCompiler-web/
 └── package.json
 ```
 
+## Features
+
+✨ **Visual AST Node Editor**
+- Drag-and-drop node-based interface
+- Real-time code preview
+- Connect nodes to build expressions
+- Support for literals, variables, operations, and assignments
+
+🎨 **Interactive Canvas**
+- Pan and zoom workspace
+- Visual node connections
+- Color-coded node types
+- Intuitive drag-to-connect
+
+📊 **Live Code Generation**
+- See generated code in real-time
+- Syntax-highlighted preview
+- Support for complex expressions
+
 ## Installation
 
 ```bash
@@ -44,6 +64,10 @@ npm run dev
 ```
 
 The app will be available at `http://localhost:5173`
+
+### Using the Node Editor
+
+See [EDITOR_GUIDE.md](./EDITOR_GUIDE.md) for detailed usage instructions.
 
 ### Build for Production
 
