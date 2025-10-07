@@ -1,7 +1,7 @@
-import { ASTNodeEditor } from './components/editor/ASTNodeEditor'
+import { FunctionalEditor } from './components/FunctionalEditor'
 
 function App() {
-	return <ASTNodeEditor />
+	return <FunctionalEditor />
 }
 
 export default App
