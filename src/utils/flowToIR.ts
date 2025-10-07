@@ -3,7 +3,7 @@
 // 将 React Flow 图转换为 IR (AST)
 // =============================================
 
-import type { Node, Edge } from '@xyflow/react';
+import type { Node, Edge } from 'reactflow';
 import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression } from '../ast/ast';
 import type { 
 	FlowNode,

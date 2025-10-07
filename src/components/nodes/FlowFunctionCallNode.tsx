@@ -3,9 +3,9 @@
 // 函数调用节点
 // =============================================
 
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
-import type { NodeProps } from '@xyflow/react';
+import type { NodeProps } from 'reactflow';
 import type { FunctionCallNodeData } from '../../types/flowTypes';
 
 // Basic functions available

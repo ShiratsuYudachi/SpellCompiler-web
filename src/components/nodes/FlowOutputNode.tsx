@@ -3,7 +3,7 @@
 // 输出节点 - 标记最终结果
 // =============================================
 
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position } from 'reactflow';
 
 export function FlowOutputNode() {
 	return (

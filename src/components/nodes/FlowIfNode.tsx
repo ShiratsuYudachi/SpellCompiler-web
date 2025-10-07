@@ -3,7 +3,7 @@
 // 条件表达式节点
 // =============================================
 
-import { Handle, Position } from '@xyflow/react';
+import { Handle, Position } from 'reactflow';
 
 export function FlowIfNode() {
 	return (

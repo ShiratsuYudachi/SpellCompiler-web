@@ -3,9 +3,8 @@
 // 函数式工作流编辑器
 // =============================================
 
-import { useCallback, useState } from 'react';
-import {
-	ReactFlow,
+import { useCallback, useState, useEffect } from 'react';
+import ReactFlow, {
 	Background,
 	Controls,
 	MiniMap,
@@ -15,8 +14,9 @@ import {
 	type Connection,
 	type Edge,
 	type Node,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
+	ConnectionLineType,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 import { Button, Paper, Stack, Text, Alert } from '@mantine/core';
 
 import { FlowLiteralNode } from './nodes/FlowLiteralNode';

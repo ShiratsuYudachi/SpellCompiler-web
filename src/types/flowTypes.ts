@@ -3,7 +3,7 @@
 // 基础节点类型定义
 // =============================================
 
-import type { Node } from '@xyflow/react';
+import type { Node } from 'reactflow';
 
 /**
  * Base node data interface
