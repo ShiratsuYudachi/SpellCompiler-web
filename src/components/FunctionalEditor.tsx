@@ -18,7 +18,7 @@ import ReactFlow, {
 	type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Button, Paper, Stack, Text, Alert } from '@mantine/core';
+import { Button, Paper, Text, Alert } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
@@ -293,40 +293,57 @@ function EditorContent() {
 	return (
 		<EditorProvider value={editorContextValue}>
 			<div className="h-screen flex flex-col">
-			{/* Header */}
+			{/* Header - Row 1 */}
 			<Paper shadow="sm" p="md" className="border-b">
-				<Stack gap="sm">
-					<div className="flex items-center justify-between">
-						<Text size="xl" fw={700}>
-							⚡ Functional Workflow Editor
-						</Text>
-						<Button size="sm" color="indigo" onClick={handleEvaluate}>
-							▶️ Evaluate
-						</Button>
-					</div>
-
-					{/* Result display */}
-					{error && (
-						<Alert color="red" title="Error">
-							{error}
-						</Alert>
-					)}
-
-					{evaluationResult !== null && (
-						<Alert color="green" title="Result">
-							<Text size="lg" fw={700}>
-								{JSON.stringify(evaluationResult)}
-							</Text>
-						</Alert>
-					)}
-				</Stack>
+				<div className="flex items-center justify-between">
+					<Text size="xl" fw={700}>
+						⚡ Functional Workflow Editor
+					</Text>
+					<Button size="sm" color="indigo" onClick={handleEvaluate}>
+						▶️ Evaluate
+					</Button>
+				</div>
 			</Paper>
 
+			{/* Header - Row 2: AST and Results */}
+			{(currentAST || error || evaluationResult !== null) && (
+				<Paper shadow="sm" p="md" className="border-b">
+					<div className="flex gap-4" style={{ maxHeight: '300px' }}>
+						{/* AST Visualizer - Left */}
+						{currentAST && (
+							<div className="flex-1 border rounded-lg bg-white overflow-auto p-4">
+								<Text size="lg" fw={700} mb="md">
+									📊 AST Structure
+								</Text>
+								<ASTVisualizer ast={currentAST} functions={currentFunctions} />
+							</div>
+						)}
+
+						{/* Results - Right */}
+						<div className="flex-1 flex flex-col gap-2">
+							{error && (
+								<Alert color="red" title="Error" className="flex-1 overflow-auto">
+									{error}
+								</Alert>
+							)}
+
+							{evaluationResult !== null && (
+								<Alert color="green" title="Result" className="flex-1 overflow-auto">
+									<Text size="lg" fw={700}>
+										{JSON.stringify(evaluationResult)}
+									</Text>
+								</Alert>
+							)}
+						</div>
+					</div>
+				</Paper>
+			)}
+
 			{/* Main content area */}
-			<div className="flex-1 flex">
+			<div className="flex-1 relative">
 				{/* React Flow editor */}
 				<div
-					className="flex-1 relative"
+					className="w-full h-full"
 					onContextMenu={(e) => {
 						e.preventDefault();
 						setContextMenu({
@@ -363,17 +380,7 @@ function EditorContent() {
 						<MiniMap />
 					</ReactFlow>
 				</div>
-
-			{/* AST Visualizer sidebar */}
-			{currentAST && (
-				<div className="w-96 border-l bg-white overflow-auto p-4">
-					<Text size="lg" fw={700} mb="md">
-						📊 AST Structure
-					</Text>
-					<ASTVisualizer ast={currentAST} functions={currentFunctions} />
-				</div>
-			)}
-		</div>
+			</div>
 		
 		{/* Node Selection Menu */}
 		{menuState && menuState.show && (
