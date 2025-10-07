@@ -47,28 +47,19 @@ export function SmartHandle({
 			withArrow
 			disabled={type === 'target'}
 		>
-			<div
-				className="relative"
+			<Handle
+				type={type}
+				position={position}
+				id={id}
+				className={`transition-all duration-200 ${className} ${
+					isHovered && type === 'source' 
+						? 'scale-150 cursor-pointer' 
+						: ''
+				}`}
 				onMouseEnter={() => setIsHovered(true)}
 				onMouseLeave={() => setIsHovered(false)}
 				onClick={handleClick}
-			>
-				<Handle
-					type={type}
-					position={position}
-					id={id}
-					className={`transition-all duration-200 ${className} ${
-						isHovered && type === 'source' 
-							? 'scale-150 cursor-pointer' 
-							: ''
-					}`}
-				/>
-				{isHovered && type === 'source' && (
-					<div className="absolute inset-0 flex items-center justify-center pointer-events-none text-white text-xs font-bold">
-						+
-					</div>
-				)}
-			</div>
+			/>
 		</Tooltip>
 	);
 }
