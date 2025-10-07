@@ -5,11 +5,12 @@
 
 import { useEffect, useRef } from 'react';
 import mermaid from 'mermaid';
-import type { ASTNode } from '../ast/ast';
+import type { ASTNode, FunctionDefinition } from '../ast/ast';
 import { astToMermaid } from '../utils/astToMermaid';
 
 interface ASTVisualizerProps {
 	ast: ASTNode;
+	functions?: FunctionDefinition[];
 	className?: string;
 }
 
@@ -24,7 +25,7 @@ mermaid.initialize({
 	}
 });
 
-export function ASTVisualizer({ ast, className = '' }: ASTVisualizerProps) {
+export function ASTVisualizer({ ast, functions = [], className = '' }: ASTVisualizerProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const mermaidCodeRef = useRef<string>('');
 
@@ -34,8 +35,8 @@ export function ASTVisualizer({ ast, className = '' }: ASTVisualizerProps) {
 
 			try {
 				// Convert AST to Mermaid syntax
-				const mermaidCode = astToMermaid(ast);
-				
+				const mermaidCode = astToMermaid(ast, functions);
+
 				// Only re-render if code changed
 				if (mermaidCode === mermaidCodeRef.current) return;
 				mermaidCodeRef.current = mermaidCode;
@@ -48,7 +49,7 @@ export function ASTVisualizer({ ast, className = '' }: ASTVisualizerProps) {
 
 				// Render diagram
 				const { svg } = await mermaid.render(id, mermaidCode);
-				
+
 				if (containerRef.current) {
 					containerRef.current.innerHTML = svg;
 				}
@@ -65,7 +66,7 @@ export function ASTVisualizer({ ast, className = '' }: ASTVisualizerProps) {
 		};
 
 		renderDiagram();
-	}, [ast]);
+	}, [ast, functions]);
 
 	return (
 		<div className={`ast-visualizer ${className}`}>

@@ -3,79 +3,119 @@
 // 将 AST 转换为 Mermaid 图表
 // =============================================
 
-import type { ASTNode } from '../ast/ast';
+import type { ASTNode, FunctionDefinition } from '../ast/ast';
 
 let nodeCounter = 0;
 
 /**
  * Convert AST to Mermaid flowchart syntax
  */
-export function astToMermaid(ast: ASTNode): string {
+export function astToMermaid(ast: ASTNode, functions: FunctionDefinition[] = []): string {
 	nodeCounter = 0;
 	const lines: string[] = ['graph TD'];
-	
-	generateMermaidNode(ast, lines);
-	
+
+	// Generate function definitions as subgraphs
+	functions.forEach((func, idx) => {
+		lines.push(`    subgraph func${idx}["📦 Function: ${func.name}"]`);
+		lines.push(`        direction TB`);
+
+		// Add parameters as nodes
+		if (func.params.length > 0) {
+			lines.push(`        params${idx}["Parameters: ${func.params.join(', ')}"]`);
+			lines.push(`        style params${idx} fill:#e1e5f5`);
+		}
+
+		// Generate function body
+		const funcPrefix = `f${idx}_`;
+		const savedCounter = nodeCounter;
+		nodeCounter = 0;
+		const bodyLines: string[] = [];
+		generateMermaidNode(func.body, bodyLines, funcPrefix);
+		nodeCounter = savedCounter + nodeCounter;
+
+		// Add body lines with proper indentation
+		bodyLines.forEach(line => {
+			lines.push(`        ${line.trim()}`);
+		});
+
+		lines.push(`    end`);
+		lines.push(``);
+	});
+
+	// Generate main AST
+	if (functions.length > 0) {
+		lines.push(`    subgraph main["🎯 Main Expression"]`);
+		lines.push(`        direction TB`);
+		const mainLines: string[] = [];
+		generateMermaidNode(ast, mainLines, 'main_');
+		mainLines.forEach(line => {
+			lines.push(`        ${line.trim()}`);
+		});
+		lines.push(`    end`);
+	} else {
+		generateMermaidNode(ast, lines);
+	}
+
 	return lines.join('\n');
 }
 
-function generateMermaidNode(node: ASTNode, lines: string[]): string {
-	const nodeId = `node${nodeCounter++}`;
-	
+function generateMermaidNode(node: ASTNode, lines: string[], prefix: string = ''): string {
+	const nodeId = `${prefix}node${nodeCounter++}`;
+
 	switch (node.type) {
 		case 'Literal': {
 			const valueStr = formatValue(node.value);
-			lines.push(`    ${nodeId}["🔢 ${valueStr}"]`);
-			lines.push(`    style ${nodeId} fill:#e1f5e1`);
+			lines.push(`${nodeId}["🔢 ${valueStr}"]`);
+			lines.push(`style ${nodeId} fill:#e1f5e1`);
 			break;
 		}
-		
+
 		case 'Identifier': {
-			lines.push(`    ${nodeId}["📌 ${node.name}"]`);
-			lines.push(`    style ${nodeId} fill:#e1e5f5`);
+			lines.push(`${nodeId}["📌 ${node.name}"]`);
+			lines.push(`style ${nodeId} fill:#e1e5f5`);
 			break;
 		}
-		
+
 		case 'FunctionCall': {
-			const fnName = typeof node.function === 'string' 
-				? node.function 
+			const fnName = typeof node.function === 'string'
+				? node.function
 				: '(function)';
-			lines.push(`    ${nodeId}["⚙️ ${fnName}"]`);
-			lines.push(`    style ${nodeId} fill:#fff4e1`);
-			
+			lines.push(`${nodeId}["⚙️ ${fnName}"]`);
+			lines.push(`style ${nodeId} fill:#fff4e1`);
+
 			// Function expression (if not string)
 			if (typeof node.function !== 'string') {
-				const fnId = generateMermaidNode(node.function, lines);
-				lines.push(`    ${fnId} -->|fn| ${nodeId}`);
+				const fnId = generateMermaidNode(node.function, lines, prefix);
+				lines.push(`${fnId} -->|fn| ${nodeId}`);
 			}
-			
+
 			// Arguments
 			node.args.forEach((arg, index) => {
-				const argId = generateMermaidNode(arg, lines);
-				lines.push(`    ${argId} -->|arg${index}| ${nodeId}`);
+				const argId = generateMermaidNode(arg, lines, prefix);
+				lines.push(`${argId} -->|arg${index}| ${nodeId}`);
 			});
 			break;
 		}
-		
+
 		case 'IfExpression': {
-			lines.push(`    ${nodeId}{"🔀 if"}]`);
-			lines.push(`    style ${nodeId} fill:#f5e1e1`);
-			
-			const condId = generateMermaidNode(node.condition, lines);
-			lines.push(`    ${condId} -->|condition| ${nodeId}`);
-			
-			const thenId = generateMermaidNode(node.thenBranch, lines);
-			lines.push(`    ${thenId} -->|then| ${nodeId}`);
-			
-			const elseId = generateMermaidNode(node.elseBranch, lines);
-			lines.push(`    ${elseId} -->|else| ${nodeId}`);
+			lines.push(`${nodeId}{"🔀 if"}]`);
+			lines.push(`style ${nodeId} fill:#f5e1e1`);
+
+			const condId = generateMermaidNode(node.condition, lines, prefix);
+			lines.push(`${condId} -->|condition| ${nodeId}`);
+
+			const thenId = generateMermaidNode(node.thenBranch, lines, prefix);
+			lines.push(`${thenId} -->|then| ${nodeId}`);
+
+			const elseId = generateMermaidNode(node.elseBranch, lines, prefix);
+			lines.push(`${elseId} -->|else| ${nodeId}`);
 			break;
 		}
-		
+
 		default:
-			lines.push(`    ${nodeId}["❓ Unknown"]`);
+			lines.push(`${nodeId}["❓ Unknown"]`);
 	}
-	
+
 	return nodeId;
 }
 

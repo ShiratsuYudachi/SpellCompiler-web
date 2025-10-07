@@ -95,6 +95,7 @@ function EditorContent() {
 	
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
+	const [currentFunctions, setCurrentFunctions] = useState<import('../ast/ast').FunctionDefinition[]>([]);
 	const [error, setError] = useState<string | null>(null);
 	const [menuState, setMenuState] = useState<{
 		show: boolean;
@@ -268,6 +269,7 @@ function EditorContent() {
 			// Convert Flow to IR
 			const { ast, functions } = flowToIR(nodes, edges);
 			setCurrentAST(ast);
+			setCurrentFunctions(functions);
 
 			// Evaluate IR
 			const evaluator = new Evaluator();
@@ -284,6 +286,7 @@ function EditorContent() {
 			setError(err instanceof Error ? err.message : String(err));
 			setEvaluationResult(null);
 			setCurrentAST(null);
+			setCurrentFunctions([]);
 		}
 	};
 
@@ -367,7 +370,7 @@ function EditorContent() {
 					<Text size="lg" fw={700} mb="md">
 						📊 AST Structure
 					</Text>
-					<ASTVisualizer ast={currentAST} />
+					<ASTVisualizer ast={currentAST} functions={currentFunctions} />
 				</div>
 			)}
 		</div>
