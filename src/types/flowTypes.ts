@@ -37,8 +37,16 @@ export interface IfNodeData extends BaseNodeData {
  * Function Definition Node - 函数定义节点
  */
 export interface FunctionDefNodeData extends BaseNodeData {
-	functionName: string;
-	params: string[];  // Parameter names
+	functionName?: string;
+	paramCount?: number;
+	params?: string[];  // Parameter names
+}
+
+/**
+ * Function Output Node - 函数输出节点
+ */
+export interface FunctionOutNodeData extends BaseNodeData {
+	functionName?: string;
 }
 
 /**
@@ -55,8 +63,10 @@ export type FlowNodeType =
 	| 'literal'
 	| 'identifier'
 	| 'dynamicFunction'
+	| 'customFunction'
 	| 'if'
 	| 'functionDef'
+	| 'functionOut'
 	| 'output';
 
 /**
@@ -71,14 +81,24 @@ export interface DynamicFunctionNodeData extends BaseNodeData {
 }
 
 /**
+ * Custom Function Node Data - 用户自定义函数调用
+ */
+export interface CustomFunctionNodeData extends BaseNodeData {
+	functionName?: string;
+	paramCount?: number;
+}
+
+/**
  * Typed node
  */
 export type FlowNode =
 	| Node<LiteralNodeData, 'literal'>
 	| Node<IdentifierNodeData, 'identifier'>
 	| Node<DynamicFunctionNodeData, 'dynamicFunction'>
+	| Node<CustomFunctionNodeData, 'customFunction'>
 	| Node<IfNodeData, 'if'>
 	| Node<FunctionDefNodeData, 'functionDef'>
+	| Node<FunctionOutNodeData, 'functionOut'>
 	| Node<OutputNodeData, 'output'>;
 
 /**

@@ -4,27 +4,23 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
 	IdentifierNodeData,
-	DynamicFunctionNodeData
+	DynamicFunctionNodeData,
+	CustomFunctionNodeData,
+	FunctionDefNodeData
 } from '../types/flowTypes';
 
 /**
  * Convert React Flow graph to IR
  * @param nodes - All nodes in the graph
  * @param edges - All edges connecting nodes
- * @returns The root ASTNode (starting from 'output' node)
+ * @returns Object containing main expression and function definitions
  */
-export function flowToIR(nodes: Node[], edges: Edge[]): ASTNode {
-	// Find the output node (entry point)
-	const outputNode = nodes.find(n => n.type === 'output');
-	if (!outputNode) {
-		throw new Error('No output node found in the graph');
-	}
-
+export function flowToIR(nodes: Node[], edges: Edge[]): { ast: ASTNode; functions: FunctionDefinition[] } {
 	// Build adjacency map: nodeId -> list of incoming edges
 	const incomingEdges = new Map<string, Edge[]>();
 	edges.forEach(edge => {
@@ -32,6 +28,69 @@ export function flowToIR(nodes: Node[], edges: Edge[]): ASTNode {
 		list.push(edge);
 		incomingEdges.set(edge.target, list);
 	});
+
+	// Collect all function definitions by finding FunctionOut nodes connected to the graph
+	const functionDefs: FunctionDefinition[] = [];
+	const functionOutNodes = nodes.filter(n => n.type === 'functionOut');
+
+	// Helper: Find which FunctionDef a node belongs to by traversing backwards
+	const findOwningFunctionDef = (nodeId: string, visited = new Set<string>()): Node<FunctionDefNodeData> | null => {
+		if (visited.has(nodeId)) return null;
+		visited.add(nodeId);
+
+		const node = nodes.find(n => n.id === nodeId);
+		if (!node) return null;
+
+		if (node.type === 'functionDef') {
+			return node as Node<FunctionDefNodeData>;
+		}
+
+		// Check all edges coming into this node
+		const incoming = incomingEdges.get(nodeId) || [];
+		for (const edge of incoming) {
+			const funcDef = findOwningFunctionDef(edge.source, visited);
+			if (funcDef) return funcDef;
+		}
+
+		return null;
+	};
+
+	for (const funcOutNode of functionOutNodes) {
+		// Get the value connected to the FunctionOut node
+		const valueEdge = incomingEdges.get(funcOutNode.id)?.find(e => e.targetHandle === 'value');
+		if (!valueEdge) {
+			throw new Error(`Return node has no value connected`);
+		}
+
+		// Find which FunctionDef this return belongs to
+		const funcDefNode = findOwningFunctionDef(valueEdge.source);
+		if (!funcDefNode) {
+			throw new Error(`Return node is not connected to any function definition`);
+		}
+
+		const defData = funcDefNode.data as FunctionDefNodeData;
+		const functionName = defData.functionName || 'unnamed';
+		const params = defData.params || [];
+
+		const valueNode = nodes.find(n => n.id === valueEdge.source);
+		if (!valueNode) {
+			throw new Error(`Function ${functionName} return value node not found`);
+		}
+
+		const bodyAST = convertNode(valueNode as FlowNode, nodes, incomingEdges, valueEdge.sourceHandle || undefined);
+
+		functionDefs.push({
+			name: functionName,
+			params,
+			body: bodyAST
+		});
+	}
+
+	// Find the output node (entry point for main expression)
+	const outputNode = nodes.find(n => n.type === 'output');
+	if (!outputNode) {
+		throw new Error('No output node found in the graph');
+	}
 
 	// Convert from output node
 	const inputEdges = incomingEdges.get(outputNode.id) || [];
@@ -43,22 +102,29 @@ export function flowToIR(nodes: Node[], edges: Edge[]): ASTNode {
 	const rootEdge = inputEdges[0];
 	const rootNodeId = rootEdge.source;
 	const rootNode = nodes.find(n => n.id === rootNodeId);
-	
+
 	if (!rootNode) {
 		throw new Error(`Root node ${rootNodeId} not found`);
 	}
 
 	// Convert recursively
-	return convertNode(rootNode as FlowNode, nodes, incomingEdges);
+	const ast = convertNode(rootNode as FlowNode, nodes, incomingEdges);
+
+	return { ast, functions: functionDefs };
 }
 
 /**
  * Convert a single node to ASTNode
+ * @param node - The node to convert
+ * @param allNodes - All nodes in the graph
+ * @param incomingEdges - Map of incoming edges
+ * @param sourceHandle - Optional source handle ID (for parameter references)
  */
 function convertNode(
 	node: FlowNode,
 	allNodes: Node[],
-	incomingEdges: Map<string, Edge[]>
+	incomingEdges: Map<string, Edge[]>,
+	sourceHandle?: string
 ): ASTNode {
 	switch (node.type) {
 		case 'literal': {
@@ -75,6 +141,26 @@ function convertNode(
 				type: 'Identifier',
 				name: data.name
 			} as Identifier;
+		}
+
+		case 'functionDef': {
+			// If accessed via a parameter handle, return an Identifier for that parameter
+			if (sourceHandle && sourceHandle.startsWith('param')) {
+				const data = node.data as FunctionDefNodeData;
+				const paramIndex = parseInt(sourceHandle.replace('param', ''));
+				const paramName = data.params?.[paramIndex] || `arg${paramIndex}`;
+				return {
+					type: 'Identifier',
+					name: paramName
+				} as Identifier;
+			}
+			// Otherwise, it's an error
+			throw new Error('FunctionDef node should not appear in expression tree');
+		}
+
+		case 'functionOut': {
+			// Function out nodes should be handled by the function definition logic
+			throw new Error('FunctionOut node should not appear directly in expression tree');
 		}
 
 		case 'dynamicFunction': {
@@ -96,7 +182,7 @@ function convertNode(
 				if (!sourceNode) {
 					throw new Error(`Source node ${edge.source} not found`);
 				}
-				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges);
+				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
 			});
 
 			return {
@@ -106,9 +192,38 @@ function convertNode(
 			} as FunctionCall;
 		}
 
+		case 'customFunction': {
+			const data = node.data as CustomFunctionNodeData;
+			const edges = incomingEdges.get(node.id) || [];
+
+			// Sort edges by target handle (arg0, arg1, arg2, ...)
+			const sortedEdges = edges
+				.filter(e => e.targetHandle?.startsWith('arg'))
+				.sort((a, b) => {
+					const aIndex = parseInt(a.targetHandle?.replace('arg', '') || '0');
+					const bIndex = parseInt(b.targetHandle?.replace('arg', '') || '0');
+					return aIndex - bIndex;
+				});
+
+			// Convert each argument
+			const args: ASTNode[] = sortedEdges.map(edge => {
+				const sourceNode = allNodes.find(n => n.id === edge.source);
+				if (!sourceNode) {
+					throw new Error(`Source node ${edge.source} not found`);
+				}
+				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
+			});
+
+			return {
+				type: 'FunctionCall',
+				function: data.functionName || 'unknown',
+				args
+			} as FunctionCall;
+		}
+
 		case 'if': {
 			const edges = incomingEdges.get(node.id) || [];
-			
+
 			// Find condition, then, else branches
 			const conditionEdge = edges.find(e => e.targetHandle === 'condition');
 			const thenEdge = edges.find(e => e.targetHandle === 'then');
@@ -128,9 +243,9 @@ function convertNode(
 
 			return {
 				type: 'IfExpression',
-				condition: convertNode(conditionNode as FlowNode, allNodes, incomingEdges),
-				thenBranch: convertNode(thenNode as FlowNode, allNodes, incomingEdges),
-				elseBranch: convertNode(elseNode as FlowNode, allNodes, incomingEdges)
+				condition: convertNode(conditionNode as FlowNode, allNodes, incomingEdges, conditionEdge.sourceHandle || undefined),
+				thenBranch: convertNode(thenNode as FlowNode, allNodes, incomingEdges, thenEdge.sourceHandle || undefined),
+				elseBranch: convertNode(elseNode as FlowNode, allNodes, incomingEdges, elseEdge.sourceHandle || undefined)
 			} as IfExpression;
 		}
 

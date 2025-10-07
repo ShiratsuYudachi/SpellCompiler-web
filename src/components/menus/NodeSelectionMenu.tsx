@@ -9,17 +9,21 @@ import { getFunctionsByNamespace, type FunctionInfo } from '../../utils/getFunct
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
-	onSelectBasicNode: (type: 'literal' | 'if' | 'output') => void;
+	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'functionDef' | 'functionOut' | 'customFunction') => void;
 	onClose: () => void;
 }
 
 const BASIC_NODES = [
 	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value' },
 	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
+	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞', description: 'Call custom function' },
+	{ type: 'functionDef' as const, label: 'Function Def', icon: '📦', description: 'Define function' },
+	{ type: 'functionOut' as const, label: 'Return', icon: '↩️', description: 'Function return' },
 	{ type: 'output' as const, label: 'Output', icon: '📤', description: 'Mark final result' },
 ];
 
 const FUNCTION_GROUPS = [
+	{ key: 'special', label: 'Special', functions: ['this'] },
 	{ key: 'arithmetic', label: 'Arithmetic', functions: ['add', 'subtract', 'multiply', 'divide'] },
 	{ key: 'comparison', label: 'Comparison', functions: ['gt', 'lt', 'gte', 'lte', 'eq', 'neq'] },
 	{ key: 'logical', label: 'Logical', functions: ['and', 'or', 'not'] },
@@ -88,7 +92,7 @@ export function NodeSelectionMenu({
 					</Menu.Item>
 				))}
 
-				{groupedFunctions.map((group, idx) =>
+				{groupedFunctions.map((group) =>
 					group.items.length > 0 && (
 						<div key={group.key}>
 							<Divider my="xs" />

@@ -22,14 +22,17 @@ import { Button, Paper, Stack, Text, Alert } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
+import { CustomFunctionNode } from './nodes/CustomFunctionNode';
 import { IfNode } from './nodes/IfNode';
 import { OutputNode } from './nodes/OutputNode';
+import { FunctionDefNode } from './nodes/FunctionDefNode';
+import { FunctionOutNode } from './nodes/FunctionOutNode';
 
 import { flowToIR } from '../utils/flowToIR';
 import { Evaluator } from '../ast/evaluator';
 import { ASTVisualizer } from './ASTVisualizer';
 import type { ASTNode } from '../ast/ast';
-import { getFunctionsByNamespace, type FunctionInfo } from '../utils/getFunctionRegistry';
+import type { FunctionInfo } from '../utils/getFunctionRegistry';
 import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
@@ -38,8 +41,11 @@ import { ContextMenu } from './menus/ContextMenu';
 const nodeTypes = {
 	literal: LiteralNode,
 	dynamicFunction: DynamicFunctionNode,
+	customFunction: CustomFunctionNode,
 	if: IfNode,
 	output: OutputNode,
+	functionDef: FunctionDefNode,
+	functionOut: FunctionOutNode,
 };
 
 // Initial example nodes
@@ -188,10 +194,26 @@ function EditorContent() {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'functionDef' | 'functionOut' | 'customFunction') => {
 		if (!menuState) return;
 
 		const newNodeId = `node-${nodeIdCounter++}`;
+
+		// Determine default data for the node
+		const getDefaultData = () => {
+			switch (type) {
+				case 'literal':
+					return { value: 0 };
+				case 'functionDef':
+					return { functionName: 'myFunc', paramCount: 1, params: ['arg0'] };
+				case 'functionOut':
+					return {};
+				case 'customFunction':
+					return { functionName: 'myFunc', paramCount: 1 };
+				default:
+					return {};
+			}
+		};
 
 		// If from handle click, position relative to source node
 		if (menuState.sourceNodeId) {
@@ -202,19 +224,23 @@ function EditorContent() {
 				id: newNodeId,
 				type,
 				position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
-				data: type === 'literal' ? { value: 0 } : {}
+				data: getDefaultData()
 			};
 
 			setNodes((nds) => [...nds, newNode]);
 
 			// Create edge
-			const targetHandle = type === 'if' ? 'condition' : 'value';
+			const getTargetHandle = () => {
+				if (type === 'if') return 'condition';
+				if (type === 'customFunction') return 'arg0';
+				return 'value';
+			};
 			const newEdge: Edge = {
 				id: `e-${Date.now()}`,
 				source: menuState.sourceNodeId,
 				sourceHandle: menuState.sourceHandleId!,
 				target: newNodeId,
-				targetHandle
+				targetHandle: getTargetHandle()
 			};
 			setEdges((eds) => [...eds, newEdge]);
 		} else {
@@ -225,7 +251,7 @@ function EditorContent() {
 				id: newNodeId,
 				type,
 				position: flowPos,
-				data: type === 'literal' ? { value: 0 } : {}
+				data: getDefaultData()
 			};
 
 			setNodes((nds) => [...nds, newNode]);
@@ -238,15 +264,21 @@ function EditorContent() {
 	const handleEvaluate = () => {
 		try {
 			setError(null);
-			
+
 			// Convert Flow to IR
-			const ast = flowToIR(nodes, edges);
+			const { ast, functions } = flowToIR(nodes, edges);
 			setCurrentAST(ast);
-			
+
 			// Evaluate IR
 			const evaluator = new Evaluator();
+
+			// Register user-defined functions
+			functions.forEach(fn => {
+				evaluator.registerFunction(fn);
+			});
+
 			const result = evaluator.evaluate(ast, new Map());
-			
+
 			setEvaluationResult(result);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));

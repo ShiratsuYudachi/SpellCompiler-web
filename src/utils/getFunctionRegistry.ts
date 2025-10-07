@@ -34,6 +34,8 @@ export function getFunctionRegistry(): FunctionInfo[] {
 	// This will be improved when we add a proper API to Evaluator
 	
 	const stdFunctions = [
+		// Special
+		{ name: 'this', params: [] }, // Recursive call
 		// Arithmetic
 		{ name: 'add', params: ['a', 'b'] },
 		{ name: 'subtract', params: ['a', 'b'] },
