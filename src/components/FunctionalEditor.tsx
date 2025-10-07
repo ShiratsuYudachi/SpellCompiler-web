@@ -132,13 +132,16 @@ function EditorContent() {
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
 		if (!menuState) return;
 
+		const sourceNode = getNode(menuState.sourceNodeId);
+		if (!sourceNode) return;
+
 		const newNodeId = `node-${nodeIdCounter++}`;
-		const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
-		
+
+		// Position new node to the right of source node with same vertical position
 		const newNode: Node = {
 			id: newNodeId,
 			type: 'dynamicFunction',
-			position: { x: flowPos.x + 50, y: flowPos.y },
+			position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
 			data: {
 				functionName: funcInfo.name,
 				displayName: funcInfo.displayName,
@@ -147,9 +150,9 @@ function EditorContent() {
 				isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
 			}
 		};
-		
+
 		setNodes((nds) => [...nds, newNode]);
-		
+
 		// Create edge from source handle to new node's first input
 		const newEdge: Edge = {
 			id: `e-${Date.now()}`,
@@ -159,7 +162,7 @@ function EditorContent() {
 			targetHandle: 'arg0'
 		};
 		setEdges((eds) => [...eds, newEdge]);
-		
+
 		setMenuState(null);
 	};
 
@@ -167,18 +170,21 @@ function EditorContent() {
 	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output') => {
 		if (!menuState) return;
 
+		const sourceNode = getNode(menuState.sourceNodeId);
+		if (!sourceNode) return;
+
 		const newNodeId = `node-${nodeIdCounter++}`;
-		const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
-		
+
+		// Position new node to the right of source node with same vertical position
 		const newNode: Node = {
 			id: newNodeId,
 			type,
-			position: { x: flowPos.x + 50, y: flowPos.y },
+			position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
 			data: type === 'literal' ? { value: 0 } : {}
 		};
-		
+
 		setNodes((nds) => [...nds, newNode]);
-		
+
 		// Create edge
 		const targetHandle = type === 'if' ? 'condition' : 'value';
 		const newEdge: Edge = {
@@ -189,7 +195,7 @@ function EditorContent() {
 			targetHandle
 		};
 		setEdges((eds) => [...eds, newEdge]);
-		
+
 		setMenuState(null);
 	};
 	
