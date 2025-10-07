@@ -3,9 +3,8 @@
 // 节点选择菜单 - 从 Handle 点击时弹出
 // =============================================
 
-import { Text, Stack, UnstyledButton } from '@mantine/core';
+import { Menu, Text, Divider } from '@mantine/core';
 import { getFunctionsByNamespace, type FunctionInfo } from '../../utils/getFunctionRegistry';
-import { ListMenu } from './ListMenu';
 
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
@@ -15,9 +14,9 @@ interface NodeSelectionMenuProps {
 }
 
 const BASIC_NODES = [
-	{ type: 'literal' as const, label: '🔢 Literal', description: 'Constant value' },
-	{ type: 'if' as const, label: '🔀 If', description: 'Conditional expression' },
-	{ type: 'output' as const, label: '📤 Output', description: 'Mark final result' },
+	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value' },
+	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
+	{ type: 'output' as const, label: 'Output', icon: '📤', description: 'Mark final result' },
 ];
 
 const FUNCTION_GROUPS = [
@@ -28,15 +27,15 @@ const FUNCTION_GROUPS = [
 	{ key: 'list', label: 'List', functions: ['list', 'cons', 'empty', 'head', 'tail', 'length', 'nth', 'append', 'concat', 'range', 'map', 'filter', 'reduce'] },
 ];
 
-export function NodeSelectionMenu({ 
-	position, 
-	onSelectFunction, 
+export function NodeSelectionMenu({
+	position,
+	onSelectFunction,
 	onSelectBasicNode,
-	onClose 
+	onClose
 }: NodeSelectionMenuProps) {
 	const functionsByNamespace = getFunctionsByNamespace();
 	const stdFunctions = functionsByNamespace['std'] || [];
-	
+
 	// Group std functions by category
 	const groupedFunctions = FUNCTION_GROUPS.map(group => ({
 		...group,
@@ -44,53 +43,74 @@ export function NodeSelectionMenu({
 	}));
 
 	return (
-		<ListMenu position={position} onClose={onClose}>
-			<Stack gap="xs">
-				{/* Basic Nodes Section */}
-				<div>
-					<Text size="xs" fw={600} c="dimmed" mb="xs" px="xs">
-						Basic Nodes
-					</Text>
-					{BASIC_NODES.map(node => (
-						<UnstyledButton
-							key={node.type}
-							onClick={() => onSelectBasicNode(node.type)}
-							className="w-full px-2 py-1.5 rounded hover:bg-gray-100 transition-colors"
-						>
-							<div className="flex items-center gap-2">
-								<Text size="sm">{node.label}</Text>
-								<Text size="xs" c="dimmed" className="ml-auto">
-									{node.description}
-								</Text>
-							</div>
-						</UnstyledButton>
-					))}
-				</div>
+		<Menu
+			opened={true}
+			onChange={onClose}
+			position="right-start"
+			withArrow
+			shadow="md"
+			radius="md"
+			width={300}
+		>
+			<Menu.Target>
+				<div
+					style={{
+						position: 'fixed',
+						left: `${position.x}px`,
+						top: `${position.y}px`,
+						width: 1,
+						height: 1
+					}}
+				/>
+			</Menu.Target>
 
-				{/* Function Groups */}
-				{groupedFunctions.map(group => (
+			<Menu.Dropdown
+				onClick={(e) => e.stopPropagation()}
+				onContextMenu={(e) => e.stopPropagation()}
+				style={{ maxHeight: '400px', overflowY: 'auto' }}
+			>
+				<Menu.Label>Basic Nodes</Menu.Label>
+				{BASIC_NODES.map(node => (
+					<Menu.Item
+						key={node.type}
+						leftSection={node.icon}
+						onClick={() => {
+							onSelectBasicNode(node.type);
+							onClose();
+						}}
+						rightSection={
+							<Text size="xs" c="dimmed">
+								{node.description}
+							</Text>
+						}
+					>
+						{node.label}
+					</Menu.Item>
+				))}
+
+				{groupedFunctions.map((group, idx) =>
 					group.items.length > 0 && (
 						<div key={group.key}>
-							<Text size="xs" fw={600} c="dimmed" mb="xs" px="xs">
-								{group.label}
-							</Text>
-							<div className="grid grid-cols-2 gap-1">
+							<Divider my="xs" />
+							<Menu.Label>{group.label}</Menu.Label>
+							<div className="grid grid-cols-2 gap-1 px-2 pb-2">
 								{group.items.map(func => (
-									<UnstyledButton
+									<button
 										key={func.name}
-										onClick={() => onSelectFunction(func)}
-										className="px-2 py-1 rounded hover:bg-blue-50 transition-colors text-left"
+										onClick={() => {
+											onSelectFunction(func);
+											onClose();
+										}}
+										className="px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
 									>
-										<Text size="xs" className="truncate">
-											{func.displayName}
-										</Text>
-									</UnstyledButton>
+										{func.displayName}
+									</button>
 								))}
 							</div>
 						</div>
 					)
-				))}
-			</Stack>
-		</ListMenu>
+				)}
+			</Menu.Dropdown>
+		</Menu>
 	);
 }
