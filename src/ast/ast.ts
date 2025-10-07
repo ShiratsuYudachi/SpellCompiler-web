@@ -20,12 +20,13 @@ export type ASTNode =
 
 // =============================================
 // 1. Literal (字面量)
+// 可以是任意值：number, string, boolean, object, array, 等
+// React Flow 层保证类型正确，IR 不需要类型信息
 // =============================================
 
 export interface Literal extends BaseASTNode {
 	type: 'Literal';
-	value: number | string | boolean;
-	valueType: 'number' | 'string' | 'boolean';
+	value: any;  // 任意类型，由 React Flow 层保证类型正确
 }
 
 // =============================================

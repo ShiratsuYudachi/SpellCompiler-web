@@ -17,11 +17,10 @@ import type {
 // Helper Functions for Creating AST Nodes
 // =============================================
 
-function literal(value: number | string | boolean): Literal {
+function literal(value: any): Literal {
 	return {
 		type: 'Literal',
-		value,
-		valueType: typeof value as 'number' | 'string' | 'boolean'
+		value
 	};
 }
 

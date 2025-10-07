@@ -274,11 +274,10 @@ export class Evaluator {
 
 		const callNode: FunctionCall = {
 			type: 'FunctionCall',
-			function: name,  // Use function field instead of functionName
+			function: name,
 			args: args.map(arg => ({
 				type: 'Literal',
-				value: arg as any,
-				valueType: typeof arg as any
+				value: arg
 			}))
 		};
 
