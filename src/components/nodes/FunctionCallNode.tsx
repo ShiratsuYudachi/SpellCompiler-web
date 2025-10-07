@@ -22,7 +22,7 @@ const AVAILABLE_FUNCTIONS = [
 	'std::list', 'std::cons', 'std::empty', 'std::head', 'std::tail', 'std::length'
 ];
 
-export function FlowFunctionCallNode({ data }: NodeProps) {
+export function FunctionCallNode({ data }: NodeProps) {
 	const nodeData = data as FunctionCallNodeData;
 	const [functionName, setFunctionName] = useState(nodeData.functionName ?? 'std::add');
 

@@ -9,8 +9,7 @@ import type {
 	FlowNode,
 	LiteralNodeData,
 	IdentifierNodeData,
-	FunctionCallNodeData,
-	IfNodeData
+	FunctionCallNodeData
 } from '../types/flowTypes';
 
 /**
@@ -78,7 +77,8 @@ function convertNode(
 			} as Identifier;
 		}
 
-		case 'functionCall': {
+		case 'functionCall':
+		case 'dynamicFunction': {
 			const data = node.data as FunctionCallNodeData;
 			const edges = incomingEdges.get(node.id) || [];
 			

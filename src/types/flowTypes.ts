@@ -62,9 +62,21 @@ export type FlowNodeType =
 	| 'literal'
 	| 'identifier'
 	| 'functionCall'
+	| 'dynamicFunction'
 	| 'if'
 	| 'functionDef'
 	| 'output';
+
+/**
+ * Dynamic Function Node Data
+ */
+export interface DynamicFunctionNodeData extends BaseNodeData {
+	functionName: string;
+	displayName: string;
+	namespace: string;
+	params: string[];
+	isVariadic?: boolean;
+}
 
 /**
  * Typed node
@@ -73,6 +85,7 @@ export type FlowNode =
 	| Node<LiteralNodeData, 'literal'>
 	| Node<IdentifierNodeData, 'identifier'>
 	| Node<FunctionCallNodeData, 'functionCall'>
+	| Node<DynamicFunctionNodeData, 'dynamicFunction'>
 	| Node<IfNodeData, 'if'>
 	| Node<FunctionDefNodeData, 'functionDef'>
 	| Node<OutputNodeData, 'output'>;

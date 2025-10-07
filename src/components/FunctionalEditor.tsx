@@ -18,22 +18,23 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Button, Paper, Stack, Text, Alert } from '@mantine/core';
 
-import { FlowLiteralNode } from './nodes/FlowLiteralNode';
-import { FlowFunctionCallNode } from './nodes/FlowFunctionCallNode';
-import { FlowIfNode } from './nodes/FlowIfNode';
-import { FlowOutputNode } from './nodes/FlowOutputNode';
+import { LiteralNode } from './nodes/LiteralNode';
+import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
+import { IfNode } from './nodes/IfNode';
+import { OutputNode } from './nodes/OutputNode';
 
 import { flowToIR } from '../utils/flowToIR';
 import { Evaluator } from '../ast/evaluator';
 import { ASTVisualizer } from './ASTVisualizer';
 import type { ASTNode } from '../ast/ast';
+import { getFunctionsByNamespace, type FunctionInfo } from '../utils/getFunctionRegistry';
 
 // Define node types
 const nodeTypes = {
-	literal: FlowLiteralNode,
-	functionCall: FlowFunctionCallNode,
-	if: FlowIfNode,
-	output: FlowOutputNode,
+	literal: LiteralNode,
+	dynamicFunction: DynamicFunctionNode,
+	if: IfNode,
+	output: OutputNode,
 };
 
 // Initial example nodes
@@ -46,9 +47,14 @@ const initialNodes: Node[] = [
 	},
 	{
 		id: 'func-1',
-		type: 'functionCall',
+		type: 'dynamicFunction',
 		position: { x: 350, y: 180 },
-		data: { functionName: 'std::add' }
+		data: { 
+			functionName: 'std::add',
+			displayName: 'add',
+			namespace: 'std',
+			params: ['a', 'b']
+		}
 	},
 	{
 		id: 'lit-1',
@@ -79,18 +85,40 @@ export function FunctionalEditor() {
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [showFunctionMenu, setShowFunctionMenu] = useState(false);
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
 		[setEdges]
 	);
+	
+	// Get all available functions
+	const functionsByNamespace = getFunctionsByNamespace();
 
-	// Add new node
-	const addNode = (type: string) => {
+	// Add function node by function info
+	const addFunctionNode = (funcInfo: FunctionInfo) => {
+		const newNode: Node = {
+			id: `node-${nodeIdCounter++}`,
+			type: 'dynamicFunction',
+			position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
+			data: {
+				functionName: funcInfo.name,
+				displayName: funcInfo.displayName,
+				namespace: funcInfo.namespace,
+				params: funcInfo.params,
+				isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+			}
+		};
+		setNodes((nds) => [...nds, newNode]);
+		setShowFunctionMenu(false);
+	};
+	
+	// Add basic node
+	const addBasicNode = (type: string) => {
 		const newNode: Node = {
 			id: `node-${nodeIdCounter++}`,
 			type,
-			position: { x: Math.random() * 300 + 50, y: Math.random() * 300 + 50 },
+			position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
 			data: getDefaultNodeData(type)
 		};
 		setNodes((nds) => [...nds, newNode]);
@@ -100,8 +128,6 @@ export function FunctionalEditor() {
 		switch (type) {
 			case 'literal':
 				return { value: 0 };
-			case 'functionCall':
-				return { functionName: 'std::add' };
 			case 'if':
 				return {};
 			case 'output':
@@ -141,26 +167,52 @@ export function FunctionalEditor() {
 						⚡ Functional Workflow Editor
 					</Text>
 					
-					{/* Add node buttons */}
-					<div className="flex gap-2 flex-wrap">
-						<Button size="xs" color="green" onClick={() => addNode('literal')}>
-							+ Literal
+				{/* Add node buttons */}
+				<div className="flex gap-2 flex-wrap">
+					<Button size="xs" color="green" onClick={() => addBasicNode('literal')}>
+						+ Literal
+					</Button>
+					<Button size="xs" color="blue" onClick={() => setShowFunctionMenu(!showFunctionMenu)}>
+						+ Function {showFunctionMenu ? '▼' : '▶'}
+					</Button>
+					<Button size="xs" color="red" onClick={() => addBasicNode('if')}>
+						+ If
+					</Button>
+					<Button size="xs" color="purple" onClick={() => addBasicNode('output')}>
+						+ Output
+					</Button>
+					<div className="ml-auto">
+						<Button size="xs" color="indigo" onClick={handleEvaluate}>
+							▶️ Evaluate
 						</Button>
-						<Button size="xs" color="yellow" onClick={() => addNode('functionCall')}>
-							+ Function
-						</Button>
-						<Button size="xs" color="red" onClick={() => addNode('if')}>
-							+ If
-						</Button>
-						<Button size="xs" color="purple" onClick={() => addNode('output')}>
-							+ Output
-						</Button>
-						<div className="ml-auto">
-							<Button size="xs" color="blue" onClick={handleEvaluate}>
-								▶️ Evaluate
-							</Button>
-						</div>
 					</div>
+				</div>
+				
+				{/* Function selection menu */}
+				{showFunctionMenu && (
+					<Paper shadow="sm" p="sm" className="max-h-64 overflow-y-auto">
+						{Object.entries(functionsByNamespace).map(([namespace, functions]) => (
+							<div key={namespace} className="mb-3">
+								<Text size="sm" fw={600} c="dimmed" mb="xs">
+									{namespace}::
+								</Text>
+								<div className="grid grid-cols-3 gap-1">
+									{functions.map((func) => (
+										<Button
+											key={func.name}
+											size="xs"
+											variant="light"
+											onClick={() => addFunctionNode(func)}
+											className="text-xs"
+										>
+											{func.displayName}
+										</Button>
+									))}
+								</div>
+							</div>
+						))}
+					</Paper>
+				)}
 
 					{/* Result display */}
 					{error && (
