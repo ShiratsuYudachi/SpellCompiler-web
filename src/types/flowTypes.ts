@@ -27,13 +27,6 @@ export interface IdentifierNodeData extends BaseNodeData {
 }
 
 /**
- * Function Call Node - 函数调用节点
- */
-export interface FunctionCallNodeData extends BaseNodeData {
-	functionName: string;  // add, multiply, gt, etc.
-}
-
-/**
  * If Expression Node - 条件表达式节点
  */
 export interface IfNodeData extends BaseNodeData {
@@ -58,10 +51,9 @@ export interface OutputNodeData extends BaseNodeData {
 /**
  * All node types
  */
-export type FlowNodeType = 
+export type FlowNodeType =
 	| 'literal'
 	| 'identifier'
-	| 'functionCall'
 	| 'dynamicFunction'
 	| 'if'
 	| 'functionDef'
@@ -81,10 +73,9 @@ export interface DynamicFunctionNodeData extends BaseNodeData {
 /**
  * Typed node
  */
-export type FlowNode = 
+export type FlowNode =
 	| Node<LiteralNodeData, 'literal'>
 	| Node<IdentifierNodeData, 'identifier'>
-	| Node<FunctionCallNodeData, 'functionCall'>
 	| Node<DynamicFunctionNodeData, 'dynamicFunction'>
 	| Node<IfNodeData, 'if'>
 	| Node<FunctionDefNodeData, 'functionDef'>

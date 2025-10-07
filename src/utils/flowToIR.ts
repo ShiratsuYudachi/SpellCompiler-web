@@ -5,11 +5,11 @@
 
 import type { Node, Edge } from 'reactflow';
 import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression } from '../ast/ast';
-import type { 
+import type {
 	FlowNode,
 	LiteralNodeData,
 	IdentifierNodeData,
-	FunctionCallNodeData
+	DynamicFunctionNodeData
 } from '../types/flowTypes';
 
 /**
@@ -77,9 +77,8 @@ function convertNode(
 			} as Identifier;
 		}
 
-		case 'functionCall':
 		case 'dynamicFunction': {
-			const data = node.data as FunctionCallNodeData;
+			const data = node.data as DynamicFunctionNodeData;
 			const edges = incomingEdges.get(node.id) || [];
 			
 			// Sort edges by target handle (arg0, arg1, arg2, ...)
