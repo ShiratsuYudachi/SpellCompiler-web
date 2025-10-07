@@ -10,8 +10,7 @@ import type {
 	Literal,
 	Identifier,
 	FunctionCall,
-	IfExpression,
-	ListExpression
+	IfExpression
 } from './ast';
 
 // =============================================
@@ -48,13 +47,6 @@ function ifExpr(condition: ASTNode, thenBranch: ASTNode, elseBranch: ASTNode): I
 		condition,
 		thenBranch,
 		elseBranch
-	};
-}
-
-function list(...elements: ASTNode[]): ListExpression {
-	return {
-		type: 'ListExpression',
-		elements
 	};
 }
 
@@ -193,37 +185,43 @@ function main() {
 	console.log();
 
 	// ============================================
-	// Test 7: List Operations
+	// Test 7: List Construction
 	// ============================================
-	console.log('📝 Test 7: List Operations');
+	console.log('📝 Test 7: List Construction');
 	console.log('-'.repeat(40));
 
-	const listExpr = list(literal(1), literal(2), literal(3), literal(4), literal(5));
-	console.log('Expression: [1, 2, 3, 4, 5]');
+	// Using list function
+	const listExpr = call('list', literal(1), literal(2), literal(3), literal(4), literal(5));
+	console.log('Using list function: list(1, 2, 3, 4, 5)');
 	console.log('Result:', evaluator.run(listExpr));
+
+	// Using cons (Lisp style)
+	const consExpr = call('cons', literal(1),
+		call('cons', literal(2),
+			call('cons', literal(3),
+				call('empty')
+			)
+		)
+	);
+	console.log('Using cons: cons(1, cons(2, cons(3, empty())))');
+	console.log('Result:', evaluator.run(consExpr));
+
+	// Using range
+	const rangeExpr = call('range', literal(1), literal(5));
+	console.log('Using range: range(1, 5)');
+	console.log('Result:', evaluator.run(rangeExpr));
 	console.log();
 
 	// ============================================
-	// Test 8: Native Functions (Higher-Order)
+	// Test 8: Higher-Order Functions (Map)
 	// ============================================
-	console.log('📝 Test 8: Native Functions (Map)');
+	console.log('📝 Test 8: Higher-Order Functions (Map)');
 	console.log('-'.repeat(40));
 
-	// Register native map function
-	evaluator.registerNativeFunction('map', ['fnName', 'list'], (fnName, list) => {
-		if (typeof fnName !== 'string') {
-			throw new Error('First argument to map must be function name (string)');
-		}
-		if (!Array.isArray(list)) {
-			throw new Error('Second argument to map must be list');
-		}
-		return list.map(item => evaluator.callFunction(fnName as string, item));
-	});
-
-	// Call: map("double", [1, 2, 3, 4])
-	const expr8 = call('map', literal('double'), list(literal(1), literal(2), literal(3), literal(4)));
-	console.log('Function: map(fnName, list) - native');
-	console.log('Call: map("double", [1, 2, 3, 4])');
+	// Call: map("double", list(1, 2, 3, 4))
+	const expr8 = call('map', literal('double'), call('list', literal(1), literal(2), literal(3), literal(4)));
+	console.log('Function: map(fnName, list) - from core library');
+	console.log('Call: map("double", list(1, 2, 3, 4))');
 	console.log('Result:', evaluator.run(expr8));
 	console.log();
 

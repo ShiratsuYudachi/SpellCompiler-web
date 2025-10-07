@@ -11,8 +11,7 @@ import type {
 	Literal,
 	Identifier,
 	FunctionCall,
-	IfExpression,
-	ListExpression
+	IfExpression
 } from './ast';
 import { registerCoreLibrary } from './library';
 
@@ -128,9 +127,6 @@ export class Evaluator {
 			case 'IfExpression':
 				return this.evalIfExpression(node, env);
 
-			case 'ListExpression':
-				return this.evalListExpression(node, env);
-
 			default:
 				throw new Error(`Unknown node type: ${(node as any).type}`);
 		}
@@ -194,17 +190,24 @@ export class Evaluator {
 		// 2. Evaluate arguments
 		const argValues = node.args.map(arg => this.evaluate(arg, env));
 
-		// 3. Check argument count
+		// 3. Check if native function
+		const nativeFn = (fnDef as any).__native;
+		if (nativeFn) {
+			// Native functions can accept variable arguments
+			// If params is empty, it's a variadic function (accepts any number of args)
+			if (fnDef.params.length > 0 && argValues.length !== fnDef.params.length) {
+				throw new Error(
+					`Function ${fnName} expects ${fnDef.params.length} arguments, got ${argValues.length}`
+				);
+			}
+			return nativeFn(...argValues);
+		}
+
+		// 4. Check argument count for user-defined functions
 		if (argValues.length !== fnDef.params.length) {
 			throw new Error(
 				`Function ${fnName} expects ${fnDef.params.length} arguments, got ${argValues.length}`
 			);
-		}
-
-		// 4. Check if native function
-		const nativeFn = (fnDef as any).__native;
-		if (nativeFn) {
-			return nativeFn(...argValues);
 		}
 
 		// 5. Check cache (for user-defined functions)
@@ -239,10 +242,6 @@ export class Evaluator {
 		return condition
 			? this.evaluate(node.thenBranch, env)
 			: this.evaluate(node.elseBranch, env);
-	}
-
-	private evalListExpression(node: ListExpression, env: Environment): Value {
-		return node.elements.map(elem => this.evaluate(elem, env));
 	}
 
 	// ============================================

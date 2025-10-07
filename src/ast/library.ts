@@ -178,6 +178,46 @@ function registerLogicalFunctions(evaluator: Evaluator): void {
 // =============================================
 
 function registerListFunctions(evaluator: Evaluator): void {
+	// list(...elements) - 构造列表
+	evaluator.registerNativeFunction('list', [], (...args: Value[]) => {
+		return args;
+	});
+
+	// cons(head, tail) - 在列表前面添加元素 (Lisp风格)
+	evaluator.registerNativeFunction('cons', ['head', 'tail'], (head, tail) => {
+		if (!Array.isArray(tail)) {
+			throw new Error(`cons requires second argument to be a list, got ${typeof tail}`);
+		}
+		return [head, ...(tail as Value[])];
+	});
+
+	// empty() - 空列表
+	evaluator.registerNativeFunction('empty', [], () => {
+		return [];
+	});
+
+	// append(list, element) - 在列表后面添加元素
+	evaluator.registerNativeFunction('append', ['list', 'element'], (list, element) => {
+		if (!Array.isArray(list)) {
+			throw new Error('First argument to append must be a list');
+		}
+		return [...(list as Value[]), element];
+	});
+
+	// range(start, end) - 生成数字列表
+	evaluator.registerNativeFunction('range', ['start', 'end'], (start, end) => {
+		if (typeof start !== 'number' || typeof end !== 'number') {
+			throw new Error('range requires numbers');
+		}
+		const result: Value[] = [];
+		const s = start as number;
+		const e = end as number;
+		for (let i = s; i <= e; i++) {
+			result.push(i);
+		}
+		return result;
+	});
+
 	// map(fnName, list) - 映射
 	evaluator.registerNativeFunction('map', ['fnName', 'list'], (fnName, list) => {
 		if (typeof fnName !== 'string') {
@@ -422,7 +462,9 @@ export const CORE_LIBRARY_FUNCTIONS = [
 	'gt', 'lt', 'gte', 'lte', 'eq', 'neq',
 	// Logical
 	'and', 'or', 'not',
-	// List
+	// List Construction
+	'list', 'cons', 'empty', 'append', 'range',
+	// List Operations
 	'map', 'filter', 'reduce', 'length', 'nth', 'concat', 'head', 'tail',
 	// Math
 	'power', 'sqrt', 'floor', 'ceil', 'round', 'min', 'max', 'sin', 'cos', 'tan',

@@ -16,8 +16,7 @@ export type ASTNode =
 	| Literal 
 	| Identifier
 	| FunctionCall 
-	| IfExpression
-	| ListExpression;
+	| IfExpression;
 
 // =============================================
 // 1. Literal (字面量)
@@ -63,15 +62,6 @@ export interface IfExpression extends BaseASTNode {
 	condition: ASTNode;
 	thenBranch: ASTNode;
 	elseBranch: ASTNode;
-}
-
-// =============================================
-// 5. List Expression (列表)
-// =============================================
-
-export interface ListExpression extends BaseASTNode {
-	type: 'ListExpression';
-	elements: ASTNode[];
 }
 
 // =============================================
