@@ -3,7 +3,7 @@
 // 函数式工作流编辑器
 // =============================================
 
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState } from 'react';
 import ReactFlow, {
 	Background,
 	Controls,
@@ -14,7 +14,6 @@ import ReactFlow, {
 	type Connection,
 	type Edge,
 	type Node,
-	ConnectionLineType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Button, Paper, Stack, Text, Alert } from '@mantine/core';
@@ -192,13 +191,12 @@ export function FunctionalEditor() {
 						onConnect={onConnect}
 						nodeTypes={nodeTypes}
 						fitView
-						// Touchpad support
-						panOnScroll={true}
-						panOnScrollMode="free"
-						zoomOnScroll={true}
-						zoomOnPinch={true}
-						panOnDrag={[1, 2]}
-						selectionOnDrag={false}
+					// Touchpad support
+					panOnScroll={true}
+					zoomOnScroll={true}
+					zoomOnPinch={true}
+					panOnDrag={[1, 2]}
+					selectionOnDrag={false}
 						// Better UX
 						minZoom={0.1}
 						maxZoom={4}
