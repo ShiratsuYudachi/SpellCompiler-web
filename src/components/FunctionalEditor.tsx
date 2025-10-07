@@ -3,7 +3,7 @@
 // 函数式工作流编辑器
 // =============================================
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import ReactFlow, {
 	Background,
 	Controls,
@@ -11,6 +11,8 @@ import ReactFlow, {
 	addEdge,
 	useNodesState,
 	useEdgesState,
+	useReactFlow,
+	ReactFlowProvider,
 	type Connection,
 	type Edge,
 	type Node,
@@ -28,6 +30,8 @@ import { Evaluator } from '../ast/evaluator';
 import { ASTVisualizer } from './ASTVisualizer';
 import type { ASTNode } from '../ast/ast';
 import { getFunctionsByNamespace, type FunctionInfo } from '../utils/getFunctionRegistry';
+import { EditorProvider } from '../contexts/EditorContext';
+import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 
 // Define node types
 const nodeTypes = {
@@ -78,7 +82,7 @@ const initialEdges: Edge[] = [
 
 let nodeIdCounter = 100;
 
-export function FunctionalEditor() {
+function EditorContent() {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 	
@@ -86,6 +90,14 @@ export function FunctionalEditor() {
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [showFunctionMenu, setShowFunctionMenu] = useState(false);
+	const [menuState, setMenuState] = useState<{
+		show: boolean;
+		position: { x: number; y: number };
+		sourceNodeId: string;
+		sourceHandleId: string;
+	} | null>(null);
+
+	const { screenToFlowPosition, getNode } = useReactFlow();
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -95,7 +107,93 @@ export function FunctionalEditor() {
 	// Get all available functions
 	const functionsByNamespace = getFunctionsByNamespace();
 
-	// Add function node by function info
+	// Handle click on source handle to show menu
+	const handleHandleAddNode = useCallback((nodeId: string, handleId: string) => {
+		const node = getNode(nodeId);
+		if (!node) return;
+
+		// Calculate menu position near the handle
+		const menuX = window.innerWidth / 2;
+		const menuY = window.innerHeight / 2;
+
+		setMenuState({
+			show: true,
+			position: { x: menuX, y: menuY },
+			sourceNodeId: nodeId,
+			sourceHandleId: handleId
+		});
+	}, [getNode]);
+
+	const editorContextValue = useMemo(() => ({
+		onHandleAddNode: handleHandleAddNode
+	}), [handleHandleAddNode]);
+
+	// Add function node from menu and connect
+	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
+		if (!menuState) return;
+
+		const newNodeId = `node-${nodeIdCounter++}`;
+		const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+		
+		const newNode: Node = {
+			id: newNodeId,
+			type: 'dynamicFunction',
+			position: { x: flowPos.x + 50, y: flowPos.y },
+			data: {
+				functionName: funcInfo.name,
+				displayName: funcInfo.displayName,
+				namespace: funcInfo.namespace,
+				params: funcInfo.params,
+				isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+			}
+		};
+		
+		setNodes((nds) => [...nds, newNode]);
+		
+		// Create edge from source handle to new node's first input
+		const newEdge: Edge = {
+			id: `e-${Date.now()}`,
+			source: menuState.sourceNodeId,
+			sourceHandle: menuState.sourceHandleId,
+			target: newNodeId,
+			targetHandle: 'arg0'
+		};
+		setEdges((eds) => [...eds, newEdge]);
+		
+		setMenuState(null);
+	};
+
+	// Add basic node from menu and connect
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output') => {
+		if (!menuState) return;
+
+		const newNodeId = `node-${nodeIdCounter++}`;
+		const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+		
+		const newNode: Node = {
+			id: newNodeId,
+			type,
+			position: { x: flowPos.x + 50, y: flowPos.y },
+			data: type === 'literal' ? { value: 0 } : {}
+		};
+		
+		setNodes((nds) => [...nds, newNode]);
+		
+		// Create edge
+		const targetHandle = type === 'if' ? 'condition' : 'value';
+		const newEdge: Edge = {
+			id: `e-${Date.now()}`,
+			source: menuState.sourceNodeId,
+			sourceHandle: menuState.sourceHandleId,
+			target: newNodeId,
+			targetHandle
+		};
+		setEdges((eds) => [...eds, newEdge]);
+		
+		setMenuState(null);
+	};
+	
+	// Add function node by function info (from header button)
 	const addFunctionNode = (funcInfo: FunctionInfo) => {
 		const newNode: Node = {
 			id: `node-${nodeIdCounter++}`,
@@ -159,7 +257,8 @@ export function FunctionalEditor() {
 	};
 
 	return (
-		<div className="h-screen flex flex-col">
+		<EditorProvider value={editorContextValue}>
+			<div className="h-screen flex flex-col">
 			{/* Header */}
 			<Paper shadow="sm" p="md" className="border-b">
 				<Stack gap="sm">
@@ -259,16 +358,35 @@ export function FunctionalEditor() {
 					</ReactFlow>
 				</div>
 
-				{/* AST Visualizer sidebar */}
-				{currentAST && (
-					<div className="w-96 border-l bg-white overflow-auto p-4">
-						<Text size="lg" fw={700} mb="md">
-							📊 AST Structure
-						</Text>
-						<ASTVisualizer ast={currentAST} />
-					</div>
-				)}
-			</div>
+			{/* AST Visualizer sidebar */}
+			{currentAST && (
+				<div className="w-96 border-l bg-white overflow-auto p-4">
+					<Text size="lg" fw={700} mb="md">
+						📊 AST Structure
+					</Text>
+					<ASTVisualizer ast={currentAST} />
+				</div>
+			)}
 		</div>
+		
+		{/* Node Selection Menu */}
+		{menuState && menuState.show && (
+			<NodeSelectionMenu
+				position={menuState.position}
+				onSelectFunction={addFunctionNodeFromMenu}
+				onSelectBasicNode={addBasicNodeFromMenu}
+				onClose={() => setMenuState(null)}
+			/>
+		)}
+	</div>
+		</EditorProvider>
+	);
+}
+
+export function FunctionalEditor() {
+	return (
+		<ReactFlowProvider>
+			<EditorContent />
+		</ReactFlowProvider>
 	);
 }

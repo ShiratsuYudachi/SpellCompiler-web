@@ -6,6 +6,7 @@
 import { Handle, Position } from 'reactflow';
 import { memo } from 'react';
 import type { NodeProps } from 'reactflow';
+import { SmartHandle } from '../handles/SmartHandle';
 
 export interface DynamicFunctionNodeData {
 	functionName: string;      // 完整函数名 (e.g., 'std::add')
@@ -15,7 +16,7 @@ export interface DynamicFunctionNodeData {
 	isVariadic?: boolean;      // 是否是可变参数函数
 }
 
-export const DynamicFunctionNode = memo(({ data }: NodeProps) => {
+export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	const nodeData = data as DynamicFunctionNodeData;
 	
 	const {
@@ -100,13 +101,14 @@ export const DynamicFunctionNode = memo(({ data }: NodeProps) => {
 			</div>
 		)}
 
-			{/* Output handle */}
-			<Handle
-				type="source"
-				position={Position.Right}
-				id="result"
-				className={`w-3 h-3 ${colors.handle}`}
-			/>
+		{/* Output handle */}
+		<SmartHandle
+			type="source"
+			position={Position.Right}
+			id="result"
+			className={`w-3 h-3 ${colors.handle}`}
+			nodeId={id}
+		/>
 		</div>
 	);
 });
