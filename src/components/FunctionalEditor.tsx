@@ -90,7 +90,6 @@ function EditorContent() {
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [showFunctionMenu, setShowFunctionMenu] = useState(false);
 	const [menuState, setMenuState] = useState<{
 		show: boolean;
 		position: { x: number; y: number };
@@ -108,9 +107,6 @@ function EditorContent() {
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
 		[setEdges]
 	);
-	
-	// Get all available functions
-	const functionsByNamespace = getFunctionsByNamespace();
 
 	// Handle click on source handle to show menu
 	const handleHandleAddNode = useCallback((nodeId: string, handleId: string, event: React.MouseEvent) => {
@@ -203,48 +199,6 @@ function EditorContent() {
 
 		setMenuState(null);
 	};
-	
-	// Add function node by function info (from header button)
-	const addFunctionNode = (funcInfo: FunctionInfo) => {
-		const newNode: Node = {
-			id: `node-${nodeIdCounter++}`,
-			type: 'dynamicFunction',
-			position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
-			data: {
-				functionName: funcInfo.name,
-				displayName: funcInfo.displayName,
-				namespace: funcInfo.namespace,
-				params: funcInfo.params,
-				isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
-			}
-		};
-		setNodes((nds) => [...nds, newNode]);
-		setShowFunctionMenu(false);
-	};
-	
-	// Add basic node
-	const addBasicNode = (type: string) => {
-		const newNode: Node = {
-			id: `node-${nodeIdCounter++}`,
-			type,
-			position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
-			data: getDefaultNodeData(type)
-		};
-		setNodes((nds) => [...nds, newNode]);
-	};
-
-	const getDefaultNodeData = (type: string) => {
-		switch (type) {
-			case 'literal':
-				return { value: 0 };
-			case 'if':
-				return {};
-			case 'output':
-				return {};
-			default:
-				return {};
-		}
-	};
 
 	// Evaluate the workflow
 	const handleEvaluate = () => {
@@ -273,56 +227,14 @@ function EditorContent() {
 			{/* Header */}
 			<Paper shadow="sm" p="md" className="border-b">
 				<Stack gap="sm">
-					<Text size="xl" fw={700}>
-						⚡ Functional Workflow Editor
-					</Text>
-					
-				{/* Add node buttons */}
-				<div className="flex gap-2 flex-wrap">
-					<Button size="xs" color="green" onClick={() => addBasicNode('literal')}>
-						+ Literal
-					</Button>
-					<Button size="xs" color="blue" onClick={() => setShowFunctionMenu(!showFunctionMenu)}>
-						+ Function {showFunctionMenu ? '▼' : '▶'}
-					</Button>
-					<Button size="xs" color="red" onClick={() => addBasicNode('if')}>
-						+ If
-					</Button>
-					<Button size="xs" color="purple" onClick={() => addBasicNode('output')}>
-						+ Output
-					</Button>
-					<div className="ml-auto">
-						<Button size="xs" color="indigo" onClick={handleEvaluate}>
+					<div className="flex items-center justify-between">
+						<Text size="xl" fw={700}>
+							⚡ Functional Workflow Editor
+						</Text>
+						<Button size="sm" color="indigo" onClick={handleEvaluate}>
 							▶️ Evaluate
 						</Button>
 					</div>
-				</div>
-				
-				{/* Function selection menu */}
-				{showFunctionMenu && (
-					<Paper shadow="sm" p="sm" className="max-h-64 overflow-y-auto">
-						{Object.entries(functionsByNamespace).map(([namespace, functions]) => (
-							<div key={namespace} className="mb-3">
-								<Text size="sm" fw={600} c="dimmed" mb="xs">
-									{namespace}::
-								</Text>
-								<div className="grid grid-cols-3 gap-1">
-									{functions.map((func) => (
-										<Button
-											key={func.name}
-											size="xs"
-											variant="light"
-											onClick={() => addFunctionNode(func)}
-											className="text-xs"
-										>
-											{func.displayName}
-										</Button>
-									))}
-								</div>
-							</div>
-						))}
-					</Paper>
-				)}
 
 					{/* Result display */}
 					{error && (
@@ -330,7 +242,7 @@ function EditorContent() {
 							{error}
 						</Alert>
 					)}
-					
+
 					{evaluationResult !== null && (
 						<Alert color="green" title="Result">
 							<Text size="lg" fw={700}>
@@ -408,10 +320,6 @@ function EditorContent() {
 		{contextMenu && contextMenu.show && (
 			<ContextMenu
 				position={contextMenu.position}
-				onAddNode={() => {
-					setShowFunctionMenu(!showFunctionMenu);
-					setContextMenu(null);
-				}}
 				onEvaluate={() => {
 					handleEvaluate();
 					setContextMenu(null);
