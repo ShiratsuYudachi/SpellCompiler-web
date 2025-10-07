@@ -8,19 +8,23 @@ import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import type { FunctionCallNodeData } from '../../types/flowTypes';
 
-// Basic functions available
+// Basic functions available (from std:: namespace)
 const AVAILABLE_FUNCTIONS = [
-	'add', 'subtract', 'multiply', 'divide',
-	'gt', 'lt', 'gte', 'lte', 'eq',
-	'and', 'or', 'not',
-	'abs', 'negate', 'mod',
-	'max', 'min',
-	'list', 'cons', 'empty', 'head', 'tail', 'length'
+	// Arithmetic
+	'std::add', 'std::subtract', 'std::multiply', 'std::divide',
+	// Comparison
+	'std::gt', 'std::lt', 'std::gte', 'std::lte', 'std::eq', 'std::neq',
+	// Logical
+	'std::and', 'std::or', 'std::not',
+	// Math
+	'std::abs', 'std::negate', 'std::mod', 'std::max', 'std::min',
+	// List
+	'std::list', 'std::cons', 'std::empty', 'std::head', 'std::tail', 'std::length'
 ];
 
 export function FlowFunctionCallNode({ data }: NodeProps) {
 	const nodeData = data as FunctionCallNodeData;
-	const [functionName, setFunctionName] = useState(nodeData.functionName ?? 'add');
+	const [functionName, setFunctionName] = useState(nodeData.functionName ?? 'std::add');
 
 	const handleFunctionChange = (newFn: string) => {
 		setFunctionName(newFn);

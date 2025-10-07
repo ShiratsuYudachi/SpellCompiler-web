@@ -68,11 +68,11 @@ function main() {
 	console.log('-'.repeat(40));
 	
 	// multiply(add(3, 5), 2) = (3 + 5) * 2
-	const expr1 = call('multiply',
-		call('add', literal(3), literal(5)),
+	const expr1 = call('std::multiply',
+		call('std::add', literal(3), literal(5)),
 		literal(2)
 	);
-	console.log('Expression: multiply(add(3, 5), 2) = (3 + 5) * 2');
+	console.log('Expression: std::multiply(std::add(3, 5), 2) = (3 + 5) * 2');
 	console.log('Result:', evaluator.run(expr1));
 	console.log();
 
@@ -86,7 +86,7 @@ function main() {
 	const doubleFn: FunctionDefinition = {
 		name: 'double',
 		params: ['x'],
-		body: call('multiply', identifier('x'), literal(2))
+		body: call('std::multiply', identifier('x'), literal(2))
 	};
 	evaluator.registerFunction(doubleFn);
 
@@ -107,7 +107,7 @@ function main() {
 	const squareFn: FunctionDefinition = {
 		name: 'square',
 		params: ['x'],
-		body: call('multiply', identifier('x'), identifier('x'))
+		body: call('std::multiply', identifier('x'), identifier('x'))
 	};
 	evaluator.registerFunction(squareFn);
 
@@ -129,9 +129,9 @@ function main() {
 		name: 'myAbs',
 		params: ['x'],
 		body: ifExpr(
-			call('gt', identifier('x'), literal(0)),
+			call('std::gt', identifier('x'), literal(0)),
 			identifier('x'),
-			call('negate', identifier('x'))
+			call('std::negate', identifier('x'))
 		)
 	};
 	evaluator.registerFunction(myAbsFn);
@@ -139,8 +139,8 @@ function main() {
 	console.log('Function: myAbs(x) = if gt(x, 0) then x else negate(x)');
 	console.log('Call: myAbs(5) =', evaluator.run(call('myAbs', literal(5))));
 	console.log('Call: myAbs(-5) =', evaluator.run(call('myAbs', literal(-5))));
-	console.log('Call: abs(5) =', evaluator.run(call('abs', literal(5))), '(from core library)');
-	console.log('Call: abs(-5) =', evaluator.run(call('abs', literal(-5))), '(from core library)');
+	console.log('Call: abs(5) =', evaluator.run(call('std::abs', literal(5))), '(from core library)');
+	console.log('Call: abs(-5) =', evaluator.run(call('std::abs', literal(-5))), '(from core library)');
 	console.log();
 
 	// ============================================
@@ -151,7 +151,7 @@ function main() {
 
 	// Using core library functions directly
 	// Call: add(3, multiply(4, 5))
-	const expr5 = call('add', literal(3), call('multiply', literal(4), literal(5)));
+	const expr5 = call('std::add', literal(3), call('std::multiply', literal(4), literal(5)));
 	console.log('Using core library: add, multiply');
 	console.log('Call: add(3, multiply(4, 5))');
 	console.log('Result:', evaluator.run(expr5));
@@ -168,11 +168,11 @@ function main() {
 		name: 'factorial',
 		params: ['n'],
 		body: ifExpr(
-			call('eq', identifier('n'), literal(0)),
+			call('std::eq', identifier('n'), literal(0)),
 			literal(1),
-			call('multiply',
+			call('std::multiply',
 				identifier('n'),
-				call('factorial', call('subtract', identifier('n'), literal(1)))
+				call('factorial', call('std::subtract', identifier('n'), literal(1)))
 			)
 		)
 	};
@@ -190,15 +190,15 @@ function main() {
 	console.log('-'.repeat(40));
 
 	// Using list function
-	const listExpr = call('list', literal(1), literal(2), literal(3), literal(4), literal(5));
+	const listExpr = call('std::list', literal(1), literal(2), literal(3), literal(4), literal(5));
 	console.log('Using list function: list(1, 2, 3, 4, 5)');
 	console.log('Result:', evaluator.run(listExpr));
 
 	// Using cons (Lisp style)
-	const consExpr = call('cons', literal(1),
-		call('cons', literal(2),
-			call('cons', literal(3),
-				call('empty')
+	const consExpr = call('std::cons', literal(1),
+		call('std::cons', literal(2),
+			call('std::cons', literal(3),
+				call('std::empty')
 			)
 		)
 	);
@@ -206,7 +206,7 @@ function main() {
 	console.log('Result:', evaluator.run(consExpr));
 
 	// Using range
-	const rangeExpr = call('range', literal(1), literal(5));
+	const rangeExpr = call('std::range', literal(1), literal(5));
 	console.log('Using range: range(1, 5)');
 	console.log('Result:', evaluator.run(rangeExpr));
 	console.log();
@@ -218,7 +218,7 @@ function main() {
 	console.log('-'.repeat(40));
 
 	// Call: map("double", list(1, 2, 3, 4))
-	const expr8 = call('map', literal('double'), call('list', literal(1), literal(2), literal(3), literal(4)));
+	const expr8 = call('std::map', literal('double'), call('std::list', literal(1), literal(2), literal(3), literal(4)));
 	console.log('Function: map(fnName, list) - from core library');
 	console.log('Call: map("double", list(1, 2, 3, 4))');
 	console.log('Result:', evaluator.run(expr8));
@@ -247,7 +247,7 @@ function main() {
 
 	// Using core library max function
 	// Expression: max(square(3), double(8))
-	const expr10 = call('max', call('square', literal(3)), call('double', literal(8)));
+	const expr10 = call('std::max', call('square', literal(3)), call('double', literal(8)));
 	console.log('Using core library: max');
 	console.log('Call: max(square(3), double(8))');
 	console.log('Result:', evaluator.run(expr10));
@@ -263,7 +263,7 @@ function main() {
 	const isPositiveFn: FunctionDefinition = {
 		name: 'isPositive',
 		params: ['x'],
-		body: call('gt', identifier('x'), literal(0))
+		body: call('std::gt', identifier('x'), literal(0))
 	};
 	evaluator.registerFunction(isPositiveFn);
 
@@ -271,7 +271,7 @@ function main() {
 	const isEvenFn: FunctionDefinition = {
 		name: 'isEven',
 		params: ['x'],
-		body: call('eq', call('mod', identifier('x'), literal(2)), literal(0))
+		body: call('std::eq', call('std::mod', identifier('x'), literal(2)), literal(0))
 	};
 	evaluator.registerFunction(isEvenFn);
 

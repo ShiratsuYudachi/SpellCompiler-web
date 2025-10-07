@@ -48,7 +48,7 @@ const initialNodes: Node[] = [
 		id: 'func-1',
 		type: 'functionCall',
 		position: { x: 350, y: 180 },
-		data: { functionName: 'add' }
+		data: { functionName: 'std::add' }
 	},
 	{
 		id: 'lit-1',
@@ -101,7 +101,7 @@ export function FunctionalEditor() {
 			case 'literal':
 				return { value: 0 };
 			case 'functionCall':
-				return { functionName: 'add' };
+				return { functionName: 'std::add' };
 			case 'if':
 				return {};
 			case 'output':

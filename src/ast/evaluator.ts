@@ -57,16 +57,18 @@ export class Evaluator {
 
 	/**
 	 * Register a native function (JavaScript implementation)
+	 * Automatically adds 'std::' prefix to prevent naming conflicts
 	 */
 	registerNativeFunction(
 		name: string,
 		params: string[],
 		fn: (...args: Value[]) => Value
 	): void {
-		this.functionTable.set(name, {
-			name,
+		const namespacedName = `std::${name}`;
+		this.functionTable.set(namespacedName, {
+			name: namespacedName,
 			params,
-			body: { type: 'Literal', value: 0, valueType: 'number' } as Literal, // dummy body
+			body: { type: 'Literal', value: 0 } as Literal, // dummy body
 			__native: fn as any
 		} as any);
 	}
