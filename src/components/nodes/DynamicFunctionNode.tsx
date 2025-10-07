@@ -80,26 +80,25 @@ export const DynamicFunctionNode = memo(({ data }: NodeProps) => {
 				{namespace}::
 			</div>
 			
-			{/* Input handles for parameters */}
-			{displayParams.length > 0 && (
-				<div className="space-y-2 mb-2">
-					{displayParams.map((paramName, index) => (
-						<div key={index} className="flex items-center relative">
-							<Handle
-								type="target"
-								position={Position.Left}
-								id={`arg${index}`}
-								style={{ top: `${65 + index * 28}px` }}
-								className={`w-3 h-3 ${colors.handle} -left-1.5`}
-							/>
-							<div className={`ml-3 text-xs ${colors.text} opacity-70`}>
-								{paramName}
-								{isVariadic && <span className="opacity-50">?</span>}
-							</div>
+		{/* Input handles for parameters */}
+		{displayParams.length > 0 && (
+			<div className="space-y-1 mb-2">
+				{displayParams.map((paramName, index) => (
+					<div key={index} className="flex items-center relative h-6">
+						<Handle
+							type="target"
+							position={Position.Left}
+							id={`arg${index}`}
+							className={`w-3 h-3 ${colors.handle} absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2`}
+						/>
+						<div className={`ml-3 text-xs ${colors.text} opacity-70`}>
+							{paramName}
+							{isVariadic && <span className="opacity-50">?</span>}
 						</div>
-					))}
-				</div>
-			)}
+					</div>
+				))}
+			</div>
+		)}
 
 			{/* Output handle */}
 			<Handle
