@@ -31,7 +31,7 @@ export function SmartHandle({
 		// Only handle click for source handles
 		if (type === 'source' && onHandleAddNode) {
 			e.stopPropagation();
-			onHandleAddNode(nodeId, id);
+			onHandleAddNode(nodeId, id, e);
 		}
 	};
 	

@@ -6,7 +6,7 @@
 import { createContext, useContext } from 'react';
 
 interface EditorContextType {
-	onHandleAddNode?: (nodeId: string, handleId: string) => void;
+	onHandleAddNode?: (nodeId: string, handleId: string, event: React.MouseEvent) => void;
 }
 
 const EditorContext = createContext<EditorContextType>({});

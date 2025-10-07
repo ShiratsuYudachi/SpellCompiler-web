@@ -108,13 +108,13 @@ function EditorContent() {
 	const functionsByNamespace = getFunctionsByNamespace();
 
 	// Handle click on source handle to show menu
-	const handleHandleAddNode = useCallback((nodeId: string, handleId: string) => {
+	const handleHandleAddNode = useCallback((nodeId: string, handleId: string, event: React.MouseEvent) => {
 		const node = getNode(nodeId);
 		if (!node) return;
 
-		// Calculate menu position near the handle
-		const menuX = window.innerWidth / 2;
-		const menuY = window.innerHeight / 2;
+		// Use mouse position for menu
+		const menuX = event.clientX;
+		const menuY = event.clientY;
 
 		setMenuState({
 			show: true,
