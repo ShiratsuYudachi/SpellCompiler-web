@@ -46,7 +46,7 @@ export function NodeSelectionMenu({
 		<>
 			{/* Backdrop */}
 			<div 
-				className="fixed inset-0 z-40"
+				className="fixed w-screen h-screen z-40"
 				onClick={onClose}
 			/>
 			
