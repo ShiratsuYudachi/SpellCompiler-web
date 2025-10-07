@@ -192,6 +192,16 @@ export function FunctionalEditor() {
 						onConnect={onConnect}
 						nodeTypes={nodeTypes}
 						fitView
+						// Touchpad support
+						panOnScroll={true}
+						panOnScrollMode="free"
+						zoomOnScroll={true}
+						zoomOnPinch={true}
+						panOnDrag={[1, 2]}
+						selectionOnDrag={false}
+						// Better UX
+						minZoom={0.1}
+						maxZoom={4}
 					>
 						<Background />
 						<Controls />
