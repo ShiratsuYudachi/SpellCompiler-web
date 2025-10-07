@@ -35,11 +35,13 @@ type CacheKey = string;
 export class Evaluator {
 	private functionTable: FunctionTable;
 	private cache: Map<CacheKey, Value>;
+	private callStack: string[]; // Track current function call stack
 
 	constructor() {
 		this.functionTable = new Map();
 		this.cache = new Map();
-		
+		this.callStack = [];
+
 		// Automatically register core library functions
 		registerCoreLibrary(this);
 	}
@@ -171,6 +173,16 @@ export class Evaluator {
 		if (typeof node.function === 'string') {
 			// Syntax sugar: direct function name
 			fnName = node.function;
+
+			// Special handling for std::this - recursive call
+			if (fnName === 'std::this') {
+				if (this.callStack.length === 0) {
+					throw new Error('std::this can only be used inside a function');
+				}
+				// Get the current function from call stack
+				fnName = this.callStack[this.callStack.length - 1];
+			}
+
 			const def = this.functionTable.get(fnName);
 			if (!def) {
 				throw new Error(`Function not found: ${fnName}`);
@@ -179,12 +191,12 @@ export class Evaluator {
 		} else {
 			// Evaluate the function expression
 			const fnValue = this.evaluate(node.function, env);
-			
+
 			// Check if it's a function value
 			if (typeof fnValue !== 'object' || fnValue === null || !('type' in fnValue) || fnValue.type !== 'function') {
 				throw new Error(`Cannot call non-function: ${JSON.stringify(fnValue)}`);
 			}
-			
+
 			fnDef = (fnValue as FunctionValue).definition;
 			fnName = fnDef.name;
 		}
@@ -224,13 +236,21 @@ export class Evaluator {
 			callEnv.set(param, argValues[i]);
 		});
 
-		// 7. Evaluate function body
-		const result = this.evaluate(fnDef.body, callEnv);
+		// 7. Push current function to call stack
+		this.callStack.push(fnName);
 
-		// 8. Cache result (pure function optimization)
-		this.cache.set(cacheKey, result);
+		try {
+			// 8. Evaluate function body
+			const result = this.evaluate(fnDef.body, callEnv);
 
-		return result;
+			// 9. Cache result (pure function optimization)
+			this.cache.set(cacheKey, result);
+
+			return result;
+		} finally {
+			// 10. Always pop the call stack, even if evaluation throws
+			this.callStack.pop();
+		}
 	}
 
 	private evalIfExpression(node: IfExpression, env: Environment): Value {
