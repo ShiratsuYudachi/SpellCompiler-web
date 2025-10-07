@@ -32,6 +32,7 @@ import type { ASTNode } from '../ast/ast';
 import { getFunctionsByNamespace, type FunctionInfo } from '../utils/getFunctionRegistry';
 import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
+import { ContextMenu } from './menus/ContextMenu';
 
 // Define node types
 const nodeTypes = {
@@ -95,6 +96,10 @@ function EditorContent() {
 		position: { x: number; y: number };
 		sourceNodeId: string;
 		sourceHandleId: string;
+	} | null>(null);
+	const [contextMenu, setContextMenu] = useState<{
+		show: boolean;
+		position: { x: number; y: number };
 	} | null>(null);
 
 	const { screenToFlowPosition, getNode } = useReactFlow();
@@ -339,7 +344,21 @@ function EditorContent() {
 			{/* Main content area */}
 			<div className="flex-1 flex">
 				{/* React Flow editor */}
-				<div className="flex-1 relative">
+				<div
+					className="flex-1 relative"
+					onContextMenu={(e) => {
+						e.preventDefault();
+						setContextMenu({
+							show: true,
+							position: { x: e.clientX, y: e.clientY }
+						});
+					}}
+					onClick={() => {
+						// Close all menus when clicking on canvas
+						setMenuState(null);
+						setContextMenu(null);
+					}}
+				>
 					<ReactFlow
 						nodes={nodes}
 						edges={edges}
@@ -382,6 +401,22 @@ function EditorContent() {
 				onSelectFunction={addFunctionNodeFromMenu}
 				onSelectBasicNode={addBasicNodeFromMenu}
 				onClose={() => setMenuState(null)}
+			/>
+		)}
+
+		{/* Context Menu */}
+		{contextMenu && contextMenu.show && (
+			<ContextMenu
+				position={contextMenu.position}
+				onAddNode={() => {
+					setShowFunctionMenu(!showFunctionMenu);
+					setContextMenu(null);
+				}}
+				onEvaluate={() => {
+					handleEvaluate();
+					setContextMenu(null);
+				}}
+				onClose={() => setContextMenu(null)}
 			/>
 		)}
 	</div>

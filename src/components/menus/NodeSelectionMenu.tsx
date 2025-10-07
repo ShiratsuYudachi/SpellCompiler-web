@@ -3,8 +3,9 @@
 // 节点选择菜单 - 从 Handle 点击时弹出
 // =============================================
 
-import { Paper, Text, Stack, UnstyledButton } from '@mantine/core';
+import { Text, Stack, UnstyledButton } from '@mantine/core';
 import { getFunctionsByNamespace, type FunctionInfo } from '../../utils/getFunctionRegistry';
+import { ListMenu } from './ListMenu';
 
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
@@ -43,71 +44,53 @@ export function NodeSelectionMenu({
 	}));
 
 	return (
-		<>
-			{/* Backdrop */}
-			<div 
-				className="fixed w-screen h-screen z-40"
-				onClick={onClose}
-			/>
-			
-			{/* Menu */}
-			<Paper
-				shadow="lg"
-				p="xs"
-				className="fixed z-50 max-h-96 overflow-y-auto"
-				style={{
-					left: `${position.x}px`,
-					top: `${position.y}px`,
-					width: '280px'
-				}}
-			>
-				<Stack gap="xs">
-					{/* Basic Nodes Section */}
-					<div>
-						<Text size="xs" fw={600} c="dimmed" mb="xs" px="xs">
-							Basic Nodes
-						</Text>
-						{BASIC_NODES.map(node => (
-							<UnstyledButton
-								key={node.type}
-								onClick={() => onSelectBasicNode(node.type)}
-								className="w-full px-2 py-1.5 rounded hover:bg-gray-100 transition-colors"
-							>
-								<div className="flex items-center gap-2">
-									<Text size="sm">{node.label}</Text>
-									<Text size="xs" c="dimmed" className="ml-auto">
-										{node.description}
-									</Text>
-								</div>
-							</UnstyledButton>
-						))}
-					</div>
-					
-					{/* Function Groups */}
-					{groupedFunctions.map(group => (
-						group.items.length > 0 && (
-							<div key={group.key}>
-								<Text size="xs" fw={600} c="dimmed" mb="xs" px="xs">
-									{group.label}
+		<ListMenu position={position} onClose={onClose}>
+			<Stack gap="xs">
+				{/* Basic Nodes Section */}
+				<div>
+					<Text size="xs" fw={600} c="dimmed" mb="xs" px="xs">
+						Basic Nodes
+					</Text>
+					{BASIC_NODES.map(node => (
+						<UnstyledButton
+							key={node.type}
+							onClick={() => onSelectBasicNode(node.type)}
+							className="w-full px-2 py-1.5 rounded hover:bg-gray-100 transition-colors"
+						>
+							<div className="flex items-center gap-2">
+								<Text size="sm">{node.label}</Text>
+								<Text size="xs" c="dimmed" className="ml-auto">
+									{node.description}
 								</Text>
-								<div className="grid grid-cols-2 gap-1">
-									{group.items.map(func => (
-										<UnstyledButton
-											key={func.name}
-											onClick={() => onSelectFunction(func)}
-											className="px-2 py-1 rounded hover:bg-blue-50 transition-colors text-left"
-										>
-											<Text size="xs" className="truncate">
-												{func.displayName}
-											</Text>
-										</UnstyledButton>
-									))}
-								</div>
 							</div>
-						)
+						</UnstyledButton>
 					))}
-				</Stack>
-			</Paper>
-		</>
+				</div>
+
+				{/* Function Groups */}
+				{groupedFunctions.map(group => (
+					group.items.length > 0 && (
+						<div key={group.key}>
+							<Text size="xs" fw={600} c="dimmed" mb="xs" px="xs">
+								{group.label}
+							</Text>
+							<div className="grid grid-cols-2 gap-1">
+								{group.items.map(func => (
+									<UnstyledButton
+										key={func.name}
+										onClick={() => onSelectFunction(func)}
+										className="px-2 py-1 rounded hover:bg-blue-50 transition-colors text-left"
+									>
+										<Text size="xs" className="truncate">
+											{func.displayName}
+										</Text>
+									</UnstyledButton>
+								))}
+							</div>
+						</div>
+					)
+				))}
+			</Stack>
+		</ListMenu>
 	);
 }
