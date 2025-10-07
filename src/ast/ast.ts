@@ -1,118 +1,104 @@
 // =============================================
-// AST Node Type Definitions
+// Pure Functional AST
+// 纯函数式 AST - 只有表达式，没有语句
 // =============================================
 
 // Base interface for all AST nodes
-export interface ASTNode {
-  type: string;
-  location?: {
-    line: number;
-    column: number;
-  };
+export interface BaseASTNode {
+	type: string;
 }
 
 // =============================================
-// Statement (语句) - 不返回值，改变程序状态
+// AST Node Types (所有节点都是表达式)
 // =============================================
 
-export type Statement = 
-  | AssignmentStatement 
-  | IfStatement 
-  | WhileStatement 
-  | BlockStatement 
-  | ExpressionStatement;
+export type ASTNode = 
+	| Literal 
+	| Identifier
+	| FunctionCall 
+	| IfExpression
+	| ListExpression;
 
-// 赋值语句: a = 5
-export interface AssignmentStatement extends ASTNode {
-  type: 'AssignmentStatement';
-  left: Identifier;        // 被赋值的变量
-  right: Expression;       // 赋值的表达式
-}
+// =============================================
+// 1. Literal (字面量)
+// =============================================
 
-// If语句: if (condition) { ... } else { ... }
-export interface IfStatement extends ASTNode {
-  type: 'IfStatement';
-  condition: Expression;   // 条件表达式
-  thenBranch: Statement;   // then分支
-  elseBranch?: Statement;  // else分支（可选）
-}
-
-// While语句: while (condition) { ... }
-export interface WhileStatement extends ASTNode {
-  type: 'WhileStatement';
-  condition: Expression;   // 循环条件
-  body: Statement;         // 循环体
-}
-
-// 代码块: { statement1; statement2; }
-export interface BlockStatement extends ASTNode {
-  type: 'BlockStatement';
-  statements: Statement[]; // 语句列表
-}
-
-// 表达式语句: func(); 或 x + 1;（表达式当作语句使用）
-export interface ExpressionStatement extends ASTNode {
-  type: 'ExpressionStatement';
-  expression: Expression;
+export interface Literal extends BaseASTNode {
+	type: 'Literal';
+	value: number | string | boolean;
+	valueType: 'number' | 'string' | 'boolean';
 }
 
 // =============================================
-// Expression (表达式) - 返回值，不改变程序状态
+// 2. Identifier (标识符引用)
+// 用于引用参数、函数等
+// 会先在局部环境中查找（参数），再在全局函数表中查找（函数）
 // =============================================
 
-export type Expression = 
-  | Literal 
-  | Identifier 
-  | BinaryExpression 
-  | FunctionCall 
-  | UnaryExpression;
-
-// 字面量: 123, "hello", true
-export interface Literal extends ASTNode {
-  type: 'Literal';
-  value: number | string | boolean;
-  dataType: 'number' | 'string' | 'boolean';
-}
-
-// 变量名: x, myVar
-export interface Identifier extends ASTNode {
-  type: 'Identifier';
-  name: string;
-}
-
-// 二元运算: a + b, x > 0, y && z
-export interface BinaryExpression extends ASTNode {
-  type: 'BinaryExpression';
-  operator: '+' | '-' | '*' | '/' | '>' | '<' | '==' | '&&' | '||';
-  left: Expression;
-  right: Expression;
-}
-
-// 函数调用: add(1, 2), print(x)
-export interface FunctionCall extends ASTNode {
-  type: 'FunctionCall';
-  name: Identifier;        // 函数名
-  arguments: Expression[]; // 参数列表
-}
-
-// 一元运算: !x, -y
-export interface UnaryExpression extends ASTNode {
-  type: 'UnaryExpression';
-  operator: '!' | '-' | '+';
-  operand: Expression;
+export interface Identifier extends BaseASTNode {
+	type: 'Identifier';
+	name: string;  // 标识符名称
 }
 
 // =============================================
-// 程序根节点
+// 3. Function Call (函数调用)
+// 可以调用任何表达式求值后得到的函数
+// 包括所有运算（加减乘除、比较、逻辑等）
 // =============================================
 
-export interface Program extends ASTNode {
-  type: 'Program';
-  body: Statement[];       // 顶层语句列表
+export interface FunctionCall extends BaseASTNode {
+	type: 'FunctionCall';
+	function: ASTNode | string;  // 函数表达式（可以是 Identifier）或函数名字符串（语法糖）
+	args: ASTNode[];             // 参数列表
 }
 
 // =============================================
-// Evaluation Result Type
+// 4. If Expression (条件表达式，类似三元运算符)
+// 返回 then 或 else 分支的值
+// 会惰性求值
 // =============================================
 
-export type EvaluationResult = number | string | boolean | null | undefined;
+export interface IfExpression extends BaseASTNode {
+	type: 'IfExpression';
+	condition: ASTNode;
+	thenBranch: ASTNode;
+	elseBranch: ASTNode;
+}
+
+// =============================================
+// 5. List Expression (列表)
+// =============================================
+
+export interface ListExpression extends BaseASTNode {
+	type: 'ListExpression';
+	elements: ASTNode[];
+}
+
+// =============================================
+// Function Definition (函数定义)
+// 注意：这不是 AST 节点，而是存储在全局函数表中的数据结构
+// =============================================
+
+export interface FunctionDefinition {
+	name: string;           // 函数名
+	params: string[];       // 参数名列表
+	body: ASTNode;          // 函数体（AST 表达式）
+}
+
+// =============================================
+// Value Type (求值结果类型)
+// 函数也是值（一等公民）
+// =============================================
+
+export type Value = 
+	| number 
+	| string 
+	| boolean 
+	| Value[] 
+	| FunctionValue;
+
+// Function as a value
+export interface FunctionValue {
+	type: 'function';
+	definition: FunctionDefinition;
+}
