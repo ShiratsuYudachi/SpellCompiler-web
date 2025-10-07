@@ -93,8 +93,8 @@ function EditorContent() {
 	const [menuState, setMenuState] = useState<{
 		show: boolean;
 		position: { x: number; y: number };
-		sourceNodeId: string;
-		sourceHandleId: string;
+		sourceNodeId?: string;
+		sourceHandleId?: string;
 	} | null>(null);
 	const [contextMenu, setContextMenu] = useState<{
 		show: boolean;
@@ -133,36 +133,56 @@ function EditorContent() {
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
 		if (!menuState) return;
 
-		const sourceNode = getNode(menuState.sourceNodeId);
-		if (!sourceNode) return;
-
 		const newNodeId = `node-${nodeIdCounter++}`;
 
-		// Position new node to the right of source node with same vertical position
-		const newNode: Node = {
-			id: newNodeId,
-			type: 'dynamicFunction',
-			position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
-			data: {
-				functionName: funcInfo.name,
-				displayName: funcInfo.displayName,
-				namespace: funcInfo.namespace,
-				params: funcInfo.params,
-				isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
-			}
-		};
+		// If from handle click, position relative to source node
+		if (menuState.sourceNodeId) {
+			const sourceNode = getNode(menuState.sourceNodeId);
+			if (!sourceNode) return;
 
-		setNodes((nds) => [...nds, newNode]);
+			const newNode: Node = {
+				id: newNodeId,
+				type: 'dynamicFunction',
+				position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
+				data: {
+					functionName: funcInfo.name,
+					displayName: funcInfo.displayName,
+					namespace: funcInfo.namespace,
+					params: funcInfo.params,
+					isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+				}
+			};
 
-		// Create edge from source handle to new node's first input
-		const newEdge: Edge = {
-			id: `e-${Date.now()}`,
-			source: menuState.sourceNodeId,
-			sourceHandle: menuState.sourceHandleId,
-			target: newNodeId,
-			targetHandle: 'arg0'
-		};
-		setEdges((eds) => [...eds, newEdge]);
+			setNodes((nds) => [...nds, newNode]);
+
+			// Create edge from source handle to new node's first input
+			const newEdge: Edge = {
+				id: `e-${Date.now()}`,
+				source: menuState.sourceNodeId,
+				sourceHandle: menuState.sourceHandleId!,
+				target: newNodeId,
+				targetHandle: 'arg0'
+			};
+			setEdges((eds) => [...eds, newEdge]);
+		} else {
+			// From context menu, position at menu location
+			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+
+			const newNode: Node = {
+				id: newNodeId,
+				type: 'dynamicFunction',
+				position: flowPos,
+				data: {
+					functionName: funcInfo.name,
+					displayName: funcInfo.displayName,
+					namespace: funcInfo.namespace,
+					params: funcInfo.params,
+					isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+				}
+			};
+
+			setNodes((nds) => [...nds, newNode]);
+		}
 
 		setMenuState(null);
 	};
@@ -171,31 +191,45 @@ function EditorContent() {
 	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output') => {
 		if (!menuState) return;
 
-		const sourceNode = getNode(menuState.sourceNodeId);
-		if (!sourceNode) return;
-
 		const newNodeId = `node-${nodeIdCounter++}`;
 
-		// Position new node to the right of source node with same vertical position
-		const newNode: Node = {
-			id: newNodeId,
-			type,
-			position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
-			data: type === 'literal' ? { value: 0 } : {}
-		};
+		// If from handle click, position relative to source node
+		if (menuState.sourceNodeId) {
+			const sourceNode = getNode(menuState.sourceNodeId);
+			if (!sourceNode) return;
 
-		setNodes((nds) => [...nds, newNode]);
+			const newNode: Node = {
+				id: newNodeId,
+				type,
+				position: { x: sourceNode.position.x + 250, y: sourceNode.position.y },
+				data: type === 'literal' ? { value: 0 } : {}
+			};
 
-		// Create edge
-		const targetHandle = type === 'if' ? 'condition' : 'value';
-		const newEdge: Edge = {
-			id: `e-${Date.now()}`,
-			source: menuState.sourceNodeId,
-			sourceHandle: menuState.sourceHandleId,
-			target: newNodeId,
-			targetHandle
-		};
-		setEdges((eds) => [...eds, newEdge]);
+			setNodes((nds) => [...nds, newNode]);
+
+			// Create edge
+			const targetHandle = type === 'if' ? 'condition' : 'value';
+			const newEdge: Edge = {
+				id: `e-${Date.now()}`,
+				source: menuState.sourceNodeId,
+				sourceHandle: menuState.sourceHandleId!,
+				target: newNodeId,
+				targetHandle
+			};
+			setEdges((eds) => [...eds, newEdge]);
+		} else {
+			// From context menu, position at menu location
+			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+
+			const newNode: Node = {
+				id: newNodeId,
+				type,
+				position: flowPos,
+				data: type === 'literal' ? { value: 0 } : {}
+			};
+
+			setNodes((nds) => [...nds, newNode]);
+		}
 
 		setMenuState(null);
 	};
@@ -320,6 +354,14 @@ function EditorContent() {
 		{contextMenu && contextMenu.show && (
 			<ContextMenu
 				position={contextMenu.position}
+				onAddNode={() => {
+					// Open NodeSelectionMenu at context menu position
+					setMenuState({
+						show: true,
+						position: contextMenu.position
+					});
+					setContextMenu(null);
+				}}
 				onEvaluate={() => {
 					handleEvaluate();
 					setContextMenu(null);
