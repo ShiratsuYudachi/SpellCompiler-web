@@ -6,80 +6,124 @@
 import { Position } from 'reactflow';
 import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
-import { TextInput } from '@mantine/core';
 import { SmartHandle } from '../handles/SmartHandle';
 
 interface FunctionDefNodeData {
 	functionName?: string;
-	paramCount?: number;
 	params?: string[];
 }
 
 export function FunctionDefNode({ id, data }: NodeProps<FunctionDefNodeData>) {
 	const [functionName, setFunctionName] = useState(data.functionName || 'myFunc');
-	const [paramCount, setParamCount] = useState(data.paramCount || 1);
+	const [params, setParams] = useState<string[]>(data.params || ['param1']);
+	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+	const [newParamValue, setNewParamValue] = useState('');
 
-	// Update data when values change
+	// Update data when function name changes
 	const handleNameChange = (newName: string) => {
 		setFunctionName(newName);
 		data.functionName = newName;
 	};
 
-	const handleParamCountChange = (newCount: number) => {
-		const count = Math.max(0, Math.min(10, newCount)); // Limit 0-10 params
-		setParamCount(count);
-		data.paramCount = count;
-		// Generate parameter names
-		data.params = Array.from({ length: count }, (_, i) => `arg${i}`);
+	// Update parameter name
+	const handleParamNameChange = (index: number, newName: string) => {
+		const updated = [...params];
+		updated[index] = newName;
+		setParams(updated);
+		data.params = updated;
 	};
 
-	const params = data.params || Array.from({ length: paramCount }, (_, i) => `arg${i}`);
+	// Delete parameter
+	const handleDeleteParam = (index: number) => {
+		const updated = params.filter((_, i) => i !== index);
+		setParams(updated);
+		data.params = updated;
+	};
+
+	// Add new parameter
+	const handleAddParam = () => {
+		if (newParamValue.trim()) {
+			const updated = [...params, newParamValue.trim()];
+			setParams(updated);
+			data.params = updated;
+			setNewParamValue('');
+		}
+	};
 
 	return (
-		<div className="px-4 py-3 shadow-md rounded-lg bg-purple-50 border-2 border-purple-400 min-w-[200px]">
-			<div className="font-bold text-sm text-purple-700 mb-2">
+		<div className="relative px-4 py-3 shadow-md rounded-lg bg-purple-50 border-2 border-purple-400 min-w-[180px]">
+			{/* Header with emoji */}
+			<div className="font-bold text-sm text-purple-700 mb-2 text-center">
 				📦 Function Definition
 			</div>
 
-			{/* Function Name Input */}
-			<TextInput
+			{/* Function Name */}
+			<input
+				type="text"
 				value={functionName}
 				onChange={(e) => handleNameChange(e.target.value)}
-				placeholder="Function name"
-				size="xs"
-				className="mb-2"
+				placeholder="functionName"
+				className="w-full text-base font-semibold bg-transparent border-none outline-none mb-3 px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
 			/>
 
-			{/* Param Count Input */}
-			<TextInput
-				type="number"
-				value={paramCount}
-				onChange={(e) => handleParamCountChange(parseInt(e.target.value) || 0)}
-				placeholder="Parameter count"
-				size="xs"
-				min={0}
-				max={10}
-				className="mb-2"
-			/>
+			{/* Parameters */}
+			<div className="space-y-0">
+				{params.map((param, i) => (
+					<div
+						key={i}
+						className="relative flex items-center gap-2 group"
+						onMouseEnter={() => setHoveredIndex(i)}
+						onMouseLeave={() => setHoveredIndex(null)}
+					>
 
-			{/* Parameter Output Handles */}
-			{params.length > 0 && (
-				<div className="mt-2">
-					<div className="text-xs text-purple-600 mb-1">Parameters:</div>
-					{params.map((param, i) => (
-						<div key={i} className="flex items-center justify-between mb-1">
-							<span className="text-xs text-purple-600">{param}</span>
-							<SmartHandle
-								type="source"
-								position={Position.Right}
-								id={`param${i}`}
-								className="w-3 h-3 bg-purple-500"
-								nodeId={id}
-							/>
-						</div>
-					))}
+						{/* Parameter Input */}
+						<input
+							type="text"
+							value={param}
+							onChange={(e) => handleParamNameChange(i, e.target.value)}
+							placeholder={`param${i + 1}`}
+							className="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-gray-50 focus:bg-gray-50"
+						/>
+
+						{/* Delete Button */}
+						<button
+							onClick={() => handleDeleteParam(i)}
+							className={`w-4 h-4 text-gray-400 hover:text-red-500 text-lg leading-none flex items-center justify-center transition-opacity ${
+								hoveredIndex === i ? 'opacity-100' : 'opacity-0'
+							}`}
+							type="button"
+						>
+							×
+						</button>
+
+						{/* Handle */}
+						<SmartHandle
+							type="source"
+							position={Position.Right}
+							id={`param${i}`}
+							className="w-3 h-3 bg-blue-500 !absolute !-right-4 !top-1/2 !-translate-y-1/2 !translate-x-1/2"
+							nodeId={id}
+						/>
+					</div>
+				))}
+
+				{/* Add New Parameter */}
+				
+				
+				<input
+					type="text"
+					value={newParamValue}
+					onChange={(e) => setNewParamValue(e.target.value)}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter') {
+							handleAddParam();
+						}
+					}}
+					placeholder="+ Add Param"
+					className="flex-1 text-sm text-purple-500 placeholder-purple-400 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
+				/>
 				</div>
-			)}
+			
 		</div>
 	);
 }
