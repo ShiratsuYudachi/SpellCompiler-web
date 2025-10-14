@@ -184,11 +184,17 @@ class Assertion<T> {
 	}
 
 	toContain(item: any): void {
-		if (!Array.isArray(this.actual)) {
-			throw new Error('toContain can only be used with arrays');
-		}
-		if (!this.actual.includes(item)) {
-			throw new Error(`Expected array to contain ${JSON.stringify(item)}, but it didn't`);
+		if (Array.isArray(this.actual)) {
+			if (!this.actual.includes(item)) {
+				throw new Error(`Expected array to contain ${JSON.stringify(item)}, but it didn't`);
+			}
+		} else if (typeof this.actual === 'string') {
+			const searchStr = typeof item === 'string' ? item : String(item);
+			if (!this.actual.includes(searchStr)) {
+				throw new Error(`Expected string to contain "${searchStr}", but it didn't`);
+			}
+		} else {
+			throw new Error('toContain can only be used with arrays or strings');
 		}
 	}
 

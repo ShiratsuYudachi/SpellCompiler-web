@@ -3,7 +3,7 @@
 // 将 AST 转换为 Mermaid 图表
 // =============================================
 
-import type { ASTNode, FunctionDefinition } from '../ast/ast';
+import type { ASTNode, FunctionDefinition, Lambda } from '../ast/ast';
 
 let nodeCounter = 0;
 
@@ -97,23 +97,38 @@ function generateMermaidNode(node: ASTNode, lines: string[], prefix: string = ''
 			break;
 		}
 
-		case 'IfExpression': {
-			lines.push(`${nodeId}{"🔀 if"}]`);
-			lines.push(`style ${nodeId} fill:#f5e1e1`);
+	case 'IfExpression': {
+		lines.push(`${nodeId}{"🔀 if"}`);
+		lines.push(`style ${nodeId} fill:#f5e1e1`);
 
-			const condId = generateMermaidNode(node.condition, lines, prefix);
-			lines.push(`${condId} -->|condition| ${nodeId}`);
+		const condId = generateMermaidNode(node.condition, lines, prefix);
+		lines.push(`${condId} -->|condition| ${nodeId}`);
 
-			const thenId = generateMermaidNode(node.thenBranch, lines, prefix);
-			lines.push(`${thenId} -->|then| ${nodeId}`);
+		const thenId = generateMermaidNode(node.thenBranch, lines, prefix);
+		lines.push(`${thenId} -->|then| ${nodeId}`);
 
-			const elseId = generateMermaidNode(node.elseBranch, lines, prefix);
-			lines.push(`${elseId} -->|else| ${nodeId}`);
-			break;
-		}
+		const elseId = generateMermaidNode(node.elseBranch, lines, prefix);
+		lines.push(`${elseId} -->|else| ${nodeId}`);
+		break;
+	}
 
-		default:
-			lines.push(`${nodeId}["❓ Unknown"]`);
+	case 'Lambda': {
+		const lambda = node as Lambda;
+		const paramsStr = lambda.params.length > 0 
+			? lambda.params.join(', ') 
+			: 'no params';
+		lines.push(`${nodeId}["λ (${paramsStr})"]`);
+		lines.push(`style ${nodeId} fill:#f5e1ff`);
+
+		// Lambda body
+		const bodyId = generateMermaidNode(lambda.body, lines, prefix);
+		lines.push(`${bodyId} -->|body| ${nodeId}`);
+		break;
+	}
+
+	default:
+		lines.push(`${nodeId}["❓ Unknown: ${(node as any).type}"]`);
+		lines.push(`style ${nodeId} fill:#ffcccc`);
 	}
 
 	return nodeId;

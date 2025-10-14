@@ -8,6 +8,7 @@ import { runner } from './framework';
 
 // Import all test files
 import './flowToIR.test';
+import './astToMermaid.test';
 
 // You can add more test files here:
 // import './evaluator.test';
