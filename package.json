@@ -7,7 +7,9 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"preview": "vite preview",
-		"test:ast": "tsx src/ast/example.ts"
+		"test": "tsx src/test/run-tests.ts",
+		"test:ast": "tsx src/ast/example.ts",
+		"test:lambda": "tsx src/ast/test-lambda.ts"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.14",
