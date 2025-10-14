@@ -1,148 +1,27 @@
 # SpellCompiler Web
 
-A web-based AST (Abstract Syntax Tree) interpreter with a React frontend.
+法术架构：
+首先考虑传统架构：代码->Lexer...-> AST（//给点例子） -> IR(LLVM之类的)（//给点例子） -> CPU执行
 
-## Tech Stack
 
-- **Frontend**: React 19 + TypeScript
-- **UI**: Mantine + Tailwind CSS
-- **Build Tool**: Vite
-- **AST Engine**: Custom TypeScript implementation
-- **Node Editor**: React Flow
+我们的架构：Node Graph（用户编辑的图像） -> 一个以json存储的树形IR ->　Unity执行
+- 这个IR(Intermediate Representation) 使用类似抽象语法树的结构，但是更接近执行底层，不包括类型和代码信息等
+- 这个IR被我命名为Abstract Spell Tree, 抽象法术树，如无特殊指明本项目中AST都指这个抽象法术树, 而非传统意义上的抽象语法树
 
-## Project Structure
+AST的详情可以在 ast.ts中找到。AST中只有最简单的能支持最基础函数式编程的结构。为了ast的纯粹和简单，加减乘除甚至列表这种基础操作/类型也被作为内置函数执行。详情请参考library.ts。
+基本上，可以将一个法术视为用户组合内置函数来建立新的函数，每个法术就是类似一个main函数，无输入无输出（不过现在有输出，当然是处于调试目的）
 
-```
-SpellCompiler-web/
-├── src/
-│   ├── ast/                              # AST Engine
-│   │   ├── ast.ts                        # Core AST type definitions
-│   │   ├── example_basic_evaluator.ts    # Basic evaluator (no variables)
-│   │   └── evaluator_with_storage.ts     # Evaluator with global variables
-│   ├── App.tsx                           # Main React component
-│   ├── main.tsx                          # React entry point
-│   └── index.css                         # Global styles (Tailwind)
-├── index.html                            # HTML entry
-├── vite.config.ts                        # Vite configuration
-├── tailwind.config.js                    # Tailwind configuration
-├── tsconfig.json                         # TypeScript configuration
-└── package.json
-```
 
-## Features
+所有operator都是作为库函数，列表通过函数式实现
+循环等也是通过递归实现
+有一个全局函数表
+有一个特殊的std::this identifier用来引用当前函数
 
-✨ **Visual AST Node Editor**
-- Drag-and-drop node-based interface
-- Real-time code preview
-- Connect nodes to build expressions
-- Support for literals, variables, operations, and assignments
+通过Node Graph搭建一个函数式工作流，在flowToIR.ts中转换为AST, 然后丢给游戏引擎执行 - 这就是这个项目的结构
 
-🎨 **Interactive Canvas**
-- Pan and zoom workspace
-- Visual node connections
-- Color-coded node types
-- Intuitive drag-to-connect
 
-📊 **Live Code Generation**
-- See generated code in real-time
-- Syntax-highlighted preview
-- Support for complex expressions
 
-## Installation
 
-```bash
-npm install
-```
 
-## Usage
 
-### Development Server
 
-Start the React development server:
-```bash
-npm run dev
-```
-
-The app will be available at `http://localhost:5173`
-
-### Using the Node Editor
-
-See [EDITOR_GUIDE.md](./EDITOR_GUIDE.md) for detailed usage instructions.
-
-### Build for Production
-
-```bash
-npm run build
-```
-
-### Preview Production Build
-
-```bash
-npm run preview
-```
-
-### Test AST Engine
-
-Test basic evaluator (no variables):
-```bash
-npm run test:basic
-```
-
-Test evaluator with variable storage:
-```bash
-npm run test:storage
-```
-
-## AST Engine Features
-
-### `src/ast/ast.ts`
-Core AST node type definitions:
-- **Statements**: AssignmentStatement, IfStatement, WhileStatement, BlockStatement, ExpressionStatement
-- **Expressions**: Literal, Identifier, BinaryExpression, UnaryExpression, FunctionCall
-- **Program**: Root node type
-- **EvaluationResult**: Return type for evaluators
-
-### `src/ast/example_basic_evaluator.ts`
-Basic evaluator supporting:
-- ✅ Literals (numbers, strings, booleans)
-- ✅ Binary expressions (+, -, *, /, >, <, ==, &&, ||)
-- ✅ Unary expressions (!, -, +)
-- ✅ If statements with else branches
-- ✅ Block statements
-- ❌ Variables (not implemented)
-- ❌ Functions (not implemented)
-
-### `src/ast/evaluator_with_storage.ts`
-Enhanced evaluator with:
-- ✅ All features from basic evaluator
-- ✅ Variable assignment and retrieval
-- ✅ While loops
-- ✅ Global variable storage (no scope support yet)
-- ❌ Functions (not implemented)
-- ❌ Local scopes (not implemented)
-
-## Scope Design
-
-Currently, **all variables are global**. There is no scope concept yet:
-- No local scope
-- No block scope
-- No function scope
-
-All variables are stored in a single global Map.
-
-## Future Enhancements
-
-### AST Engine
-- [ ] Add scope chain for local variables
-- [ ] Implement function definitions and calls
-- [ ] Add return statements
-- [ ] Add break/continue statements
-- [ ] Add more operators (%, **, etc.)
-- [ ] Add type checking
-
-### Web Interface
-- [ ] Visual AST tree display
-- [ ] Code editor with syntax highlighting
-- [ ] Step-by-step execution debugger
-- [ ] Variable state visualization
-- [ ] Example code snippets
