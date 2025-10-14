@@ -11,12 +11,19 @@ export type ASTNode =
 	| Literal 
 	| Identifier
 	| FunctionCall 
-	| IfExpression;
+	| IfExpression
+	| Lambda;
 
 
+// Primitive value type (简单值类型)
+// Value 中排除 FunctionValue
+export type PrimitiveValue = Exclude<Value, FunctionValue>;
+
+// Literal (字面量：简单值)
+// 不包括函数（函数用 Lambda 表示）
 export interface Literal extends BaseASTNode {
 	type: 'Literal';
-	value: any;  // 任意类型，由上层保证类型正确
+	value: PrimitiveValue;  // 简单值，不包括 FunctionValue
 }
 
 // 用于引用参数、函数等
@@ -31,7 +38,7 @@ export interface FunctionCall extends BaseASTNode {
 	args: ASTNode[];             // 参数列表
 }
 
-// 4. If Expression (条件表达式，类似三元运算符)
+// If Expression (条件表达式，类似三元运算符)
 // 返回 then 或 else 分支的值
 // 会惰性求值
 export interface IfExpression extends BaseASTNode {
@@ -41,10 +48,21 @@ export interface IfExpression extends BaseASTNode {
 	elseBranch: ASTNode;
 }
 
+// Lambda Expression (匿名函数表达式 / 函数字面量)
+// Lambda 求值后产生 FunctionValue
+// Lambda 是一等公民，可以作为值传递、返回、存储
+export interface Lambda extends BaseASTNode {
+	type: 'Lambda';
+	params: string[];  // 参数名列表
+	body: ASTNode;     // 函数体（任意表达式）
+}
+
 
 // =============================================
 // 以下不属于AST节点
 // =============================================
+
+
 
 // Function Definition (函数定义)
 export interface FunctionDefinition {
@@ -54,6 +72,13 @@ export interface FunctionDefinition {
 }
 
 
+// Function as a value
+export interface FunctionValue {
+	type: 'function';
+	definition: FunctionDefinition;
+	capturedEnv?: Map<string, Value>;  // Captured environment for closures
+}
+
 // Value Type (求值结果类型)
 // 函数也是值（一等公民）
 export type Value = 
@@ -62,10 +87,3 @@ export type Value =
 	| boolean 
 	| Value[] 
 	| FunctionValue;
-
-// Function as a value
-export interface FunctionValue {
-	type: 'function';
-	definition: FunctionDefinition;
-	capturedEnv?: Map<string, Value>;  // Captured environment for closures
-}

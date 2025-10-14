@@ -11,7 +11,8 @@ import type {
 	Literal,
 	Identifier,
 	FunctionCall,
-	IfExpression
+	IfExpression,
+	Lambda
 } from './ast';
 import { registerCoreLibrary } from './library';
 
@@ -131,6 +132,9 @@ export class Evaluator {
 			case 'IfExpression':
 				return this.evalIfExpression(node, env);
 
+			case 'Lambda':
+				return this.evalLambda(node, env);
+
 			default:
 				throw new Error(`Unknown node type: ${(node as any).type}`);
 		}
@@ -140,18 +144,10 @@ export class Evaluator {
 	// Node Type Evaluators
 	// ============================================
 
-	private evalLiteral(node: Literal, env: Environment): Value {
-		const val = node.value;
-		
-		// If the literal is a function value, capture the current environment
-		if (typeof val === 'object' && val !== null && 'type' in val && val.type === 'function') {
-			return {
-				...val,
-				capturedEnv: new Map(env)
-			} as FunctionValue;
-		}
-		
-		return val;
+	private evalLiteral(_node: Literal, _env: Environment): Value {
+		// Literal only contains simple values (number, boolean, string)
+		// Functions are represented by Lambda nodes
+		return _node.value;
 	}
 
 	private evalIdentifier(node: Identifier, env: Environment): Value {
@@ -239,8 +235,10 @@ export class Evaluator {
 		}
 
 		// 5. Check cache (for user-defined functions)
-		const cacheKey = this.makeCacheKey(fnName, argValues);
-		if (this.cache.has(cacheKey)) {
+		// Don't cache lambda functions (they're anonymous and may have different bodies)
+		const shouldCache = fnName !== '<lambda>';
+		const cacheKey = shouldCache ? this.makeCacheKey(fnName, argValues) : '';
+		if (shouldCache && this.cache.has(cacheKey)) {
 			return this.cache.get(cacheKey)!;
 		}
 
@@ -261,7 +259,9 @@ export class Evaluator {
 			const result = this.evaluate(fnDef.body, callEnv);
 
 			// 9. Cache result (pure function optimization)
-			this.cache.set(cacheKey, result);
+			if (shouldCache) {
+				this.cache.set(cacheKey, result);
+			}
 
 			return result;
 		} finally {
@@ -281,6 +281,19 @@ export class Evaluator {
 		return condition
 			? this.evaluate(node.thenBranch, env)
 			: this.evaluate(node.elseBranch, env);
+	}
+
+	private evalLambda(node: Lambda, env: Environment): FunctionValue {
+		// Lambda creates a closure by capturing the current environment
+		return {
+			type: 'function',
+			definition: {
+				name: '<lambda>',  // Anonymous function
+				params: node.params,
+				body: node.body
+			},
+			capturedEnv: new Map(env)  // Capture environment for closure
+		};
 	}
 
 	// ============================================
@@ -311,15 +324,23 @@ export class Evaluator {
 			throw new Error(`Function not found: ${name}`);
 		}
 
-		const callNode: FunctionCall = {
-			type: 'FunctionCall',
-			function: name,
-			args: args.map(arg => ({
-				type: 'Literal',
-				value: arg
-			}))
-		};
+		// Check if it's a native function
+		if ((fnDef as any).__native) {
+			return (fnDef as any).__native(...args);
+		}
 
-		return this.evaluate(callNode, new Map());
+		// Build environment directly with the provided values
+		const env = new Map<string, Value>();
+		fnDef.params.forEach((param, index) => {
+			env.set(param, args[index]);
+		});
+
+		// Evaluate the function body
+		this.callStack.push(name);
+		try {
+			return this.evaluate(fnDef.body, env);
+		} finally {
+			this.callStack.pop();
+		}
 	}
 }
