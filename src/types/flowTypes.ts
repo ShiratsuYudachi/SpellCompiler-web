@@ -64,6 +64,7 @@ export type FlowNodeType =
 	| 'identifier'
 	| 'dynamicFunction'
 	| 'customFunction'
+	| 'applyFunc'
 	| 'if'
 	| 'functionDef'
 	| 'functionOut'
@@ -89,6 +90,14 @@ export interface CustomFunctionNodeData extends BaseNodeData {
 }
 
 /**
+ * Apply Function Node Data - 动态函数应用
+ * 接收一个函数值和参数，然后调用该函数
+ */
+export interface ApplyFuncNodeData extends BaseNodeData {
+	paramCount?: number;  // Number of arguments
+}
+
+/**
  * Typed node
  */
 export type FlowNode =
@@ -96,6 +105,7 @@ export type FlowNode =
 	| Node<IdentifierNodeData, 'identifier'>
 	| Node<DynamicFunctionNodeData, 'dynamicFunction'>
 	| Node<CustomFunctionNodeData, 'customFunction'>
+	| Node<ApplyFuncNodeData, 'applyFunc'>
 	| Node<IfNodeData, 'if'>
 	| Node<FunctionDefNodeData, 'functionDef'>
 	| Node<FunctionOutNodeData, 'functionOut'>
@@ -108,4 +118,5 @@ export type EdgeLabel =
 	| 'arg0' | 'arg1' | 'arg2' | 'arg3'  // Function arguments
 	| 'condition' | 'then' | 'else'      // If expression
 	| 'body'                             // Function body
+	| 'func'                             // Function value (for apply)
 	| 'value';                           // General value flow

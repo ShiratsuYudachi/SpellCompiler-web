@@ -23,6 +23,7 @@ import { Button, Paper, Text, Alert } from '@mantine/core';
 import { LiteralNode } from './nodes/LiteralNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
 import { CustomFunctionNode } from './nodes/CustomFunctionNode';
+import { ApplyFuncNode } from './nodes/ApplyFuncNode';
 import { IfNode } from './nodes/IfNode';
 import { OutputNode } from './nodes/OutputNode';
 import { FunctionDefNode } from './nodes/FunctionDefNode';
@@ -42,6 +43,7 @@ const nodeTypes = {
 	literal: LiteralNode,
 	dynamicFunction: DynamicFunctionNode,
 	customFunction: CustomFunctionNode,
+	applyFunc: ApplyFuncNode,
 	if: IfNode,
 	output: OutputNode,
 	functionDef: FunctionDefNode,
@@ -195,7 +197,7 @@ function EditorContent() {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'functionDef' | 'functionOut' | 'customFunction') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'functionDef' | 'functionOut' | 'customFunction' | 'applyFunc') => {
 		if (!menuState) return;
 
 		const newNodeId = `node-${nodeIdCounter++}`;
@@ -211,6 +213,8 @@ function EditorContent() {
 					return {};
 				case 'customFunction':
 					return { functionName: 'myFunc', paramCount: 1 };
+				case 'applyFunc':
+					return { paramCount: 1 };
 				default:
 					return {};
 			}

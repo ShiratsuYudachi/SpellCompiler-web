@@ -11,6 +11,7 @@ import type {
 	IdentifierNodeData,
 	DynamicFunctionNodeData,
 	CustomFunctionNodeData,
+	ApplyFuncNodeData,
 	FunctionDefNodeData
 } from '../types/flowTypes';
 
@@ -217,6 +218,47 @@ function convertNode(
 			return {
 				type: 'FunctionCall',
 				function: data.functionName || 'unknown',
+				args
+			} as FunctionCall;
+		}
+
+		case 'applyFunc': {
+			const edges = incomingEdges.get(node.id) || [];
+
+			// Get the function value from 'func' handle
+			const funcEdge = edges.find(e => e.targetHandle === 'func');
+			if (!funcEdge) {
+				throw new Error(`Apply node ${node.id} has no function input`);
+			}
+
+			const funcNode = allNodes.find(n => n.id === funcEdge.source);
+			if (!funcNode) {
+				throw new Error(`Apply node ${node.id} function node not found`);
+			}
+
+			// Convert function expression
+			const funcExpr = convertNode(funcNode as FlowNode, allNodes, incomingEdges, funcEdge.sourceHandle || undefined);
+
+			// Get arguments
+			const argEdges = edges
+				.filter(e => e.targetHandle?.startsWith('arg'))
+				.sort((a, b) => {
+					const aIndex = parseInt(a.targetHandle?.replace('arg', '') || '0');
+					const bIndex = parseInt(b.targetHandle?.replace('arg', '') || '0');
+					return aIndex - bIndex;
+				});
+
+			const args: ASTNode[] = argEdges.map(edge => {
+				const sourceNode = allNodes.find(n => n.id === edge.source);
+				if (!sourceNode) {
+					throw new Error(`Source node ${edge.source} not found`);
+				}
+				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
+			});
+
+			return {
+				type: 'FunctionCall',
+				function: funcExpr,  // Function is an expression, not a string
 				args
 			} as FunctionCall;
 		}
