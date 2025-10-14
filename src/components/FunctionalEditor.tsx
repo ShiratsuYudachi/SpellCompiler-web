@@ -108,7 +108,7 @@ function EditorContent() {
 		position: { x: number; y: number };
 	} | null>(null);
 
-	const { screenToFlowPosition, getNode } = useReactFlow();
+	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -290,20 +290,90 @@ function EditorContent() {
 		}
 	};
 
+	// Export workflow to JSON file
+	const handleExport = () => {
+		try {
+			const flow = toObject();
+			const dataStr = JSON.stringify(flow, null, 2);
+			const blob = new Blob([dataStr], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `workflow-${Date.now()}.json`;
+			link.click();
+			
+			URL.revokeObjectURL(url);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	};
+
+	// Import workflow from JSON file
+	const handleImport = () => {
+		try {
+			const input = document.createElement('input');
+			input.type = 'file';
+			input.accept = '.json';
+			
+			input.onchange = (e) => {
+				const file = (e.target as HTMLInputElement).files?.[0];
+				if (!file) return;
+				
+				const reader = new FileReader();
+				reader.onload = (event) => {
+					try {
+						const content = event.target?.result as string;
+						const flow = JSON.parse(content);
+						
+						// Restore nodes and edges from the imported flow
+						if (flow.nodes && Array.isArray(flow.nodes)) {
+							setNodes(flow.nodes);
+						}
+						if (flow.edges && Array.isArray(flow.edges)) {
+							setEdges(flow.edges);
+						}
+						
+						// Clear evaluation results
+						setEvaluationResult(null);
+						setCurrentAST(null);
+						setCurrentFunctions([]);
+						setError(null);
+					} catch (err) {
+						setError(err instanceof Error ? err.message : String(err));
+					}
+				};
+				reader.readAsText(file);
+			};
+			
+			input.click();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	};
+
 	return (
 		<EditorProvider value={editorContextValue}>
 			<div className="h-screen flex flex-col">
-			{/* Header - Row 1 */}
-			<Paper shadow="sm" p="md" className="border-b">
-				<div className="flex items-center justify-between">
-					<Text size="xl" fw={700}>
-						⚡ Functional Workflow Editor
-					</Text>
+		{/* Header - Row 1 */}
+		<Paper shadow="sm" p="md" className="border-b">
+			<div className="flex items-center justify-between">
+				<Text size="xl" fw={700}>
+					⚡ Functional Workflow Editor
+				</Text>
+				<div className="flex gap-2">
+					<Button size="sm" variant="outline" color="gray" onClick={handleImport}>
+						📥 Import
+					</Button>
+					<Button size="sm" variant="outline" color="gray" onClick={handleExport}>
+						📤 Export
+					</Button>
 					<Button size="sm" color="indigo" onClick={handleEvaluate}>
 						▶️ Evaluate
 					</Button>
 				</div>
-			</Paper>
+			</div>
+		</Paper>
 
 			{/* Header - Row 2: AST and Results */}
 			{(currentAST || error || evaluationResult !== null) && (
