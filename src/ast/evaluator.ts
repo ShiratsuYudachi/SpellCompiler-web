@@ -37,11 +37,13 @@ export class Evaluator {
 	private functionTable: FunctionTable;
 	private cache: Map<CacheKey, Value>;
 	private callStack: string[]; // Track current function call stack
+	private callStackValues: FunctionValue[]; // Track actual function values for lambdas
 
 	constructor() {
 		this.functionTable = new Map();
 		this.cache = new Map();
 		this.callStack = [];
+		this.callStackValues = [];
 
 		// Automatically register core library functions
 		registerCoreLibrary(this);
@@ -189,14 +191,29 @@ export class Evaluator {
 					throw new Error('std::this can only be used inside a function');
 				}
 				// Get the current function from call stack
-				fnName = this.callStack[this.callStack.length - 1];
+				const currentFnName = this.callStack[this.callStack.length - 1];
+				
+				// If it's a lambda (name is "<lambda>"), use the FunctionValue from callStackValues
+				if (currentFnName === '<lambda>' && this.callStackValues.length > 0) {
+					fnValue = this.callStackValues[this.callStackValues.length - 1];
+					fnDef = fnValue.definition;
+					fnName = currentFnName;
+				} else {
+					// Regular named function, look it up
+					fnName = currentFnName;
+					const def = this.functionTable.get(fnName);
+					if (!def) {
+						throw new Error(`Function not found: ${fnName}`);
+					}
+					fnDef = def;
+				}
+			} else {
+				const def = this.functionTable.get(fnName);
+				if (!def) {
+					throw new Error(`Function not found: ${fnName}`);
+				}
+				fnDef = def;
 			}
-
-			const def = this.functionTable.get(fnName);
-			if (!def) {
-				throw new Error(`Function not found: ${fnName}`);
-			}
-			fnDef = def;
 		} else {
 			// Evaluate the function expression
 			const evaluatedFn = this.evaluate(node.function, env);
@@ -253,6 +270,10 @@ export class Evaluator {
 
 		// 7. Push current function to call stack
 		this.callStack.push(fnName);
+		// If it's a lambda (has fnValue), also push to callStackValues
+		if (fnValue && fnName === '<lambda>') {
+			this.callStackValues.push(fnValue);
+		}
 
 		try {
 			// 8. Evaluate function body
@@ -267,6 +288,9 @@ export class Evaluator {
 		} finally {
 			// 10. Always pop the call stack, even if evaluation throws
 			this.callStack.pop();
+			if (fnValue && fnName === '<lambda>') {
+				this.callStackValues.pop();
+			}
 		}
 	}
 
