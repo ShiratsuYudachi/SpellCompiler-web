@@ -355,6 +355,21 @@ function EditorContent() {
 						// Restore nodes and edges from the imported flow
 						if (flow.nodes && Array.isArray(flow.nodes)) {
 							setNodes(flow.nodes);
+							
+							// Update nodeIdCounter to avoid ID conflicts
+							// Find the maximum node ID number from imported nodes
+							let maxId = nodeIdCounter;
+							flow.nodes.forEach((node: Node) => {
+								// Extract number from IDs like "node-123", "lit-45", etc.
+								const match = node.id.match(/-(\d+)$/);
+								if (match) {
+									const num = parseInt(match[1], 10);
+									if (num >= maxId) {
+										maxId = num + 1;
+									}
+								}
+							});
+							nodeIdCounter = maxId;
 						}
 						if (flow.edges && Array.isArray(flow.edges)) {
 							setEdges(flow.edges);
