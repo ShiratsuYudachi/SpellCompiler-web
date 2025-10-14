@@ -1,6 +1,6 @@
 // =============================================
-// Function Definition Node Component
-// 函数定义节点 - 定义一个新函数
+// Lambda Definition Node Component
+// Lambda 定义节点 - 定义一个 Lambda 函数
 // =============================================
 
 import { Position } from 'reactflow';
@@ -8,13 +8,13 @@ import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
 
-interface FunctionDefNodeData {
+interface LambdaDefNodeData {
 	functionName?: string;
 	params?: string[];
 }
 
-export function FunctionDefNode({ id, data }: NodeProps<FunctionDefNodeData>) {
-	const [functionName, setFunctionName] = useState(data.functionName || 'myFunc');
+export function LambdaDefNode({ id, data }: NodeProps<LambdaDefNodeData>) {
+	const [functionName, setFunctionName] = useState(data.functionName || 'lambda');
 	const [params, setParams] = useState<string[]>(data.params || ['param1']);
 	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 	const [newParamValue, setNewParamValue] = useState('');
@@ -51,10 +51,22 @@ export function FunctionDefNode({ id, data }: NodeProps<FunctionDefNodeData>) {
 	};
 
 	return (
-		<div className="relative px-4 py-3 shadow-md rounded-lg bg-purple-50 border-2 border-purple-400 min-w-[180px]">
+		<div className="relative px-4 py-3 shadow-md rounded-lg bg-purple-50 border-2 border-purple-400 min-w-[200px]">
+			{/* Left Handle - Captured Environment */}
+			<SmartHandle
+				type="target"
+				position={Position.Left}
+				id="env"
+				className="w-3 h-3 bg-purple-500 !absolute !-left-1.5 !top-3"
+				nodeId={id}
+			/>
+			<div className="absolute left-1 top-2 text-[10px] text-purple-600 font-medium">
+				env
+			</div>
+
 			{/* Header with emoji */}
-			<div className="font-bold text-sm text-purple-700 mb-2 text-center">
-				📦 Function Definition
+			<div className="font-bold text-sm text-purple-700 mb-2 text-center mt-3">
+				λ Lambda
 			</div>
 
 			{/* Function Name */}
@@ -62,7 +74,7 @@ export function FunctionDefNode({ id, data }: NodeProps<FunctionDefNodeData>) {
 				type="text"
 				value={functionName}
 				onChange={(e) => handleNameChange(e.target.value)}
-				placeholder="functionName"
+				placeholder="lambda name"
 				className="w-full text-base font-semibold bg-transparent border-none outline-none mb-3 px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
 			/>
 

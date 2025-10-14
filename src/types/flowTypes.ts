@@ -34,19 +34,22 @@ export interface IfNodeData extends BaseNodeData {
 }
 
 /**
- * Function Definition Node - 函数定义节点
+ * Lambda Definition Node - Lambda 定义节点
  */
-export interface FunctionDefNodeData extends BaseNodeData {
+export interface LambdaDefNodeData extends BaseNodeData {
 	functionName?: string;
 	paramCount?: number;
 	params?: string[];  // Parameter names
+	// Note: Left handle for captured environment is implicit
 }
 
 /**
- * Function Output Node - 函数输出节点
+ * Function Output Node - 函数输出节点（Return）
+ * 绑定到一个 Lambda 定义
  */
 export interface FunctionOutNodeData extends BaseNodeData {
 	functionName?: string;
+	lambdaId?: string;  // Reference to the bound LambdaDef node
 }
 
 /**
@@ -66,7 +69,7 @@ export type FlowNodeType =
 	| 'customFunction'
 	| 'applyFunc'
 	| 'if'
-	| 'functionDef'
+	| 'lambdaDef'
 	| 'functionOut'
 	| 'output';
 
@@ -107,7 +110,7 @@ export type FlowNode =
 	| Node<CustomFunctionNodeData, 'customFunction'>
 	| Node<ApplyFuncNodeData, 'applyFunc'>
 	| Node<IfNodeData, 'if'>
-	| Node<FunctionDefNodeData, 'functionDef'>
+	| Node<LambdaDefNodeData, 'lambdaDef'>
 	| Node<FunctionOutNodeData, 'functionOut'>
 	| Node<OutputNodeData, 'output'>;
 

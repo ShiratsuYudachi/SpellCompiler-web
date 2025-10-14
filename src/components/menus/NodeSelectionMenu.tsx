@@ -9,7 +9,7 @@ import { getFunctionsByNamespace, type FunctionInfo } from '../../utils/getFunct
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
-	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'functionDef' | 'functionOut' | 'customFunction' | 'applyFunc') => void;
+	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc') => void;
 	onClose: () => void;
 }
 
@@ -18,8 +18,7 @@ const BASIC_NODES = [
 	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
 	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞', description: 'Call custom function' },
 	{ type: 'applyFunc' as const, label: 'Apply', icon: '⚡', description: 'Apply function dynamically' },
-	{ type: 'functionDef' as const, label: 'Function Def', icon: '📦', description: 'Define function' },
-	{ type: 'functionOut' as const, label: 'Return', icon: '↩️', description: 'Function return' },
+	{ type: 'lambdaDef' as const, label: 'Lambda', icon: 'λ', description: 'Define lambda (with return)' },
 	{ type: 'output' as const, label: 'Output', icon: '📤', description: 'Mark final result' },
 ];
 

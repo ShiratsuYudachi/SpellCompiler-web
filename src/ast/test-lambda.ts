@@ -4,7 +4,7 @@
 // =============================================
 
 import { Evaluator } from './evaluator';
-import type { ASTNode, Lambda, FunctionCall, Identifier, Literal } from './ast';
+import type { Lambda, FunctionCall } from './ast';
 
 const evaluator = new Evaluator();
 
@@ -109,23 +109,8 @@ const add5Call: FunctionCall = {
 const add5 = evaluator.run(add5Call);
 console.log('add5 type:', typeof add5 === 'object' ? 'function' : typeof add5);
 
-// Call add5(10)
-const finalCall: FunctionCall = {
-	type: 'FunctionCall',
-	function: add5Call,  // This will evaluate to the closure
-	args: [{ type: 'Literal', value: 10 }]
-};
-
 // Better approach: directly call the closure
 if (typeof add5 === 'object' && (add5 as any).type === 'function') {
-	const closureCall: FunctionCall = {
-		type: 'FunctionCall',
-		function: {
-			type: 'Identifier',
-			name: 'temp'
-		},
-		args: [{ type: 'Literal', value: 10 }]
-	};
 	
 	// Manually create environment with the closure
 	const tempEnv = new Map();

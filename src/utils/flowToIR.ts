@@ -11,8 +11,8 @@ import type {
 	IdentifierNodeData,
 	DynamicFunctionNodeData,
 	CustomFunctionNodeData,
-	ApplyFuncNodeData,
-	FunctionDefNodeData
+	LambdaDefNodeData,
+	FunctionOutNodeData
 } from '../types/flowTypes';
 
 /**
@@ -34,23 +34,23 @@ export function flowToIR(nodes: Node[], edges: Edge[]): { ast: ASTNode; function
 	const functionDefs: FunctionDefinition[] = [];
 	const functionOutNodes = nodes.filter(n => n.type === 'functionOut');
 
-	// Helper: Find which FunctionDef a node belongs to by traversing backwards
-	const findOwningFunctionDef = (nodeId: string, visited = new Set<string>()): Node<FunctionDefNodeData> | null => {
+	// Helper: Find which LambdaDef a node belongs to by traversing backwards
+	const findOwningLambdaDef = (nodeId: string, visited = new Set<string>()): Node<LambdaDefNodeData> | null => {
 		if (visited.has(nodeId)) return null;
 		visited.add(nodeId);
 
 		const node = nodes.find(n => n.id === nodeId);
 		if (!node) return null;
 
-		if (node.type === 'functionDef') {
-			return node as Node<FunctionDefNodeData>;
+		if (node.type === 'lambdaDef') {
+			return node as Node<LambdaDefNodeData>;
 		}
 
 		// Check all edges coming into this node
 		const incoming = incomingEdges.get(nodeId) || [];
 		for (const edge of incoming) {
-			const funcDef = findOwningFunctionDef(edge.source, visited);
-			if (funcDef) return funcDef;
+			const lambdaDef = findOwningLambdaDef(edge.source, visited);
+			if (lambdaDef) return lambdaDef;
 		}
 
 		return null;
@@ -63,13 +63,26 @@ export function flowToIR(nodes: Node[], edges: Edge[]): { ast: ASTNode; function
 			throw new Error(`Return node has no value connected`);
 		}
 
-		// Find which FunctionDef this return belongs to
-		const funcDefNode = findOwningFunctionDef(valueEdge.source);
-		if (!funcDefNode) {
-			throw new Error(`Return node is not connected to any function definition`);
+		const outData = funcOutNode.data as FunctionOutNodeData;
+		
+		// Find the LambdaDef either by lambdaId or by traversing backwards
+		let lambdaDefNode: Node<LambdaDefNodeData> | null = null;
+		
+		if (outData.lambdaId) {
+			// Look up lambda by explicit ID
+			lambdaDefNode = nodes.find(n => n.id === outData.lambdaId && n.type === 'lambdaDef') as Node<LambdaDefNodeData> | undefined || null;
+		}
+		
+		if (!lambdaDefNode) {
+			// Fallback: traverse backwards to find owning lambda
+			lambdaDefNode = findOwningLambdaDef(valueEdge.source);
+		}
+		
+		if (!lambdaDefNode) {
+			throw new Error(`Return node is not connected to any lambda definition`);
 		}
 
-		const defData = funcDefNode.data as FunctionDefNodeData;
+		const defData = lambdaDefNode.data as LambdaDefNodeData;
 		const functionName = defData.functionName || 'unnamed';
 		const params = defData.params || [];
 
@@ -144,10 +157,10 @@ function convertNode(
 			} as Identifier;
 		}
 
-		case 'functionDef': {
+		case 'lambdaDef': {
 			// If accessed via a parameter handle, return an Identifier for that parameter
 			if (sourceHandle && sourceHandle.startsWith('param')) {
-				const data = node.data as FunctionDefNodeData;
+				const data = node.data as LambdaDefNodeData;
 				const paramIndex = parseInt(sourceHandle.replace('param', ''));
 				const paramName = data.params?.[paramIndex] || `arg${paramIndex}`;
 				return {
@@ -156,13 +169,30 @@ function convertNode(
 				} as Identifier;
 			}
 			// Otherwise, it's an error
-			throw new Error('FunctionDef node should not appear in expression tree');
+			throw new Error('LambdaDef node should not appear in expression tree');
 		}
 
-		case 'functionOut': {
-			// Function out nodes should be handled by the function definition logic
-			throw new Error('FunctionOut node should not appear directly in expression tree');
+	case 'functionOut': {
+		// FunctionOut has two outputs:
+		// 1. 'value' handle - for return value (handled separately in function extraction)
+		// 2. 'function' handle - outputs the function itself as a value
+		if (sourceHandle === 'function') {
+			const data = node.data as FunctionOutNodeData;
+			// Find the lambda def node
+			const lambdaDefNode = allNodes.find(n => n.id === data.lambdaId && n.type === 'lambdaDef');
+			if (!lambdaDefNode) {
+				throw new Error(`FunctionOut node references non-existent lambda ${data.lambdaId}`);
+			}
+			const lambdaData = lambdaDefNode.data as LambdaDefNodeData;
+			const functionName = lambdaData.functionName || 'unnamed';
+			return {
+				type: 'Identifier',
+				name: functionName
+			} as Identifier;
 		}
+		// If accessing without 'function' handle, it's an error
+		throw new Error('FunctionOut node can only be accessed via "function" handle in expressions');
+	}
 
 		case 'dynamicFunction': {
 			const data = node.data as DynamicFunctionNodeData;
@@ -186,9 +216,14 @@ function convertNode(
 				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
 			});
 
+			// Check if functionName already includes namespace
+			const functionName = data.functionName.includes('::') 
+				? data.functionName 
+				: (data.namespace ? `${data.namespace}::${data.functionName}` : data.functionName);
+
 			return {
 				type: 'FunctionCall',
-				function: data.functionName,
+				function: functionName,
 				args
 			} as FunctionCall;
 		}

@@ -26,7 +26,7 @@ import { CustomFunctionNode } from './nodes/CustomFunctionNode';
 import { ApplyFuncNode } from './nodes/ApplyFuncNode';
 import { IfNode } from './nodes/IfNode';
 import { OutputNode } from './nodes/OutputNode';
-import { FunctionDefNode } from './nodes/FunctionDefNode';
+import { LambdaDefNode } from './nodes/LambdaDefNode';
 import { FunctionOutNode } from './nodes/FunctionOutNode';
 
 import { flowToIR } from '../utils/flowToIR';
@@ -46,7 +46,7 @@ const nodeTypes = {
 	applyFunc: ApplyFuncNode,
 	if: IfNode,
 	output: OutputNode,
-	functionDef: FunctionDefNode,
+	lambdaDef: LambdaDefNode,
 	functionOut: FunctionOutNode,
 };
 
@@ -197,7 +197,7 @@ function EditorContent() {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'functionDef' | 'functionOut' | 'customFunction' | 'applyFunc') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc') => {
 		if (!menuState) return;
 
 		const newNodeId = `node-${nodeIdCounter++}`;
@@ -207,10 +207,8 @@ function EditorContent() {
 			switch (type) {
 				case 'literal':
 					return { value: 0 };
-				case 'functionDef':
-					return { functionName: 'myFunc', paramCount: 1, params: ['arg0'] };
-				case 'functionOut':
-					return {};
+				case 'lambdaDef':
+					return { functionName: 'lambda', paramCount: 1, params: ['arg0'] };
 				case 'customFunction':
 					return { functionName: 'myFunc', paramCount: 1 };
 				case 'applyFunc':
@@ -232,7 +230,19 @@ function EditorContent() {
 				data: getDefaultData()
 			};
 
-			setNodes((nds) => [...nds, newNode]);
+			// For lambdaDef, also create a paired functionOut (return) node
+			if (type === 'lambdaDef') {
+				const returnNodeId = `node-${nodeIdCounter++}`;
+				const returnNode: Node = {
+					id: returnNodeId,
+					type: 'functionOut',
+					position: { x: sourceNode.position.x + 250, y: sourceNode.position.y + 120 },
+					data: { lambdaId: newNodeId }
+				};
+				setNodes((nds) => [...nds, newNode, returnNode]);
+			} else {
+				setNodes((nds) => [...nds, newNode]);
+			}
 
 			// Create edge
 			const getTargetHandle = () => {
@@ -259,7 +269,19 @@ function EditorContent() {
 				data: getDefaultData()
 			};
 
-			setNodes((nds) => [...nds, newNode]);
+			// For lambdaDef, also create a paired functionOut (return) node
+			if (type === 'lambdaDef') {
+				const returnNodeId = `node-${nodeIdCounter++}`;
+				const returnNode: Node = {
+					id: returnNodeId,
+					type: 'functionOut',
+					position: { x: flowPos.x, y: flowPos.y + 120 },
+					data: { lambdaId: newNodeId }
+				};
+				setNodes((nds) => [...nds, newNode, returnNode]);
+			} else {
+				setNodes((nds) => [...nds, newNode]);
+			}
 		}
 
 		setMenuState(null);
