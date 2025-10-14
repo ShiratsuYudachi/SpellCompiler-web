@@ -120,7 +120,7 @@ export class Evaluator {
 	evaluate(node: ASTNode, env: Environment = new Map()): Value {
 		switch (node.type) {
 			case 'Literal':
-				return this.evalLiteral(node);
+				return this.evalLiteral(node, env);
 
 			case 'Identifier':
 				return this.evalIdentifier(node, env);
@@ -140,8 +140,18 @@ export class Evaluator {
 	// Node Type Evaluators
 	// ============================================
 
-	private evalLiteral(node: Literal): Value {
-		return node.value;
+	private evalLiteral(node: Literal, env: Environment): Value {
+		const val = node.value;
+		
+		// If the literal is a function value, capture the current environment
+		if (typeof val === 'object' && val !== null && 'type' in val && val.type === 'function') {
+			return {
+				...val,
+				capturedEnv: new Map(env)
+			} as FunctionValue;
+		}
+		
+		return val;
 	}
 
 	private evalIdentifier(node: Identifier, env: Environment): Value {
@@ -154,9 +164,11 @@ export class Evaluator {
 		const fnDef = this.functionTable.get(node.name);
 		if (fnDef) {
 			// Return the function as a value (first-class function)
+			// Capture the current environment for closure support
 			const funcValue: FunctionValue = {
 				type: 'function',
-				definition: fnDef
+				definition: fnDef,
+				capturedEnv: new Map(env)
 			};
 			return funcValue;
 		}
@@ -169,6 +181,7 @@ export class Evaluator {
 		// 1. Get the function definition
 		let fnDef: FunctionDefinition;
 		let fnName: string;
+		let fnValue: FunctionValue | undefined;
 
 		if (typeof node.function === 'string') {
 			// Syntax sugar: direct function name
@@ -190,14 +203,15 @@ export class Evaluator {
 			fnDef = def;
 		} else {
 			// Evaluate the function expression
-			const fnValue = this.evaluate(node.function, env);
+			const evaluatedFn = this.evaluate(node.function, env);
 
 			// Check if it's a function value
-			if (typeof fnValue !== 'object' || fnValue === null || !('type' in fnValue) || fnValue.type !== 'function') {
-				throw new Error(`Cannot call non-function: ${JSON.stringify(fnValue)}`);
+			if (typeof evaluatedFn !== 'object' || evaluatedFn === null || !('type' in evaluatedFn) || evaluatedFn.type !== 'function') {
+				throw new Error(`Cannot call non-function: ${JSON.stringify(evaluatedFn)}`);
 			}
 
-			fnDef = (fnValue as FunctionValue).definition;
+			fnValue = evaluatedFn as FunctionValue;
+			fnDef = fnValue.definition;
 			fnName = fnDef.name;
 		}
 
@@ -231,7 +245,10 @@ export class Evaluator {
 		}
 
 		// 6. Create new environment with parameters bound to arguments
-		const callEnv = new Map<string, Value>();
+		// Start with captured environment (for closure support), then add parameters
+		const callEnv = new Map<string, Value>(
+			fnValue?.capturedEnv || new Map()
+		);
 		fnDef.params.forEach((param, i) => {
 			callEnv.set(param, argValues[i]);
 		});

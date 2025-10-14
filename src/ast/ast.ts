@@ -67,4 +67,5 @@ export type Value =
 export interface FunctionValue {
 	type: 'function';
 	definition: FunctionDefinition;
+	capturedEnv?: Map<string, Value>;  // Captured environment for closures
 }
