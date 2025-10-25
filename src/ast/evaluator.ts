@@ -231,27 +231,60 @@ export class Evaluator {
 		// 2. Evaluate arguments
 		const argValues = node.args.map(arg => this.evaluate(arg, env));
 
-		// 3. Check if native function
-		const nativeFn = (fnDef as any).__native;
-		if (nativeFn) {
-			// Native functions can accept variable arguments
-			// If params is empty, it's a variadic function (accepts any number of args)
-			if (fnDef.params.length > 0 && argValues.length !== fnDef.params.length) {
-				throw new Error(
-					`Function ${fnName} expects ${fnDef.params.length} arguments, got ${argValues.length}`
-				);
+		// 3. Handle partial application (currying) for all functions
+		// Variadic functions (params.length === 0) cannot be curried
+		if (fnDef.params.length > 0 && argValues.length < fnDef.params.length) {
+			// Partial application: return a new function with some parameters bound
+			const boundParams = fnDef.params.slice(0, argValues.length);
+			const remainingParams = fnDef.params.slice(argValues.length);
+			
+			// Create environment with bound parameters
+			const partialEnv = new Map<string, Value>(fnValue?.capturedEnv || new Map());
+			boundParams.forEach((param, i) => {
+				partialEnv.set(param, argValues[i]);
+			});
+			
+			// Store the original function definition and native function (if any)
+			const nativeFn = (fnDef as any).__native;
+			const partialDef: FunctionDefinition & { __native?: any } = {
+				name: `<partial-${fnName}>`,
+				params: remainingParams,
+				body: fnDef.body  // Same body, but with some params already bound
+			};
+			
+			// If it's a native function, wrap it to prepend bound arguments
+			if (nativeFn) {
+				partialDef.__native = (...remainingArgs: Value[]) => {
+					// Reconstruct full argument list: bound args + remaining args
+					const fullArgs = [...argValues, ...remainingArgs];
+					return nativeFn(...fullArgs);
+				};
 			}
-			return nativeFn(...argValues);
+			
+			// Create a new FunctionValue that represents the partially applied function
+			const partialFunctionValue: FunctionValue = {
+				type: 'function',
+				definition: partialDef,
+				capturedEnv: partialEnv  // Store bound parameters in closure
+			};
+			
+			return partialFunctionValue;
 		}
-
-		// 4. Check argument count for user-defined functions
-		if (argValues.length !== fnDef.params.length) {
+		
+		// 4. Too many arguments: error
+		if (fnDef.params.length > 0 && argValues.length > fnDef.params.length) {
 			throw new Error(
 				`Function ${fnName} expects ${fnDef.params.length} arguments, got ${argValues.length}`
 			);
 		}
+		
+		// 5. Execute if native function with correct argument count
+		const nativeFn = (fnDef as any).__native;
+		if (nativeFn) {
+			return nativeFn(...argValues);
+		}
 
-		// 5. Check cache (for user-defined functions)
+		// 6. Check cache (for user-defined functions)
 		// Don't cache lambda functions (they're anonymous and may have different bodies)
 		const shouldCache = fnName !== '<lambda>';
 		const cacheKey = shouldCache ? this.makeCacheKey(fnName, argValues) : '';
@@ -259,7 +292,7 @@ export class Evaluator {
 			return this.cache.get(cacheKey)!;
 		}
 
-		// 6. Create new environment with parameters bound to arguments
+		// 7. Create new environment with parameters bound to arguments
 		// Start with captured environment (for closure support), then add parameters
 		const callEnv = new Map<string, Value>(
 			fnValue?.capturedEnv || new Map()
@@ -268,7 +301,7 @@ export class Evaluator {
 			callEnv.set(param, argValues[i]);
 		});
 
-		// 7. Push current function to call stack
+		// 8. Push current function to call stack
 		this.callStack.push(fnName);
 		// If it's a lambda (has fnValue), also push to callStackValues
 		if (fnValue && fnName === '<lambda>') {
@@ -276,17 +309,17 @@ export class Evaluator {
 		}
 
 		try {
-			// 8. Evaluate function body
+			// 9. Evaluate function body
 			const result = this.evaluate(fnDef.body, callEnv);
 
-			// 9. Cache result (pure function optimization)
+			// 10. Cache result (pure function optimization)
 			if (shouldCache) {
 				this.cache.set(cacheKey, result);
 			}
 
 			return result;
 		} finally {
-			// 10. Always pop the call stack, even if evaluation throws
+			// 11. Always pop the call stack, even if evaluation throws
 			this.callStack.pop();
 			if (fnValue && fnName === '<lambda>') {
 				this.callStackValues.pop();
