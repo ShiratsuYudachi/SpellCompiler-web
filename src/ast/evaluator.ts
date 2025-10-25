@@ -367,4 +367,46 @@ export class Evaluator {
 			this.callStack.pop();
 		}
 	}
+
+	/**
+	 * Call a FunctionValue with arguments
+	 * This allows native functions to invoke user-defined or lambda functions
+	 */
+	callFunctionValue(fnValue: FunctionValue, ...args: Value[]): Value {
+		const fnDef = fnValue.definition;
+
+		// Check argument count
+		if (args.length !== fnDef.params.length) {
+			throw new Error(
+				`Function expects ${fnDef.params.length} arguments, got ${args.length}`
+			);
+		}
+
+		// Check if it's a native function
+		if ((fnDef as any).__native) {
+			return (fnDef as any).__native(...args);
+		}
+
+		// Create environment: start with captured environment, then add parameters
+		const callEnv = new Map<string, Value>(fnValue.capturedEnv || new Map());
+		fnDef.params.forEach((param, i) => {
+			callEnv.set(param, args[i]);
+		});
+
+		// Push to call stack
+		const fnName = fnDef.name;
+		this.callStack.push(fnName);
+		if (fnName === '<lambda>') {
+			this.callStackValues.push(fnValue);
+		}
+
+		try {
+			return this.evaluate(fnDef.body, callEnv);
+		} finally {
+			this.callStack.pop();
+			if (fnName === '<lambda>') {
+				this.callStackValues.pop();
+			}
+		}
+	}
 }

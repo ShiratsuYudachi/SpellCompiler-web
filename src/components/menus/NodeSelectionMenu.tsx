@@ -29,6 +29,7 @@ const FUNCTION_GROUPS = [
 	{ key: 'logical', label: 'Logical', functions: ['and', 'or', 'not'] },
 	{ key: 'math', label: 'Math', functions: ['abs', 'negate', 'mod', 'max', 'min', 'power', 'sqrt', 'floor', 'ceil', 'round'] },
 	{ key: 'list', label: 'List', functions: ['list', 'cons', 'empty', 'head', 'tail', 'length', 'nth', 'append', 'concat', 'range', 'map', 'filter', 'reduce'] },
+	{ key: 'functional', label: 'Functional Utils', functions: ['tap', 'print'] },
 ];
 
 export function NodeSelectionMenu({

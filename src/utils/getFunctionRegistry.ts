@@ -78,6 +78,9 @@ export function getFunctionRegistry(): FunctionInfo[] {
 		{ name: 'map', params: ['fn', 'list'] },
 		{ name: 'filter', params: ['fn', 'list'] },
 		{ name: 'reduce', params: ['fn', 'init', 'list'] },
+		// Functional Utilities
+		{ name: 'tap', params: ['value', 'fn'] },
+		{ name: 'print', params: ['value'] },
 	];
 	
 	for (const fn of stdFunctions) {

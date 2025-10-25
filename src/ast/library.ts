@@ -3,7 +3,7 @@
 // 核心函数库 - 预定义函数
 // =============================================
 
-import type { Value } from './ast';
+import type { Value, FunctionValue } from './ast';
 import type { Evaluator } from './evaluator';
 
 /**
@@ -28,6 +28,9 @@ export function registerCoreLibrary(evaluator: Evaluator): void {
 	
 	// String Functions (字符串函数)
 	registerStringFunctions(evaluator);
+	
+	// Functional Programming Utilities (函数式编程工具)
+	registerFunctionalUtilities(evaluator);
 }
 
 // =============================================
@@ -452,6 +455,34 @@ function registerStringFunctions(evaluator: Evaluator): void {
 }
 
 // =============================================
+// Functional Programming Utilities (函数式编程工具)
+// =============================================
+
+function registerFunctionalUtilities(evaluator: Evaluator): void {
+	// tap(value, fn) - Execute a side effect and return the original value
+	// 执行副作用并返回原始值
+	evaluator.registerNativeFunction('tap', ['value', 'fn'], (value, fn) => {
+		// Check if fn is a function
+		if (typeof fn !== 'object' || fn === null || (fn as any).type !== 'function') {
+			throw new Error('Second argument to tap must be a function');
+		}
+		
+		// Execute the side effect function with the value
+		evaluator.callFunctionValue(fn as FunctionValue, value);
+		
+		// Return the original value unchanged
+		return value;
+	});
+
+	// print(value) - Print value to console and return it
+	// 打印值到控制台并返回它
+	evaluator.registerNativeFunction('print', ['value'], (value) => {
+		console.log(value);
+		return value;
+	});
+}
+
+// =============================================
 // List all available functions
 // =============================================
 
@@ -469,7 +500,9 @@ export const CORE_LIBRARY_FUNCTIONS = [
 	// Math
 	'power', 'sqrt', 'floor', 'ceil', 'round', 'min', 'max', 'sin', 'cos', 'tan',
 	// String
-	'strConcat', 'strLength', 'strSubstring', 'strToUpper', 'strToLower'
+	'strConcat', 'strLength', 'strSubstring', 'strToUpper', 'strToLower',
+	// Functional Utilities
+	'tap', 'print'
 ] as const;
 
 export type CoreLibraryFunction = typeof CORE_LIBRARY_FUNCTIONS[number];
