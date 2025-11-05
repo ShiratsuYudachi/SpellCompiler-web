@@ -32,9 +32,9 @@
 - 画布主区域右键打开菜单，选择Add Node即可打开节点列表，点击想要的节点就可以创建
 - 节点的旁边的黑点称为handle，拖动handle可以拉出一条线连接其他handle
 - 点击页面右上方的Evaluate后，画布中的图就会先被编译为AST，然后交给`JS/浏览器`后端运行
-- 运行后即可可以看到上方的AST Structure以及右侧的Output
+- 运行后即可可以看到上方的AST Structure以及右侧的Result
 	- AST Structure为编译后的AST可视化
-	- Output会展示Output节点的输入
+	- Result会展示Output节点的输入
 
 # 后端
 
