@@ -6,12 +6,17 @@ class MainScene extends Phaser.Scene {
 	create() {
 		this.cameras.main.setBackgroundColor('#1b1f2a')
 		this.add
-			.text(24, 24, 'Phaser Game\\nPress Tab to toggle Editor', {
+			.text(90, 48, 'Phaser Game\\nPress Tab to toggle Editor', {
 				fontFamily: 'monospace',
-				fontSize: '20px',
+				fontSize: '100px',
 				color: '#ffffff',
 			})
 			.setShadow(2, 2, '#000000', 2)
+
+		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
+			e.preventDefault()
+			this.game.events.emit('toggle-editor')
+		})
 	}
 }
 
@@ -19,19 +24,6 @@ export function Game() {
 	const containerRef = useRef<HTMLDivElement | null>(null)
 	const gameRef = useRef<Phaser.Game | null>(null)
 	const [showEditor, setShowEditor] = useState(false)
-
-	useEffect(() => {
-		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.key !== 'Tab') {
-				return
-			}
-			e.preventDefault()
-			setShowEditor((v) => !v)
-		}
-
-		window.addEventListener('keydown', onKeyDown)
-		return () => window.removeEventListener('keydown', onKeyDown)
-	}, [])
 
 	useEffect(() => {
 		if (!containerRef.current) {
@@ -45,8 +37,8 @@ export function Game() {
 		const config: Phaser.Types.Core.GameConfig = {
 			type: Phaser.AUTO,
 			parent: containerRef.current,
-			width: 960,
-			height: 540,
+			width: 2560,
+			height: 1440,
 			scene: MainScene,
 			scale: {
 				mode: Phaser.Scale.FIT,
@@ -56,8 +48,11 @@ export function Game() {
 
 		const game = new Phaser.Game(config)
 		gameRef.current = game
+		const onToggleEditor = () => setShowEditor((v) => !v)
+		game.events.on('toggle-editor', onToggleEditor)
 
 		return () => {
+			game.events.off('toggle-editor', onToggleEditor)
 			game.destroy(true)
 			gameRef.current = null
 		}
