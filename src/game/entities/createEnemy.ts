@@ -11,7 +11,7 @@ export function createEnemy(scene: Phaser.Scene, player: Entity, x = 740, y = 27
 	body.setCollideWorldBounds(true)
 
 	const enemy = new Entity()
-	const enemySprite = new SpriteComponent(body)
+	const enemySprite = new SpriteComponent(scene, body)
 	const playerSprite = player.get(SpriteComponent)!
 
 	enemy

@@ -43,6 +43,7 @@ export class ContactDamageComponent extends Component {
 
 		this.nextAt = now + this.cooldownMs
 		victimHealth.takeDamage(this.damage)
+		victimSprite.flash()
 	}
 }
 

@@ -48,13 +48,9 @@ export class PlayerAttackComponent extends Component {
 			return
 		}
 
+		this.selfSprite.playAttack()
 		targetHealth.takeDamage(this.damage)
-		targetSprite.body.setTint(0xffffff)
-		this.scene.time.delayedCall(80, () => {
-			if (targetSprite.body.active) {
-				targetSprite.body.clearTint()
-			}
-		})
+		targetSprite.flash()
 	}
 }
 

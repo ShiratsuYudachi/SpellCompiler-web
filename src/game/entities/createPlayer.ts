@@ -10,7 +10,7 @@ export function createPlayer(scene: Phaser.Scene, input: InputSystem, x = 200, y
 	const body = createRectBody(scene, 'player-rect', 0x4a90e2, 32, 32, x, y, 5)
 	body.setCollideWorldBounds(true)
 
-	const sprite = new SpriteComponent(body)
+	const sprite = new SpriteComponent(scene, body)
 
 	return new Entity()
 		.add(sprite)
