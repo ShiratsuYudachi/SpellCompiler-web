@@ -1,6 +1,6 @@
 import { query } from 'bitecs'
 import { Health, Sprite } from '../../components'
-import type { GameWorld } from '../../world'
+import type { GameWorld } from '../../gameWorld'
 import { flashBody } from './flash'
 
 export function areaAttack(

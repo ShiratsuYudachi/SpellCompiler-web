@@ -1,7 +1,7 @@
 import { query } from 'bitecs'
 import { Enemy, Health } from '../components'
-import type { GameWorld } from '../world'
-import { despawnEntity } from '../world'
+import type { GameWorld } from '../gameWorld'
+import { despawnEntity } from '../gameWorld'
 
 export function deathSystem(world: GameWorld) {
 	for (const eid of query(world, [Enemy, Health])) {

@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { GameEvents } from '../events'
 import type { CompiledSpell } from '../spells/types'
-import { createGameWorld, updateGameWorld, type GameWorld } from '../world'
+import { createGameWorld, updateGameWorld, type GameWorld } from '../gameWorld'
 import { queueFireball } from '../systems/playerInputSystem'
 
 export class MainScene extends Phaser.Scene {

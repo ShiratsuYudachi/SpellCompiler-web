@@ -1,7 +1,7 @@
 import { query } from 'bitecs'
 import { Fireball, FireballStats, Health, Lifetime, Owner, Sprite } from '../components'
-import type { GameWorld } from '../world'
-import { despawnEntity } from '../world'
+import type { GameWorld } from '../gameWorld'
+import { despawnEntity } from '../gameWorld'
 import { applyDamage } from './utils/attack'
 
 export function fireballSystem(world: GameWorld, _dt: number) {

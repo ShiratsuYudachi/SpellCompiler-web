@@ -1,8 +1,8 @@
 import { addComponent } from 'bitecs'
 import type Phaser from 'phaser'
 import { Direction, Fireball, FireballStats, Lifetime, Owner, Sprite, Velocity } from '../components'
-import type { GameWorld } from '../world'
-import { spawnEntity } from '../world'
+import type { GameWorld } from '../gameWorld'
+import { spawnEntity } from '../gameWorld'
 
 function ensureFireballTexture(scene: Phaser.Scene) {
 	const key = 'fireball'

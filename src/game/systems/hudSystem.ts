@@ -1,5 +1,5 @@
 import { Health } from '../components'
-import type { GameWorld } from '../world'
+import type { GameWorld } from '../gameWorld'
 
 export function hudSystem(world: GameWorld) {
 	const playerEid = world.resources.playerEid

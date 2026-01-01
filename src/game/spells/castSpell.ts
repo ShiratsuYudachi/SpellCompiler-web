@@ -1,6 +1,6 @@
 import { Evaluator } from '../../editor/ast/evaluator'
 import type { CompiledSpell } from './types'
-import type { GameWorld } from '../world'
+import type { GameWorld } from '../gameWorld'
 import { Velocity } from '../components'
 
 export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSpell) {

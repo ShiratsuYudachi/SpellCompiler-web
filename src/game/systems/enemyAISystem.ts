@@ -1,6 +1,6 @@
 import { query } from 'bitecs'
 import { Enemy, EnemyAI, Sprite, Velocity } from '../components'
-import type { GameWorld } from '../world'
+import type { GameWorld } from '../gameWorld'
 import { areaAttack } from './utils/attack'
 
 export function enemyAISystem(world: GameWorld) {

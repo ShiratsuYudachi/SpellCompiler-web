@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { query } from 'bitecs'
 import { Health, Player, PlayerControl, Sprite, Velocity } from '../components'
-import type { GameWorld } from '../world'
+import type { GameWorld } from '../gameWorld'
 import { areaAttack } from './utils/attack'
 import { spawnFireball } from '../prefabs/spawnFireball'
 import { castSpell } from '../spells/castSpell'

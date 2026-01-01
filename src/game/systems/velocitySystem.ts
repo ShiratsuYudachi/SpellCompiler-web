@@ -1,6 +1,6 @@
 import { query } from 'bitecs'
 import { Sprite, Velocity } from '../components'
-import type { GameWorld } from '../world'
+import type { GameWorld } from '../gameWorld'
 
 export function velocitySystem(world: GameWorld) {
 	for (const eid of query(world, [Sprite, Velocity])) {
