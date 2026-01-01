@@ -7,9 +7,9 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"preview": "vite preview",
-		"test": "tsx src/test/run-tests.ts",
-		"test:ast": "tsx src/ast/example.ts",
-		"test:lambda": "tsx src/ast/test-lambda.ts"
+		"test": "tsx src/editor/test/run-tests.ts",
+		"test:ast": "tsx src/editor/ast/example.ts",
+		"test:lambda": "tsx src/editor/ast/test-lambda.ts"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.14",
@@ -27,6 +27,7 @@
 		"@mantine/hooks": "^8.3.3",
 		"@vitejs/plugin-react": "^5.0.4",
 		"mermaid": "^11.12.0",
+		"phaser": "^3.90.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
 		"reactflow": "^11.11.4",
