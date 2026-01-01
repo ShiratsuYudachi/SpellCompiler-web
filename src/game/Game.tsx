@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 import { Editor } from '../editor/Editor'
 import { GameEvents } from './events'
 import { MainScene } from './scenes/MainScene'
+import { setGameInstance } from './gameInstance'
 
 export function Game() {
 	const containerRef = useRef<HTMLDivElement | null>(null)
@@ -38,6 +39,7 @@ export function Game() {
 
 		const game = new Phaser.Game(config)
 		gameRef.current = game
+		setGameInstance(game)
 		const onToggleEditor = () => setShowEditor((v) => !v)
 		game.events.on(GameEvents.toggleEditor, onToggleEditor)
 
@@ -45,6 +47,7 @@ export function Game() {
 			game.events.off(GameEvents.toggleEditor, onToggleEditor)
 			game.destroy(true)
 			gameRef.current = null
+			setGameInstance(null)
 		}
 	}, [])
 

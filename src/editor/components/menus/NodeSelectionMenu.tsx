@@ -40,6 +40,7 @@ export function NodeSelectionMenu({
 }: NodeSelectionMenuProps) {
 	const functionsByNamespace = getFunctionsByNamespace();
 	const stdFunctions = functionsByNamespace['std'] || [];
+	const gameFunctions = functionsByNamespace['game'] || [];
 
 	// Group std functions by category
 	const groupedFunctions = FUNCTION_GROUPS.map(group => ({
@@ -114,6 +115,27 @@ export function NodeSelectionMenu({
 							</div>
 						</div>
 					)
+				)}
+
+				{gameFunctions.length > 0 && (
+					<div>
+						<Divider my="xs" />
+						<Menu.Label>Game</Menu.Label>
+						<div className="grid grid-cols-2 gap-1 px-2 pb-2">
+							{gameFunctions.map(func => (
+								<button
+									key={func.name}
+									onClick={() => {
+										onSelectFunction(func);
+										onClose();
+									}}
+									className="px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+								>
+									{func.displayName}
+								</button>
+							))}
+						</div>
+					</div>
 				)}
 			</Menu.Dropdown>
 		</Menu>

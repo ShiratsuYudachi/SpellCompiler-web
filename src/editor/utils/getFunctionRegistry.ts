@@ -94,6 +94,23 @@ export function getFunctionRegistry(): FunctionInfo[] {
 			isNative: true
 		});
 	}
+
+	const gameFunctions = [
+		{ name: 'getPlayer', params: [] },
+		{ name: 'teleportRelative', params: ['entityId', 'dx', 'dy'] },
+	]
+
+	for (const fn of gameFunctions) {
+		const fullName = `game::${fn.name}`
+		functions.push({
+			name: fullName,
+			displayName: fn.name,
+			namespace: 'game',
+			paramCount: fn.params.length,
+			params: fn.params,
+			isNative: true,
+		})
+	}
 	
 	return functions;
 }

@@ -5,12 +5,24 @@ import { HealthComponent } from '../components/HealthComponent'
 import { EnemyAIComponent } from '../components/EnemyAIComponent'
 import { createPlayer } from '../entities/createPlayer'
 import { createEnemy } from '../entities/createEnemy'
+import type { CompiledSpell } from '../spells/types'
+import { PlayerSpellManagerComponent } from '../components/PlayerSpellManagerComponent'
 
 export class MainScene extends Phaser.Scene {
 	private entities: Entity[] = []
 	private player!: Entity
 	private enemy!: Entity
 	private hudText!: Phaser.GameObjects.Text
+	private lastSpellMessage = ''
+
+	private onRegisterSpell = (payload: CompiledSpell) => {
+		const mgr = this.player.get(PlayerSpellManagerComponent)
+		if (!mgr) {
+			this.lastSpellMessage = 'PlayerSpellManagerComponent not found.'
+			return
+		}
+		mgr.setSpell(payload)
+	}
 	
 	getEntities() {
 		return this.entities
@@ -40,6 +52,11 @@ export class MainScene extends Phaser.Scene {
 			e.preventDefault()
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
+
+		this.game.events.on(GameEvents.registerSpell, this.onRegisterSpell)
+		this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+			this.game.events.off(GameEvents.registerSpell, this.onRegisterSpell)
+		})
 	}
 
 	update() {
@@ -54,13 +71,17 @@ export class MainScene extends Phaser.Scene {
 		this.entities = this.entities.filter((e) => e.isActive())
 
 		const playerHealth = this.player.get(HealthComponent)
+		const spellManager = this.player.get(PlayerSpellManagerComponent)
+		const spellMessage = spellManager?.lastMessage || this.lastSpellMessage
 		this.hudText.setText(
 			[
 				`HP: ${playerHealth ? playerHealth.current : 0}/${playerHealth ? playerHealth.max : 0}`,
 				'WASD / Arrows to move',
 				'Space to melee (1s CD)',
 				'Left click to fireball (0.3s CD)',
+				'1 to cast loaded spell',
 				'Tab to toggle Editor',
+				spellMessage,
 			].join('\n'),
 		)
 	}

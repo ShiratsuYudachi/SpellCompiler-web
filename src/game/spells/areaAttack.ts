@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
-import type { Entity } from './core/Entity'
-import { SpriteComponent } from './components/SpriteComponent'
-import { HealthComponent } from './components/HealthComponent'
+import type { Entity } from '../core/Entity'
+import { SpriteComponent } from '../components/SpriteComponent'
+import { HealthComponent } from '../components/HealthComponent'
 
 export type AttackLocation = {
 	x: number

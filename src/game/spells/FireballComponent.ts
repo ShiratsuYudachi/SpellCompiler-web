@@ -1,7 +1,7 @@
 import { Component } from '../core/Component'
 import type { Entity } from '../core/Entity'
-import { HealthComponent } from './HealthComponent'
-import { SpriteComponent } from './SpriteComponent'
+import { HealthComponent } from '../components/HealthComponent'
+import { SpriteComponent } from '../components/SpriteComponent'
 import type Phaser from 'phaser'
 
 export class FireballComponent extends Component {

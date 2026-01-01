@@ -65,9 +65,7 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	// For variadic functions, show 4 optional parameters
 	const displayParams = isVariadic 
 		? ['arg0', 'arg1', 'arg2', 'arg3']
-		: params.length > 0 
-			? params 
-			: ['arg0']; // At least one handle for 0-param functions
+		: params
 	
 	return (
 		<div className={`px-4 py-3 shadow-md rounded-lg ${colors.bg} border-2 ${colors.border} min-w-[160px]`}>

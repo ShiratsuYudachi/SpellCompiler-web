@@ -2,8 +2,9 @@ import Phaser from 'phaser'
 import { Component } from '../core/Component'
 import type { Entity } from '../core/Entity'
 import { areaAttack } from '../areaAttack'
-import { spawnFireball } from '../spawnFireball'
+import { spawnFireball } from '../entities/spawnFireball'
 import type { SpriteComponent } from './SpriteComponent'
+import { PlayerSpellManagerComponent } from './PlayerSpellManagerComponent'
 
 export class PlayerControlComponent extends Component {
 	private scene: Phaser.Scene & { getEntities(): Entity[] }
@@ -13,6 +14,7 @@ export class PlayerControlComponent extends Component {
 	private cursors: Phaser.Types.Input.Keyboard.CursorKeys
 	private keys: Record<string, Phaser.Input.Keyboard.Key>
 	private meleeKey: Phaser.Input.Keyboard.Key
+	private spellKey1: Phaser.Input.Keyboard.Key
 
 	private moveSpeed = 220
 
@@ -45,6 +47,7 @@ export class PlayerControlComponent extends Component {
 		this.cursors = scene.input.keyboard!.createCursorKeys()
 		this.keys = scene.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>
 		this.meleeKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+		this.spellKey1 = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE)
 
 		scene.input.on('pointerdown', this.onPointerDown)
 	}
@@ -53,6 +56,7 @@ export class PlayerControlComponent extends Component {
 		this.updateMove()
 		this.updateMelee()
 		this.updateFireball()
+		this.updateSpell1()
 	}
 
 	destroy() {
@@ -118,5 +122,13 @@ export class PlayerControlComponent extends Component {
 
 		spawnFireball(this.scene, this.player, x, y, dx / dist, dy / dist)
 	}
+
+	private updateSpell1() {
+		if (!Phaser.Input.Keyboard.JustDown(this.spellKey1)) {
+			return
+		}
+		this.player.get(PlayerSpellManagerComponent)?.cast()
+	}
 }
+
 

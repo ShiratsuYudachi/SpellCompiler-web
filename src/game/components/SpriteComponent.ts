@@ -37,6 +37,10 @@ export class SpriteComponent extends Component {
 		this.body.setVelocity(x, y)
 	}
 
+	setPosition(x: number, y: number) {
+		this.body.setPosition(x, y)
+	}
+
 	getX() {
 		return this.body.x
 	}

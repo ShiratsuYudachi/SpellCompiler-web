@@ -37,6 +37,8 @@ import type { FunctionInfo } from '../utils/getFunctionRegistry';
 import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
+import { GameEvents } from '../../game/events'
+import { getGameInstance } from '../../game/gameInstance'
 
 // Define node types
 const nodeTypes = {
@@ -55,38 +57,50 @@ const initialNodes: Node[] = [
 	{
 		id: 'output-1',
 		type: 'output',
-		position: { x: 600, y: 200 },
+		position: { x: 700, y: 220 },
 		data: { label: 'Output' }
 	},
 	{
-		id: 'func-1',
+		id: 'func-teleport',
 		type: 'dynamicFunction',
-		position: { x: 350, y: 180 },
+		position: { x: 420, y: 200 },
 		data: { 
-			functionName: 'std::add',
-			displayName: 'add',
-			namespace: 'std',
-			params: ['a', 'b']
+			functionName: 'game::teleportRelative',
+			displayName: 'teleportRelative',
+			namespace: 'game',
+			params: ['entityId', 'dx', 'dy']
 		}
 	},
 	{
-		id: 'lit-1',
-		type: 'literal',
-		position: { x: 100, y: 150 },
-		data: { value: 10 }
+		id: 'func-getPlayer',
+		type: 'dynamicFunction',
+		position: { x: 140, y: 120 },
+		data: {
+			functionName: 'game::getPlayer',
+			displayName: 'getPlayer',
+			namespace: 'game',
+			params: []
+		}
 	},
 	{
-		id: 'lit-2',
+		id: 'lit-dx',
 		type: 'literal',
-		position: { x: 100, y: 230 },
-		data: { value: 20 }
+		position: { x: 140, y: 240 },
+		data: { value: 200 }
+	},
+	{
+		id: 'lit-dy',
+		type: 'literal',
+		position: { x: 140, y: 320 },
+		data: { value: 0 }
 	},
 ];
 
 const initialEdges: Edge[] = [
-	{ id: 'e1', source: 'func-1', target: 'output-1', targetHandle: 'value' },
-	{ id: 'e2', source: 'lit-1', target: 'func-1', targetHandle: 'arg0' },
-	{ id: 'e3', source: 'lit-2', target: 'func-1', targetHandle: 'arg1' },
+	{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+	{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
+	{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
+	{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
 ];
 
 let nodeIdCounter = 100;
@@ -143,6 +157,7 @@ function EditorContent() {
 		if (!menuState) return;
 
 		const newNodeId = `node-${nodeIdCounter++}`;
+		const isVariadic = funcInfo.paramCount === 0 && funcInfo.name.includes('list')
 
 		// If from handle click, position relative to source node
 		if (menuState.sourceNodeId) {
@@ -158,21 +173,22 @@ function EditorContent() {
 					displayName: funcInfo.displayName,
 					namespace: funcInfo.namespace,
 					params: funcInfo.params,
-					isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+					isVariadic
 				}
 			};
 
 			setNodes((nds) => [...nds, newNode]);
 
-			// Create edge from source handle to new node's first input
-			const newEdge: Edge = {
-				id: `e-${Date.now()}`,
-				source: menuState.sourceNodeId,
-				sourceHandle: menuState.sourceHandleId!,
-				target: newNodeId,
-				targetHandle: 'arg0'
-			};
-			setEdges((eds) => [...eds, newEdge]);
+			if (isVariadic || funcInfo.params.length > 0) {
+				const newEdge: Edge = {
+					id: `e-${Date.now()}`,
+					source: menuState.sourceNodeId,
+					sourceHandle: menuState.sourceHandleId!,
+					target: newNodeId,
+					targetHandle: 'arg0'
+				};
+				setEdges((eds) => [...eds, newEdge]);
+			}
 		} else {
 			// From context menu, position at menu location
 			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
@@ -186,7 +202,7 @@ function EditorContent() {
 					displayName: funcInfo.displayName,
 					namespace: funcInfo.namespace,
 					params: funcInfo.params,
-					isVariadic: funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+					isVariadic
 				}
 			};
 
@@ -300,6 +316,13 @@ function EditorContent() {
 			// Evaluate IR
 			const evaluator = new Evaluator();
 
+			evaluator.registerNativeFunctionFullName('game::getPlayer', [], () => {
+				return 'player'
+			})
+			evaluator.registerNativeFunctionFullName('game::teleportRelative', ['entityId', 'dx', 'dy'], (_entityId, dx, dy) => {
+				return [dx, dy]
+			})
+
 			// Register user-defined functions
 			functions.forEach(fn => {
 				evaluator.registerFunction(fn);
@@ -315,6 +338,26 @@ function EditorContent() {
 			setCurrentFunctions([]);
 		}
 	};
+
+	const handleRegisterSpell = () => {
+		try {
+			setError(null)
+			const { ast, functions } = flowToIR(nodes, edges)
+			setCurrentAST(ast)
+			setCurrentFunctions(functions)
+
+			const game = getGameInstance()
+			if (!game) {
+				throw new Error('Game is not running')
+			}
+
+			game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
+			setEvaluationResult({ cast: true })
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err))
+			setEvaluationResult(null)
+		}
+	}
 
 	// Export workflow to JSON file
 	const handleExport = () => {
@@ -411,6 +454,9 @@ function EditorContent() {
 					</Button>
 					<Button size="sm" color="indigo" onClick={handleEvaluate}>
 						▶️ Evaluate
+					</Button>
+					<Button size="sm" color="teal" onClick={handleRegisterSpell}>
+						✨ Cast
 					</Button>
 				</div>
 			</div>

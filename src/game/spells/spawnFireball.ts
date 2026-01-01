@@ -1,8 +1,8 @@
 import type Phaser from 'phaser'
-import type { Entity } from './core/Entity'
-import { Entity as GameEntity } from './core/Entity'
-import { SpriteComponent } from './components/SpriteComponent'
-import { FireballComponent } from './components/FireballComponent'
+import type { Entity } from '../core/Entity'
+import { Entity as GameEntity } from '../core/Entity'
+import { SpriteComponent } from '../components/SpriteComponent'
+import { FireballComponent } from './FireballComponent'
 
 function ensureFireballTexture(scene: Phaser.Scene) {
 	const key = 'fireball'
@@ -40,4 +40,5 @@ export function spawnFireball(
 	scene.getEntities().push(fireball)
 	return fireball
 }
+
 

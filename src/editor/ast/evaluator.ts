@@ -79,6 +79,22 @@ export class Evaluator {
 	}
 
 	/**
+	 * Register a native function with a full name (e.g. "game::teleportRelative")
+	 */
+	registerNativeFunctionFullName(
+		fullName: string,
+		params: string[],
+		fn: (...args: Value[]) => Value
+	): void {
+		this.functionTable.set(fullName, {
+			name: fullName,
+			params,
+			body: { type: 'Literal', value: 0 } as Literal,
+			__native: fn as any,
+		} as any)
+	}
+
+	/**
 	 * Check if a function exists
 	 */
 	hasFunction(name: string): boolean {
