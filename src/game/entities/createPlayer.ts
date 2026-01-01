@@ -14,7 +14,7 @@ export function createPlayer(scene: Phaser.Scene, input: InputSystem, x = 200, y
 
 	return new Entity()
 		.add(sprite)
-		.add(new HealthComponent(100))
+		.add(new HealthComponent(100, () => sprite.flash()))
 		.add(new PlayerMoveComponent(input, sprite, 220))
 }
 

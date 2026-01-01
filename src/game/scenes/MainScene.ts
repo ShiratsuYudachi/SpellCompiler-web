@@ -2,9 +2,9 @@ import Phaser from 'phaser'
 import { GameEvents } from '../events'
 import { InputSystem } from '../core/InputSystem'
 import { Entity } from '../core/Entity'
-import { SpriteComponent } from '../components/SpriteComponent'
 import { HealthComponent } from '../components/HealthComponent'
-import { PlayerAttackComponent } from '../components/PlayerAttackComponent'
+import { PlayerAttackInputComponent } from '../components/PlayerAttackInputComponent'
+import { EnemyAIComponent } from '../components/EnemyAIComponent'
 import { createPlayer } from '../entities/createPlayer'
 import { createEnemy } from '../entities/createEnemy'
 
@@ -14,6 +14,10 @@ export class MainScene extends Phaser.Scene {
 	private player!: Entity
 	private enemy!: Entity
 	private hudText!: Phaser.GameObjects.Text
+	
+	getEntities() {
+		return this.entities
+	}
 
 	create() {
 		this.cameras.main.setBackgroundColor('#1b1f2a')
@@ -22,10 +26,13 @@ export class MainScene extends Phaser.Scene {
 		this.inputSystem = new InputSystem(this)
 
 		this.player = createPlayer(this, this.inputSystem)
-		this.enemy = createEnemy(this, this.player)
-		this.player.add(
-			new PlayerAttackComponent(this, this.inputSystem, this.player.get(SpriteComponent)!, this.enemy, 70, 15),
-		)
+		this.enemy = createEnemy(this)
+
+		this.player
+			.add(new PlayerAttackInputComponent(this, this.inputSystem, this.player))
+
+		this.enemy
+			.add(new EnemyAIComponent(this, this.enemy, this.player))
 
 		this.entities.push(this.player, this.enemy)
 
@@ -59,7 +66,7 @@ export class MainScene extends Phaser.Scene {
 			[
 				`HP: ${playerHealth ? playerHealth.current : 0}/${playerHealth ? playerHealth.max : 0}`,
 				'WASD / Arrows to move',
-				'Space to attack',
+				'Space to attack (1s CD)',
 				'Tab to toggle Editor',
 			].join('\n'),
 		)
