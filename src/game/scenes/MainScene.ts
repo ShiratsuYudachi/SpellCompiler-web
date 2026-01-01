@@ -1,15 +1,12 @@
 import Phaser from 'phaser'
 import { GameEvents } from '../events'
-import { InputSystem } from '../core/InputSystem'
 import { Entity } from '../core/Entity'
 import { HealthComponent } from '../components/HealthComponent'
-import { PlayerAttackInputComponent } from '../components/PlayerAttackInputComponent'
 import { EnemyAIComponent } from '../components/EnemyAIComponent'
 import { createPlayer } from '../entities/createPlayer'
 import { createEnemy } from '../entities/createEnemy'
 
 export class MainScene extends Phaser.Scene {
-	private inputSystem!: InputSystem
 	private entities: Entity[] = []
 	private player!: Entity
 	private enemy!: Entity
@@ -23,13 +20,8 @@ export class MainScene extends Phaser.Scene {
 		this.cameras.main.setBackgroundColor('#1b1f2a')
 		this.physics.world.setBounds(0, 0, 960, 540)
 
-		this.inputSystem = new InputSystem(this)
-
-		this.player = createPlayer(this, this.inputSystem)
+		this.player = createPlayer(this)
 		this.enemy = createEnemy(this)
-
-		this.player
-			.add(new PlayerAttackInputComponent(this, this.inputSystem, this.player))
 
 		this.enemy
 			.add(new EnemyAIComponent(this, this.enemy, this.player))
@@ -54,19 +46,20 @@ export class MainScene extends Phaser.Scene {
 		const enemyHealth = this.enemy.get(HealthComponent)
 		if (enemyHealth && enemyHealth.isDead()) {
 			this.enemy.destroy()
-			this.entities = this.entities.filter((e) => e.isActive())
 		}
 
 		for (const e of this.entities) {
 			e.update(this.game.loop.delta / 1000)
 		}
+		this.entities = this.entities.filter((e) => e.isActive())
 
 		const playerHealth = this.player.get(HealthComponent)
 		this.hudText.setText(
 			[
 				`HP: ${playerHealth ? playerHealth.current : 0}/${playerHealth ? playerHealth.max : 0}`,
 				'WASD / Arrows to move',
-				'Space to attack (1s CD)',
+				'Space to melee (1s CD)',
+				'Left click to fireball (0.3s CD)',
 				'Tab to toggle Editor',
 			].join('\n'),
 		)
