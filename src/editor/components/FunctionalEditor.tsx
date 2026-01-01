@@ -456,7 +456,7 @@ function EditorContent() {
 						▶️ Evaluate
 					</Button>
 					<Button size="sm" color="teal" onClick={handleRegisterSpell}>
-						✨ Cast
+						✨ Compile & Register
 					</Button>
 				</div>
 			</div>

@@ -1,7 +1,7 @@
-import Phaser from 'phaser'
+import type Phaser from 'phaser'
 
 export function createRectBody(
-	scene: Phaser.Scene,
+	scene: Phaser.Scene & { physics: Phaser.Physics.Arcade.ArcadePhysics },
 	key: string,
 	color: number,
 	w: number,
