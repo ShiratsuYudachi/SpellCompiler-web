@@ -3,6 +3,7 @@ import Phaser from 'phaser'
 import { Editor } from '../editor/Editor'
 import { GameEvents } from './events'
 import { MainScene } from './scenes/MainScene'
+import { Scene1 } from './scenes/Scene1'
 import { setGameInstance } from './gameInstance'
 
 export function Game() {
@@ -24,7 +25,7 @@ export function Game() {
 			parent: containerRef.current,
 			width: 960,
 			height: 540,
-			scene: MainScene,
+			scene: [MainScene, Scene1],
 			physics: {
 				default: 'arcade',
 				arcade: {
@@ -40,7 +41,18 @@ export function Game() {
 		const game = new Phaser.Game(config)
 		gameRef.current = game
 		setGameInstance(game)
-		const onToggleEditor = () => setShowEditor((v) => !v)
+		const onToggleEditor = () => {
+			setShowEditor((v) => {
+				const newValue = !v
+				// Clear editor context when editor closes (defer to avoid React warning)
+				if (!newValue) {
+					setTimeout(() => {
+						game.events.emit(GameEvents.setEditorContext, { sceneKey: undefined })
+					}, 0)
+				}
+				return newValue
+			})
+		}
 		game.events.on(GameEvents.toggleEditor, onToggleEditor)
 
 		return () => {
