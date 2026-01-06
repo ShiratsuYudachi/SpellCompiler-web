@@ -3,6 +3,29 @@ import Phaser from 'phaser'
 import { Editor } from '../editor/Editor'
 import { GameEvents } from './events'
 import { MainScene } from './scenes/MainScene'
+import { LevelSelectScene } from './scenes/LevelSelectScene'
+import { Level1 } from './scenes/levels/Level1'
+import { Level2 } from './scenes/levels/Level2'
+import { Level3 } from './scenes/levels/Level3'
+import {
+	Level4,
+	Level5,
+	Level6,
+	Level7,
+	Level8,
+	Level9,
+	Level10,
+	Level11,
+	Level12,
+	Level13,
+	Level14,
+	Level15,
+	Level16,
+	Level17,
+	Level18,
+	Level19,
+	Level20,
+} from './scenes/levels/LevelEmpty'
 import { setGameInstance } from './gameInstance'
 
 export function Game() {
@@ -24,7 +47,30 @@ export function Game() {
 			parent: containerRef.current,
 			width: 960,
 			height: 540,
-			scene: MainScene,
+			scene: [
+				MainScene,
+				LevelSelectScene,
+				Level1,
+				Level2,
+				Level3,
+				Level4,
+				Level5,
+				Level6,
+				Level7,
+				Level8,
+				Level9,
+				Level10,
+				Level11,
+				Level12,
+				Level13,
+				Level14,
+				Level15,
+				Level16,
+				Level17,
+				Level18,
+				Level19,
+				Level20,
+			],
 			physics: {
 				default: 'arcade',
 				arcade: {
@@ -40,7 +86,17 @@ export function Game() {
 		const game = new Phaser.Game(config)
 		gameRef.current = game
 		setGameInstance(game)
-		const onToggleEditor = () => setShowEditor((v) => !v)
+		const onToggleEditor = () => {
+			setShowEditor((v) => {
+				const newValue = !v
+				if (!newValue) {
+					setTimeout(() => {
+						game.events.emit(GameEvents.setEditorContext, { sceneKey: undefined })
+					}, 0)
+				}
+				return newValue
+			})
+		}
 		game.events.on(GameEvents.toggleEditor, onToggleEditor)
 
 		return () => {
@@ -80,4 +136,3 @@ export function Game() {
 }
 
 export default Game
-

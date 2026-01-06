@@ -16,7 +16,12 @@ export type GameWorld = World & {
 	resources: GameResources
 }
 
-export function createGameWorld(scene: Phaser.Scene & { physics: Phaser.Physics.Arcade.ArcadePhysics }) {
+export function createGameWorld(
+	scene: Phaser.Scene & { physics: Phaser.Physics.Arcade.ArcadePhysics },
+	playerX?: number,
+	playerY?: number,
+	createEnemies: boolean = true,
+) {
 	const world = createWorld() as GameWorld
 
 	const input = createInput(scene)
@@ -24,8 +29,12 @@ export function createGameWorld(scene: Phaser.Scene & { physics: Phaser.Physics.
 	const spellByEid = new Map<number, CompiledSpell>()
 	const spellMessageByEid = new Map<number, string>()
 
-	const playerEid = createPlayer(world, scene, bodies)
-	createEnemy(world, scene, bodies, playerEid)
+	const playerEid = createPlayer(world, scene, bodies, playerX, playerY)
+	
+	// Only create enemies if requested
+	if (createEnemies) {
+		createEnemy(world, scene, bodies, playerEid)
+	}
 
 	const hudText = createHud(scene)
 

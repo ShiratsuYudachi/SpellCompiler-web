@@ -3,7 +3,7 @@
 // 
 // =============================================
 
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import ReactFlow, {
 	Background,
 	Controls,
@@ -123,8 +123,64 @@ function EditorContent() {
 		show: boolean;
 		position: { x: number; y: number };
 	} | null>(null);
+	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
+
+	// Listen for editor context changes
+	useEffect(() => {
+		const game = getGameInstance();
+		if (!game) return;
+
+		const handler = (context: { sceneKey?: string }) => {
+			// Defer state update to avoid React warning
+			setTimeout(() => {
+				setEditorContext(context);
+			}, 0);
+		};
+
+		game.events.on(GameEvents.setEditorContext, handler);
+		return () => {
+			game.events.off(GameEvents.setEditorContext, handler);
+		};
+	}, []);
+
+	// Filter nodes based on scene context (memoized for performance)
+	const filteredNodes = useMemo(() => {
+		const isScene1 = editorContext?.sceneKey === 'Scene1';
+		if (!isScene1) return nodes;
+
+		return nodes.filter((node) => {
+			if (node.type === 'dynamicFunction') {
+				const funcName = (node.data as any)?.functionName;
+				return funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+			}
+			return node.type === 'literal' || node.type === 'output';
+		});
+	}, [nodes, editorContext]);
+
+	// Remove disallowed nodes from state when context changes or nodes are added
+	useEffect(() => {
+		const isScene1 = editorContext?.sceneKey === 'Scene1';
+		if (!isScene1) return;
+
+		const disallowedNodes = nodes.filter((node) => {
+			if (node.type === 'dynamicFunction') {
+				const funcName = (node.data as any)?.functionName;
+				return funcName !== 'game::getPlayer' && funcName !== 'game::teleportRelative';
+			}
+			return node.type !== 'literal' && node.type !== 'output';
+		});
+
+		if (disallowedNodes.length > 0) {
+			// Remove disallowed nodes from state
+			setNodes((nds) => nds.filter((node) => !disallowedNodes.includes(node)));
+			// Show error message
+			setTimeout(() => {
+				setError(`Some nodes were removed. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Scene1.`);
+			}, 0);
+		}
+	}, [nodes, editorContext]);
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -152,9 +208,34 @@ function EditorContent() {
 		onHandleAddNode: handleHandleAddNode
 	}), [handleHandleAddNode]);
 
+	// Check if node type is allowed in current scene context
+	const isNodeTypeAllowed = (nodeType: string, funcName?: string): boolean => {
+		const isScene1 = editorContext?.sceneKey === 'Scene1';
+		if (!isScene1) return true; // All nodes allowed in other scenes
+
+		// In Scene1, only allow specific node types
+		if (nodeType === 'literal' || nodeType === 'output') {
+			return true;
+		}
+		if (nodeType === 'dynamicFunction' && funcName) {
+			return funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+		}
+		return false;
+	};
+
 	// Add function node from menu and connect
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
 		if (!menuState) return;
+
+		// Check if this function is allowed in current scene
+		if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
+			// Defer error to avoid React warning
+			setTimeout(() => {
+				setError(`Function ${funcInfo.displayName} is not available in this scene. Only getPlayer and teleportRelative are allowed.`);
+			}, 0);
+			setMenuState(null);
+			return;
+		}
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 		const isVariadic = funcInfo.paramCount === 0 && funcInfo.name.includes('list')
@@ -177,7 +258,14 @@ function EditorContent() {
 				}
 			};
 
-			setNodes((nds) => [...nds, newNode]);
+			// Use setNodes with validation to ensure node is actually added
+			setNodes((nds) => {
+				// Double-check before adding
+				if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
+					return nds; // Don't add if not allowed
+				}
+				return [...nds, newNode];
+			});
 
 			if (isVariadic || funcInfo.params.length > 0) {
 				const newEdge: Edge = {
@@ -206,7 +294,14 @@ function EditorContent() {
 				}
 			};
 
-			setNodes((nds) => [...nds, newNode]);
+			// Use setNodes with validation to ensure node is actually added
+			setNodes((nds) => {
+				// Double-check before adding
+				if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
+					return nds; // Don't add if not allowed
+				}
+				return [...nds, newNode];
+			});
 		}
 
 		setMenuState(null);
@@ -215,6 +310,16 @@ function EditorContent() {
 	// Add basic node from menu and connect
 	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc') => {
 		if (!menuState) return;
+
+		// Check if this node type is allowed in current scene
+		if (!isNodeTypeAllowed(type)) {
+			// Defer error to avoid React warning
+			setTimeout(() => {
+				setError(`Node type ${type} is not available in this scene. Only literal and output nodes are allowed.`);
+			}, 0);
+			setMenuState(null);
+			return;
+		}
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 
@@ -255,9 +360,21 @@ function EditorContent() {
 					position: { x: sourceNode.position.x + 250, y: sourceNode.position.y + 120 },
 					data: { lambdaId: newNodeId }
 				};
-				setNodes((nds) => [...nds, newNode, returnNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode, returnNode];
+				});
 			} else {
-				setNodes((nds) => [...nds, newNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode];
+				});
 			}
 
 			// Create edge
@@ -294,9 +411,21 @@ function EditorContent() {
 					position: { x: flowPos.x, y: flowPos.y + 120 },
 					data: { lambdaId: newNodeId }
 				};
-				setNodes((nds) => [...nds, newNode, returnNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode, returnNode];
+				});
 			} else {
-				setNodes((nds) => [...nds, newNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode];
+				});
 			}
 		}
 
@@ -397,12 +526,33 @@ function EditorContent() {
 						
 						// Restore nodes and edges from the imported flow
 						if (flow.nodes && Array.isArray(flow.nodes)) {
-							setNodes(flow.nodes);
+							const isScene1 = editorContext?.sceneKey === 'Scene1';
+							
+							// Filter nodes if in Scene1
+							let nodesToImport = flow.nodes;
+							if (isScene1) {
+								nodesToImport = flow.nodes.filter((node: Node) => {
+									if (node.type === 'dynamicFunction') {
+										const funcName = (node.data as any)?.functionName;
+										return funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+									}
+									return node.type === 'literal' || node.type === 'output';
+								});
+								
+								if (nodesToImport.length < flow.nodes.length) {
+									// Defer error to avoid React warning
+									setTimeout(() => {
+										setError(`Some nodes were removed during import. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Scene1.`);
+									}, 0);
+								}
+							}
+							
+							setNodes(nodesToImport);
 							
 							// Update nodeIdCounter to avoid ID conflicts
 							// Find the maximum node ID number from imported nodes
 							let maxId = nodeIdCounter;
-							flow.nodes.forEach((node: Node) => {
+							nodesToImport.forEach((node: Node) => {
 								// Extract number from IDs like "node-123", "lit-45", etc.
 								const match = node.id.match(/-(\d+)$/);
 								if (match) {
@@ -515,9 +665,50 @@ function EditorContent() {
 					}}
 				>
 					<ReactFlow
-						nodes={nodes}
+						nodes={filteredNodes}
 						edges={edges}
-						onNodesChange={onNodesChange}
+						onNodesChange={(changes) => {
+							// Filter out disallowed node additions in Scene1
+							const isScene1 = editorContext?.sceneKey === 'Scene1';
+							if (isScene1) {
+								const filteredChanges: typeof changes = [];
+								for (const change of changes) {
+									// Block adding disallowed node types
+									if (change.type === 'add' && change.item) {
+										const node = change.item as Node;
+										let isAllowed = false;
+										
+										if (node.type === 'dynamicFunction') {
+											const funcName = (node.data as any)?.functionName;
+											isAllowed = funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+											if (!isAllowed) {
+												// Defer error to avoid React warning
+												setTimeout(() => {
+													setError(`Function ${funcName || 'unknown'} is not allowed in Scene1. Only getPlayer and teleportRelative are available.`);
+												}, 0);
+											}
+										} else if (node.type === 'literal' || node.type === 'output') {
+											isAllowed = true;
+										} else {
+											// Defer error to avoid React warning
+											setTimeout(() => {
+												setError(`Node type ${node.type} is not allowed in Scene1. Only literal and output nodes are available.`);
+											}, 0);
+										}
+										
+										if (isAllowed) {
+											filteredChanges.push(change);
+										}
+									} else {
+										// Allow all other changes (remove, select, position, etc.)
+										filteredChanges.push(change);
+									}
+								}
+								onNodesChange(filteredChanges);
+							} else {
+								onNodesChange(changes);
+							}
+						}}
 						onEdgesChange={onEdgesChange}
 						onConnect={onConnect}
 						nodeTypes={nodeTypes}

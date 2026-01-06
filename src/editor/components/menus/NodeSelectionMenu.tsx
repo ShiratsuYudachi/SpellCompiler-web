@@ -4,7 +4,10 @@
 // =============================================
 
 import { Menu, Text, Divider } from '@mantine/core';
+import { useEffect, useState } from 'react';
 import { getFunctionsByNamespace, type FunctionInfo } from '../../utils/getFunctionRegistry';
+import { GameEvents } from '../../../game/events';
+import { getGameInstance } from '../../../game/gameInstance';
 
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
@@ -38,15 +41,46 @@ export function NodeSelectionMenu({
 	onSelectBasicNode,
 	onClose
 }: NodeSelectionMenuProps) {
+	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
+
+	// Listen for editor context changes
+	useEffect(() => {
+		const game = getGameInstance();
+		if (!game) return;
+
+		const handler = (context: { sceneKey?: string }) => {
+			setEditorContext(context);
+		};
+
+		game.events.on(GameEvents.setEditorContext, handler);
+		return () => {
+			game.events.off(GameEvents.setEditorContext, handler);
+		};
+	}, []);
+
 	const functionsByNamespace = getFunctionsByNamespace();
 	const stdFunctions = functionsByNamespace['std'] || [];
 	const gameFunctions = functionsByNamespace['game'] || [];
 
-	// Group std functions by category
-	const groupedFunctions = FUNCTION_GROUPS.map(group => ({
-		...group,
-		items: stdFunctions.filter(fn => group.functions.includes(fn.displayName))
-	}));
+	// Filter based on scene context
+	const isScene1 = editorContext?.sceneKey === 'Scene1';
+	
+	// In Scene1, only allow literal, output, getPlayer, and teleportRelative
+	const availableBasicNodes = isScene1
+		? BASIC_NODES.filter(node => node.type === 'literal' || node.type === 'output')
+		: BASIC_NODES;
+
+	const availableGameFunctions = isScene1
+		? gameFunctions.filter(fn => fn.name === 'game::getPlayer' || fn.name === 'game::teleportRelative')
+		: gameFunctions;
+
+	// Group std functions by category (empty in Scene1)
+	const groupedFunctions = isScene1
+		? []
+		: FUNCTION_GROUPS.map(group => ({
+			...group,
+			items: stdFunctions.filter(fn => group.functions.includes(fn.displayName))
+		}));
 
 	return (
 		<Menu
@@ -76,7 +110,7 @@ export function NodeSelectionMenu({
 				style={{ maxHeight: '400px', overflowY: 'auto' }}
 			>
 				<Menu.Label>Basic Nodes</Menu.Label>
-				{BASIC_NODES.map(node => (
+				{availableBasicNodes.map(node => (
 					<Menu.Item
 						key={node.type}
 						leftSection={node.icon}
@@ -117,12 +151,12 @@ export function NodeSelectionMenu({
 					)
 				)}
 
-				{gameFunctions.length > 0 && (
+				{availableGameFunctions.length > 0 && (
 					<div>
 						<Divider my="xs" />
 						<Menu.Label>Game</Menu.Label>
 						<div className="grid grid-cols-2 gap-1 px-2 pb-2">
-							{gameFunctions.map(func => (
+							{availableGameFunctions.map(func => (
 								<button
 									key={func.name}
 									onClick={() => {

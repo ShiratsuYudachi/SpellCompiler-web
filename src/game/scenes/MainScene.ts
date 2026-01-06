@@ -1,44 +1,71 @@
 import Phaser from 'phaser'
-import { GameEvents } from '../events'
-import type { CompiledSpell } from '../spells/types'
-import { createGameWorld, updateGameWorld, type GameWorld } from '../gameWorld'
-import { queueFireball } from '../systems/playerInputSystem'
 
+/**
+ * MainScene - 主菜单界面（纯UI，不继承BaseScene）
+ */
 export class MainScene extends Phaser.Scene {
-	private world!: GameWorld
-
-	private onRegisterSpell = (payload: CompiledSpell) => {
-		const playerEid = this.world.resources.playerEid
-		this.world.resources.spellByEid.set(playerEid, payload)
-		this.world.resources.spellMessageByEid.set(playerEid, 'Spell equipped. Press 1 to cast.')
+	constructor() {
+		super({ key: 'MainScene' })
 	}
 
 	create() {
-		this.cameras.main.setBackgroundColor('#1b1f2a')
-		this.physics.world.setBounds(0, 0, 960, 540)
+		this.cameras.main.setBackgroundColor('#0a0e14')
 
-		this.world = createGameWorld(this)
+		// 标题
+		this.add
+			.text(480, 150, 'SPELL COMPILER', {
+				fontSize: '64px',
+				color: '#ffffff',
+				fontStyle: 'bold',
+			})
+			.setOrigin(0.5)
 
-		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
-			e.preventDefault()
-			this.game.events.emit(GameEvents.toggleEditor)
+		// 副标题
+		this.add
+			.text(480, 220, 'A Magical Journey', {
+				fontSize: '24px',
+				color: '#aaaaaa',
+			})
+			.setOrigin(0.5)
+
+		// 开始游戏按钮
+		const startBtn = this.add.rectangle(480, 320, 300, 60, 0x4a90e2)
+		startBtn.setStrokeStyle(3, 0x5aa0f2)
+		startBtn.setInteractive({ useHandCursor: true })
+
+		const startText = this.add
+			.text(480, 320, 'START GAME', {
+				fontSize: '28px',
+				color: '#ffffff',
+				fontStyle: 'bold',
+			})
+			.setOrigin(0.5)
+
+		startBtn.on('pointerover', () => {
+			startBtn.setFillStyle(0x5aa0f2)
+			startBtn.setScale(1.05)
+		})
+		startBtn.on('pointerout', () => {
+			startBtn.setFillStyle(0x4a90e2)
+			startBtn.setScale(1)
+		})
+		startBtn.on('pointerdown', () => {
+			this.scene.start('LevelSelectScene')
 		})
 
-		this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-			if (pointer.button !== 0) {
-				return
-			}
-			queueFireball(this.world.resources.playerEid, pointer.worldX, pointer.worldY)
-		})
+		// 说明文字
+		this.add
+			.text(480, 450, 'Press TAB to open spell editor in levels', {
+				fontSize: '16px',
+				color: '#666666',
+			})
+			.setOrigin(0.5)
 
-		this.game.events.on(GameEvents.registerSpell, this.onRegisterSpell)
-		this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-			this.game.events.off(GameEvents.registerSpell, this.onRegisterSpell)
-		})
-	}
-
-	update() {
-		updateGameWorld(this.world, this.game.loop.delta / 1000)
+		// 版本信息
+		this.add
+			.text(20, 520, 'v1.0.0', {
+				fontSize: '14px',
+				color: '#444444',
+			})
 	}
 }
-
