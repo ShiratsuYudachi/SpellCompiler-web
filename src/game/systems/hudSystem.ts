@@ -8,17 +8,17 @@ export function hudSystem(world: GameWorld) {
 
 	const spellMessage = world.resources.spellMessageByEid.get(playerEid) || ''
 
-	world.resources.hudText.setText(
-		[
-			`HP: ${hp}/${max}`,
-			'WASD / Arrows to move',
-			'Space to melee (1s CD)',
-			'Left click to fireball (0.3s CD)',
-			'1 to cast loaded spell',
-			'Tab to toggle Editor',
-			spellMessage,
-		].join('\n'),
-	)
+	// world.resources.hudText.setText(
+	// 	[
+	// 		`HP: ${hp}/${max}`,
+	// 		'WASD / Arrows to move',
+	// 		'Space to melee (1s CD)',
+	// 		'Left click to fireball (0.3s CD)',
+	// 		'1 to cast loaded spell',
+	// 		'Tab to toggle Editor',
+	// 		spellMessage,
+	// 	].join('\n'),
+	// )
 }
 
 

@@ -1,7 +1,4 @@
-/**
- * Scene Configuration System
- * 支持主场景、关卡选择和20个关卡
- */
+import type { ObjectiveConfig } from './base/TerrainTypes'
 
 export type GateConfig = {
 	x: number
@@ -19,28 +16,32 @@ export type SceneConfig = {
 	playerSpawnX: number
 	playerSpawnY: number
 	gates: GateConfig[]
+	mapData?: number[][] // 0: 空地, 1: 墙壁, 2: 平台, 3: 危险区, 4: 目标点
+	tileSize?: number
+	objectives?: ObjectiveConfig[]
 }
 
-/**
- * 生成返回关卡选择的gate配置
- */
+// 小型返回按钮（左上角）
 function createBackToSelectGate(): GateConfig {
 	return {
-		x: 480,
-		y: 520,
-		width: 100,
-		height: 40,
-		color: 0xff0000,
+		x: 60,
+		y: 30,
+		width: 80,
+		height: 25,
+		color: 0x2d3748,
 		targetScene: 'LevelSelectScene',
-		label: '← Level Select',
+		label: '',
 	}
 }
 
-/**
- * 所有场景配置
- */
+// 快速生成围墙房间
+function createRoom(w: number, h: number): number[][] {
+	return Array.from({ length: h }, (_, y) =>
+		Array.from({ length: w }, (_, x) => (x === 0 || x === w - 1 || y === 0 || y === h - 1 ? 1 : 0))
+	)
+}
+
 export const SCENE_CONFIGS: Record<string, SceneConfig> = {
-	// 主场景
 	MainScene: {
 		key: 'MainScene',
 		playerSpawnX: 200,
@@ -58,23 +59,35 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		],
 	},
 
-	// 关卡选择场景
 	LevelSelectScene: {
 		key: 'LevelSelectScene',
 		playerSpawnX: 480,
 		playerSpawnY: 270,
-		gates: [], // 通过UI按钮切换，不用gate
+		gates: [],
 	},
 
-	// Level 1 (原Scene1 - Puzzle)
+	// Level 1 - 逻辑之门（教学关卡）
 	Level1: {
 		key: 'Level1',
 		playerSpawnX: 120,
 		playerSpawnY: 270,
 		gates: [createBackToSelectGate()],
+		objectives: [
+			{
+				id: 'defeat-boss',
+				description: 'Use teleportRelative to approach and defeat Boss',
+				type: 'defeat',
+			},
+			{
+				id: 'collect-markers',
+				description: 'Collect 3 markers (0/3)',
+				type: 'collect',
+				prerequisite: 'defeat-boss',
+			},
+		],
 	},
 
-	// Level 2 (原BossBattleTestScene - Boss Battle)
+	// Level 2 - Boss战（独立系统）
 	Level2: {
 		key: 'Level2',
 		playerSpawnX: 480,
@@ -82,140 +95,110 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		gates: [createBackToSelectGate()],
 	},
 
-	// Level 3 (原CombatScene - Combat)
+	// Level 3 - 战斗关卡
 	Level3: {
 		key: 'Level3',
 		playerSpawnX: 480,
 		playerSpawnY: 270,
 		gates: [createBackToSelectGate()],
+		tileSize: 80,
+		mapData: createRoom(12, 8),
 	},
 
-	// Level 4-20 (空关卡)
+	// Level 4 - 示例：平台跳跃 + 渐进式任务
 	Level4: {
 		key: 'Level4',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
+		playerSpawnX: 96,
+		playerSpawnY: 320,
 		gates: [createBackToSelectGate()],
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1],
+			[1, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
+			{
+				id: 'task1',
+				description: 'Jump on platforms',
+				type: 'reach',
+			},
+			{
+				id: 'task2',
+				description: 'Avoid red hazards',
+				type: 'reach',
+				prerequisite: 'task1',
+			},
+			{
+				id: 'task3',
+				description: 'Reach green objective',
+				type: 'reach',
+				prerequisite: 'task2',
+			},
+		],
 	},
+
+	// Level 5
 	Level5: {
 		key: 'Level5',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
+		playerSpawnX: 96,
+		playerSpawnY: 96,
 		gates: [createBackToSelectGate()],
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+			[1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+			[1, 0, 1, 0, 0, 0, 3, 1, 0, 1],
+			[1, 0, 1, 1, 1, 1, 3, 1, 0, 1],
+			[1, 0, 0, 3, 3, 0, 0, 0, 0, 1],
+			[1, 0, 1, 1, 1, 0, 1, 1, 4, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
+			{
+				id: 'survive',
+				description: 'Reach goal without touching red hazards',
+				type: 'reach',
+			},
+		],
 	},
-	Level6: {
-		key: 'Level6',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level7: {
-		key: 'Level7',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level8: {
-		key: 'Level8',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level9: {
-		key: 'Level9',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level10: {
-		key: 'Level10',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level11: {
-		key: 'Level11',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level12: {
-		key: 'Level12',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level13: {
-		key: 'Level13',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level14: {
-		key: 'Level14',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level15: {
-		key: 'Level15',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level16: {
-		key: 'Level16',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level17: {
-		key: 'Level17',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level18: {
-		key: 'Level18',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level19: {
-		key: 'Level19',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
-	Level20: {
-		key: 'Level20',
-		playerSpawnX: 200,
-		playerSpawnY: 270,
-		gates: [createBackToSelectGate()],
-	},
+
+	// 批量生成 Level 6-20
+	...Object.fromEntries(
+		Array.from({ length: 15 }, (_, i) => [
+			`Level${i + 6}`,
+			{
+				key: `Level${i + 6}`,
+				playerSpawnX: 96,
+				playerSpawnY: 288,
+				gates: [createBackToSelectGate()],
+				mapData: createRoom(15, 9),
+				tileSize: 64,
+			},
+		])
+	),
 }
 
-export function getSceneConfig(sceneKey: string): SceneConfig | undefined {
+export function getSceneConfig(sceneKey: string) {
 	return SCENE_CONFIGS[sceneKey]
 }
 
-export function getPlayerSpawnPosition(sceneKey: string): { x: number; y: number } {
-	const config = getSceneConfig(sceneKey)
-	if (config) {
-		return { x: config.playerSpawnX, y: config.playerSpawnY }
-	}
-	return { x: 200, y: 270 }
+export function getPlayerSpawnPosition(sceneKey: string) {
+	const cfg = getSceneConfig(sceneKey)
+	return cfg ? { x: cfg.playerSpawnX, y: cfg.playerSpawnY } : { x: 200, y: 270 }
 }
 
-export function getPlayerSpawnNearGate(targetSceneKey: string, gateIndex: number = 0): { x: number; y: number } {
+export function getPlayerSpawnNearGate(targetSceneKey: string, gateIndex: number = 0) {
 	const config = getSceneConfig(targetSceneKey)
 	if (config && config.gates[gateIndex]) {
 		const gate = config.gates[gateIndex]
 		const offsetX = gate.x < 480 ? gate.width + 20 : -(gate.width + 20)
-		return {
-			x: gate.x + offsetX,
-			y: gate.y,
-		}
+		return { x: gate.x + offsetX, y: gate.y }
 	}
 	return getPlayerSpawnPosition(targetSceneKey)
 }
