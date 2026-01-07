@@ -2,8 +2,7 @@ import Phaser from 'phaser'
 import { GameEvents } from '../../events'
 import type { CompiledSpell } from '../../spells/types'
 import { createGameWorld, updateGameWorld, type GameWorld } from '../../gameWorld'
-import { getPlayerSpawnPosition, getSceneGates, getPlayerSpawnNearGate, getSceneConfig } from '../sceneConfig'
-import { createRectBody } from '../../prefabs/createRectBody'
+import { getPlayerSpawnPosition, getSceneConfig } from '../sceneConfig'
 import { TerrainType, type ObjectiveConfig } from './TerrainTypes'
 import { TerrainRenderer } from './TerrainRenderer'
 import { Health, Enemy } from '../../components'
@@ -11,7 +10,6 @@ import { LevelProgress } from './LevelProgress'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
-	protected gates: Phaser.Physics.Arcade.Image[] = []
 	protected platforms!: Phaser.Physics.Arcade.StaticGroup
 	protected hazards: Phaser.GameObjects.Rectangle[] = []
 	protected objectives: Map<string, { sprite: Phaser.GameObjects.Arc; config: ObjectiveConfig }> = new Map()
@@ -27,14 +25,14 @@ export abstract class BaseScene extends Phaser.Scene {
 	private taskText!: Phaser.GameObjects.Text
 	private tutorialOverlay!: Phaser.GameObjects.Container
 	private controlsPanel!: Phaser.GameObjects.Container
-	
+
 	// Minimap
 	private minimapContainer!: Phaser.GameObjects.Container
 	private minimapBg!: Phaser.GameObjects.Graphics
 	private minimapPlayerDot!: Phaser.GameObjects.Arc
 	private minimapEnemyDots: Phaser.GameObjects.Arc[] = []
 	private minimapObjectiveDots: Phaser.GameObjects.Arc[] = []
-	
+
 	private worldWidth = 960
 	private worldHeight = 540
 
@@ -92,10 +90,6 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.initProgressiveObjectives(config.objectives)
 		}
 
-		// 传送门系统
-		this.gates = this.createGates(getSceneGates(this.scene.key))
-		this.setupGateCollisions()
-
 		// 编辑器与法术事件
 		this.bindGlobalEvents()
 
@@ -118,7 +112,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			completed: false,
 			visible: !obj.prerequisite
 		}))
-		
+
 		this.updateTaskDisplay()
 	}
 
@@ -126,7 +120,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		const visibleTasks = this.allObjectives
 			.filter(obj => obj.visible)
 			.map(obj => `${obj.completed ? '✓' : '☐'} ${obj.description}`)
-		
+
 		this.taskText.setText(visibleTasks.join('\n'))
 	}
 
@@ -136,7 +130,7 @@ export abstract class BaseScene extends Phaser.Scene {
 				obj.visible = true
 			}
 		})
-		
+
 		this.updateTaskDisplay()
 	}
 
@@ -147,7 +141,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			task.completed = true
 			this.unlockNextObjective(id)
 			this.updateTaskDisplay()
-			
+
 			// 检查是否全部完成
 			if (this.allObjectives.every(obj => obj.completed)) {
 				this.onAllObjectivesComplete()
@@ -274,7 +268,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			task.completed = true
 			this.unlockNextObjective(id)
 		}
-		
+
 		// 检查是否所有任务完成
 		const allCompleted = this.allObjectives.every(obj => obj.completed)
 		if (allCompleted) {
@@ -285,7 +279,12 @@ export abstract class BaseScene extends Phaser.Scene {
 	protected onAllObjectivesComplete() {
 		const levelNum = parseInt(this.scene.key.replace('Level', ''))
 		if (!isNaN(levelNum)) {
+			console.log('[BaseScene] Level completed:', levelNum)
 			LevelProgress.completeLevel(levelNum)
+
+			// Pause the scene and show victory screen
+			this.scene.pause()
+			this.game.events.emit(GameEvents.showVictory, { level: levelNum })
 		}
 	}
 
@@ -313,7 +312,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			.setOrigin(0)
 			.setScrollFactor(0)
 			.setDepth(1000)
-		
+
 		this.manaBar = this.add.graphics().setScrollFactor(0).setDepth(1001)
 		this.manaText = this.add
 			.text(x + 5, y + 33, 'MP: 100/100', {
@@ -443,15 +442,15 @@ export abstract class BaseScene extends Phaser.Scene {
 
 	private initControlsPanel() {
 		const x = 20
-		const y = 540 - 140
+		const y = 540 - 160
 
 		this.controlsPanel = this.add.container(x, y).setScrollFactor(0).setDepth(1000)
 
 		const bg = this.add.graphics()
 		bg.fillStyle(0x1a1f2e, 0.85)
-		bg.fillRoundedRect(0, 0, 250, 120, 8)
+		bg.fillRoundedRect(0, 0, 250, 140, 8)
 		bg.lineStyle(2, 0x4a90e2, 0.6)
-		bg.strokeRoundedRect(0, 0, 250, 120, 8)
+		bg.strokeRoundedRect(0, 0, 250, 140, 8)
 
 		const title = this.add.graphics()
 		title.fillStyle(0x2d3748, 0.9)
@@ -471,6 +470,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			'Left Click  →  Fireball (0.3s CD)',
 			'1  →  Cast Spell',
 			'Tab  →  Toggle Editor',
+			'ESC  →  Pause Menu',
 		]
 
 		const controlsText = this.add.text(12, 36, controls.join('\n'), {
@@ -504,63 +504,24 @@ export abstract class BaseScene extends Phaser.Scene {
 
 	// --- 核心逻辑 ---
 	private bindGlobalEvents() {
+		// ESC key for pause menu
+		this.input.keyboard?.on('keydown-ESC', (e: KeyboardEvent) => {
+			e.preventDefault()
+			console.log('[BaseScene] ESC pressed, toggling pause from:', this.scene.key)
+			this.game.events.emit(GameEvents.togglePause, { sceneKey: this.scene.key })
+		})
+
+		// TAB key for editor
 		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
 			e.preventDefault()
-			// Set editor context before toggling
 			this.game.events.emit(GameEvents.setEditorContext, { sceneKey: this.scene.key })
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
+
 		const reg = (p: CompiledSpell) => this.world.resources.spellByEid.set(this.world.resources.playerEid, p)
 		this.game.events.on(GameEvents.registerSpell, reg)
-		this.events.once('shutdown', () => this.game.events.off(GameEvents.registerSpell, reg))
-	}
-
-	private setupGateCollisions() {
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (!playerBody) return
-		this.gates.forEach((gate, i) => {
-			const cfg = getSceneGates(this.scene.key)[i]
-			this.physics.add.overlap(playerBody, gate, () => {
-				const spawn = getPlayerSpawnNearGate(cfg.targetScene, 0)
-				this.scene.start(cfg.targetScene, { playerX: spawn.x, playerY: spawn.y })
-			})
-		})
-	}
-
-	private createGates(cfgs: any[]) {
-		return cfgs.map((c, i) => {
-			const g = createRectBody(this, `gate-${i}`, c.color, c.width, c.height, c.x, c.y, 1)
-			// Make gates more visible and always on top
-			g.setAlpha(0.9)
-			g.setDepth(1999)
-			
-			// Add gate border using rectangles (safer than graphics)
-			const outerBorder = this.add.rectangle(c.x, c.y, c.width + 8, c.height + 8, 0xffffff, 0)
-			outerBorder.setStrokeStyle(4, 0xffffff, 0.8)
-			outerBorder.setDepth(2000)
-			
-			const innerBorder = this.add.rectangle(c.x, c.y, c.width - 8, c.height - 8, 0x4a90e2, 0)
-			innerBorder.setStrokeStyle(2, 0x4a90e2, 0.6)
-			innerBorder.setDepth(2000)
-			
-			if (c.label && c.label.trim() !== '') {
-				const labelText = this.add
-					.text(c.x, c.y, c.label, { 
-						fontSize: '16px', 
-						color: '#ffffff',
-						fontStyle: 'bold',
-						stroke: '#000000',
-						strokeThickness: 3,
-					})
-					.setOrigin(0.5)
-					.setDepth(2001)
-				;(g as any).labelText = labelText
-			}
-			
-			;(g as any).outerBorder = outerBorder
-			;(g as any).innerBorder = innerBorder
-			
-			return g
+		this.events.once('shutdown', () => {
+			this.game.events.off(GameEvents.registerSpell, reg)
 		})
 	}
 
