@@ -21,16 +21,16 @@ export type SceneConfig = {
 	objectives?: ObjectiveConfig[]
 }
 
-// 小型返回按钮（左上角）
+// Back gate (right center)
 function createBackToSelectGate(): GateConfig {
 	return {
-		x: 60,
-		y: 30,
-		width: 80,
-		height: 25,
-		color: 0x2d3748,
+		x: 900,  // Right side (960 - 60)
+		y: 270,  // Center (540 / 2)
+		width: 60,
+		height: 120,
+		color: 0x4a90e2,
 		targetScene: 'LevelSelectScene',
-		label: '',
+		label: 'EXIT',
 	}
 }
 

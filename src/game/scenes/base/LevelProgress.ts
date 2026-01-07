@@ -25,10 +25,27 @@ export class LevelProgress {
 		const saved = localStorage.getItem(STORAGE_KEY)
 		if (saved) {
 			try {
-				this.data = JSON.parse(saved)
+				const parsed = JSON.parse(saved)
+				// Ensure at least level 1 is unlocked
+				if (parsed && Array.isArray(parsed.unlockedLevels)) {
+					this.data = parsed
+					// Ensure level 1 is always unlocked
+					if (!this.data.unlockedLevels.includes(1)) {
+						this.data.unlockedLevels.push(1)
+						this.save()
+					}
+				} else {
+					// Invalid data, use defaults
+					this.save()
+				}
 			} catch (e) {
 				console.error('Failed to parse progress:', e)
+				// Use defaults on parse error
+				this.save()
 			}
+		} else {
+			// No saved data, save defaults
+			this.save()
 		}
 	}
 

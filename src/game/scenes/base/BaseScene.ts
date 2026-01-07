@@ -498,7 +498,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	protected showInstruction(msg: string) {
-		;(this.tutorialOverlay.getAt(1) as Phaser.GameObjects.Text).setText(msg + '\n\n[ 点击继续 ]')
+		;(this.tutorialOverlay.getAt(1) as Phaser.GameObjects.Text).setText(msg + '\n\n[ Click to continue ]')
 		this.tutorialOverlay.setVisible(true)
 	}
 
@@ -506,6 +506,8 @@ export abstract class BaseScene extends Phaser.Scene {
 	private bindGlobalEvents() {
 		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
 			e.preventDefault()
+			// Set editor context before toggling
+			this.game.events.emit(GameEvents.setEditorContext, { sceneKey: this.scene.key })
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
 		const reg = (p: CompiledSpell) => this.world.resources.spellByEid.set(this.world.resources.playerEid, p)
@@ -528,13 +530,35 @@ export abstract class BaseScene extends Phaser.Scene {
 	private createGates(cfgs: any[]) {
 		return cfgs.map((c, i) => {
 			const g = createRectBody(this, `gate-${i}`, c.color, c.width, c.height, c.x, c.y, 1)
+			// Make gates more visible and always on top
+			g.setAlpha(0.9)
+			g.setDepth(1999)
+			
+			// Add gate border using rectangles (safer than graphics)
+			const outerBorder = this.add.rectangle(c.x, c.y, c.width + 8, c.height + 8, 0xffffff, 0)
+			outerBorder.setStrokeStyle(4, 0xffffff, 0.8)
+			outerBorder.setDepth(2000)
+			
+			const innerBorder = this.add.rectangle(c.x, c.y, c.width - 8, c.height - 8, 0x4a90e2, 0)
+			innerBorder.setStrokeStyle(2, 0x4a90e2, 0.6)
+			innerBorder.setDepth(2000)
 			
 			if (c.label && c.label.trim() !== '') {
-				this.add
-					.text(c.x, c.y - 45, c.label, { fontSize: '12px', backgroundColor: '#000000', padding: { x: 4, y: 2 } })
+				const labelText = this.add
+					.text(c.x, c.y, c.label, { 
+						fontSize: '16px', 
+						color: '#ffffff',
+						fontStyle: 'bold',
+						stroke: '#000000',
+						strokeThickness: 3,
+					})
 					.setOrigin(0.5)
-					.setScrollFactor(0)
+					.setDepth(2001)
+				;(g as any).labelText = labelText
 			}
+			
+			;(g as any).outerBorder = outerBorder
+			;(g as any).innerBorder = innerBorder
 			
 			return g
 		})

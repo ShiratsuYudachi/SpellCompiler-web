@@ -147,8 +147,8 @@ function EditorContent() {
 
 	// Filter nodes based on scene context (memoized for performance)
 	const filteredNodes = useMemo(() => {
-		const isScene1 = editorContext?.sceneKey === 'Scene1';
-		if (!isScene1) return nodes;
+		const isLevel1 = editorContext?.sceneKey === 'Level1';
+		if (!isLevel1) return nodes;
 
 		return nodes.filter((node) => {
 			if (node.type === 'dynamicFunction') {
@@ -161,8 +161,8 @@ function EditorContent() {
 
 	// Remove disallowed nodes from state when context changes or nodes are added
 	useEffect(() => {
-		const isScene1 = editorContext?.sceneKey === 'Scene1';
-		if (!isScene1) return;
+		const isLevel1 = editorContext?.sceneKey === 'Level1';
+		if (!isLevel1) return;
 
 		const disallowedNodes = nodes.filter((node) => {
 			if (node.type === 'dynamicFunction') {
@@ -177,7 +177,7 @@ function EditorContent() {
 			setNodes((nds) => nds.filter((node) => !disallowedNodes.includes(node)));
 			// Show error message
 			setTimeout(() => {
-				setError(`Some nodes were removed. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Scene1.`);
+				setError(`Some nodes were removed. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Level1.`);
 			}, 0);
 		}
 	}, [nodes, editorContext]);
@@ -210,10 +210,10 @@ function EditorContent() {
 
 	// Check if node type is allowed in current scene context
 	const isNodeTypeAllowed = (nodeType: string, funcName?: string): boolean => {
-		const isScene1 = editorContext?.sceneKey === 'Scene1';
-		if (!isScene1) return true; // All nodes allowed in other scenes
+		const isLevel1 = editorContext?.sceneKey === 'Level1';
+		if (!isLevel1) return true; // All nodes allowed in other scenes
 
-		// In Scene1, only allow specific node types
+		// In Level1, only allow specific node types
 		if (nodeType === 'literal' || nodeType === 'output') {
 			return true;
 		}
@@ -526,11 +526,11 @@ function EditorContent() {
 						
 						// Restore nodes and edges from the imported flow
 						if (flow.nodes && Array.isArray(flow.nodes)) {
-							const isScene1 = editorContext?.sceneKey === 'Scene1';
+							const isLevel1 = editorContext?.sceneKey === 'Level1';
 							
-							// Filter nodes if in Scene1
+							// Filter nodes if in Level1
 							let nodesToImport = flow.nodes;
-							if (isScene1) {
+							if (isLevel1) {
 								nodesToImport = flow.nodes.filter((node: Node) => {
 									if (node.type === 'dynamicFunction') {
 										const funcName = (node.data as any)?.functionName;
@@ -542,7 +542,7 @@ function EditorContent() {
 								if (nodesToImport.length < flow.nodes.length) {
 									// Defer error to avoid React warning
 									setTimeout(() => {
-										setError(`Some nodes were removed during import. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Scene1.`);
+										setError(`Some nodes were removed during import. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Level1.`);
 									}, 0);
 								}
 							}
@@ -668,9 +668,9 @@ function EditorContent() {
 						nodes={filteredNodes}
 						edges={edges}
 						onNodesChange={(changes) => {
-							// Filter out disallowed node additions in Scene1
-							const isScene1 = editorContext?.sceneKey === 'Scene1';
-							if (isScene1) {
+							// Filter out disallowed node additions in Level1
+							const isLevel1 = editorContext?.sceneKey === 'Level1';
+							if (isLevel1) {
 								const filteredChanges: typeof changes = [];
 								for (const change of changes) {
 									// Block adding disallowed node types
@@ -684,7 +684,7 @@ function EditorContent() {
 											if (!isAllowed) {
 												// Defer error to avoid React warning
 												setTimeout(() => {
-													setError(`Function ${funcName || 'unknown'} is not allowed in Scene1. Only getPlayer and teleportRelative are available.`);
+													setError(`Function ${funcName || 'unknown'} is not allowed in Level1. Only getPlayer and teleportRelative are available.`);
 												}, 0);
 											}
 										} else if (node.type === 'literal' || node.type === 'output') {
@@ -692,7 +692,7 @@ function EditorContent() {
 										} else {
 											// Defer error to avoid React warning
 											setTimeout(() => {
-												setError(`Node type ${node.type} is not allowed in Scene1. Only literal and output nodes are available.`);
+												setError(`Node type ${node.type} is not allowed in Level1. Only literal and output nodes are available.`);
 											}, 0);
 										}
 										

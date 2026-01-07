@@ -63,19 +63,19 @@ export function NodeSelectionMenu({
 	const gameFunctions = functionsByNamespace['game'] || [];
 
 	// Filter based on scene context
-	const isScene1 = editorContext?.sceneKey === 'Scene1';
+	const isLevel1 = editorContext?.sceneKey === 'Level1';
 	
-	// In Scene1, only allow literal, output, getPlayer, and teleportRelative
-	const availableBasicNodes = isScene1
+	// In Level1, only allow literal, output, getPlayer, and teleportRelative
+	const availableBasicNodes = isLevel1
 		? BASIC_NODES.filter(node => node.type === 'literal' || node.type === 'output')
 		: BASIC_NODES;
 
-	const availableGameFunctions = isScene1
+	const availableGameFunctions = isLevel1
 		? gameFunctions.filter(fn => fn.name === 'game::getPlayer' || fn.name === 'game::teleportRelative')
 		: gameFunctions;
 
-	// Group std functions by category (empty in Scene1)
-	const groupedFunctions = isScene1
+	// Group std functions by category (empty in Level1)
+	const groupedFunctions = isLevel1
 		? []
 		: FUNCTION_GROUPS.map(group => ({
 			...group,

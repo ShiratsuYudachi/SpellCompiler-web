@@ -2,8 +2,8 @@ import Phaser from 'phaser'
 import { LevelProgress } from './base/LevelProgress'
 
 /**
- * LevelSelectScene - 关卡选择界面
- * 支持滚动、关卡解锁、进度显示
+ * LevelSelectScene - Level selection interface
+ * Supports scrolling, level unlocking, and progress display
  */
 export class LevelSelectScene extends Phaser.Scene {
 	private container!: Phaser.GameObjects.Container
@@ -20,7 +20,7 @@ export class LevelSelectScene extends Phaser.Scene {
 	create() {
 		this.cameras.main.setBackgroundColor('#0a0e14')
 
-		// 标题（固定）
+		// Title (fixed)
 		this.add
 			.text(480, 40, 'SELECT LEVEL', {
 				fontSize: '32px',
@@ -30,17 +30,17 @@ export class LevelSelectScene extends Phaser.Scene {
 			.setOrigin(0.5)
 			.setScrollFactor(0)
 
-		// 可滚动容器
+		// Scrollable container
 		this.container = this.add.container(0, 80)
 
-		// 关卡映射配置
+		// Level mapping configuration
 		const levelMapping = [
 			{ num: 1, sceneKey: 'Level1', name: 'Puzzle' },
 			{ num: 2, sceneKey: 'Level2', name: 'Boss Battle' },
 			{ num: 3, sceneKey: 'Level3', name: 'Combat' },
 		]
 
-		// 生成20关（4列5行）
+		// Generate 20 levels (4 columns, 5 rows)
 		const totalLevels = 20
 		const cols = 4
 		const rows = Math.ceil(totalLevels / cols)
@@ -62,14 +62,14 @@ export class LevelSelectScene extends Phaser.Scene {
 			const isUnlocked = LevelProgress.isLevelUnlocked(levelNum)
 			const isCompleted = LevelProgress.isLevelCompleted(levelNum)
 
-			// 按钮容器
+			// Button container
 			const btnGroup = this.add.container(x, y)
 
-			// 关卡按钮
+			// Level button
 			const btn = this.add.rectangle(0, 0, 140, 100, isUnlocked ? 0x2d3748 : 0x1a1f2e)
 			btn.setStrokeStyle(2, isUnlocked ? 0x4a90e2 : 0x3a3f4e)
 
-			// 关卡号
+			// Level number
 			const numText = this.add
 				.text(0, -20, `${levelNum}`, {
 					fontSize: '32px',
@@ -78,7 +78,7 @@ export class LevelSelectScene extends Phaser.Scene {
 				})
 				.setOrigin(0.5)
 
-			// 关卡名
+			// Level name
 			const nameText = this.add
 				.text(0, 20, levelName, {
 					fontSize: '14px',
@@ -88,7 +88,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
 			btnGroup.add([btn, numText, nameText])
 
-			// 已完成标记
+			// Completion marker
 			if (isCompleted) {
 				const checkmark = this.add
 					.text(50, -40, '✓', {
@@ -100,7 +100,7 @@ export class LevelSelectScene extends Phaser.Scene {
 			}
 
 			if (isUnlocked) {
-				// 可用关卡：添加交互
+				// Available level: add interaction
 				btn.setInteractive({ useHandCursor: true })
 				btn.on('pointerover', () => {
 					btn.setFillStyle(0x3d4758)
@@ -114,7 +114,7 @@ export class LevelSelectScene extends Phaser.Scene {
 					this.scene.start(sceneKey)
 				})
 			} else {
-				// 未开放关卡：显示锁定图标
+				// Locked level: show lock icon
 				const lockText = this.add
 					.text(0, 5, '🔒', {
 						fontSize: '32px',
@@ -127,15 +127,15 @@ export class LevelSelectScene extends Phaser.Scene {
 			this.container.add(btnGroup)
 		}
 
-		// 计算最大滚动距离
-		this.maxScrollY = Math.max(0, rows * spacingY + 40 - 400) // 400 = 可视区域高度
+		// Calculate maximum scroll distance
+		this.maxScrollY = Math.max(0, rows * spacingY + 40 - 400) // 400 = viewport height
 
-		// 滚动条（如果需要）
+		// Scrollbar (if needed)
 		if (this.maxScrollY > 0) {
 			this.createScrollbar()
 		}
 
-		// 返回主菜单按钮（固定在底部）
+		// Back to menu button (fixed at bottom)
 		const backBtn = this.add.rectangle(480, 520, 200, 50, 0x8b4513).setScrollFactor(0)
 		backBtn.setStrokeStyle(2, 0xcd853f)
 		backBtn.setInteractive({ useHandCursor: true })
@@ -152,7 +152,7 @@ export class LevelSelectScene extends Phaser.Scene {
 		backBtn.on('pointerout', () => backBtn.setFillStyle(0x8b4513))
 		backBtn.on('pointerdown', () => this.scene.start('MainScene'))
 
-		// 解锁提示（开发模式）
+		// Unlock hint (dev mode)
 		this.add
 			.text(480, 510, 'Press U to unlock all levels (dev)', {
 				fontSize: '10px',
@@ -161,10 +161,10 @@ export class LevelSelectScene extends Phaser.Scene {
 			.setOrigin(0.5)
 			.setScrollFactor(0)
 
-		// 设置拖动滚动
+		// Setup drag scrolling
 		this.setupDragScroll()
 
-		// 快捷键
+		// Keyboard shortcuts
 		this.input.keyboard?.on('keydown-U', () => {
 			LevelProgress.unlockAll()
 			this.scene.restart()
@@ -214,7 +214,7 @@ export class LevelSelectScene extends Phaser.Scene {
 			this.isDragging = false
 		})
 
-		// 鼠标滚轮
+		// Mouse wheel
 		this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => {
 			if (this.maxScrollY <= 0) return
 

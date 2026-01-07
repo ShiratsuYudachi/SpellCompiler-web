@@ -581,7 +581,7 @@ export class Boss {
     
     let text = `Phase ${phase} - ${state.toUpperCase()}`;
     if (isInvincible) {
-      text += ' (无敌)';
+      text += ' (INVINCIBLE)';
     }
     
     this.stateText.setText(text);

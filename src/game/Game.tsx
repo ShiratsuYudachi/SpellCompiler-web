@@ -89,7 +89,15 @@ export function Game() {
 		const onToggleEditor = () => {
 			setShowEditor((v) => {
 				const newValue = !v
-				if (!newValue) {
+				if (newValue) {
+					// When opening editor, set context to current scene
+					const currentScene = game.scene.getScenes(true).find(s => s.scene.isActive())
+					if (currentScene) {
+						setTimeout(() => {
+							game.events.emit(GameEvents.setEditorContext, { sceneKey: currentScene.scene.key })
+						}, 0)
+					}
+				} else {
 					setTimeout(() => {
 						game.events.emit(GameEvents.setEditorContext, { sceneKey: undefined })
 					}, 0)

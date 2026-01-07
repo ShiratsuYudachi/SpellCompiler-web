@@ -10,18 +10,18 @@ export class Level2 extends BaseScene {
     constructor() { super({ key: 'Level2' }) }
 
     protected onLevelCreate(): void {
-        this.setTaskInfo("紧急战斗", ["生存并击败核心守护者", "操作: WASD 移动", "操作: SPACE 射击"])
+        this.setTaskInfo("Emergency Battle", ["Survive and defeat the Core Guardian", "Controls: WASD to move", "Controls: SPACE to shoot"])
         
-        // 初始化特殊的 Boss 实体
+        // Initialize special Boss entity
         this.boss = new Boss(this, 480, 200, defaultBossConfig)
         
         this.boss.on('defeated', () => {
-            this.showInstruction("守护者已停机。")
+            this.showInstruction("Guardian has been shut down.")
             this.time.delayedCall(2000, () => this.scene.start('LevelSelectScene'))
         })
 
         this.boss.on('attackHit', (dmg: number) => {
-            // 这里可以接入基类的 Mana 或 Health 系统
+            // Can integrate with base class Mana or Health system
             this.cameras.main.shake(100, 0.01)
         })
 
@@ -30,7 +30,7 @@ export class Level2 extends BaseScene {
     }
 
     protected onLevelUpdate(): void {
-        // 这一关允许物理移动
+        // This level allows physical movement
         const playerEid = this.world.resources.playerEid
         const playerBody = this.world.resources.bodies.get(playerEid)
         if (playerBody) {
@@ -42,7 +42,7 @@ export class Level2 extends BaseScene {
             if (this.input.keyboard!.addKey('S').isDown) playerBody.setVelocityY(speed)
         }
 
-        // 子弹碰撞检测
+        // Bullet collision detection
         const visualBoss = this.boss.getVisualBoss()
         if (visualBoss) {
             const container = visualBoss.getContainer()
