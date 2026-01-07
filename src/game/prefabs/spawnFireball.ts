@@ -52,6 +52,12 @@ export function spawnFireball(
 	FireballStats.damage[eid] = 10
 	FireballStats.hitRadius[eid] = 16
 
+	// Deflection system initialization
+	FireballStats.initialX[eid] = x
+	FireballStats.initialY[eid] = y
+	FireballStats.pendingDeflection[eid] = 0
+	FireballStats.deflectAtTime[eid] = 0
+
 	Lifetime.bornAt[eid] = Date.now()
 	Lifetime.lifetimeMs[eid] = 1500
 

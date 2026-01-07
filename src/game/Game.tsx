@@ -10,8 +10,8 @@ import { VictoryInterface } from './interface/VictoryInterface'
 import { Level1 } from './scenes/levels/Level1'
 import { Level2 } from './scenes/levels/Level2'
 import { Level3 } from './scenes/levels/Level3'
+import { Level4 } from './scenes/levels/Level4'
 import {
-	Level4,
 	Level5,
 	Level6,
 	Level7,

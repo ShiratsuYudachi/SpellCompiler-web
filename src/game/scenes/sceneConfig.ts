@@ -53,38 +53,30 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		mapData: createRoom(12, 8),
 	},
 
-	// Level 4 - 示例：平台跳跃 + 渐进式任务
+	// Level 4 - Deflection Proving Grounds（偏转试炼场）
 	Level4: {
 		key: 'Level4',
-		playerSpawnX: 96,
-		playerSpawnY: 320,
+		playerSpawnX: 120,
+		playerSpawnY: 400,
 		tileSize: 64,
-		mapData: [
-			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 0, 0, 0, 0, 2, 2, 2, 0, 0, 0, 1],
-			[1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 1],
-			[1, 0, 3, 3, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		],
+		mapData: createRoom(15, 9),
 		objectives: [
 			{
-				id: 'task1',
-				description: 'Jump on platforms',
-				type: 'reach',
+				id: 'task1-combined',
+				description: 'Task 1: Use combined conditions (age>300ms AND distance>200px) to deflect',
+				type: 'defeat',
 			},
 			{
-				id: 'task2',
-				description: 'Avoid red hazards',
-				type: 'reach',
-				prerequisite: 'task1',
+				id: 'task2-lshape',
+				description: 'Task 2: Hit L-shape target with double deflection (90° twice)',
+				type: 'defeat',
+				prerequisite: 'task1-combined',
 			},
 			{
-				id: 'task3',
-				description: 'Reach green objective',
-				type: 'reach',
-				prerequisite: 'task2',
+				id: 'task3-boomerang',
+				description: 'Task 3: Create boomerang effect with 180° deflection',
+				type: 'defeat',
+				prerequisite: 'task2-lshape',
 			},
 		],
 	},

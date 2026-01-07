@@ -52,63 +52,114 @@ const nodeTypes = {
 	functionOut: FunctionOutNode,
 };
 
-// Initial example nodes
-const initialNodes: Node[] = [
-	{
-		id: 'output-1',
-		type: 'output',
-		position: { x: 700, y: 220 },
-		data: { label: 'Output' }
-	},
-	{
-		id: 'func-teleport',
-		type: 'dynamicFunction',
-		position: { x: 420, y: 200 },
-		data: { 
-			functionName: 'game::teleportRelative',
-			displayName: 'teleportRelative',
-			namespace: 'game',
-			params: ['entityId', 'dx', 'dy']
-		}
-	},
-	{
-		id: 'func-getPlayer',
-		type: 'dynamicFunction',
-		position: { x: 140, y: 120 },
-		data: {
-			functionName: 'game::getPlayer',
-			displayName: 'getPlayer',
-			namespace: 'game',
-			params: []
-		}
-	},
-	{
-		id: 'lit-dx',
-		type: 'literal',
-		position: { x: 140, y: 240 },
-		data: { value: 200 }
-	},
-	{
-		id: 'lit-dy',
-		type: 'literal',
-		position: { x: 140, y: 320 },
-		data: { value: 0 }
-	},
-];
+// Get initial nodes based on scene key
+function getInitialNodes(sceneKey?: string): Node[] {
+	// Level4: Deflection example
+	if (sceneKey === 'Level4') {
+		return [
+			{
+				id: 'output-1',
+				type: 'output',
+				position: { x: 600, y: 250 },
+				data: { label: 'Output' }
+			},
+			{
+				id: 'func-deflect',
+				type: 'dynamicFunction',
+				position: { x: 340, y: 230 },
+				data: {
+					functionName: 'game::deflectAfterTime',
+					displayName: 'deflectAfterTime',
+					namespace: 'game',
+					params: ['angle', 'delayMs']
+				}
+			},
+			{
+				id: 'lit-angle',
+				type: 'literal',
+				position: { x: 100, y: 200 },
+				data: { value: 90 }
+			},
+			{
+				id: 'lit-delay',
+				type: 'literal',
+				position: { x: 100, y: 280 },
+				data: { value: 2000 }
+			},
+		];
+	}
 
-const initialEdges: Edge[] = [
-	{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
-	{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
-	{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
-	{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
-];
+	// Level1 or default: teleportRelative example
+	return [
+		{
+			id: 'output-1',
+			type: 'output',
+			position: { x: 700, y: 220 },
+			data: { label: 'Output' }
+		},
+		{
+			id: 'func-teleport',
+			type: 'dynamicFunction',
+			position: { x: 420, y: 200 },
+			data: {
+				functionName: 'game::teleportRelative',
+				displayName: 'teleportRelative',
+				namespace: 'game',
+				params: ['entityId', 'dx', 'dy']
+			}
+		},
+		{
+			id: 'func-getPlayer',
+			type: 'dynamicFunction',
+			position: { x: 140, y: 120 },
+			data: {
+				functionName: 'game::getPlayer',
+				displayName: 'getPlayer',
+				namespace: 'game',
+				params: []
+			}
+		},
+		{
+			id: 'lit-dx',
+			type: 'literal',
+			position: { x: 140, y: 240 },
+			data: { value: 200 }
+		},
+		{
+			id: 'lit-dy',
+			type: 'literal',
+			position: { x: 140, y: 320 },
+			data: { value: 0 }
+		},
+	];
+}
+
+// Get initial edges based on scene key
+function getInitialEdges(sceneKey?: string): Edge[] {
+	// Level4: Deflection example edges
+	if (sceneKey === 'Level4') {
+		return [
+			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+		];
+	}
+
+	// Level1 or default: teleportRelative example edges
+	return [
+		{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+		{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
+		{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
+		{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
+	];
+}
 
 let nodeIdCounter = 100;
 
 function EditorContent() {
-	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-	
+	const [nodes, setNodes, onNodesChange] = useNodesState([]);
+	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
 	const [currentFunctions, setCurrentFunctions] = useState<import('../ast/ast').FunctionDefinition[]>([]);
@@ -124,10 +175,11 @@ function EditorContent() {
 		position: { x: number; y: number };
 	} | null>(null);
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
+	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
-	// Listen for editor context changes
+	// Listen for editor context changes and load workflow
 	useEffect(() => {
 		const game = getGameInstance();
 		if (!game) return;
@@ -136,6 +188,46 @@ function EditorContent() {
 			// Defer state update to avoid React warning
 			setTimeout(() => {
 				setEditorContext(context);
+
+				// Load workflow from localStorage or use default
+				const sceneKey = context.sceneKey;
+				const storageKey = `spell-workflow-${sceneKey || 'default'}`;
+
+				try {
+					const saved = localStorage.getItem(storageKey);
+					if (saved) {
+						const flow = JSON.parse(saved);
+						if (flow.nodes && Array.isArray(flow.nodes)) {
+							setNodes(flow.nodes);
+							// Update nodeIdCounter to avoid conflicts
+							let maxId = nodeIdCounter;
+							flow.nodes.forEach((node: Node) => {
+								const match = node.id.match(/-(\d+)$/);
+								if (match) {
+									const num = parseInt(match[1], 10);
+									if (num >= maxId) maxId = num + 1;
+								}
+							});
+							nodeIdCounter = maxId;
+						}
+						if (flow.edges && Array.isArray(flow.edges)) {
+							setEdges(flow.edges);
+						}
+						console.log(`[Editor] Loaded workflow for ${sceneKey} from localStorage`);
+					} else {
+						// No saved workflow, use default template
+						setNodes(getInitialNodes(sceneKey));
+						setEdges(getInitialEdges(sceneKey));
+						console.log(`[Editor] Using default template for ${sceneKey}`);
+					}
+				} catch (err) {
+					console.error('[Editor] Failed to load workflow:', err);
+					// Fallback to default
+					setNodes(getInitialNodes(sceneKey));
+					setEdges(getInitialEdges(sceneKey));
+				}
+
+				setWorkflowLoaded(true);
 			}, 0);
 		};
 
@@ -181,6 +273,31 @@ function EditorContent() {
 			}, 0);
 		}
 	}, [nodes, editorContext]);
+
+	// Auto-save workflow to localStorage when nodes or edges change
+	useEffect(() => {
+		if (!workflowLoaded || !editorContext?.sceneKey) return;
+
+		// Debounce save to avoid excessive writes
+		const timeoutId = setTimeout(() => {
+			const sceneKey = editorContext.sceneKey;
+			const storageKey = `spell-workflow-${sceneKey || 'default'}`;
+
+			try {
+				const flow = {
+					nodes,
+					edges,
+					timestamp: Date.now()
+				};
+				localStorage.setItem(storageKey, JSON.stringify(flow));
+				console.log(`[Editor] Auto-saved workflow for ${sceneKey}`);
+			} catch (err) {
+				console.error('[Editor] Failed to auto-save workflow:', err);
+			}
+		}, 1000); // 1 second debounce
+
+		return () => clearTimeout(timeoutId);
+	}, [nodes, edges, editorContext, workflowLoaded]);
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -445,11 +562,21 @@ function EditorContent() {
 			// Evaluate IR
 			const evaluator = new Evaluator();
 
+			// Register game functions for preview
 			evaluator.registerNativeFunctionFullName('game::getPlayer', [], () => {
 				return 'player'
 			})
 			evaluator.registerNativeFunctionFullName('game::teleportRelative', ['entityId', 'dx', 'dy'], (_entityId, dx, dy) => {
 				return [dx, dy]
+			})
+			evaluator.registerNativeFunctionFullName('game::deflectAfterTime', ['angle', 'delayMs'], () => {
+				return true // Mock value for preview
+			})
+			evaluator.registerNativeFunctionFullName('game::getProjectileAge', [], () => {
+				return 0 // Mock value for preview
+			})
+			evaluator.registerNativeFunctionFullName('game::getProjectileDistance', [], () => {
+				return 0 // Mock value for preview
 			})
 
 			// Register user-defined functions

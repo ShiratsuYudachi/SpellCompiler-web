@@ -64,6 +64,11 @@ export function NodeSelectionMenu({
 
 	// Filter based on scene context
 	const isLevel1 = editorContext?.sceneKey === 'Level1';
+
+	// Debug: Log context and available functions
+	console.log('[NodeSelectionMenu] Editor context:', editorContext);
+	console.log('[NodeSelectionMenu] Is Level1:', isLevel1);
+	console.log('[NodeSelectionMenu] All game functions:', gameFunctions.map(f => f.displayName));
 	
 	// In Level1, only allow literal, output, getPlayer, and teleportRelative
 	const availableBasicNodes = isLevel1

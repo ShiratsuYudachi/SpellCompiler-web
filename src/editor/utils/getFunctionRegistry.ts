@@ -98,6 +98,9 @@ export function getFunctionRegistry(): FunctionInfo[] {
 	const gameFunctions = [
 		{ name: 'getPlayer', params: [] },
 		{ name: 'teleportRelative', params: ['entityId', 'dx', 'dy'] },
+		{ name: 'deflectAfterTime', params: ['angle', 'delayMs'] },
+		{ name: 'getProjectileAge', params: [] },
+		{ name: 'getProjectileDistance', params: [] },
 	]
 
 	for (const fn of gameFunctions) {
