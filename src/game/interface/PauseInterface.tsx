@@ -30,7 +30,7 @@ export function PauseInterface({ onResume, onQuit }: PauseInterfaceProps) {
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
-				zIndex: 10,
+				zIndex: 1000, // Higher than editor (z-index: 10) to ensure it's on top
 			}}
 			onClick={onResume}
 		>

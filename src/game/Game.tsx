@@ -171,6 +171,10 @@ export function Game() {
 
 	const handleQuit = () => {
 		if (gameRef.current) {
+			// Close editor if open
+			if (showEditor) {
+				setShowEditor(false)
+			}
 			// Stop the paused scene
 			if (pausedSceneRef.current) {
 				gameRef.current.scene.stop(pausedSceneRef.current)

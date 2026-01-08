@@ -108,7 +108,7 @@ export class Level1 extends BaseScene {
 		
 		// Destroy Boss coordinate text
 		this.bossCoordText.destroy()
-		
+
 		// Destroy Boss health bar UI
 		if (this.bossHealthBarBg) this.bossHealthBarBg.destroy()
 		if (this.bossHealthBarFill) this.bossHealthBarFill.destroy()
