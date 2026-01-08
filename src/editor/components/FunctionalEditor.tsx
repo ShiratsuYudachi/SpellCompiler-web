@@ -39,6 +39,7 @@ import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
 import { getGameInstance } from '../../game/gameInstance'
+import { getSceneConfig } from '../../game/scenes/sceneConfig'
 
 // Define node types
 const nodeTypes = {
@@ -51,108 +52,6 @@ const nodeTypes = {
 	lambdaDef: LambdaDefNode,
 	functionOut: FunctionOutNode,
 };
-
-// Get initial nodes based on scene key
-function getInitialNodes(sceneKey?: string): Node[] {
-	// Level4: Deflection example
-	if (sceneKey === 'Level4') {
-		return [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 600, y: 250 },
-				data: { label: 'Output' }
-			},
-			{
-				id: 'func-deflect',
-				type: 'dynamicFunction',
-				position: { x: 340, y: 230 },
-				data: {
-					functionName: 'game::deflectAfterTime',
-					displayName: 'deflectAfterTime',
-					namespace: 'game',
-					params: ['angle', 'delayMs']
-				}
-			},
-			{
-				id: 'lit-angle',
-				type: 'literal',
-				position: { x: 100, y: 200 },
-				data: { value: 90 }
-			},
-			{
-				id: 'lit-delay',
-				type: 'literal',
-				position: { x: 100, y: 280 },
-				data: { value: 2000 }
-			},
-		];
-	}
-
-	// Level1 or default: teleportRelative example
-	return [
-		{
-			id: 'output-1',
-			type: 'output',
-			position: { x: 700, y: 220 },
-			data: { label: 'Output' }
-		},
-		{
-			id: 'func-teleport',
-			type: 'dynamicFunction',
-			position: { x: 420, y: 200 },
-			data: {
-				functionName: 'game::teleportRelative',
-				displayName: 'teleportRelative',
-				namespace: 'game',
-				params: ['entityId', 'dx', 'dy']
-			}
-		},
-		{
-			id: 'func-getPlayer',
-			type: 'dynamicFunction',
-			position: { x: 140, y: 120 },
-			data: {
-				functionName: 'game::getPlayer',
-				displayName: 'getPlayer',
-				namespace: 'game',
-				params: []
-			}
-		},
-		{
-			id: 'lit-dx',
-			type: 'literal',
-			position: { x: 140, y: 240 },
-			data: { value: 200 }
-		},
-		{
-			id: 'lit-dy',
-			type: 'literal',
-			position: { x: 140, y: 320 },
-			data: { value: 0 }
-		},
-	];
-}
-
-// Get initial edges based on scene key
-function getInitialEdges(sceneKey?: string): Edge[] {
-	// Level4: Deflection example edges
-	if (sceneKey === 'Level4') {
-		return [
-			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
-		];
-	}
-
-	// Level1 or default: teleportRelative example edges
-	return [
-		{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
-		{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
-		{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
-		{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
-	];
-}
 
 let nodeIdCounter = 100;
 
@@ -215,16 +114,20 @@ function EditorContent() {
 						}
 						console.log(`[Editor] Loaded workflow for ${sceneKey} from localStorage`);
 					} else {
-						// No saved workflow, use default template
-						setNodes(getInitialNodes(sceneKey));
-						setEdges(getInitialEdges(sceneKey));
-						console.log(`[Editor] Using default template for ${sceneKey}`);
+						// No saved workflow, load from scene config
+						const config = sceneKey ? getSceneConfig(sceneKey) : null;
+						const templateNodes = config?.initialSpellWorkflow?.nodes || [];
+						const templateEdges = config?.initialSpellWorkflow?.edges || [];
+
+						setNodes(templateNodes);
+						setEdges(templateEdges);
+						console.log(`[Editor] Using scene config template for ${sceneKey}`);
 					}
 				} catch (err) {
 					console.error('[Editor] Failed to load workflow:', err);
-					// Fallback to default
-					setNodes(getInitialNodes(sceneKey));
-					setEdges(getInitialEdges(sceneKey));
+					// Fallback to empty workflow
+					setNodes([{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }]);
+					setEdges([]);
 				}
 
 				setWorkflowLoaded(true);

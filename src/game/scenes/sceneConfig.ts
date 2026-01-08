@@ -7,6 +7,10 @@ export type SceneConfig = {
 	mapData?: number[][] // 0: 空地, 1: 墙壁, 2: 平台, 3: 危险区, 4: 目标点
 	tileSize?: number
 	objectives?: ObjectiveConfig[]
+	initialSpellWorkflow?: {
+		nodes: any[]
+		edges: any[]
+	}
 }
 
 // 快速生成围墙房间
@@ -35,6 +39,46 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				prerequisite: 'defeat-boss',
 			},
 		],
+		initialSpellWorkflow: {
+			nodes: [
+				{
+					id: 'output-1',
+					type: 'output',
+					position: { x: 700, y: 220 },
+					data: { label: 'Output' },
+				},
+				{
+					id: 'func-teleport',
+					type: 'dynamicFunction',
+					position: { x: 420, y: 200 },
+					data: {
+						functionName: 'game::teleportRelative',
+						displayName: 'teleportRelative',
+						namespace: 'game',
+						params: ['entityId', 'dx', 'dy'],
+					},
+				},
+				{
+					id: 'func-getPlayer',
+					type: 'dynamicFunction',
+					position: { x: 140, y: 120 },
+					data: {
+						functionName: 'game::getPlayer',
+						displayName: 'getPlayer',
+						namespace: 'game',
+						params: [],
+					},
+				},
+				{ id: 'lit-dx', type: 'literal', position: { x: 140, y: 240 }, data: { value: 0 } },
+				{ id: 'lit-dy', type: 'literal', position: { x: 140, y: 320 }, data: { value: 0 } },
+			],
+			edges: [
+				{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
+				{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
+				{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
+			],
+		},
 	},
 
 	// Level 2 - Boss战（独立系统）
@@ -51,6 +95,12 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		playerSpawnY: 270,
 		tileSize: 80,
 		mapData: createRoom(12, 8),
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+			],
+			edges: [],
+		},
 	},
 
 	// Level 4 - Deflection Proving Grounds（偏转试炼场）
@@ -79,6 +129,34 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				prerequisite: 'task2-lshape',
 			},
 		],
+		initialSpellWorkflow: {
+			nodes: [
+				{
+					id: 'output-1',
+					type: 'output',
+					position: { x: 600, y: 250 },
+					data: { label: 'Output' },
+				},
+				{
+					id: 'func-deflect',
+					type: 'dynamicFunction',
+					position: { x: 340, y: 230 },
+					data: {
+						functionName: 'game::deflectAfterTime',
+						displayName: 'deflectAfterTime',
+						namespace: 'game',
+						params: ['angle', 'delayMs'],
+					},
+				},
+				{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 90 } },
+				{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 2000 } },
+			],
+			edges: [
+				{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
+				{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+			],
+		},
 	},
 
 	// Level 5
@@ -104,6 +182,12 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				type: 'reach',
 			},
 		],
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+			],
+			edges: [],
+		},
 	},
 
 	// 批量生成 Level 6-20
@@ -116,6 +200,12 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				playerSpawnY: 288,
 				mapData: createRoom(15, 9),
 				tileSize: 64,
+				initialSpellWorkflow: {
+					nodes: [
+						{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+					],
+					edges: [],
+				},
 			},
 		])
 	),
