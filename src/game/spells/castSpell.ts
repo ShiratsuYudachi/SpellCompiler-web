@@ -3,6 +3,8 @@ import type { CompiledSpell } from './types'
 import type { GameWorld } from '../gameWorld'
 import { Fireball, FireballStats, Lifetime, Owner, Velocity } from '../components'
 import { query } from 'bitecs'
+import type { Vector2D } from '../../editor/ast/ast'
+import { isVector2D } from '../../editor/ast/ast'
 
 export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSpell) {
 	const evaluator = new Evaluator()
@@ -116,6 +118,87 @@ export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSp
 		const dy = body.y - initialY
 
 		return Math.sqrt(dx * dx + dy * dy)
+	})
+
+	// =============================================
+	// Game Vector Functions
+	// =============================================
+
+	// game::getPlayerPosition() - Get player position as Vector2D
+	evaluator.registerNativeFunctionFullName('game::getPlayerPosition', [], () => {
+		const body = world.resources.bodies.get(world.resources.playerEid)
+		if (!body) {
+			throw new Error('Player body not found')
+		}
+		return {
+			type: 'vector2d',
+			x: body.x,
+			y: body.y
+		} as Vector2D
+	})
+
+	// game::getCasterPosition() - Get caster position as Vector2D
+	evaluator.registerNativeFunctionFullName('game::getCasterPosition', [], () => {
+		const body = world.resources.bodies.get(casterEid)
+		if (!body) {
+			throw new Error('Caster body not found')
+		}
+		return {
+			type: 'vector2d',
+			x: body.x,
+			y: body.y
+		} as Vector2D
+	})
+
+	// game::teleportToPosition(entityId, position) - Teleport entity to absolute position
+	evaluator.registerNativeFunctionFullName('game::teleportToPosition', ['entityId', 'position'], (entityId, position) => {
+		if (!isVector2D(position)) {
+			throw new Error('game::teleportToPosition second argument must be a Vector2D')
+		}
+
+		if (entityId !== 'self' && entityId !== 'player') {
+			throw new Error(`Unknown entityId: ${String(entityId)}`)
+		}
+
+		const targetEid = entityId === 'player' ? world.resources.playerEid : casterEid
+		const body = world.resources.bodies.get(targetEid)
+		if (!body) {
+			throw new Error('Entity body not found')
+		}
+
+		const vec = position as Vector2D
+		Velocity.x[targetEid] = 0
+		Velocity.y[targetEid] = 0
+		body.setVelocity(0, 0)
+		body.setPosition(vec.x, vec.y)
+		return true
+	})
+
+	// game::teleportRelative(entityId, offset) - Teleport entity by relative offset
+	evaluator.registerNativeFunctionFullName('game::teleportRelative', ['entityId', 'offset'], (entityId, offset) => {
+		if (!isVector2D(offset)) {
+			throw new Error('game::teleportRelative second argument must be a Vector2D')
+		}
+
+		if (entityId !== 'self' && entityId !== 'player') {
+			throw new Error(`Unknown entityId: ${String(entityId)}`)
+		}
+
+		const targetEid = entityId === 'player' ? world.resources.playerEid : casterEid
+		const body = world.resources.bodies.get(targetEid)
+		if (!body) {
+			throw new Error('Entity body not found')
+		}
+
+		const vec = offset as Vector2D
+		const newX = body.x + vec.x
+		const newY = body.y + vec.y
+
+		Velocity.x[targetEid] = 0
+		Velocity.y[targetEid] = 0
+		body.setVelocity(0, 0)
+		body.setPosition(newX, newY)
+		return true
 	})
 
 	for (const fn of spell.dependencies || []) {

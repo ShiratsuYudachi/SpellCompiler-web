@@ -3,7 +3,8 @@
 //  - 
 // =============================================
 
-import type { Value, FunctionValue } from './ast';
+import type { Value, FunctionValue, Vector2D } from './ast';
+import { isVector2D } from './ast';
 import type { Evaluator } from './evaluator';
 
 /**
@@ -13,22 +14,25 @@ import type { Evaluator } from './evaluator';
 export function registerCoreLibrary(evaluator: Evaluator): void {
 	// Arithmetic Operations ()
 	registerArithmeticFunctions(evaluator);
-	
+
 	// Comparison Operations ()
 	registerComparisonFunctions(evaluator);
-	
+
 	// Logical Operations ()
 	registerLogicalFunctions(evaluator);
-	
+
 	// List Operations ()
 	registerListFunctions(evaluator);
-	
+
 	// Math Functions ()
 	registerMathFunctions(evaluator);
-	
+
 	// String Functions ()
 	registerStringFunctions(evaluator);
-	
+
+	// Vector Operations ()
+	registerVectorFunctions(evaluator);
+
 	// Functional Programming Utilities ()
 	registerFunctionalUtilities(evaluator);
 }
@@ -451,6 +455,179 @@ function registerStringFunctions(evaluator: Evaluator): void {
 			throw new Error(`strToLower requires string, got ${typeof s}`);
 		}
 		return (s as string).toLowerCase();
+	});
+}
+
+// =============================================
+// Vector Operations (Vector2D)
+// =============================================
+
+function registerVectorFunctions(evaluator: Evaluator): void {
+	// vec::create(x, y) - Create a vector
+	evaluator.registerNativeFunction('vec::create', ['x', 'y'], (x, y) => {
+		if (typeof x !== 'number' || typeof y !== 'number') {
+			throw new Error(`vec::create requires two numbers, got ${typeof x} and ${typeof y}`);
+		}
+		return {
+			type: 'vector2d',
+			x: x as number,
+			y: y as number
+		} as Vector2D;
+	});
+
+	// vec::getX(v) - Get X component
+	evaluator.registerNativeFunction('vec::getX', ['v'], (v) => {
+		if (!isVector2D(v)) {
+			throw new Error(`vec::getX requires a vector, got ${typeof v}`);
+		}
+		return (v as Vector2D).x;
+	});
+
+	// vec::getY(v) - Get Y component
+	evaluator.registerNativeFunction('vec::getY', ['v'], (v) => {
+		if (!isVector2D(v)) {
+			throw new Error(`vec::getY requires a vector, got ${typeof v}`);
+		}
+		return (v as Vector2D).y;
+	});
+
+	// vec::add(v1, v2) - Add two vectors
+	evaluator.registerNativeFunction('vec::add', ['v1', 'v2'], (v1, v2) => {
+		if (!isVector2D(v1) || !isVector2D(v2)) {
+			throw new Error('vec::add requires two vectors');
+		}
+		const vec1 = v1 as Vector2D;
+		const vec2 = v2 as Vector2D;
+		return {
+			type: 'vector2d',
+			x: vec1.x + vec2.x,
+			y: vec1.y + vec2.y
+		} as Vector2D;
+	});
+
+	// vec::subtract(v1, v2) - Subtract two vectors
+	evaluator.registerNativeFunction('vec::subtract', ['v1', 'v2'], (v1, v2) => {
+		if (!isVector2D(v1) || !isVector2D(v2)) {
+			throw new Error('vec::subtract requires two vectors');
+		}
+		const vec1 = v1 as Vector2D;
+		const vec2 = v2 as Vector2D;
+		return {
+			type: 'vector2d',
+			x: vec1.x - vec2.x,
+			y: vec1.y - vec2.y
+		} as Vector2D;
+	});
+
+	// vec::multiply(v, scalar) - Multiply vector by scalar
+	evaluator.registerNativeFunction('vec::multiply', ['v', 'scalar'], (v, scalar) => {
+		if (!isVector2D(v)) {
+			throw new Error('vec::multiply first argument must be a vector');
+		}
+		if (typeof scalar !== 'number') {
+			throw new Error('vec::multiply second argument must be a number');
+		}
+		const vec = v as Vector2D;
+		return {
+			type: 'vector2d',
+			x: vec.x * (scalar as number),
+			y: vec.y * (scalar as number)
+		} as Vector2D;
+	});
+
+	// vec::divide(v, scalar) - Divide vector by scalar
+	evaluator.registerNativeFunction('vec::divide', ['v', 'scalar'], (v, scalar) => {
+		if (!isVector2D(v)) {
+			throw new Error('vec::divide first argument must be a vector');
+		}
+		if (typeof scalar !== 'number') {
+			throw new Error('vec::divide second argument must be a number');
+		}
+		if ((scalar as number) === 0) {
+			throw new Error('vec::divide: division by zero');
+		}
+		const vec = v as Vector2D;
+		return {
+			type: 'vector2d',
+			x: vec.x / (scalar as number),
+			y: vec.y / (scalar as number)
+		} as Vector2D;
+	});
+
+	// vec::length(v) - Get magnitude of vector
+	evaluator.registerNativeFunction('vec::length', ['v'], (v) => {
+		if (!isVector2D(v)) {
+			throw new Error('vec::length requires a vector');
+		}
+		const vec = v as Vector2D;
+		return Math.sqrt(vec.x * vec.x + vec.y * vec.y);
+	});
+
+	// vec::normalize(v) - Normalize vector to unit length
+	evaluator.registerNativeFunction('vec::normalize', ['v'], (v) => {
+		if (!isVector2D(v)) {
+			throw new Error('vec::normalize requires a vector');
+		}
+		const vec = v as Vector2D;
+		const len = Math.sqrt(vec.x * vec.x + vec.y * vec.y);
+		if (len === 0) {
+			throw new Error('vec::normalize: cannot normalize zero vector');
+		}
+		return {
+			type: 'vector2d',
+			x: vec.x / len,
+			y: vec.y / len
+		} as Vector2D;
+	});
+
+	// vec::dot(v1, v2) - Dot product
+	evaluator.registerNativeFunction('vec::dot', ['v1', 'v2'], (v1, v2) => {
+		if (!isVector2D(v1) || !isVector2D(v2)) {
+			throw new Error('vec::dot requires two vectors');
+		}
+		const vec1 = v1 as Vector2D;
+		const vec2 = v2 as Vector2D;
+		return vec1.x * vec2.x + vec1.y * vec2.y;
+	});
+
+	// vec::distance(v1, v2) - Distance between two vectors
+	evaluator.registerNativeFunction('vec::distance', ['v1', 'v2'], (v1, v2) => {
+		if (!isVector2D(v1) || !isVector2D(v2)) {
+			throw new Error('vec::distance requires two vectors');
+		}
+		const vec1 = v1 as Vector2D;
+		const vec2 = v2 as Vector2D;
+		const dx = vec2.x - vec1.x;
+		const dy = vec2.y - vec1.y;
+		return Math.sqrt(dx * dx + dy * dy);
+	});
+
+	// vec::angle(v) - Get angle of vector in radians
+	evaluator.registerNativeFunction('vec::angle', ['v'], (v) => {
+		if (!isVector2D(v)) {
+			throw new Error('vec::angle requires a vector');
+		}
+		const vec = v as Vector2D;
+		return Math.atan2(vec.y, vec.x);
+	});
+
+	// vec::rotate(v, angle) - Rotate vector by angle (in radians)
+	evaluator.registerNativeFunction('vec::rotate', ['v', 'angle'], (v, angle) => {
+		if (!isVector2D(v)) {
+			throw new Error('vec::rotate first argument must be a vector');
+		}
+		if (typeof angle !== 'number') {
+			throw new Error('vec::rotate second argument must be a number (angle in radians)');
+		}
+		const vec = v as Vector2D;
+		const ang = angle as number;
+		const cos = Math.cos(ang);
+		const sin = Math.sin(ang);
+		return {
+			type: 'vector2d',
+			x: vec.x * cos - vec.y * sin,
+			y: vec.x * sin + vec.y * cos
+		} as Vector2D;
 	});
 }
 

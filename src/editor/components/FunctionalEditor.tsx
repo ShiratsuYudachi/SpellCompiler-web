@@ -28,6 +28,7 @@ import { IfNode } from './nodes/IfNode';
 import { OutputNode } from './nodes/OutputNode';
 import { LambdaDefNode } from './nodes/LambdaDefNode';
 import { FunctionOutNode } from './nodes/FunctionOutNode';
+import { VectorNode } from './nodes/VectorNode';
 
 import { flowToIR } from '../utils/flowToIR';
 import { Evaluator } from '../ast/evaluator';
@@ -51,6 +52,7 @@ const nodeTypes = {
 	output: OutputNode,
 	lambdaDef: LambdaDefNode,
 	functionOut: FunctionOutNode,
+	vector: VectorNode,
 };
 
 let nodeIdCounter = 100;
@@ -72,6 +74,7 @@ function EditorContent() {
 	const [contextMenu, setContextMenu] = useState<{
 		show: boolean;
 		position: { x: number; y: number };
+		nodeId?: string;
 	} | null>(null);
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
@@ -86,11 +89,18 @@ function EditorContent() {
 		const handler = (context: { sceneKey?: string }) => {
 			// Defer state update to avoid React warning
 			setTimeout(() => {
+				const newSceneKey = context.sceneKey;
+
+				// Only reload workflow if scene key actually changed
+				if (editorContext?.sceneKey === newSceneKey && workflowLoaded) {
+					console.log(`[Editor] Scene key unchanged (${newSceneKey}), skipping workflow reload`);
+					return;
+				}
+
 				setEditorContext(context);
 
 				// Load workflow from localStorage or use default
-				const sceneKey = context.sceneKey;
-				const storageKey = `spell-workflow-${sceneKey || 'default'}`;
+				const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
 
 				try {
 					const saved = localStorage.getItem(storageKey);
@@ -112,16 +122,16 @@ function EditorContent() {
 						if (flow.edges && Array.isArray(flow.edges)) {
 							setEdges(flow.edges);
 						}
-						console.log(`[Editor] Loaded workflow for ${sceneKey} from localStorage`);
+						console.log(`[Editor] Loaded workflow for ${newSceneKey} from localStorage`);
 					} else {
 						// No saved workflow, load from scene config
-						const config = sceneKey ? getSceneConfig(sceneKey) : null;
+						const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
 						const templateNodes = config?.initialSpellWorkflow?.nodes || [];
 						const templateEdges = config?.initialSpellWorkflow?.edges || [];
 
 						setNodes(templateNodes);
 						setEdges(templateEdges);
-						console.log(`[Editor] Using scene config template for ${sceneKey}`);
+						console.log(`[Editor] Using scene config template for ${newSceneKey}`);
 					}
 				} catch (err) {
 					console.error('[Editor] Failed to load workflow:', err);
@@ -138,44 +148,82 @@ function EditorContent() {
 		return () => {
 			game.events.off(GameEvents.setEditorContext, handler);
 		};
-	}, []);
+	}, [editorContext, workflowLoaded]);
+
+	// Helper function to get scene restrictions
+	const getRestrictions = useCallback(() => {
+		const sceneKey = editorContext?.sceneKey;
+		if (!sceneKey) return null;
+
+		const config = getSceneConfig(sceneKey);
+		return config?.editorRestrictions || null;
+	}, [editorContext]);
+
+	// Check if node type is allowed in current scene context
+	const isNodeTypeAllowed = useCallback((nodeType: string, funcName?: string): boolean => {
+		const restrictions = getRestrictions();
+		if (!restrictions) return true; // No restrictions = all nodes allowed
+
+		// For non-function nodes, check allowedNodeTypes
+		if (nodeType !== 'dynamicFunction') {
+			if (restrictions.allowedNodeTypes) {
+				return restrictions.allowedNodeTypes.includes(nodeType);
+			}
+			return true; // No node type restrictions = all basic nodes allowed
+		}
+
+		// For function nodes, check allowedFunctions or allowedNamespaces
+		if (nodeType === 'dynamicFunction' && funcName) {
+			if (restrictions.allowedFunctions) {
+				return restrictions.allowedFunctions.includes(funcName);
+			}
+			if (restrictions.allowedNamespaces) {
+				const namespace = funcName.split('::')[0];
+				return restrictions.allowedNamespaces.includes(namespace);
+			}
+			return true; // No function restrictions = all functions allowed
+		}
+
+		return false;
+	}, [getRestrictions]);
 
 	// Filter nodes based on scene context (memoized for performance)
 	const filteredNodes = useMemo(() => {
-		const isLevel1 = editorContext?.sceneKey === 'Level1';
-		if (!isLevel1) return nodes;
+		const restrictions = getRestrictions();
+		if (!restrictions) return nodes;
 
 		return nodes.filter((node) => {
 			if (node.type === 'dynamicFunction') {
 				const funcName = (node.data as any)?.functionName;
-				return funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+				return isNodeTypeAllowed('dynamicFunction', funcName);
 			}
-			return node.type === 'literal' || node.type === 'output';
+			return isNodeTypeAllowed(node.type || 'output');
 		});
-	}, [nodes, editorContext]);
+	}, [nodes, getRestrictions, isNodeTypeAllowed]);
 
 	// Remove disallowed nodes from state when context changes or nodes are added
 	useEffect(() => {
-		const isLevel1 = editorContext?.sceneKey === 'Level1';
-		if (!isLevel1) return;
+		const restrictions = getRestrictions();
+		if (!restrictions) return;
 
 		const disallowedNodes = nodes.filter((node) => {
 			if (node.type === 'dynamicFunction') {
 				const funcName = (node.data as any)?.functionName;
-				return funcName !== 'game::getPlayer' && funcName !== 'game::teleportRelative';
+				return !isNodeTypeAllowed('dynamicFunction', funcName);
 			}
-			return node.type !== 'literal' && node.type !== 'output';
+			return !isNodeTypeAllowed(node.type || 'output');
 		});
 
 		if (disallowedNodes.length > 0) {
 			// Remove disallowed nodes from state
 			setNodes((nds) => nds.filter((node) => !disallowedNodes.includes(node)));
 			// Show error message
+			const sceneKey = editorContext?.sceneKey || 'this scene';
 			setTimeout(() => {
-				setError(`Some nodes were removed. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Level1.`);
+				setError(`Some nodes were removed because they are not allowed in ${sceneKey}.`);
 			}, 0);
 		}
-	}, [nodes, editorContext]);
+	}, [nodes, editorContext, getRestrictions, isNodeTypeAllowed]);
 
 	// Auto-save workflow to localStorage when nodes or edges change
 	useEffect(() => {
@@ -228,20 +276,45 @@ function EditorContent() {
 		onHandleAddNode: handleHandleAddNode
 	}), [handleHandleAddNode]);
 
-	// Check if node type is allowed in current scene context
-	const isNodeTypeAllowed = (nodeType: string, funcName?: string): boolean => {
-		const isLevel1 = editorContext?.sceneKey === 'Level1';
-		if (!isLevel1) return true; // All nodes allowed in other scenes
+	// Delete selected nodes and edges
+	const handleDeleteSelected = useCallback(() => {
+		// Get IDs of nodes to be deleted
+		const nodesToDelete = new Set(
+			nodes.filter((node) => node.selected).map((node) => node.id)
+		);
 
-		// In Level1, only allow specific node types
-		if (nodeType === 'literal' || nodeType === 'output') {
-			return true;
-		}
-		if (nodeType === 'dynamicFunction' && funcName) {
-			return funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
-		}
-		return false;
-	};
+		// Remove selected nodes
+		setNodes((nds) => nds.filter((node) => !node.selected));
+
+		// Remove selected edges AND edges connected to deleted nodes
+		setEdges((eds) =>
+			eds.filter((edge) => {
+				// Remove if edge itself is selected
+				if (edge.selected) return false;
+				// Remove if edge is connected to a deleted node
+				if (nodesToDelete.has(edge.source) || nodesToDelete.has(edge.target)) return false;
+				return true;
+			})
+		);
+	}, [nodes, setNodes, setEdges]);
+
+	// Keyboard shortcut for delete
+	useEffect(() => {
+		const handleKeyDown = (event: KeyboardEvent) => {
+			// Delete or Backspace key
+			if (event.key === 'Delete' || event.key === 'Backspace') {
+				// Check if user is not typing in an input field
+				const target = event.target as HTMLElement;
+				if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+					event.preventDefault();
+					handleDeleteSelected();
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [handleDeleteSelected]);
 
 	// Add function node from menu and connect
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
@@ -250,8 +323,9 @@ function EditorContent() {
 		// Check if this function is allowed in current scene
 		if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
 			// Defer error to avoid React warning
+			const sceneKey = editorContext?.sceneKey || 'this scene';
 			setTimeout(() => {
-				setError(`Function ${funcInfo.displayName} is not available in this scene. Only getPlayer and teleportRelative are allowed.`);
+				setError(`Function ${funcInfo.displayName} is not available in ${sceneKey}.`);
 			}, 0);
 			setMenuState(null);
 			return;
@@ -259,6 +333,18 @@ function EditorContent() {
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 		const isVariadic = funcInfo.paramCount === 0 && funcInfo.name.includes('list')
+
+		// Initialize parameter modes if function has them
+		const parameterModes = funcInfo.parameterModes ?
+			Object.keys(funcInfo.parameterModes).reduce((acc, paramName) => {
+				const modes = funcInfo.parameterModes![paramName];
+				acc[paramName] = {
+					current: 'vector', // Default to vector mode
+					options: modes
+				};
+				return acc;
+			}, {} as Record<string, { current: string; options: any[] }>)
+			: undefined;
 
 		// If from handle click, position relative to source node
 		if (menuState.sourceNodeId) {
@@ -274,7 +360,8 @@ function EditorContent() {
 					displayName: funcInfo.displayName,
 					namespace: funcInfo.namespace,
 					params: funcInfo.params,
-					isVariadic
+					isVariadic,
+					parameterModes
 				}
 			};
 
@@ -310,7 +397,8 @@ function EditorContent() {
 					displayName: funcInfo.displayName,
 					namespace: funcInfo.namespace,
 					params: funcInfo.params,
-					isVariadic
+					isVariadic,
+					parameterModes
 				}
 			};
 
@@ -328,14 +416,15 @@ function EditorContent() {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
 		if (!menuState) return;
 
 		// Check if this node type is allowed in current scene
 		if (!isNodeTypeAllowed(type)) {
 			// Defer error to avoid React warning
+			const sceneKey = editorContext?.sceneKey || 'this scene';
 			setTimeout(() => {
-				setError(`Node type ${type} is not available in this scene. Only literal and output nodes are allowed.`);
+				setError(`Node type ${type} is not available in ${sceneKey}.`);
 			}, 0);
 			setMenuState(null);
 			return;
@@ -348,6 +437,8 @@ function EditorContent() {
 			switch (type) {
 				case 'literal':
 					return { value: 0 };
+				case 'vector':
+					return { x: 0, y: 0 };
 				case 'lambdaDef':
 					return { functionName: 'lambda', paramCount: 1, params: ['arg0'] };
 				case 'customFunction':
@@ -556,27 +647,28 @@ function EditorContent() {
 						
 						// Restore nodes and edges from the imported flow
 						if (flow.nodes && Array.isArray(flow.nodes)) {
-							const isLevel1 = editorContext?.sceneKey === 'Level1';
-							
-							// Filter nodes if in Level1
+							const restrictions = getRestrictions();
+
+							// Filter nodes if restrictions exist
 							let nodesToImport = flow.nodes;
-							if (isLevel1) {
+							if (restrictions) {
 								nodesToImport = flow.nodes.filter((node: Node) => {
 									if (node.type === 'dynamicFunction') {
 										const funcName = (node.data as any)?.functionName;
-										return funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+										return isNodeTypeAllowed('dynamicFunction', funcName);
 									}
-									return node.type === 'literal' || node.type === 'output';
+									return isNodeTypeAllowed(node.type || 'output');
 								});
-								
+
 								if (nodesToImport.length < flow.nodes.length) {
 									// Defer error to avoid React warning
+									const sceneKey = editorContext?.sceneKey || 'this scene';
 									setTimeout(() => {
-										setError(`Some nodes were removed during import. Only literal, output, getPlayer, and teleportRelative nodes are allowed in Level1.`);
+										setError(`Some nodes were removed during import because they are not allowed in ${sceneKey}.`);
 									}, 0);
 								}
 							}
-							
+
 							setNodes(nodesToImport);
 							
 							// Update nodeIdCounter to avoid ID conflicts
@@ -697,35 +789,83 @@ function EditorContent() {
 					<ReactFlow
 						nodes={filteredNodes}
 						edges={edges}
+						onNodeContextMenu={(event, node) => {
+							event.preventDefault();
+							// Select the right-clicked node
+							setNodes((nds) =>
+								nds.map((n) => ({
+									...n,
+									selected: n.id === node.id
+								}))
+							);
+							// Deselect all edges
+							setEdges((eds) =>
+								eds.map((e) => ({
+									...e,
+									selected: false
+								}))
+							);
+							// Open context menu
+							setContextMenu({
+								show: true,
+								position: { x: event.clientX, y: event.clientY },
+								nodeId: node.id
+							});
+						}}
+						onEdgeContextMenu={(event, edge) => {
+							event.preventDefault();
+							// Deselect all nodes
+							setNodes((nds) =>
+								nds.map((n) => ({
+									...n,
+									selected: false
+								}))
+							);
+							// Select the right-clicked edge
+							setEdges((eds) =>
+								eds.map((e) => ({
+									...e,
+									selected: e.id === edge.id
+								}))
+							);
+							// Open context menu
+							setContextMenu({
+								show: true,
+								position: { x: event.clientX, y: event.clientY }
+							});
+						}}
 						onNodesChange={(changes) => {
-							// Filter out disallowed node additions in Level1
-							const isLevel1 = editorContext?.sceneKey === 'Level1';
-							if (isLevel1) {
+							// Filter out disallowed node additions
+							const restrictions = getRestrictions();
+							if (restrictions) {
 								const filteredChanges: typeof changes = [];
+								const sceneKey = editorContext?.sceneKey || 'this scene';
+
 								for (const change of changes) {
 									// Block adding disallowed node types
 									if (change.type === 'add' && change.item) {
 										const node = change.item as Node;
 										let isAllowed = false;
-										
+
 										if (node.type === 'dynamicFunction') {
 											const funcName = (node.data as any)?.functionName;
-											isAllowed = funcName === 'game::getPlayer' || funcName === 'game::teleportRelative';
+											isAllowed = isNodeTypeAllowed('dynamicFunction', funcName);
 											if (!isAllowed) {
 												// Defer error to avoid React warning
 												setTimeout(() => {
-													setError(`Function ${funcName || 'unknown'} is not allowed in Level1. Only getPlayer and teleportRelative are available.`);
+													setError(`Function ${funcName || 'unknown'} is not allowed in ${sceneKey}.`);
 												}, 0);
 											}
-										} else if (node.type === 'literal' || node.type === 'output') {
-											isAllowed = true;
 										} else {
-											// Defer error to avoid React warning
-											setTimeout(() => {
-												setError(`Node type ${node.type} is not allowed in Level1. Only literal and output nodes are available.`);
-											}, 0);
+											isAllowed = isNodeTypeAllowed(node.type || 'output');
+											if (!isAllowed) {
+												// Defer error to avoid React warning
+												setTimeout(() => {
+													setError(`Node type ${node.type} is not allowed in ${sceneKey}.`);
+												}, 0);
+											}
 										}
-										
+
 										if (isAllowed) {
 											filteredChanges.push(change);
 										}
@@ -782,6 +922,8 @@ function EditorContent() {
 					});
 					setContextMenu(null);
 				}}
+				onDeleteSelected={handleDeleteSelected}
+				hasSelection={nodes.some((node) => node.selected) || edges.some((edge) => edge.selected)}
 				onEvaluate={() => {
 					handleEvaluate();
 					setContextMenu(null);

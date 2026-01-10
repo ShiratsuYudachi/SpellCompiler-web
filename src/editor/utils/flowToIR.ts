@@ -4,7 +4,7 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Vector2D } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
@@ -12,7 +12,8 @@ import type {
 	DynamicFunctionNodeData,
 	CustomFunctionNodeData,
 	LambdaDefNodeData,
-	FunctionOutNodeData
+	FunctionOutNodeData,
+	VectorNodeData
 } from '../types/flowTypes';
 
 /**
@@ -149,6 +150,19 @@ function convertNode(
 			} as Literal;
 		}
 
+		case 'vector': {
+			const data = node.data as VectorNodeData;
+			const vectorValue: Vector2D = {
+				type: 'vector2d',
+				x: data.x,
+				y: data.y
+			};
+			return {
+				type: 'Literal',
+				value: vectorValue
+			} as Literal;
+		}
+
 		case 'identifier': {
 			const data = node.data as IdentifierNodeData;
 			return {
@@ -197,7 +211,7 @@ function convertNode(
 		case 'dynamicFunction': {
 			const data = node.data as DynamicFunctionNodeData;
 			const edges = incomingEdges.get(node.id) || [];
-			
+
 			// Sort edges by target handle (arg0, arg1, arg2, ...)
 			const sortedEdges = edges
 				.filter(e => e.targetHandle?.startsWith('arg'))
@@ -207,18 +221,94 @@ function convertNode(
 					return aIndex - bIndex;
 				});
 
-			// Convert each argument
-			const args: ASTNode[] = sortedEdges.map(edge => {
-				const sourceNode = allNodes.find(n => n.id === edge.source);
-				if (!sourceNode) {
-					throw new Error(`Source node ${edge.source} not found`);
-				}
-				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
-			});
+			// Convert each argument, handling parameter modes
+			const args: ASTNode[] = [];
+
+			// Check if this function has parameter modes
+			if (data.parameterModes) {
+				// Track which edge index we're at
+				let edgeIndex = 0;
+
+				// Iterate through parameters in order
+				data.params.forEach((paramName: string) => {
+					const paramMode = data.parameterModes?.[paramName];
+
+					if (paramMode) {
+						const currentMode = paramMode.current;
+						const currentOption = paramMode.options.find((opt: { mode: string; label: string; params: string[] }) => opt.mode === currentMode);
+
+						if (currentOption) {
+							if (currentMode === 'literal-xy') {
+								// For literal-xy mode: combine two edges (dx, dy) into a vector
+								const edge1 = sortedEdges[edgeIndex];
+								const edge2 = sortedEdges[edgeIndex + 1];
+
+								if (!edge1 || !edge2) {
+									throw new Error(`Missing edges for literal-xy mode parameter ${paramName}`);
+								}
+
+								const sourceNode1 = allNodes.find(n => n.id === edge1.source);
+								const sourceNode2 = allNodes.find(n => n.id === edge2.source);
+
+								if (!sourceNode1 || !sourceNode2) {
+									throw new Error(`Source nodes not found for literal-xy parameter ${paramName}`);
+								}
+
+								const arg1 = convertNode(sourceNode1 as FlowNode, allNodes, incomingEdges, edge1.sourceHandle || undefined);
+								const arg2 = convertNode(sourceNode2 as FlowNode, allNodes, incomingEdges, edge2.sourceHandle || undefined);
+
+								// Create a vec::create call to construct the vector
+								args.push({
+									type: 'FunctionCall',
+									function: 'vec::create',
+									args: [arg1, arg2]
+								} as FunctionCall);
+
+								edgeIndex += 2;
+							} else {
+								// For vector mode or default: single edge
+								const edge = sortedEdges[edgeIndex];
+
+								if (!edge) {
+									throw new Error(`Missing edge for parameter ${paramName}`);
+								}
+
+								const sourceNode = allNodes.find(n => n.id === edge.source);
+								if (!sourceNode) {
+									throw new Error(`Source node ${edge.source} not found`);
+								}
+
+								args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+								edgeIndex++;
+							}
+						}
+					} else {
+						// No parameter mode: regular parameter
+						const edge = sortedEdges[edgeIndex];
+						if (edge) {
+							const sourceNode = allNodes.find(n => n.id === edge.source);
+							if (!sourceNode) {
+								throw new Error(`Source node ${edge.source} not found`);
+							}
+							args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+							edgeIndex++;
+						}
+					}
+				});
+			} else {
+				// No parameter modes: use old behavior
+				sortedEdges.forEach(edge => {
+					const sourceNode = allNodes.find(n => n.id === edge.source);
+					if (!sourceNode) {
+						throw new Error(`Source node ${edge.source} not found`);
+					}
+					args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+				});
+			}
 
 			// Check if functionName already includes namespace
-			const functionName = data.functionName.includes('::') 
-				? data.functionName 
+			const functionName = data.functionName.includes('::')
+				? data.functionName
 				: (data.namespace ? `${data.namespace}::${data.functionName}` : data.functionName);
 
 			return {

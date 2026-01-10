@@ -79,11 +79,25 @@ export interface FunctionValue {
 	capturedEnv?: Map<string, Value>;  // Captured environment for closures
 }
 
+// Vector2D Type - 2D Vector for positions, directions, etc.
+export interface Vector2D {
+	type: 'vector2d';
+	x: number;
+	y: number;
+}
+
+// Type guard for Vector2D
+export function isVector2D(value: any): value is Vector2D {
+	return value && typeof value === 'object' && value.type === 'vector2d' &&
+		typeof value.x === 'number' && typeof value.y === 'number';
+}
+
 // Value Type ()
 // （）
-export type Value = 
-	| number 
-	| string 
-	| boolean 
-	| Value[] 
-	| FunctionValue;
+export type Value =
+	| number
+	| string
+	| boolean
+	| Value[]
+	| FunctionValue
+	| Vector2D;

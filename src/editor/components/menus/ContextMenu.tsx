@@ -8,11 +8,13 @@ import { Menu } from '@mantine/core';
 interface ContextMenuProps {
 	position: { x: number; y: number };
 	onAddNode: () => void;
+	onDeleteSelected?: () => void;
 	onEvaluate: () => void;
 	onClose: () => void;
+	hasSelection?: boolean;
 }
 
-export function ContextMenu({ position, onAddNode, onEvaluate, onClose }: ContextMenuProps) {
+export function ContextMenu({ position, onAddNode, onDeleteSelected, onEvaluate, onClose, hasSelection }: ContextMenuProps) {
 	return (
 		<Menu
 			opened={true}
@@ -47,6 +49,19 @@ export function ContextMenu({ position, onAddNode, onEvaluate, onClose }: Contex
 				>
 					Add Node
 				</Menu.Item>
+				{hasSelection && onDeleteSelected && (
+					<Menu.Item
+						leftSection="🗑️"
+						color="red"
+						onClick={() => {
+							onDeleteSelected();
+							onClose();
+						}}
+					>
+						Delete Selected
+					</Menu.Item>
+				)}
+				<Menu.Divider />
 				<Menu.Item
 					leftSection="▶️"
 					onClick={() => {

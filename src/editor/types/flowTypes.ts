@@ -60,6 +60,14 @@ export interface OutputNodeData extends BaseNodeData {
 }
 
 /**
+ * Vector Node - 2D Vector
+ */
+export interface VectorNodeData extends BaseNodeData {
+	x: number;
+	y: number;
+}
+
+/**
  * All node types
  */
 export type FlowNodeType =
@@ -71,7 +79,8 @@ export type FlowNodeType =
 	| 'if'
 	| 'lambdaDef'
 	| 'functionOut'
-	| 'output';
+	| 'output'
+	| 'vector';
 
 /**
  * Dynamic Function Node Data
@@ -82,6 +91,7 @@ export interface DynamicFunctionNodeData extends BaseNodeData {
 	namespace: string;
 	params: string[];
 	isVariadic?: boolean;
+	parameterModes?: Record<string, { current: string; options: Array<{ mode: string; label: string; params: string[] }> }>;
 }
 
 /**
@@ -112,7 +122,8 @@ export type FlowNode =
 	| Node<IfNodeData, 'if'>
 	| Node<LambdaDefNodeData, 'lambdaDef'>
 	| Node<FunctionOutNodeData, 'functionOut'>
-	| Node<OutputNodeData, 'output'>;
+	| Node<OutputNodeData, 'output'>
+	| Node<VectorNodeData, 'vector'>;
 
 /**
  * Edge labels for better clarity

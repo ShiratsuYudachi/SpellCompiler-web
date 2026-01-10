@@ -1,15 +1,25 @@
 // =============================================
 // Function Registry
-// 
+//
 // =============================================
 
+// Parameter mode types
+export type ParameterMode = 'literal-xy' | 'vector' | 'default';
+
+export interface ParameterModeOption {
+	mode: ParameterMode;
+	label: string;
+	params: string[];  // Parameter names for this mode
+}
+
 export interface FunctionInfo {
-	name: string;           // （）
-	displayName: string;    // （）
-	namespace: string;      // （ 'std', 'game', 'user'）
-	paramCount: number;     // 
-	params: string[];       // 
-	isNative: boolean;      // 
+	name: string;           // Full function name
+	displayName: string;    // Display name
+	namespace: string;      // Namespace ('std', 'game', 'user')
+	paramCount: number;     // Number of parameters
+	params: string[];       // Parameter names
+	isNative: boolean;      // Is native function
+	parameterModes?: Record<string, ParameterModeOption[]>;  // Parameter mode options for specific params
 }
 
 /**
@@ -95,12 +105,54 @@ export function getFunctionRegistry(): FunctionInfo[] {
 		});
 	}
 
-	const gameFunctions = [
+	const gameFunctions: Array<{
+		name: string;
+		params: string[];
+		parameterModes?: Record<string, ParameterModeOption[]>;
+	}> = [
 		{ name: 'getPlayer', params: [] },
-		{ name: 'teleportRelative', params: ['entityId', 'dx', 'dy'] },
+		{
+			name: 'teleportRelative',
+			params: ['entityId', 'offset'],  // Generic param name
+			parameterModes: {
+				'offset': [
+					{
+						mode: 'literal-xy',
+						label: 'Literal (dx, dy)',
+						params: ['dx', 'dy']
+					},
+					{
+						mode: 'vector',
+						label: 'Vector',
+						params: ['offset']
+					}
+				]
+			}
+		},
 		{ name: 'deflectAfterTime', params: ['angle', 'delayMs'] },
 		{ name: 'getProjectileAge', params: [] },
 		{ name: 'getProjectileDistance', params: [] },
+		// Vector-based game functions
+		{ name: 'getPlayerPosition', params: [] },
+		{ name: 'getCasterPosition', params: [] },
+		{
+			name: 'teleportToPosition',
+			params: ['entityId', 'position'],
+			parameterModes: {
+				'position': [
+					{
+						mode: 'literal-xy',
+						label: 'Literal (x, y)',
+						params: ['x', 'y']
+					},
+					{
+						mode: 'vector',
+						label: 'Vector',
+						params: ['position']
+					}
+				]
+			}
+		},
 	]
 
 	for (const fn of gameFunctions) {
@@ -112,9 +164,39 @@ export function getFunctionRegistry(): FunctionInfo[] {
 			paramCount: fn.params.length,
 			params: fn.params,
 			isNative: true,
+			parameterModes: fn.parameterModes,
 		})
 	}
-	
+
+	// Vector functions
+	const vectorFunctions = [
+		{ name: 'create', params: ['x', 'y'] },
+		{ name: 'getX', params: ['v'] },
+		{ name: 'getY', params: ['v'] },
+		{ name: 'add', params: ['v1', 'v2'] },
+		{ name: 'subtract', params: ['v1', 'v2'] },
+		{ name: 'multiply', params: ['v', 'scalar'] },
+		{ name: 'divide', params: ['v', 'scalar'] },
+		{ name: 'length', params: ['v'] },
+		{ name: 'normalize', params: ['v'] },
+		{ name: 'dot', params: ['v1', 'v2'] },
+		{ name: 'distance', params: ['v1', 'v2'] },
+		{ name: 'angle', params: ['v'] },
+		{ name: 'rotate', params: ['v', 'angle'] },
+	];
+
+	for (const fn of vectorFunctions) {
+		const fullName = `vec::${fn.name}`;
+		functions.push({
+			name: fullName,
+			displayName: fn.name,
+			namespace: 'vec',
+			paramCount: fn.params.length,
+			params: fn.params,
+			isNative: true
+		});
+	}
+
 	return functions;
 }
 

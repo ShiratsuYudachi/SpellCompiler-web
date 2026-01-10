@@ -12,12 +12,13 @@ import { getGameInstance } from '../../../game/gameInstance';
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
-	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc') => void;
+	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => void;
 	onClose: () => void;
 }
 
 const BASIC_NODES = [
 	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value' },
+	{ type: 'vector' as const, label: 'Vector2D', icon: '📐', description: '2D Vector (x, y)' },
 	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
 	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞', description: 'Call custom function' },
 	{ type: 'applyFunc' as const, label: 'Apply', icon: '⚡', description: 'Apply function dynamically' },
@@ -61,6 +62,7 @@ export function NodeSelectionMenu({
 	const functionsByNamespace = getFunctionsByNamespace();
 	const stdFunctions = functionsByNamespace['std'] || [];
 	const gameFunctions = functionsByNamespace['game'] || [];
+	const vecFunctions = functionsByNamespace['vec'] || [];
 
 	// Filter based on scene context
 	const isLevel1 = editorContext?.sceneKey === 'Level1';
@@ -70,9 +72,9 @@ export function NodeSelectionMenu({
 	console.log('[NodeSelectionMenu] Is Level1:', isLevel1);
 	console.log('[NodeSelectionMenu] All game functions:', gameFunctions.map(f => f.displayName));
 	
-	// In Level1, only allow literal, output, getPlayer, and teleportRelative
+	// In Level1, only allow literal, vector, output, getPlayer, and teleportRelative
 	const availableBasicNodes = isLevel1
-		? BASIC_NODES.filter(node => node.type === 'literal' || node.type === 'output')
+		? BASIC_NODES.filter(node => node.type === 'literal' || node.type === 'vector' || node.type === 'output')
 		: BASIC_NODES;
 
 	const availableGameFunctions = isLevel1
@@ -154,6 +156,27 @@ export function NodeSelectionMenu({
 							</div>
 						</div>
 					)
+				)}
+
+				{!isLevel1 && vecFunctions.length > 0 && (
+					<div>
+						<Divider my="xs" />
+						<Menu.Label>Vector (vec::)</Menu.Label>
+						<div className="grid grid-cols-2 gap-1 px-2 pb-2">
+							{vecFunctions.map(func => (
+								<button
+									key={func.name}
+									onClick={() => {
+										onSelectFunction(func);
+										onClose();
+									}}
+									className="px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+								>
+									{func.displayName}
+								</button>
+							))}
+						</div>
+					</div>
 				)}
 
 				{availableGameFunctions.length > 0 && (
