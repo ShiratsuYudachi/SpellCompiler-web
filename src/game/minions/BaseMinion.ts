@@ -72,9 +72,10 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
    * 受击闪烁
    */
   private flashDamage(): void {
-    this.setTint(0xffffff);
+    const originalFill = this.fillColor;
+    this.setFillStyle(0xffffff);
     this.scene.time.delayedCall(100, () => {
-      this.clearTint();
+      this.setFillStyle(originalFill);
     });
   }
   
@@ -97,7 +98,6 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
    * 死亡特效
    */
   private createDeathEffect(): void {
-    const particles = [];
     for (let i = 0; i < 8; i++) {
       const angle = (Math.PI * 2 / 8) * i;
       const particle = this.scene.add.rectangle(

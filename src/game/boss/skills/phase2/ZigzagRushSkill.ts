@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class ZigzagRushSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {

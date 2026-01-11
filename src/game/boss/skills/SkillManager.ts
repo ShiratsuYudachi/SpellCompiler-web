@@ -7,13 +7,12 @@ import Phaser from 'phaser';
 import { BossSkill, SkillPhase } from './BossSkill';
 
 export class SkillManager {
-  private scene: Phaser.Scene;
   private skills: Map<string, BossSkill> = new Map();
   private currentPhase: SkillPhase = SkillPhase.Phase1;
   private isExecutingSkill: boolean = false;
-  
-  constructor(scene: Phaser.Scene) {
-    this.scene = scene;
+
+  constructor(_scene: Phaser.Scene) {
+    // Scene is stored in individual skills
   }
   
   /**

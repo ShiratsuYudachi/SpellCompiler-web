@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class SpaceCollapseSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
@@ -17,7 +17,7 @@ export class SpaceCollapseSkill extends BossSkill {
     });
   }
   
-  async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
+  async execute(_bossX: number, _bossY: number, playerX: number, playerY: number): Promise<void> {
     this.isExecuting = true;
     console.log('[SpaceCollapse] 玩家脚下黑洞');
     

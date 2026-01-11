@@ -129,7 +129,7 @@ export class LevelSelectInterface extends Phaser.Scene {
 		backBtn.setStrokeStyle(2, 0xcd853f)
 		backBtn.setInteractive({ useHandCursor: true })
 
-		const backText = this.add.text(480, 520, 'BACK TO MENU', {
+		this.add.text(480, 520, 'BACK TO MENU', {
 			fontSize: '18px',
 			color: '#ffffff',
 		}).setOrigin(0.5).setScrollFactor(0)
@@ -198,7 +198,7 @@ export class LevelSelectInterface extends Phaser.Scene {
 		})
 
 		// Mouse wheel
-		this.input.on('wheel', (pointer: any, gameObjects: any, deltaX: number, deltaY: number) => {
+		this.input.on('wheel', (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
 			if (this.maxScrollY <= 0) return
 
 			this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY * 0.5, 0, this.maxScrollY)

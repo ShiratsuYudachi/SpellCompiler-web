@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class GeometricBladeSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
@@ -61,7 +61,6 @@ export class GeometricBladeSkill extends BossSkill {
         break;
     }
     
-    const angle = Math.atan2(targetY - startY, targetX - startX);
     const distance = Phaser.Math.Distance.Between(startX, startY, targetX, targetY);
     
     // 旋转+移动

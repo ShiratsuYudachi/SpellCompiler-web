@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class RedMoonSlashSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
@@ -17,7 +17,7 @@ export class RedMoonSlashSkill extends BossSkill {
     });
   }
   
-  async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
+  async execute(_bossX: number, _bossY: number, _playerX: number, _playerY: number): Promise<void> {
     this.isExecuting = true;
     console.log('[RedMoonSlash] 红月挥砍');
     
@@ -79,8 +79,6 @@ export class RedMoonSlashSkill extends BossSkill {
     const slashGraphics = this.scene.add.graphics();
     slashGraphics.lineStyle(12, 0xff0066, 1);
     
-    let startAngle: number, endAngle: number;
-    let slashX = bossX, slashY = bossY;
     
     switch (type) {
       case 'left':

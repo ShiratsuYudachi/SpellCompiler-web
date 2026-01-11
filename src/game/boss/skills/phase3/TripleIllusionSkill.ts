@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class TripleIllusionSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
@@ -111,11 +111,8 @@ export class TripleIllusionSkill extends BossSkill {
     
     await this.delay(600);
     chargeCircle.destroy();
-    
+
     // 冲撞
-    const startX = illusion.x;
-    const startY = illusion.y;
-    
     this.scene.tweens.add({
       targets: illusion,
       x: targetX,

@@ -106,4 +106,11 @@ export abstract class BossSkill {
   destroy(): void {
     // 子类可以重写此方法清理资源
   }
+
+  /**
+   * 延迟辅助方法
+   */
+  protected delay(ms: number): Promise<void> {
+    return new Promise(resolve => this.scene.time.delayedCall(ms, resolve));
+  }
 }

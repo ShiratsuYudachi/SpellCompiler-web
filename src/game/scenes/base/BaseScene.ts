@@ -261,7 +261,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		})
 	}
 
-	protected onObjectiveComplete(id: string, objective: ObjectiveConfig) {
+	protected onObjectiveComplete(id: string, _objective: ObjectiveConfig) {
 		// 标记任务完成
 		const task = this.allObjectives.find(obj => obj.id === id)
 		if (task) {
@@ -376,7 +376,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.taskPanel.add([bg, titleBg, title, this.taskText])
 	}
 
-	protected setTaskInfo(title: string, steps: string[]) {
+	protected setTaskInfo(_title: string, steps: string[]) {
 		this.taskText.setText(steps.join('\n'))
 	}
 
@@ -420,7 +420,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.minimapEnemyDots = []
 
 		this.world.resources.bodies.forEach((body, eid) => {
-			if (eid !== this.world.resources.playerEid && Enemy[eid]) {
+			if (eid !== this.world.resources.playerEid && (Enemy as Record<number, any>)[eid]) {
 				const dot = this.add.circle(body.x * scaleX, body.y * scaleY, 3, 0xff0000, 0.8)
 				dot.setScrollFactor(0).setDepth(1001)
 				this.minimapContainer.add(dot)

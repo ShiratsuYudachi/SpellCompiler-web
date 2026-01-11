@@ -50,10 +50,10 @@ export class Boss {
   private hitboxManager: HitboxManager;
   
   // UI组件
-  private healthBarBg: Phaser.GameObjects.Graphics;
-  private healthBarFill: Phaser.GameObjects.Graphics;
-  private healthText: Phaser.GameObjects.Text;
-  private stateText: Phaser.GameObjects.Text;
+  private healthBarBg!: Phaser.GameObjects.Graphics;
+  private healthBarFill!: Phaser.GameObjects.Graphics;
+  private healthText!: Phaser.GameObjects.Text;
+  private stateText!: Phaser.GameObjects.Text;
   
   // 边界
   private bounds: { left: number; right: number; top: number; bottom: number };
@@ -109,10 +109,12 @@ export class Boss {
   private createUI(x: number, y: number): void {
     // 血条背景
     this.healthBarBg = this.scene.add.graphics();
-    
+    this.healthBarBg.setDepth(1000);
+
     // 血条填充
     this.healthBarFill = this.scene.add.graphics();
-    
+    this.healthBarFill.setDepth(1001);
+
     // 血量文本
     this.healthText = this.scene.add.text(x, y - 140, '', {
       fontSize: '16px',
@@ -121,7 +123,8 @@ export class Boss {
       strokeThickness: 4,
     });
     this.healthText.setOrigin(0.5);
-    
+    this.healthText.setDepth(1002);
+
     // 状态文本
     this.stateText = this.scene.add.text(x, y - 160, '', {
       fontSize: '14px',
@@ -130,7 +133,8 @@ export class Boss {
       strokeThickness: 3,
     });
     this.stateText.setOrigin(0.5);
-    
+    this.stateText.setDepth(1002);
+
     this.updateHealthBar();
   }
   
@@ -170,7 +174,7 @@ export class Boss {
    */
   private registerSkills(): void {
     // 第一阶段技能
-    const linearCut = new LinearCutSkill(this.scene, this.hitboxManager);
+    const linearCut = new LinearCutSkill(this.scene);
     const geometricBlade = new GeometricBladeSkill(this.scene);
     const fragmentDecoy = new FragmentDecoySkill(this.scene);
     const rotatingShield = new RotatingShieldSkill(this.scene);
@@ -240,10 +244,10 @@ export class Boss {
   }
   
   private updateAI(
-    distance: number, 
-    dx: number, 
-    dy: number, 
-    deltaSeconds: number,
+    distance: number,
+    dx: number,
+    dy: number,
+    _deltaSeconds: number,
     attackCooldown: number,
     lastAttackTime: number
   ): void {
@@ -306,15 +310,19 @@ export class Boss {
    */
   private async executeSkillAttack(dx: number, dy: number, distance: number): Promise<void> {
     this.store.dispatch({ type: 'START_ATTACK' });
-    
+
     const pos = this.store.get('position');
-    const player = this.scene.children.getByName('player') as any;
-    
+
+    // Get player from ECS world (Level2 scene)
+    const level2Scene = this.scene as any;
+    const player = level2Scene.world?.resources?.bodies?.get(level2Scene.world?.resources?.playerEid);
+
     if (!player) {
+      console.log('[Boss] 找不到玩家实体');
       this.store.dispatch({ type: 'END_ATTACK' });
       return;
     }
-    
+
     // 获取可用技能
     const availableSkills = this.skillManager.getAvailableSkills(Date.now());
     
@@ -360,13 +368,17 @@ export class Boss {
     return new Promise(resolve => this.scene.time.delayedCall(ms, resolve));
   }
   
-  private async executeSimpleAttack(dx: number, dy: number, distance: number): Promise<void> {
+  private async executeSimpleAttack(_dx: number, _dy: number, distance: number): Promise<void> {
     this.store.dispatch({ type: 'START_ATTACK' });
-    
+
     const pos = this.store.get('position');
-    const player = this.scene.children.getByName('player') as any;
-    
+
+    // Get player from ECS world (Level2 scene)
+    const level2Scene = this.scene as any;
+    const player = level2Scene.world?.resources?.bodies?.get(level2Scene.world?.resources?.playerEid);
+
     if (!player) {
+      console.log('[Boss] 找不到玩家实体 (简单攻击)');
       this.store.dispatch({ type: 'END_ATTACK' });
       return;
     }

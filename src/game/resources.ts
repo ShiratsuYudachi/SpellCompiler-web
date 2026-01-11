@@ -17,5 +17,6 @@ export type GameResources = {
 	spellMessageByEid: Map<number, string>
 	input: InputState
 	score?: number // Optional score for scenes that use it
+	mana?: number // Optional mana for scenes that use it
 }
 

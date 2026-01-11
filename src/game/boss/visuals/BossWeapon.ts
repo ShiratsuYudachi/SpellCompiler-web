@@ -99,7 +99,7 @@ export class BossWeapon {
             targets: this.container,
             angle: 0,
             duration: 150,
-            onComplete: resolve
+            onComplete: () => resolve()
           });
         }
       });

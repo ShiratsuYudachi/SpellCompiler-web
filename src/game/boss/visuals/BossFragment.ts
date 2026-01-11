@@ -9,6 +9,7 @@ export enum FragmentShape {
   Triangle = 'triangle',
   Rectangle = 'rectangle',
   Diamond = 'diamond',
+  Quadrilateral = 'quadrilateral',
 }
 
 export interface FragmentConfig {
@@ -62,6 +63,9 @@ export class BossFragment {
       case FragmentShape.Diamond:
         this.drawDiamond();
         break;
+      case FragmentShape.Quadrilateral:
+        this.drawQuadrilateral();
+        break;
     }
   }
   
@@ -111,7 +115,19 @@ export class BossFragment {
     this.graphics.lineStyle(2, 0x8b0000, 0.8);
     this.graphics.strokePath();
   }
-  
+
+  private drawQuadrilateral(): void {
+    const half = this.size / 2;
+
+    // 填充
+    this.graphics.fillStyle(this.baseColor, 1);
+    this.graphics.fillRect(-half, -half, this.size, this.size);
+
+    // 描边
+    this.graphics.lineStyle(2, 0x8b0000, 0.8);
+    this.graphics.strokeRect(-half, -half, this.size, this.size);
+  }
+
   /**
    * 开始飘动动画
    */

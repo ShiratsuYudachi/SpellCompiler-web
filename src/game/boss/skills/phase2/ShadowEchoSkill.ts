@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class ShadowEchoSkill extends BossSkill {
   private shadow?: Phaser.GameObjects.Container;
@@ -21,7 +21,7 @@ export class ShadowEchoSkill extends BossSkill {
     });
   }
   
-  async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
+  async execute(bossX: number, bossY: number, _playerX: number, _playerY: number): Promise<void> {
     this.isExecuting = true;
     console.log('[ShadowEcho] 生成替身');
     

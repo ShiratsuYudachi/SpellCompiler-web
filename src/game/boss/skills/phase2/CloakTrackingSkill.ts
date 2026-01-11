@@ -34,8 +34,8 @@ export class CloakTrackingSkill extends BossSkill {
   async execute(
     bossX: number,
     bossY: number,
-    playerX: number,
-    playerY: number
+    _playerX: number,
+    _playerY: number
   ): Promise<void> {
     this.isExecuting = true;
     
@@ -209,15 +209,6 @@ export class CloakTrackingSkill extends BossSkill {
       this.updateEvent.destroy();
       this.updateEvent = undefined;
     }
-  }
-  
-  /**
-   * 延迟工具函数
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-      this.scene.time.delayedCall(ms, () => resolve());
-    });
   }
   
   /**

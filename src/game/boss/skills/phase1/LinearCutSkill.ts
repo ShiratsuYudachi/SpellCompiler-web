@@ -6,13 +6,11 @@
 import Phaser from 'phaser';
 import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
 import { BossEffects } from '../../visuals/BossEffects';
-import { HitboxManager } from '../../collision/HitboxManager';
 
 export class LinearCutSkill extends BossSkill {
   private effects: BossEffects;
-  private hitboxManager: HitboxManager;
   
-  constructor(scene: Phaser.Scene, hitboxManager: HitboxManager) {
+  constructor(scene: Phaser.Scene) {
     const config: SkillConfig = {
       name: 'LinearCut',
       damage: 40,
@@ -20,10 +18,9 @@ export class LinearCutSkill extends BossSkill {
       phase: SkillPhase.Phase1,
       priority: 7,
     };
-    
+
     super(scene, config);
     this.effects = new BossEffects(scene);
-    this.hitboxManager = hitboxManager;
   }
   
   async execute(
@@ -54,7 +51,7 @@ export class LinearCutSkill extends BossSkill {
     this.effects.createTeleportFlash(bossX, bossY, 60);
     
     // 创建紫色裂痕路径
-    const crackLine = this.effects.createCrackLine(
+    this.effects.createCrackLine(
       bossX,
       bossY,
       finalX,
@@ -182,12 +179,4 @@ export class LinearCutSkill extends BossSkill {
     this.scene.events.emit('boss-teleport', { x, y });
   }
   
-  /**
-   * 延迟工具函数
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-      this.scene.time.delayedCall(ms, () => resolve());
-    });
-  }
 }

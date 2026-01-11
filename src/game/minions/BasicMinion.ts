@@ -11,7 +11,7 @@ export class BasicMinion extends BaseMinion {
     this.setFillStyle(0xff6666); // 浅红色
   }
   
-  protected updateBehavior(delta: number): void {
+  protected updateBehavior(_delta: number): void {
     const direction = this.getDirectionToPlayer();
     if (!direction) return;
     

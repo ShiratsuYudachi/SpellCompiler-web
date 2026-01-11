@@ -23,8 +23,6 @@ export class FragmentedPhantomBoss {
   private x: number;
   private y: number;
   
-  private currentPhase: number = 0;
-  
   private container: Phaser.GameObjects.Container;
   
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -255,7 +253,6 @@ export class FragmentedPhantomBoss {
   }
   
   changePhase(phase: number): void {
-    this.currentPhase = phase;
     console.log(`[FragmentedPhantomBoss] 切换到阶段 ${phase}`);
     
     const newColor = phase === 0 ? 0x3a1a4d : phase === 1 ? 0x8b1a8b : 0xff0066;
@@ -284,12 +281,7 @@ export class FragmentedPhantomBoss {
   
   flash(duration: number = 100): void {
     // Graphics对象没有setTint，使用alpha闪烁效果
-    const allGraphics = [
-      ...this.headFragments.map(f => f.getGraphics()),
-      ...this.bodyFragments.map(f => f.getGraphics()),
-      ...this.cloakFragments.map(f => f.getGraphics()),
-    ];
-    
+
     // 创建白色闪光覆盖层
     const flashOverlay = this.scene.add.graphics();
     flashOverlay.fillStyle(0xffffff, 0.6);

@@ -22,7 +22,7 @@ export class FastMinion extends BaseMinion {
     this.speed *= 1.5;
   }
   
-  protected updateBehavior(delta: number): void {
+  protected updateBehavior(_delta: number): void {
     const direction = this.getDirectionToPlayer();
     if (!direction) return;
     
@@ -61,7 +61,8 @@ export class FastMinion extends BaseMinion {
     );
     
     // 冲刺特效（拖尾）
-    this.setTint(0xffffff);
+    const originalFill = this.fillColor;
+    this.setFillStyle(0xffffff);
     const trail = this.scene.add.rectangle(this.x, this.y, 25, 25, 0xffff00, 0.5);
     this.scene.tweens.add({
       targets: trail,
@@ -69,11 +70,11 @@ export class FastMinion extends BaseMinion {
       duration: this.dashDuration,
       onComplete: () => trail.destroy(),
     });
-    
+
     // 冲刺结束
     this.scene.time.delayedCall(this.dashDuration, () => {
       this.isDashing = false;
-      this.clearTint();
+      this.setFillStyle(originalFill);
       body.setVelocity(0, 0);
     });
   }

@@ -40,10 +40,10 @@ export class FullScreenPurgeSkill extends BossSkill {
   }
   
   async execute(
-    bossX: number,
-    bossY: number,
-    playerX: number,
-    playerY: number
+    _bossX: number,
+    _bossY: number,
+    _playerX: number,
+    _playerY: number
   ): Promise<void> {
     this.isExecuting = true;
     
@@ -377,15 +377,6 @@ export class FullScreenPurgeSkill extends BossSkill {
       (obj: any) => obj.name === 'intersection-dot'
     );
     dots.forEach(dot => dot.destroy());
-  }
-  
-  /**
-   * 延迟工具函数
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-      this.scene.time.delayedCall(ms, () => resolve());
-    });
   }
   
   /**

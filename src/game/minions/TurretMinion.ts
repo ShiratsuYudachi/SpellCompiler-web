@@ -18,7 +18,7 @@ export class TurretMinion extends BaseMinion {
     this.setSize(40, 40);
   }
   
-  protected updateBehavior(delta: number): void {
+  protected updateBehavior(_delta: number): void {
     // 炮台不移动
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(0, 0);

@@ -354,7 +354,7 @@ export class BossEffects {
       duration: 300,
       onComplete: () => flash.destroy(),
     });
-    
+
     // 冲击波
     const shockwave = this.scene.add.circle(x, y, 10, color, 0);
     shockwave.setStrokeStyle(4, color, 1);
@@ -366,12 +366,37 @@ export class BossEffects {
       ease: 'Cubic.easeOut',
       onComplete: () => shockwave.destroy(),
     });
-    
+
     // 粒子爆发
     this.createParticleBurst(x, y, color, 40, 200);
-    
+
     // 屏幕震动
     this.scene.cameras.main.shake(300, 0.015);
+  }
+
+  /**
+   * 创建冲击闪光效果
+   */
+  createImpactFlash(
+    x: number,
+    y: number,
+    color: number = 0xffffff,
+    radius: number = 30
+  ): void {
+    // 创建闪光圆圈
+    const flash = this.scene.add.circle(x, y, radius, color, 0.9);
+
+    this.scene.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scale: 1.5,
+      duration: 200,
+      ease: 'Cubic.easeOut',
+      onComplete: () => flash.destroy(),
+    });
+
+    // 添加一些粒子效果
+    this.createParticleBurst(x, y, color, 8, 80);
   }
 }
 

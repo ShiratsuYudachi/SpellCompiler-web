@@ -15,7 +15,7 @@ export class TeleportMinion extends BaseMinion {
     this.setFillStyle(0x8b00ff); // 紫色
   }
   
-  protected updateBehavior(delta: number): void {
+  protected updateBehavior(_delta: number): void {
     if (this.isTeleporting) return;
     
     const direction = this.getDirectionToPlayer();

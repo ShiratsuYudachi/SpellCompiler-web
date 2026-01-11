@@ -115,7 +115,6 @@ export class FragmentDecoySkill extends BossSkill {
     // 计算从Boss到玩家的方向
     const dx = playerX - bossX;
     const dy = playerY - bossY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
     
     // 玩家背后的方向
     const behindAngle = Math.atan2(dy, dx);
@@ -143,12 +142,4 @@ export class FragmentDecoySkill extends BossSkill {
     this.scene.events.emit('boss-teleport', { x, y });
   }
   
-  /**
-   * 延迟工具函数
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-      this.scene.time.delayedCall(ms, () => resolve());
-    });
-  }
 }

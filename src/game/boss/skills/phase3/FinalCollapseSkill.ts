@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
+import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class FinalCollapseSkill extends BossSkill {
   private fragments: Phaser.GameObjects.Graphics[] = [];
@@ -19,7 +19,7 @@ export class FinalCollapseSkill extends BossSkill {
     });
   }
   
-  async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
+  async execute(_bossX: number, _bossY: number, _playerX: number, _playerY: number): Promise<void> {
     this.isExecuting = true;
     console.log('[FinalCollapse] 垂死挣扎！');
     
@@ -50,8 +50,8 @@ export class FinalCollapseSkill extends BossSkill {
       fragment.fillStyle(0xff0000, 1);
       fragment.fillTriangle(0, -8, 6, 4, -6, 4);
       fragment.setPosition(
-        bossX + Math.cos(angle) * 80,
-        bossY + Math.sin(angle) * 80
+        _bossX + Math.cos(angle) * 80,
+        _bossY + Math.sin(angle) * 80
       );
       this.fragments.push(fragment);
     }

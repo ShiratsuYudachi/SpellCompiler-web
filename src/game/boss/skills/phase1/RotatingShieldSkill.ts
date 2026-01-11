@@ -32,8 +32,8 @@ export class RotatingShieldSkill extends BossSkill {
   async execute(
     bossX: number,
     bossY: number,
-    playerX: number,
-    playerY: number
+    _playerX: number,
+    _playerY: number
   ): Promise<void> {
     this.isExecuting = true;
     
@@ -191,7 +191,7 @@ export class RotatingShieldSkill extends BossSkill {
   /**
    * 反弹子弹
    */
-  private reflectBullet(bullet: any, shield: Shield): void {
+  private reflectBullet(bullet: any, _shield: Shield): void {
     // 计算反弹方向（简化版：反向）
     bullet.vx = -bullet.vx;
     bullet.vy = -bullet.vy;
@@ -238,15 +238,6 @@ export class RotatingShieldSkill extends BossSkill {
     }
     
     this.scene.events.off('update', this.checkBulletCollision, this);
-  }
-  
-  /**
-   * 延迟工具函数
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => {
-      this.scene.time.delayedCall(ms, () => resolve());
-    });
   }
   
   /**
