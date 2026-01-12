@@ -7,6 +7,7 @@ import { TerrainType, type ObjectiveConfig } from './TerrainTypes'
 import { TerrainRenderer } from './TerrainRenderer'
 import { Health, Enemy } from '../../components'
 import { LevelProgress } from './LevelProgress'
+import { setEditorContext } from '../../gameInstance'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
@@ -514,7 +515,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		// TAB key for editor
 		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
 			e.preventDefault()
-			this.game.events.emit(GameEvents.setEditorContext, { sceneKey: this.scene.key })
+			setEditorContext({ sceneKey: this.scene.key })
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
 

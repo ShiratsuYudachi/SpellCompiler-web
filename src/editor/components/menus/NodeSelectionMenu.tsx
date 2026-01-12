@@ -35,8 +35,6 @@ export function NodeSelectionMenu({
 	editorContext
 }: NodeSelectionMenuProps) {
 	const restrictions = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey)?.editorRestrictions : undefined
-	console.log('editorContext', editorContext)
-	console.log('restrictions', restrictions)
 	const tree = getFunctionTreeForMenu(restrictions)
 
 	const toFunctionInfo = (fullName: string, params: string[], displayName: string): FunctionInfo => {

@@ -40,7 +40,7 @@ import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
-import { getGameInstance } from '../../game/gameInstance'
+import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
 import { upsertSpell } from '../utils/spellStorage'
 import { registerGameFunctionsForPreview } from '../../game/spells/registerGameFunctions'
@@ -124,81 +124,66 @@ function EditorContent(props: FunctionalEditorProps) {
 		position: { x: number; y: number };
 		nodeId?: string;
 	} | null>(null);
-	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
+	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
-	// Listen for editor context changes and load workflow
+	// Subscribe to editor context changes and load workflow
 	useEffect(() => {
+		const unsubscribe = subscribeEditorContext((context) => {
+			const newSceneKey = context?.sceneKey;
 
+			// Only reload workflow if scene key actually changed
+			if (editorContext?.sceneKey === newSceneKey && workflowLoaded) {
+				return;
+			}
 
-		const game = getGameInstance();
-		if (!game) return;
+			setEditorContext(context);
 
-		const handler = (context: { sceneKey?: string }) => {
-			
-			// Defer state update to avoid React warning
-			setTimeout(() => {
-				const newSceneKey = context.sceneKey;
+			// Load workflow from localStorage or use default
+			const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
 
-				// Only reload workflow if scene key actually changed
-				if (editorContext?.sceneKey === newSceneKey && workflowLoaded) {
-					console.log(`[Editor] Scene key unchanged (${newSceneKey}), skipping workflow reload`);
-					return;
-				}
-
-				setEditorContext(context);
-
-				// Load workflow from localStorage or use default
-				const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
-
-				try {
-					const saved = localStorage.getItem(storageKey);
-					if (saved) {
-						const flow = JSON.parse(saved);
-						if (flow.nodes && Array.isArray(flow.nodes)) {
-							setNodes(flow.nodes);
-							// Update nodeIdCounter to avoid conflicts
-							let maxId = nodeIdCounter;
-							flow.nodes.forEach((node: Node) => {
-								const match = node.id.match(/-(\d+)$/);
-								if (match) {
-									const num = parseInt(match[1], 10);
-									if (num >= maxId) maxId = num + 1;
-								}
-							});
-							nodeIdCounter = maxId;
-						}
-						if (flow.edges && Array.isArray(flow.edges)) {
-							setEdges(flow.edges);
-						}
-						console.log(`[Editor] Loaded workflow for ${newSceneKey} from localStorage`);
-					} else {
-						// No saved workflow, load from scene config
-						const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
-						const templateNodes = config?.initialSpellWorkflow?.nodes || [];
-						const templateEdges = config?.initialSpellWorkflow?.edges || [];
-
-						setNodes(templateNodes);
-						setEdges(templateEdges);
-						console.log(`[Editor] Using scene config template for ${newSceneKey}`);
+			try {
+				const saved = localStorage.getItem(storageKey);
+				if (saved) {
+					const flow = JSON.parse(saved);
+					if (flow.nodes && Array.isArray(flow.nodes)) {
+						setNodes(flow.nodes);
+						// Update nodeIdCounter to avoid conflicts
+						let maxId = nodeIdCounter;
+						flow.nodes.forEach((node: Node) => {
+							const match = node.id.match(/-(\d+)$/);
+							if (match) {
+								const num = parseInt(match[1], 10);
+								if (num >= maxId) maxId = num + 1;
+							}
+						});
+						nodeIdCounter = maxId;
 					}
-				} catch (err) {
-					console.error('[Editor] Failed to load workflow:', err);
-					// Fallback to empty workflow
-					setNodes([{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }]);
-					setEdges([]);
+					if (flow.edges && Array.isArray(flow.edges)) {
+						setEdges(flow.edges);
+					}
+				} else {
+					// No saved workflow, load from scene config
+					const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
+					const templateNodes = config?.initialSpellWorkflow?.nodes || [];
+					const templateEdges = config?.initialSpellWorkflow?.edges || [];
+
+					setNodes(templateNodes);
+					setEdges(templateEdges);
 				}
+			} catch (err) {
+				console.error('[Editor] Failed to load workflow:', err);
+				// Fallback to empty workflow
+				setNodes([{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }]);
+				setEdges([]);
+			}
 
-				setWorkflowLoaded(true);
-			}, 0);
-		};
+			setWorkflowLoaded(true);
+		});
 
-		game.events.on(GameEvents.setEditorContext, handler);
-		return () => {
-			game.events.off(GameEvents.setEditorContext, handler);
-		};
+		return unsubscribe;
 	}, [editorContext, workflowLoaded]);
 
 	// Auto-save workflow to localStorage when nodes or edges change
@@ -218,7 +203,6 @@ function EditorContent(props: FunctionalEditorProps) {
 					timestamp: Date.now()
 				};
 				localStorage.setItem(storageKey, JSON.stringify(flow));
-				console.log(`[Editor] Auto-saved workflow for ${sceneKey}`);
 			} catch (err) {
 				console.error('[Editor] Failed to auto-save workflow:', err);
 			}
