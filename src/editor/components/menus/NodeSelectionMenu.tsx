@@ -12,12 +12,13 @@ import { getGameInstance } from '../../../game/gameInstance';
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
-	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => void;
+	onSelectBasicNode: (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => void;
 	onClose: () => void;
 }
 
 const BASIC_NODES = [
-	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value' },
+	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value (number)' },
+	{ type: 'triggerType' as const, label: 'Trigger Type', icon: '⚡', description: 'Select trigger type for onTrigger' },
 	{ type: 'vector' as const, label: 'Vector2D', icon: '📐', description: '2D Vector (x, y)' },
 	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
 	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞', description: 'Call custom function' },
@@ -97,7 +98,7 @@ export function NodeSelectionMenu({
 			withArrow
 			shadow="md"
 			radius="md"
-			width={300}
+			width={350}
 		>
 			<Menu.Target>
 				<div
@@ -114,9 +115,9 @@ export function NodeSelectionMenu({
 			<Menu.Dropdown
 				onClick={(e) => e.stopPropagation()}
 				onContextMenu={(e) => e.stopPropagation()}
-				style={{ maxHeight: '400px', overflowY: 'auto' }}
+				style={{ maxHeight: '500px', overflowY: 'auto', padding: '8px' }}
 			>
-				<Menu.Label>Basic Nodes</Menu.Label>
+				<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Basic Nodes</Menu.Label>
 				{availableBasicNodes.map(node => (
 					<Menu.Item
 						key={node.type}
@@ -125,22 +126,23 @@ export function NodeSelectionMenu({
 							onSelectBasicNode(node.type);
 							onClose();
 						}}
-						rightSection={
-							<Text size="xs" c="dimmed">
+						style={{ padding: '8px 12px', marginBottom: '2px' }}
+					>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+							<span style={{ fontWeight: 500 }}>{node.label}</span>
+							<Text size="xs" c="dimmed" style={{ fontSize: '11px', lineHeight: '1.2' }}>
 								{node.description}
 							</Text>
-						}
-					>
-						{node.label}
+						</div>
 					</Menu.Item>
 				))}
 
 				{groupedFunctions.map((group) =>
 					group.items.length > 0 && (
 						<div key={group.key}>
-							<Divider my="xs" />
-							<Menu.Label>{group.label}</Menu.Label>
-							<div className="grid grid-cols-2 gap-1 px-2 pb-2">
+							<Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} />
+							<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>{group.label}</Menu.Label>
+							<div className="grid grid-cols-2 gap-2 px-2 pb-2">
 								{group.items.map(func => (
 									<button
 										key={func.name}
@@ -148,7 +150,8 @@ export function NodeSelectionMenu({
 											onSelectFunction(func);
 											onClose();
 										}}
-										className="px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+										className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+										style={{ fontSize: '13px', lineHeight: '1.4' }}
 									>
 										{func.displayName}
 									</button>
@@ -160,9 +163,9 @@ export function NodeSelectionMenu({
 
 				{!isLevel1 && vecFunctions.length > 0 && (
 					<div>
-						<Divider my="xs" />
-						<Menu.Label>Vector (vec::)</Menu.Label>
-						<div className="grid grid-cols-2 gap-1 px-2 pb-2">
+						<Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} />
+						<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Vector (vec::)</Menu.Label>
+						<div className="grid grid-cols-2 gap-2 px-2 pb-2">
 							{vecFunctions.map(func => (
 								<button
 									key={func.name}
@@ -170,7 +173,8 @@ export function NodeSelectionMenu({
 										onSelectFunction(func);
 										onClose();
 									}}
-									className="px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+									className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+									style={{ fontSize: '13px', lineHeight: '1.4' }}
 								>
 									{func.displayName}
 								</button>
@@ -181,9 +185,9 @@ export function NodeSelectionMenu({
 
 				{availableGameFunctions.length > 0 && (
 					<div>
-						<Divider my="xs" />
-						<Menu.Label>Game</Menu.Label>
-						<div className="grid grid-cols-2 gap-1 px-2 pb-2">
+						<Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} />
+						<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Game</Menu.Label>
+						<div className="grid grid-cols-1 gap-2 px-2 pb-2">
 							{availableGameFunctions.map(func => (
 								<button
 									key={func.name}
@@ -191,7 +195,8 @@ export function NodeSelectionMenu({
 										onSelectFunction(func);
 										onClose();
 									}}
-									className="px-2 py-1.5 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+									className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+									style={{ fontSize: '13px', lineHeight: '1.4', width: '100%' }}
 								>
 									{func.displayName}
 								</button>

@@ -153,6 +153,11 @@ export function getFunctionRegistry(): FunctionInfo[] {
 				]
 			}
 		},
+		// Trigger functions
+		{
+			name: 'onTrigger',
+			params: ['triggerType', 'condition'],
+		},
 	]
 
 	for (const fn of gameFunctions) {

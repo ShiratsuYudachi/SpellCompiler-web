@@ -21,6 +21,7 @@ import 'reactflow/dist/style.css';
 import { Button, Paper, Text, Alert } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
+import { TriggerTypeNode } from './nodes/TriggerTypeNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
 import { CustomFunctionNode } from './nodes/CustomFunctionNode';
 import { ApplyFuncNode } from './nodes/ApplyFuncNode';
@@ -45,6 +46,7 @@ import { getSceneConfig } from '../../game/scenes/sceneConfig'
 // Define node types
 const nodeTypes = {
 	literal: LiteralNode,
+	triggerType: TriggerTypeNode,
 	dynamicFunction: DynamicFunctionNode,
 	customFunction: CustomFunctionNode,
 	applyFunc: ApplyFuncNode,
@@ -416,7 +418,7 @@ function EditorContent() {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
 		if (!menuState) return;
 
 		// Check if this node type is allowed in current scene
@@ -437,6 +439,8 @@ function EditorContent() {
 			switch (type) {
 				case 'literal':
 					return { value: 0 };
+				case 'triggerType':
+					return { triggerType: 'onEnemyNearby' };
 				case 'vector':
 					return { x: 0, y: 0 };
 				case 'lambdaDef':
@@ -571,6 +575,9 @@ function EditorContent() {
 			})
 			evaluator.registerNativeFunctionFullName('game::getProjectileDistance', [], () => {
 				return 0 // Mock value for preview
+			})
+			evaluator.registerNativeFunctionFullName('game::onTrigger', ['triggerType', 'condition'], (_triggerType, _condition) => {
+				return 1 // Mock trigger ID for preview
 			})
 
 			// Register user-defined functions

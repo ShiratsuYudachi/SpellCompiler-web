@@ -218,12 +218,78 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// 批量生成 Level 6-20
-	...Object.fromEntries(
-		Array.from({ length: 15 }, (_, i) => [
-			`Level${i + 6}`,
+	// Level 6 - Trigger Mastery（触发器精通）
+	Level6: {
+		key: 'Level6',
+		playerSpawnX: 200,
+		playerSpawnY: 270,
+		mapData: createRoom(15, 9),
+		tileSize: 64,
+		objectives: [
 			{
-				key: `Level${i + 6}`,
+				id: 'task1-enemy-nearby',
+				description: 'Task 1: Use onEnemyNearby(200) to auto-teleport when enemy approaches',
+				type: 'defeat',
+			},
+			{
+				id: 'task2-time-interval',
+				description: 'Task 2: Use onTimeInterval(2000) to auto-heal every 2 seconds',
+				type: 'defeat',
+				prerequisite: 'task1-enemy-nearby',
+			},
+			{
+				id: 'task3-low-health',
+				description: 'Task 3: Use onPlayerLowHealth(0.5) to auto-teleport when health < 50%',
+				type: 'defeat',
+				prerequisite: 'task2-time-interval',
+			},
+		],
+		initialSpellWorkflow: {
+			nodes: [
+				{
+					id: 'output-1',
+					type: 'output',
+					position: { x: 600, y: 200 },
+					data: { label: 'Output' },
+				},
+				{
+					id: 'func-onTrigger',
+					type: 'dynamicFunction',
+					position: { x: 300, y: 180 },
+					data: {
+						functionName: 'game::onTrigger',
+						displayName: 'onTrigger',
+						namespace: 'game',
+						params: ['triggerType', 'condition'],
+					},
+				},
+				{
+					id: 'lit-triggerType',
+					type: 'literal',
+					position: { x: 100, y: 120 },
+					data: { value: 'onEnemyNearby' },
+				},
+				{
+					id: 'lit-condition',
+					type: 'literal',
+					position: { x: 100, y: 240 },
+					data: { value: 200 },
+				},
+			],
+			edges: [
+				{ id: 'e1', source: 'func-onTrigger', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e2', source: 'lit-triggerType', target: 'func-onTrigger', targetHandle: 'arg0' },
+				{ id: 'e3', source: 'lit-condition', target: 'func-onTrigger', targetHandle: 'arg1' },
+			],
+		},
+	},
+
+	// 批量生成 Level 7-20
+	...Object.fromEntries(
+		Array.from({ length: 14 }, (_, i) => [
+			`Level${i + 7}`,
+			{
+				key: `Level${i + 7}`,
 				playerSpawnX: 96,
 				playerSpawnY: 288,
 				mapData: createRoom(15, 9),

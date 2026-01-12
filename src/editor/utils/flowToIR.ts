@@ -8,6 +8,7 @@ import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, Function
 import type {
 	FlowNode,
 	LiteralNodeData,
+	TriggerTypeNodeData,
 	IdentifierNodeData,
 	DynamicFunctionNodeData,
 	CustomFunctionNodeData,
@@ -147,6 +148,15 @@ function convertNode(
 			return {
 				type: 'Literal',
 				value: data.value
+			} as Literal;
+		}
+
+		case 'triggerType': {
+			const data = node.data as TriggerTypeNodeData;
+			// Return the trigger type as a string literal
+			return {
+				type: 'Literal',
+				value: data.triggerType
 			} as Literal;
 		}
 

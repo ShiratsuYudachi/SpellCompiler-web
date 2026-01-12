@@ -24,6 +24,9 @@ export function LiteralNode({ data }: NodeProps) {
 		}
 	};
 
+	// Check if value is a string
+	const isString = typeof value === 'string' && (typeof nodeData.value === 'string' || isNaN(Number(value)));
+
 	return (
 		<div className="px-4 py-3 shadow-md rounded-lg bg-green-50 border-2 border-green-400 min-w-[150px]">
 			<div className="font-bold text-sm text-green-700 mb-2">
@@ -32,11 +35,25 @@ export function LiteralNode({ data }: NodeProps) {
 			
 			<input
 				type="text"
-				value={String(value)}
+				value={typeof value === 'string' ? value : String(value)}
 				onChange={(e) => handleChange(e.target.value)}
 				className="w-full px-2 py-1 text-sm border border-green-300 rounded focus:outline-none focus:border-green-500"
-				placeholder="Enter value..."
+				placeholder="Number or string..."
 			/>
+
+			{/* Hint for string values */}
+			{isString && (
+				<div className="text-xs text-green-600 mt-1 opacity-70">
+					💡 String: "{value}"
+				</div>
+			)}
+
+			{/* Hint for number values */}
+			{!isString && typeof value === 'number' && (
+				<div className="text-xs text-green-600 mt-1 opacity-50">
+					Number: {value}
+				</div>
+			)}
 
 			{/* Output handle */}
 			<Handle

@@ -5,6 +5,7 @@ import { Fireball, FireballStats, Lifetime, Owner, Velocity } from '../component
 import { query } from 'bitecs'
 import type { Vector2D } from '../../editor/ast/ast'
 import { isVector2D } from '../../editor/ast/ast'
+import type { TriggerType, TriggerConfig } from '../resources'
 
 export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSpell) {
 	const evaluator = new Evaluator()
@@ -199,6 +200,63 @@ export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSp
 		body.setVelocity(0, 0)
 		body.setPosition(newX, newY)
 		return true
+	})
+
+	// =============================================
+	// Trigger Functions
+	// =============================================
+
+	// game::onTrigger(triggerType, condition) - 注册一个触发器
+	// triggerType: 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth'
+	// condition: 根据类型不同，可以是数字（距离/时间间隔/生命值阈值）
+	evaluator.registerNativeFunctionFullName('game::onTrigger', ['triggerType', 'condition'], (triggerType, condition) => {
+		if (typeof triggerType !== 'string') {
+			throw new Error('game::onTrigger first argument must be a string (triggerType)')
+		}
+
+		const validTypes: TriggerType[] = ['onEnemyNearby', 'onTimeInterval', 'onPlayerHurt', 'onEnemyKilled', 'onPlayerLowHealth']
+		if (!validTypes.includes(triggerType as TriggerType)) {
+			throw new Error(`Invalid triggerType: ${triggerType}. Valid types: ${validTypes.join(', ')}`)
+		}
+
+		const type = triggerType as TriggerType
+		const params: TriggerConfig['params'] = {}
+
+		// 根据触发器类型设置参数
+		if (type === 'onEnemyNearby') {
+			if (typeof condition !== 'number' || condition <= 0) {
+				throw new Error('onEnemyNearby requires a positive number (distance in pixels)')
+			}
+			params.distance = condition
+		} else if (type === 'onTimeInterval') {
+			if (typeof condition !== 'number' || condition <= 0) {
+				throw new Error('onTimeInterval requires a positive number (interval in milliseconds)')
+			}
+			params.intervalMs = condition
+		} else if (type === 'onPlayerLowHealth') {
+			if (typeof condition !== 'number' || condition < 0 || condition > 1) {
+				throw new Error('onPlayerLowHealth requires a number between 0 and 1 (health threshold)')
+			}
+			params.healthThreshold = condition
+		} else if (type === 'onPlayerHurt' || type === 'onEnemyKilled') {
+			// 这些类型不需要条件参数
+		}
+
+		// 注册触发器
+		const triggerId = world.resources.triggerIdCounter++
+		const trigger: TriggerConfig = {
+			id: triggerId,
+			type,
+			casterEid,
+			spell: { ...spell }, // 复制法术
+			params,
+			lastTriggerTime: 0,
+			active: true,
+		}
+
+		world.resources.triggers.set(triggerId, trigger)
+
+		return triggerId
 	})
 
 	for (const fn of spell.dependencies || []) {

@@ -13,10 +13,17 @@ export interface BaseNodeData extends Record<string, unknown> {
 }
 
 /**
- * Literal Node - 
+ * Literal Node - 数字字面量
  */
 export interface LiteralNodeData extends BaseNodeData {
 	value: number | string | boolean;
+}
+
+/**
+ * Trigger Type Node - 触发器类型选择节点
+ */
+export interface TriggerTypeNodeData extends BaseNodeData {
+	triggerType: 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth';
 }
 
 /**
@@ -72,6 +79,7 @@ export interface VectorNodeData extends BaseNodeData {
  */
 export type FlowNodeType =
 	| 'literal'
+	| 'triggerType'
 	| 'identifier'
 	| 'dynamicFunction'
 	| 'customFunction'
@@ -115,6 +123,7 @@ export interface ApplyFuncNodeData extends BaseNodeData {
  */
 export type FlowNode =
 	| Node<LiteralNodeData, 'literal'>
+	| Node<TriggerTypeNodeData, 'triggerType'>
 	| Node<IdentifierNodeData, 'identifier'>
 	| Node<DynamicFunctionNodeData, 'dynamicFunction'>
 	| Node<CustomFunctionNodeData, 'customFunction'>

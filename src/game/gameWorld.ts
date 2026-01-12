@@ -11,6 +11,7 @@ import { fireballSystem } from './systems/fireballSystem'
 import { velocitySystem } from './systems/velocitySystem'
 import { deathSystem } from './systems/deathSystem'
 import { hudSystem } from './systems/hudSystem'
+import { triggerSystem } from './systems/triggerSystem'
 
 export type GameWorld = World & {
 	resources: GameResources
@@ -28,6 +29,7 @@ export function createGameWorld(
 	const bodies = new Map<number, Phaser.Physics.Arcade.Image>()
 	const spellByEid = new Map<number, CompiledSpell>()
 	const spellMessageByEid = new Map<number, string>()
+	const triggers = new Map<number, import('./resources').TriggerConfig>()
 
 	const playerEid = createPlayer(world, scene, bodies, playerX, playerY)
 	
@@ -46,6 +48,8 @@ export function createGameWorld(
 		spellByEid,
 		spellMessageByEid,
 		input,
+		triggers,
+		triggerIdCounter: 0,
 	}
 
 	return world
@@ -57,6 +61,7 @@ export function updateGameWorld(world: GameWorld, dt: number) {
 	fireballSystem(world, dt)
 	velocitySystem(world)
 	deathSystem(world)
+	triggerSystem(world) // 检查并执行触发器
 	hudSystem(world)
 }
 
