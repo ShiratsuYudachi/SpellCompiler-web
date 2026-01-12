@@ -3,8 +3,8 @@
 // 用于选择触发器类型
 // =============================================
 
-import { Handle, Position } from 'reactflow';
-import { useState } from 'react';
+import { Handle, Position, useUpdateNodeInternals } from 'reactflow';
+import { useState, useEffect } from 'react';
 import type { NodeProps } from 'reactflow';
 import type { TriggerTypeNodeData } from '../../types/flowTypes';
 
@@ -18,14 +18,24 @@ const TRIGGER_TYPES: Array<{ value: TriggerType; label: string; description: str
 	{ value: 'onPlayerLowHealth', label: 'onPlayerLowHealth', description: 'Trigger when health is low' },
 ];
 
-export function TriggerTypeNode({ data }: NodeProps) {
+export function TriggerTypeNode({ data, id }: NodeProps) {
 	const nodeData = data as TriggerTypeNodeData;
+	const updateNodeInternals = useUpdateNodeInternals();
 	const [selectedType, setSelectedType] = useState<TriggerType>(nodeData.triggerType ?? 'onEnemyNearby');
+
+	// Sync state with nodeData when it changes externally
+	useEffect(() => {
+		if (nodeData.triggerType && nodeData.triggerType !== selectedType) {
+			setSelectedType(nodeData.triggerType);
+		}
+	}, [nodeData.triggerType, selectedType]);
 
 	const handleChange = (newType: string) => {
 		const typedValue = newType as TriggerType;
 		setSelectedType(typedValue);
 		nodeData.triggerType = typedValue;
+		// Force ReactFlow to update connected nodes by updating node internals
+		updateNodeInternals(id);
 	};
 
 	const selectedTrigger = TRIGGER_TYPES.find(t => t.value === selectedType);

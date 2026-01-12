@@ -35,23 +35,23 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	// Check if this is onTrigger function
 	const isOnTrigger = functionName === 'game::onTrigger';
 
-	// Subscribe to nodes and edges changes using useStore
-	const nodes = useStore((store) => Array.from(store.nodeInternals.values()));
-	const edges = useStore((store) => store.edges);
-
-	// Get the trigger type from connected triggerType node
-	const triggerType = (() => {
+	// Subscribe to both edges and the specific triggerType node's data for immediate updates
+	// Return a primitive value (string) to ensure useStore properly detects changes
+	const triggerType = useStore((store) => {
 		if (!isOnTrigger) return null;
 		
-		const triggerTypeEdge = edges.find(e => e.target === id && e.targetHandle === 'arg0');
+		// Find the connected triggerType edge
+		const triggerTypeEdge = store.edges.find(e => e.target === id && e.targetHandle === 'arg0');
 		if (!triggerTypeEdge) return null;
 
-		const triggerTypeNode = nodes.find(n => n.id === triggerTypeEdge.source);
+		// Get the connected triggerType node
+		const triggerTypeNode = store.nodeInternals.get(triggerTypeEdge.source);
 		if (!triggerTypeNode || triggerTypeNode.type !== 'triggerType') return null;
 
+		// Return the triggerType value as a string - primitive values ensure proper change detection
 		const triggerData = triggerTypeNode.data as TriggerTypeNodeData;
-		return triggerData.triggerType;
-	})();
+		return triggerData?.triggerType || null;
+	});
 
 	// Condition hints based on trigger type
 	const getConditionHint = (triggerType: string | null): string | null => {
