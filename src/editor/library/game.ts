@@ -46,7 +46,7 @@ export const gameFunctions: FunctionSpec[] = [
 			}
 			return () => 'player'
 		},
-		ui: { displayName: 'getPlayer' },
+		ui: { displayName: '👤 getPlayer' },
 	},
 	{
 		fullName: 'game::teleportRelative',
@@ -81,7 +81,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return [x, y] as Value
 			}
 		},
-		ui: { displayName: 'teleportRelative' },
+		ui: { displayName: '🚀 teleportRelative' },
 		parameterModes: {
 			offset: [	
 				{ mode: 'literal-xy', label: 'Literal (dx, dy)', params: ['dx', 'dy'] },
@@ -126,7 +126,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return true
 			}
 		},
-		ui: { displayName: 'deflectAfterTime' },
+		ui: { displayName: '↩️ deflectAfterTime' },
 	},
 	{
 		fullName: 'game::getProjectileAge',
@@ -159,7 +159,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return Date.now() - Lifetime.bornAt[mostRecentEid]
 			}
 		},
-		ui: { displayName: 'getProjectileAge' },
+		ui: { displayName: '⏱️ getProjectileAge' },
 	},
 	{
 		fullName: 'game::getProjectileDistance',
@@ -201,7 +201,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return Math.sqrt(dx * dx + dy * dy)
 			}
 		},
-		ui: { displayName: 'getProjectileDistance' },
+		ui: { displayName: '📏 getProjectileDistance' },
 	},
 	{
 		fullName: 'game::getPlayerPosition',
@@ -219,7 +219,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return { type: 'vector2d', x: body.x, y: body.y } as Vector2D
 			}
 		},
-		ui: { displayName: 'getPlayerPosition' },
+		ui: { displayName: '📍 getPlayerPosition' },
 	},
 	{
 		fullName: 'game::getCasterPosition',
@@ -237,7 +237,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return { type: 'vector2d', x: body.x, y: body.y } as Vector2D
 			}
 		},
-		ui: { displayName: 'getCasterPosition' },
+		ui: { displayName: '🎯 getCasterPosition' },
 	},
 	{
 		fullName: 'game::teleportToPosition',
@@ -270,7 +270,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return true
 			}
 		},
-		ui: { displayName: 'teleportToPosition' },
+		ui: { displayName: '🎯 teleportToPosition' },
 		parameterModes: {
 			position: [
 				{ mode: 'literal-xy', label: 'Literal (x, y)', params: ['x', 'y'] },
@@ -333,7 +333,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return triggerId
 			}
 		},
-		ui: { displayName: 'onTrigger' },
+		ui: { displayName: '⚡ onTrigger' },
 	},
 ]
 

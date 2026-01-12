@@ -40,7 +40,7 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				prerequisite: 'defeat-boss',
 			},
 		],
-		editorRestrictions: /^game::teleportRelative$/,
+
 		initialSpellWorkflow: {
 			nodes: [
 				{

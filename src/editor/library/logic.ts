@@ -28,21 +28,21 @@ export const logicFunctions: FunctionSpec[] = [
 		params: { a: 'boolean', b: 'boolean' },
 		returns: 'boolean',
 		fn: andImpl,
-		ui: { displayName: '🤝 and' },
+		ui: { displayName: '🤝 and (both true)' },
 	},
 	{
 		fullName: 'std::logic::or',
 		params: { a: 'boolean', b: 'boolean' },
 		returns: 'boolean',
 		fn: orImpl,
-		ui: { displayName: '🔀 or' },
+		ui: { displayName: '🔀 or (either true)' },
 	},
 	{
 		fullName: 'std::logic::not',
 		params: { x: 'boolean' },
 		returns: 'boolean',
 		fn: notImpl,
-		ui: { displayName: '🚫 not' },
+		ui: { displayName: '🚫 not (invert)' },
 	},
 ]
 

@@ -63,7 +63,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return -(x as number)
 		},
-		ui: { displayName: '🧲 negate' },
+		ui: { displayName: '➖ negate' },
 	},
 	{
 		fullName: 'std::math::abs',
@@ -75,7 +75,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.abs(x as number)
 		},
-		ui: { displayName: '📏 abs' },
+		ui: { displayName: '📏 absolute' },
 	},
 	{
 		fullName: 'std::math::mod',
@@ -87,7 +87,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return (a as number) % (b as number)
 		},
-		ui: { displayName: '🧮 mod' },
+		ui: { displayName: '% modulo' },
 	},
 
 	{
@@ -100,7 +100,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return (a as number) > (b as number)
 		},
-		ui: { displayName: '🔼 gt' },
+		ui: { displayName: '> greater than' },
 	},
 	{
 		fullName: 'std::cmp::lt',
@@ -112,7 +112,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return (a as number) < (b as number)
 		},
-		ui: { displayName: '🔽 lt' },
+		ui: { displayName: '< less than' },
 	},
 	{
 		fullName: 'std::cmp::gte',
@@ -124,7 +124,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return (a as number) >= (b as number)
 		},
-		ui: { displayName: '⏫ gte' },
+		ui: { displayName: '>= greater or equal' },
 	},
 	{
 		fullName: 'std::cmp::lte',
@@ -136,21 +136,21 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return (a as number) <= (b as number)
 		},
-		ui: { displayName: '⏬ lte' },
+		ui: { displayName: '<= less or equal' },
 	},
 	{
 		fullName: 'std::cmp::eq',
 		params: { a: 'value', b: 'value' },
 		returns: 'boolean',
 		fn: (a: Value, b: Value) => a === b,
-		ui: { displayName: '🟰 eq' },
+		ui: { displayName: '== equals' },
 	},
 	{
 		fullName: 'std::cmp::neq',
 		params: { a: 'value', b: 'value' },
 		returns: 'boolean',
 		fn: (a: Value, b: Value) => a !== b,
-		ui: { displayName: '🚫 neq' },
+		ui: { displayName: '!= not equals' },
 	},
 
 	{
@@ -163,7 +163,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.pow(base as number, exp as number)
 		},
-		ui: { displayName: '⚡ power' },
+		ui: { displayName: '^ power' },
 	},
 	{
 		fullName: 'std::math::sqrt',
@@ -187,7 +187,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.floor(x as number)
 		},
-		ui: { displayName: '⬇️ floor' },
+		ui: { displayName: '⬇️ floor (round down)' },
 	},
 	{
 		fullName: 'std::math::ceil',
@@ -211,7 +211,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.round(x as number)
 		},
-		ui: { displayName: '🎯 round' },
+		ui: { displayName: '🎯 round (nearest)' },
 	},
 	{
 		fullName: 'std::math::min',
@@ -223,7 +223,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.min(a as number, b as number)
 		},
-		ui: { displayName: '📉 min' },
+		ui: { displayName: '📉 minimum' },
 	},
 	{
 		fullName: 'std::math::max',
@@ -235,7 +235,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.max(a as number, b as number)
 		},
-		ui: { displayName: '📈 max' },
+		ui: { displayName: '📈 maximum' },
 	},
 	{
 		fullName: 'std::math::sin',
@@ -247,7 +247,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.sin(x as number)
 		},
-		ui: { displayName: '🌊 sin' },
+		ui: { displayName: '🌊 sine' },
 	},
 	{
 		fullName: 'std::math::cos',
@@ -259,7 +259,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.cos(x as number)
 		},
-		ui: { displayName: '🌙 cos' },
+		ui: { displayName: '🌙 cosine' },
 	},
 	{
 		fullName: 'std::math::tan',
@@ -271,7 +271,7 @@ export const mathFunctions: FunctionSpec[] = [
 			}
 			return Math.tan(x as number)
 		},
-		ui: { displayName: '📐 tan' },
+		ui: { displayName: '📐 tangent' },
 	},
 ]
 

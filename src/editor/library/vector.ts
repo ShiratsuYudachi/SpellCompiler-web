@@ -13,7 +13,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			}
 			return { type: 'vector2d', x: x as number, y: y as number } as Vector2D
 		},
-		ui: { displayName: '📐 create' },
+		ui: { displayName: '📐 create vector' },
 	},
 	{
 		fullName: 'vec::getX',
@@ -25,7 +25,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			}
 			return (v as Vector2D).x
 		},
-		ui: { displayName: '📍 getX' },
+		ui: { displayName: '📍 get X' },
 	},
 	{
 		fullName: 'vec::getY',
@@ -37,7 +37,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			}
 			return (v as Vector2D).y
 		},
-		ui: { displayName: '📍 getY' },
+		ui: { displayName: '📍 get Y' },
 	},
 	{
 		fullName: 'vec::add',
@@ -51,7 +51,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const b = v2 as Vector2D
 			return { type: 'vector2d', x: a.x + b.x, y: a.y + b.y } as Vector2D
 		},
-		ui: { displayName: '➕ add' },
+		ui: { displayName: '➕ add vectors' },
 	},
 	{
 		fullName: 'vec::subtract',
@@ -65,7 +65,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const b = v2 as Vector2D
 			return { type: 'vector2d', x: a.x - b.x, y: a.y - b.y } as Vector2D
 		},
-		ui: { displayName: '➖ subtract' },
+		ui: { displayName: '➖ subtract vectors' },
 	},
 	{
 		fullName: 'vec::multiply',
@@ -81,7 +81,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const a = v as Vector2D
 			return { type: 'vector2d', x: a.x * (scalar as number), y: a.y * (scalar as number) } as Vector2D
 		},
-		ui: { displayName: '✖️ multiply' },
+		ui: { displayName: '✖️ multiply by scalar' },
 	},
 	{
 		fullName: 'vec::divide',
@@ -100,7 +100,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const a = v as Vector2D
 			return { type: 'vector2d', x: a.x / (scalar as number), y: a.y / (scalar as number) } as Vector2D
 		},
-		ui: { displayName: '➗ divide' },
+		ui: { displayName: '➗ divide by scalar' },
 	},
 	{
 		fullName: 'vec::length',
@@ -113,7 +113,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const a = v as Vector2D
 			return Math.sqrt(a.x * a.x + a.y * a.y)
 		},
-		ui: { displayName: '📏 length' },
+		ui: { displayName: '📏 vector length' },
 	},
 	{
 		fullName: 'vec::normalize',
@@ -160,7 +160,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const dy = b.y - a.y
 			return Math.sqrt(dx * dx + dy * dy)
 		},
-		ui: { displayName: '📏 distance' },
+		ui: { displayName: '📏 distance between' },
 	},
 	{
 		fullName: 'vec::angle',
@@ -173,7 +173,7 @@ export const vectorFunctions: FunctionSpec[] = [
 			const a = v as Vector2D
 			return Math.atan2(a.y, a.x)
 		},
-		ui: { displayName: '📐 angle' },
+		ui: { displayName: '📐 vector angle' },
 	},
 	{
 		fullName: 'vec::rotate',
