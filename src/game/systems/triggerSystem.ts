@@ -1,7 +1,7 @@
 import { query } from 'bitecs'
 import type { GameWorld } from '../gameWorld'
 import { Enemy, Health, Sprite } from '../components'
-import type { TriggerConfig, TriggerType } from '../resources'
+import type { TriggerConfig } from '../resources'
 import { castSpell } from '../spells/castSpell'
 
 /**
@@ -128,7 +128,7 @@ function checkPlayerHurt(world: GameWorld, trigger: TriggerConfig): boolean {
 /**
  * 检查敌人是否被击杀
  */
-function checkEnemyKilled(world: GameWorld, trigger: TriggerConfig): boolean {
+function checkEnemyKilled(_world: GameWorld, _trigger: TriggerConfig): boolean {
 	// 这个触发器需要在敌人死亡时触发
 	// 由于死亡系统会立即移除实体，我们需要在死亡系统中触发
 	// 这里暂时返回 false，实际触发逻辑在 deathSystem 中处理

@@ -8,21 +8,24 @@ import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import type { TriggerTypeNodeData } from '../../types/flowTypes';
 
-const TRIGGER_TYPES = [
+type TriggerType = 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth';
+
+const TRIGGER_TYPES: Array<{ value: TriggerType; label: string; description: string }> = [
 	{ value: 'onEnemyNearby', label: 'onEnemyNearby', description: 'Trigger when enemy is nearby' },
 	{ value: 'onTimeInterval', label: 'onTimeInterval', description: 'Trigger at time intervals' },
 	{ value: 'onPlayerHurt', label: 'onPlayerHurt', description: 'Trigger when player takes damage' },
 	{ value: 'onEnemyKilled', label: 'onEnemyKilled', description: 'Trigger when enemy is killed' },
 	{ value: 'onPlayerLowHealth', label: 'onPlayerLowHealth', description: 'Trigger when health is low' },
-] as const;
+];
 
 export function TriggerTypeNode({ data }: NodeProps) {
 	const nodeData = data as TriggerTypeNodeData;
-	const [selectedType, setSelectedType] = useState(nodeData.triggerType ?? 'onEnemyNearby');
+	const [selectedType, setSelectedType] = useState<TriggerType>(nodeData.triggerType ?? 'onEnemyNearby');
 
 	const handleChange = (newType: string) => {
-		setSelectedType(newType);
-		nodeData.triggerType = newType;
+		const typedValue = newType as TriggerType;
+		setSelectedType(typedValue);
+		nodeData.triggerType = typedValue;
 	};
 
 	const selectedTrigger = TRIGGER_TYPES.find(t => t.value === selectedType);

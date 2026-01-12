@@ -23,7 +23,6 @@ export interface DynamicFunctionNodeData {
 
 export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	const nodeData = data as DynamicFunctionNodeData;
-	const { getEdges, getNodes } = useReactFlow();
 
 	const {
 		displayName,
