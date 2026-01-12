@@ -131,14 +131,13 @@ function EditorContent(props: FunctionalEditorProps) {
 
 	// Listen for editor context changes and load workflow
 	useEffect(() => {
-		if (isLibraryMode) {
-			return
-		}
+
 
 		const game = getGameInstance();
 		if (!game) return;
 
 		const handler = (context: { sceneKey?: string }) => {
+			
 			// Defer state update to avoid React warning
 			setTimeout(() => {
 				const newSceneKey = context.sceneKey;
@@ -200,85 +199,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		return () => {
 			game.events.off(GameEvents.setEditorContext, handler);
 		};
-	}, [editorContext, workflowLoaded, isLibraryMode]);
-
-	// Helper function to get scene restrictions
-	const getRestrictions = useCallback(() => {
-		if (isLibraryMode) return null
-		const sceneKey = editorContext?.sceneKey;
-		if (!sceneKey) return null;
-
-		const config = getSceneConfig(sceneKey);
-		return config?.editorRestrictions || null;
-	}, [editorContext]);
-
-	// Check if node type is allowed in current scene context
-	const isNodeTypeAllowed = useCallback((nodeType: string, funcName?: string): boolean => {
-		if (isLibraryMode) return true
-		const restrictions = getRestrictions();
-		if (!restrictions) return true; // No restrictions = all nodes allowed
-
-		// For non-function nodes, check allowedNodeTypes
-		if (nodeType !== 'dynamicFunction') {
-			if (restrictions.allowedNodeTypes) {
-				return restrictions.allowedNodeTypes.includes(nodeType);
-			}
-			return true; // No node type restrictions = all basic nodes allowed
-		}
-
-		// For function nodes, check allowedFunctions or allowedNamespaces
-		if (nodeType === 'dynamicFunction' && funcName) {
-			if (restrictions.allowedFunctions) {
-				return restrictions.allowedFunctions.includes(funcName);
-			}
-			if (restrictions.allowedNamespaces) {
-				const namespace = funcName.split('::')[0];
-				return restrictions.allowedNamespaces.includes(namespace);
-			}
-			return true; // No function restrictions = all functions allowed
-		}
-
-		return false;
-	}, [getRestrictions]);
-
-	// Filter nodes based on scene context (memoized for performance)
-	const filteredNodes = useMemo(() => {
-		const restrictions = getRestrictions();
-		if (!restrictions) return nodes;
-
-		return nodes.filter((node) => {
-			if (node.type === 'dynamicFunction') {
-				const funcName = (node.data as any)?.functionName;
-				return isNodeTypeAllowed('dynamicFunction', funcName);
-			}
-			return isNodeTypeAllowed(node.type || 'output');
-		});
-	}, [nodes, getRestrictions, isNodeTypeAllowed]);
-
-	// Remove disallowed nodes from state when context changes or nodes are added
-	useEffect(() => {
-		if (isLibraryMode) return
-		const restrictions = getRestrictions();
-		if (!restrictions) return;
-
-		const disallowedNodes = nodes.filter((node) => {
-			if (node.type === 'dynamicFunction') {
-				const funcName = (node.data as any)?.functionName;
-				return !isNodeTypeAllowed('dynamicFunction', funcName);
-			}
-			return !isNodeTypeAllowed(node.type || 'output');
-		});
-
-		if (disallowedNodes.length > 0) {
-			// Remove disallowed nodes from state
-			setNodes((nds) => nds.filter((node) => !disallowedNodes.includes(node)));
-			// Show error message
-			const sceneKey = editorContext?.sceneKey || 'this scene';
-			setTimeout(() => {
-				setError(`Some nodes were removed because they are not allowed in ${sceneKey}.`);
-			}, 0);
-		}
-	}, [nodes, editorContext, getRestrictions, isNodeTypeAllowed]);
+	}, [editorContext, workflowLoaded]);
 
 	// Auto-save workflow to localStorage when nodes or edges change
 	useEffect(() => {
@@ -380,17 +301,6 @@ function EditorContent(props: FunctionalEditorProps) {
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
 		if (!menuState) return;
 
-		// Check if this function is allowed in current scene
-		if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
-			// Defer error to avoid React warning
-			const sceneKey = editorContext?.sceneKey || 'this scene';
-			setTimeout(() => {
-				setError(`Function ${funcInfo.displayName} is not available in ${sceneKey}.`);
-			}, 0);
-			setMenuState(null);
-			return;
-		}
-
 		const newNodeId = `node-${nodeIdCounter++}`;
 		const isVariadic = funcInfo.paramCount === 0 && funcInfo.name.includes('list')
 
@@ -425,14 +335,7 @@ function EditorContent(props: FunctionalEditorProps) {
 				}
 			};
 
-			// Use setNodes with validation to ensure node is actually added
-			setNodes((nds) => {
-				// Double-check before adding
-				if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
-					return nds; // Don't add if not allowed
-				}
-				return [...nds, newNode];
-			});
+			setNodes((nds) => [...nds, newNode]);
 
 			if (isVariadic || funcInfo.params.length > 0) {
 				const newEdge: Edge = {
@@ -462,14 +365,7 @@ function EditorContent(props: FunctionalEditorProps) {
 				}
 			};
 
-			// Use setNodes with validation to ensure node is actually added
-			setNodes((nds) => {
-				// Double-check before adding
-				if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
-					return nds; // Don't add if not allowed
-				}
-				return [...nds, newNode];
-			});
+			setNodes((nds) => [...nds, newNode]);
 		}
 
 		setMenuState(null);
@@ -478,17 +374,6 @@ function EditorContent(props: FunctionalEditorProps) {
 	// Add basic node from menu and connect
 	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
 		if (!menuState) return;
-
-		// Check if this node type is allowed in current scene
-		if (!isNodeTypeAllowed(type)) {
-			// Defer error to avoid React warning
-			const sceneKey = editorContext?.sceneKey || 'this scene';
-			setTimeout(() => {
-				setError(`Node type ${type} is not available in ${sceneKey}.`);
-			}, 0);
-			setMenuState(null);
-			return;
-		}
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 
@@ -533,21 +418,9 @@ function EditorContent(props: FunctionalEditorProps) {
 					position: { x: sourceNode.position.x + 250, y: sourceNode.position.y + 120 },
 					data: { lambdaId: newNodeId }
 				};
-				setNodes((nds) => {
-					// Double-check before adding
-					if (!isNodeTypeAllowed(type)) {
-						return nds; // Don't add if not allowed
-					}
-					return [...nds, newNode, returnNode];
-				});
+				setNodes((nds) => [...nds, newNode, returnNode]);
 			} else {
-				setNodes((nds) => {
-					// Double-check before adding
-					if (!isNodeTypeAllowed(type)) {
-						return nds; // Don't add if not allowed
-					}
-					return [...nds, newNode];
-				});
+				setNodes((nds) => [...nds, newNode]);
 			}
 
 			// Create edge
@@ -584,21 +457,9 @@ function EditorContent(props: FunctionalEditorProps) {
 					position: { x: flowPos.x, y: flowPos.y + 120 },
 					data: { lambdaId: newNodeId }
 				};
-				setNodes((nds) => {
-					// Double-check before adding
-					if (!isNodeTypeAllowed(type)) {
-						return nds; // Don't add if not allowed
-					}
-					return [...nds, newNode, returnNode];
-				});
+				setNodes((nds) => [...nds, newNode, returnNode]);
 			} else {
-				setNodes((nds) => {
-					// Double-check before adding
-					if (!isNodeTypeAllowed(type)) {
-						return nds; // Don't add if not allowed
-					}
-					return [...nds, newNode];
-				});
+				setNodes((nds) => [...nds, newNode]);
 			}
 		}
 
@@ -709,34 +570,12 @@ function EditorContent(props: FunctionalEditorProps) {
 						
 						// Restore nodes and edges from the imported flow
 						if (flow.nodes && Array.isArray(flow.nodes)) {
-							const restrictions = getRestrictions();
-
-							// Filter nodes if restrictions exist
-							let nodesToImport = flow.nodes;
-							if (restrictions) {
-								nodesToImport = flow.nodes.filter((node: Node) => {
-									if (node.type === 'dynamicFunction') {
-										const funcName = (node.data as any)?.functionName;
-										return isNodeTypeAllowed('dynamicFunction', funcName);
-									}
-									return isNodeTypeAllowed(node.type || 'output');
-								});
-
-								if (nodesToImport.length < flow.nodes.length) {
-									// Defer error to avoid React warning
-									const sceneKey = editorContext?.sceneKey || 'this scene';
-									setTimeout(() => {
-										setError(`Some nodes were removed during import because they are not allowed in ${sceneKey}.`);
-									}, 0);
-								}
-							}
-
-							setNodes(nodesToImport);
+							setNodes(flow.nodes);
 							
 							// Update nodeIdCounter to avoid ID conflicts
 							// Find the maximum node ID number from imported nodes
 							let maxId = nodeIdCounter;
-							nodesToImport.forEach((node: Node) => {
+							flow.nodes.forEach((node: Node) => {
 								// Extract number from IDs like "node-123", "lit-45", etc.
 								const match = node.id.match(/-(\d+)$/);
 								if (match) {
@@ -865,7 +704,7 @@ function EditorContent(props: FunctionalEditorProps) {
 					}}
 				>
 					<ReactFlow
-						nodes={filteredNodes}
+						nodes={nodes}
 						edges={edges}
 						onNodeContextMenu={(event, node) => {
 							event.preventDefault();
@@ -912,51 +751,7 @@ function EditorContent(props: FunctionalEditorProps) {
 								position: { x: event.clientX, y: event.clientY }
 							});
 						}}
-						onNodesChange={(changes) => {
-							// Filter out disallowed node additions
-							const restrictions = getRestrictions();
-							if (restrictions) {
-								const filteredChanges: typeof changes = [];
-								const sceneKey = editorContext?.sceneKey || 'this scene';
-
-								for (const change of changes) {
-									// Block adding disallowed node types
-									if (change.type === 'add' && change.item) {
-										const node = change.item as Node;
-										let isAllowed = false;
-
-										if (node.type === 'dynamicFunction') {
-											const funcName = (node.data as any)?.functionName;
-											isAllowed = isNodeTypeAllowed('dynamicFunction', funcName);
-											if (!isAllowed) {
-												// Defer error to avoid React warning
-												setTimeout(() => {
-													setError(`Function ${funcName || 'unknown'} is not allowed in ${sceneKey}.`);
-												}, 0);
-											}
-										} else {
-											isAllowed = isNodeTypeAllowed(node.type || 'output');
-											if (!isAllowed) {
-												// Defer error to avoid React warning
-												setTimeout(() => {
-													setError(`Node type ${node.type} is not allowed in ${sceneKey}.`);
-												}, 0);
-											}
-										}
-
-										if (isAllowed) {
-											filteredChanges.push(change);
-										}
-									} else {
-										// Allow all other changes (remove, select, position, etc.)
-										filteredChanges.push(change);
-									}
-								}
-								onNodesChange(filteredChanges);
-							} else {
-								onNodesChange(changes);
-							}
-						}}
+						onNodesChange={onNodesChange}
 						onEdgesChange={onEdgesChange}
 						onConnect={onConnect}
 						nodeTypes={nodeTypes}
@@ -985,6 +780,7 @@ function EditorContent(props: FunctionalEditorProps) {
 				onSelectFunction={addFunctionNodeFromMenu}
 				onSelectBasicNode={addBasicNodeFromMenu}
 				onClose={() => setMenuState(null)}
+				editorContext={editorContext}
 			/>
 		)}
 

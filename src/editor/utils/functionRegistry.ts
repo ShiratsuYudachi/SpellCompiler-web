@@ -60,18 +60,23 @@ export function getFunctionInfo(fullName: string) {
 	return byFullName.get(fullName)
 }
 
-export function listFunctions() {
-	return Array.from(byFullName.values()).filter((f) => !f.ui?.hidden)
+export function listFunctions(allowed?: RegExp) {
+	const re = allowed ? new RegExp(allowed.source, allowed.flags.replace(/g|y/g, '')) : null
+	return Array.from(byFullName.values()).filter((f) => {
+		if (f.ui?.hidden) return false
+		if (!re) return true
+		return re.test(f.fullName)
+	})
 }
 
 export type FunctionTreeNode =
 	| { type: 'group'; name: string; path: string[]; children: FunctionTreeNode[] }
 	| { type: 'function'; fullName: string; displayName: string; params: string[]; ui?: FunctionUiMeta }
 
-export function getFunctionTree(): FunctionTreeNode[] {
+export function getFunctionTree(allowed?: RegExp): FunctionTreeNode[] {
 	const root = new Map<string, { name: string; path: string[]; children: Map<string, any>; functions: any[] }>()
 
-	for (const fn of listFunctions()) {
+	for (const fn of listFunctions(allowed)) {
 		const parts = fn.parts
 		if (parts.length === 0) continue
 

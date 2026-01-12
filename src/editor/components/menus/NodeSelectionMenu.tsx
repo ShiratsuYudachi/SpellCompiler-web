@@ -4,16 +4,16 @@
 // =============================================
 
 import { Menu, Text, Divider } from '@mantine/core';
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { getFunctionTreeForMenu, type FunctionInfo, type FunctionTreeNode } from '../../utils/getFunctionRegistry';
-import { GameEvents } from '../../../game/events';
-import { getGameInstance } from '../../../game/gameInstance';
+import { getSceneConfig } from '../../../game/scenes/sceneConfig';
 
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
 	onSelectBasicNode: (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => void;
 	onClose: () => void;
+	editorContext?: { sceneKey?: string } | null;
 }
 
 const BASIC_NODES = [
@@ -31,50 +31,13 @@ export function NodeSelectionMenu({
 	position,
 	onSelectFunction,
 	onSelectBasicNode,
-	onClose
+	onClose,
+	editorContext
 }: NodeSelectionMenuProps) {
-	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
-
-	// Listen for editor context changes
-	useEffect(() => {
-		const game = getGameInstance();
-		if (!game) return;
-
-		const handler = (context: { sceneKey?: string }) => {
-			setEditorContext(context);
-		};
-
-		game.events.on(GameEvents.setEditorContext, handler);
-		return () => {
-			game.events.off(GameEvents.setEditorContext, handler);
-		};
-	}, []);
-
-	const isLevel1 = editorContext?.sceneKey === 'Level1';
-
-	// In Level1, only allow literal, vector, output, getPlayer, and teleportRelative
-	const availableBasicNodes = isLevel1
-		? BASIC_NODES.filter(node => node.type === 'literal' || node.type === 'vector' || node.type === 'output')
-		: BASIC_NODES;
-
-	const allowedInLevel1 = new Set(['game::getPlayer', 'game::teleportRelative'])
-	const tree = getFunctionTreeForMenu()
-
-	const filterTreeForLevel1 = (nodes: FunctionTreeNode[]): FunctionTreeNode[] => {
-		return nodes
-			.map((n) => {
-				if (n.type === 'function') {
-					if (!allowedInLevel1.has(n.fullName)) return null
-					return n
-				}
-				const children = filterTreeForLevel1(n.children)
-				if (children.length === 0) return null
-				return { ...n, children }
-			})
-			.filter(Boolean) as FunctionTreeNode[]
-	}
-
-	const visibleTree = isLevel1 ? filterTreeForLevel1(tree) : tree
+	const restrictions = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey)?.editorRestrictions : undefined
+	console.log('editorContext', editorContext)
+	console.log('restrictions', restrictions)
+	const tree = getFunctionTreeForMenu(restrictions)
 
 	const toFunctionInfo = (fullName: string, params: string[], displayName: string): FunctionInfo => {
 		const parts = fullName.split('::').filter(Boolean)
@@ -156,7 +119,7 @@ export function NodeSelectionMenu({
 				style={{ maxHeight: '500px', overflowY: 'auto', padding: '8px' }}
 			>
 				<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Basic Nodes</Menu.Label>
-				{availableBasicNodes.map(node => (
+				{BASIC_NODES.map(node => (
 					<Menu.Item
 						key={node.type}
 						leftSection={node.icon}
@@ -174,7 +137,7 @@ export function NodeSelectionMenu({
 						</div>
 					</Menu.Item>
 				))}
-				{renderTree(visibleTree, 0)}
+				{renderTree(tree, 0)}
 			</Menu.Dropdown>
 		</Menu>
 	);

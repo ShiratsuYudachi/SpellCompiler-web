@@ -26,9 +26,9 @@ export function parseFunctionName(fullName: string): { namespace: string; displa
 	return { namespace: parseRootNamespace(fullName), displayName: parseDisplayName(fullName) }
 }
 
-export function getFunctionRegistry(): FunctionInfo[] {
+export function getFunctionRegistry(allowed?: RegExp): FunctionInfo[] {
 	ensureBuiltinFunctionsRegistered()
-	return listFunctions().map((f) => ({
+	return listFunctions(allowed).map((f) => ({
 		name: f.fullName,
 		displayName: f.ui?.displayName || parseDisplayName(f.fullName),
 		namespace: parseRootNamespace(f.fullName),
@@ -39,8 +39,8 @@ export function getFunctionRegistry(): FunctionInfo[] {
 	}))
 }
 
-export function getFunctionsByNamespace(): Record<string, FunctionInfo[]> {
-	const functions = getFunctionRegistry()
+export function getFunctionsByNamespace(allowed?: RegExp): Record<string, FunctionInfo[]> {
+	const functions = getFunctionRegistry(allowed)
 	const grouped: Record<string, FunctionInfo[]> = {}
 	for (const fn of functions) {
 		if (!grouped[fn.namespace]) grouped[fn.namespace] = []
@@ -64,7 +64,7 @@ export function getFunctionInfo(fullName: string): FunctionInfo | undefined {
 	}
 }
 
-export function getFunctionTreeForMenu(): FunctionTreeNode[] {
+export function getFunctionTreeForMenu(allowed?: RegExp): FunctionTreeNode[] {
 	ensureBuiltinFunctionsRegistered()
-	return getFunctionTree()
+	return getFunctionTree(allowed)
 }

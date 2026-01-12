@@ -1,11 +1,5 @@
 import type { ObjectiveConfig } from './base/TerrainTypes'
 
-export type EditorRestrictions = {
-	allowedNodeTypes?: string[]        // 允许的基础节点类型，如 ['literal', 'vector', 'output']
-	allowedFunctions?: string[]        // 允许的函数，如 ['game::getPlayer', 'game::teleportRelative']
-	allowedNamespaces?: string[]       // 允许的命名空间，如 ['game', 'vec']，undefined 表示全部允许
-}
-
 export type SceneConfig = {
 	key: string
 	playerSpawnX: number
@@ -17,7 +11,7 @@ export type SceneConfig = {
 		nodes: any[]
 		edges: any[]
 	}
-	editorRestrictions?: EditorRestrictions  // 编辑器限制配置
+	editorRestrictions?: RegExp
 }
 
 // 快速生成围墙房间
@@ -46,10 +40,7 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				prerequisite: 'defeat-boss',
 			},
 		],
-		editorRestrictions: {
-			allowedNodeTypes: ['literal', 'vector', 'output'],
-			allowedFunctions: ['game::getPlayer', 'game::teleportRelative'],
-		},
+		editorRestrictions: /^game::teleportRelative$/,
 		initialSpellWorkflow: {
 			nodes: [
 				{
