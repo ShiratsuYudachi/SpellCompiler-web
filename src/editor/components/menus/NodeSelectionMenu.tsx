@@ -4,8 +4,8 @@
 // =============================================
 
 import { Menu, Text, Divider } from '@mantine/core';
-import { useEffect, useState } from 'react';
-import { getFunctionsByNamespace, type FunctionInfo } from '../../utils/getFunctionRegistry';
+import { useEffect, useState, type ReactNode } from 'react';
+import { getFunctionTreeForMenu, type FunctionInfo, type FunctionTreeNode } from '../../utils/getFunctionRegistry';
 import { GameEvents } from '../../../game/events';
 import { getGameInstance } from '../../../game/gameInstance';
 
@@ -25,16 +25,6 @@ const BASIC_NODES = [
 	{ type: 'applyFunc' as const, label: 'Apply', icon: '⚡', description: 'Apply function dynamically' },
 	{ type: 'lambdaDef' as const, label: 'Lambda', icon: 'λ', description: 'Define lambda (with return)' },
 	{ type: 'output' as const, label: 'Output', icon: '📤', description: 'Mark final result' },
-];
-
-const FUNCTION_GROUPS = [
-	{ key: 'special', label: 'Special', functions: ['this'] },
-	{ key: 'arithmetic', label: 'Arithmetic', functions: ['add', 'subtract', 'multiply', 'divide'] },
-	{ key: 'comparison', label: 'Comparison', functions: ['gt', 'lt', 'gte', 'lte', 'eq', 'neq'] },
-	{ key: 'logical', label: 'Logical', functions: ['and', 'or', 'not'] },
-	{ key: 'math', label: 'Math', functions: ['abs', 'negate', 'mod', 'max', 'min', 'power', 'sqrt', 'floor', 'ceil', 'round'] },
-	{ key: 'list', label: 'List', functions: ['list', 'cons', 'empty', 'head', 'tail', 'length', 'nth', 'append', 'concat', 'range', 'map', 'filter', 'reduce'] },
-	{ key: 'functional', label: 'Functional Utils', functions: ['tap', 'print'] },
 ];
 
 export function NodeSelectionMenu({
@@ -60,35 +50,83 @@ export function NodeSelectionMenu({
 		};
 	}, []);
 
-	const functionsByNamespace = getFunctionsByNamespace();
-	const stdFunctions = functionsByNamespace['std'] || [];
-	const gameFunctions = functionsByNamespace['game'] || [];
-	const vecFunctions = functionsByNamespace['vec'] || [];
-
-	// Filter based on scene context
 	const isLevel1 = editorContext?.sceneKey === 'Level1';
 
-	// Debug: Log context and available functions
-	console.log('[NodeSelectionMenu] Editor context:', editorContext);
-	console.log('[NodeSelectionMenu] Is Level1:', isLevel1);
-	console.log('[NodeSelectionMenu] All game functions:', gameFunctions.map(f => f.displayName));
-	
 	// In Level1, only allow literal, vector, output, getPlayer, and teleportRelative
 	const availableBasicNodes = isLevel1
 		? BASIC_NODES.filter(node => node.type === 'literal' || node.type === 'vector' || node.type === 'output')
 		: BASIC_NODES;
 
-	const availableGameFunctions = isLevel1
-		? gameFunctions.filter(fn => fn.name === 'game::getPlayer' || fn.name === 'game::teleportRelative')
-		: gameFunctions;
+	const allowedInLevel1 = new Set(['game::getPlayer', 'game::teleportRelative'])
+	const tree = getFunctionTreeForMenu()
 
-	// Group std functions by category (empty in Level1)
-	const groupedFunctions = isLevel1
-		? []
-		: FUNCTION_GROUPS.map(group => ({
-			...group,
-			items: stdFunctions.filter(fn => group.functions.includes(fn.displayName))
-		}));
+	const filterTreeForLevel1 = (nodes: FunctionTreeNode[]): FunctionTreeNode[] => {
+		return nodes
+			.map((n) => {
+				if (n.type === 'function') {
+					if (!allowedInLevel1.has(n.fullName)) return null
+					return n
+				}
+				const children = filterTreeForLevel1(n.children)
+				if (children.length === 0) return null
+				return { ...n, children }
+			})
+			.filter(Boolean) as FunctionTreeNode[]
+	}
+
+	const visibleTree = isLevel1 ? filterTreeForLevel1(tree) : tree
+
+	const toFunctionInfo = (fullName: string, params: string[], displayName: string): FunctionInfo => {
+		const parts = fullName.split('::').filter(Boolean)
+		const namespace = parts[0] || 'user'
+		return {
+			name: fullName,
+			displayName,
+			namespace,
+			paramCount: params.length,
+			params,
+			isNative: true,
+		}
+	}
+
+	const renderTree = (nodes: FunctionTreeNode[], depth: number): ReactNode[] => {
+		const items: ReactNode[] = []
+		for (const n of nodes) {
+			if (n.type === 'group') {
+				items.push(
+					<div key={`g:${n.path.join('::')}`}>
+						{depth === 0 ? <Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} /> : null}
+						<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>
+							{n.name}
+						</Menu.Label>
+						<div style={{ paddingLeft: depth === 0 ? 0 : 12 }}>
+							{renderTree(n.children, depth + 1)}
+						</div>
+					</div>,
+				)
+				continue
+			}
+
+			items.push(
+				<button
+					key={n.fullName}
+					onClick={() => {
+						onSelectFunction(toFunctionInfo(n.fullName, n.params, n.displayName))
+						onClose()
+					}}
+					className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+					style={{
+						fontSize: '13px',
+						lineHeight: '1.4',
+						marginLeft: depth > 1 ? (depth - 1) * 12 : 0,
+					}}
+				>
+					{n.displayName}
+				</button>,
+			)
+		}
+		return items
+	}
 
 	return (
 		<Menu
@@ -136,74 +174,7 @@ export function NodeSelectionMenu({
 						</div>
 					</Menu.Item>
 				))}
-
-				{groupedFunctions.map((group) =>
-					group.items.length > 0 && (
-						<div key={group.key}>
-							<Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} />
-							<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>{group.label}</Menu.Label>
-							<div className="grid grid-cols-2 gap-2 px-2 pb-2">
-								{group.items.map(func => (
-									<button
-										key={func.name}
-										onClick={() => {
-											onSelectFunction(func);
-											onClose();
-										}}
-										className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
-										style={{ fontSize: '13px', lineHeight: '1.4' }}
-									>
-										{func.displayName}
-									</button>
-								))}
-							</div>
-						</div>
-					)
-				)}
-
-				{!isLevel1 && vecFunctions.length > 0 && (
-					<div>
-						<Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} />
-						<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Vector (vec::)</Menu.Label>
-						<div className="grid grid-cols-2 gap-2 px-2 pb-2">
-							{vecFunctions.map(func => (
-								<button
-									key={func.name}
-									onClick={() => {
-										onSelectFunction(func);
-										onClose();
-									}}
-									className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
-									style={{ fontSize: '13px', lineHeight: '1.4' }}
-								>
-									{func.displayName}
-								</button>
-							))}
-						</div>
-					</div>
-				)}
-
-				{availableGameFunctions.length > 0 && (
-					<div>
-						<Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} />
-						<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Game</Menu.Label>
-						<div className="grid grid-cols-1 gap-2 px-2 pb-2">
-							{availableGameFunctions.map(func => (
-								<button
-									key={func.name}
-									onClick={() => {
-										onSelectFunction(func);
-										onClose();
-									}}
-									className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
-									style={{ fontSize: '13px', lineHeight: '1.4', width: '100%' }}
-								>
-									{func.displayName}
-								</button>
-							))}
-						</div>
-					</div>
-				)}
+				{renderTree(visibleTree, 0)}
 			</Menu.Dropdown>
 		</Menu>
 	);

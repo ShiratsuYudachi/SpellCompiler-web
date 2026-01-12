@@ -43,6 +43,7 @@ import { GameEvents } from '../../game/events'
 import { getGameInstance } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
 import { upsertSpell } from '../utils/spellStorage'
+import { registerGameFunctionsForPreview } from '../../game/spells/registerGameFunctions'
 
 // Define node types
 const nodeTypes = {
@@ -618,24 +619,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			const evaluator = new Evaluator();
 
 			// Register game functions for preview
-			evaluator.registerNativeFunctionFullName('game::getPlayer', [], () => {
-				return 'player'
-			})
-			evaluator.registerNativeFunctionFullName('game::teleportRelative', ['entityId', 'dx', 'dy'], (_entityId, dx, dy) => {
-				return [dx, dy]
-			})
-			evaluator.registerNativeFunctionFullName('game::deflectAfterTime', ['angle', 'delayMs'], () => {
-				return true // Mock value for preview
-			})
-			evaluator.registerNativeFunctionFullName('game::getProjectileAge', [], () => {
-				return 0 // Mock value for preview
-			})
-			evaluator.registerNativeFunctionFullName('game::getProjectileDistance', [], () => {
-				return 0 // Mock value for preview
-			})
-			evaluator.registerNativeFunctionFullName('game::onTrigger', ['triggerType', 'condition'], (_triggerType, _condition) => {
-				return 1 // Mock trigger ID for preview
-			})
+			registerGameFunctionsForPreview(evaluator)
 
 			// Register user-defined functions
 			functions.forEach(fn => {

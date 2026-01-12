@@ -15,6 +15,7 @@ import type {
 	Lambda
 } from './ast';
 import { registerCoreLibrary } from './library';
+import { registerUiFunction, type FunctionUiMeta, type ParameterModeOption } from '../utils/functionRegistry'
 
 // =============================================
 // Types
@@ -54,44 +55,44 @@ export class Evaluator {
 	// ============================================
 
 	/**
-	 * Register a user-defined function
+	 * Register a function (native or user-defined)
 	 */
-	registerFunction(def: FunctionDefinition): void {
-		this.functionTable.set(def.name, def);
-	}
-
-	/**
-	 * Register a native function (JavaScript implementation)
-	 * Automatically adds 'std::' prefix to prevent naming conflicts
-	 */
-	registerNativeFunction(
-		name: string,
-		params: string[],
+	registerFunction(def: FunctionDefinition): void;
+	registerFunction(options: {
+		fullName: string
+		params: string[]
 		fn: (...args: Value[]) => Value
-	): void {
-		const namespacedName = `std::${name}`;
-		this.functionTable.set(namespacedName, {
-			name: namespacedName,
-			params,
-			body: { type: 'Literal', value: 0 } as Literal, // dummy body
-			__native: fn as any
-		} as any);
-	}
+		ui?: FunctionUiMeta
+		parameterModes?: Record<string, ParameterModeOption[]>
+	}): void;
+	registerFunction(arg: any): void {
+		if (arg && typeof arg === 'object' && typeof arg.body !== 'undefined') {
+			const def = arg as FunctionDefinition
+			this.functionTable.set(def.name, def);
+			return
+		}
 
-	/**
-	 * Register a native function with a full name (e.g. "game::teleportRelative")
-	 */
-	registerNativeFunctionFullName(
-		fullName: string,
-		params: string[],
-		fn: (...args: Value[]) => Value
-	): void {
-		this.functionTable.set(fullName, {
-			name: fullName,
-			params,
+		const options = arg as {
+			fullName: string
+			params: string[]
+			fn: (...args: Value[]) => Value
+			ui?: FunctionUiMeta
+			parameterModes?: Record<string, ParameterModeOption[]>
+		}
+
+		this.functionTable.set(options.fullName, {
+			name: options.fullName,
+			params: options.params,
 			body: { type: 'Literal', value: 0 } as Literal,
-			__native: fn as any,
+			__native: options.fn as any,
 		} as any)
+
+		registerUiFunction({
+			fullName: options.fullName,
+			params: options.params,
+			ui: options.ui,
+			parameterModes: options.parameterModes,
+		})
 	}
 
 	/**
@@ -201,8 +202,8 @@ export class Evaluator {
 			// Syntax sugar: direct function name
 			fnName = node.function;
 
-			// Special handling for std::this - recursive call
-			if (fnName === 'std::this') {
+			// Special handling for recursion
+			if (fnName === 'std::this' || fnName === 'std::fn::this') {
 				if (this.callStack.length === 0) {
 					throw new Error('std::this can only be used inside a function');
 				}
