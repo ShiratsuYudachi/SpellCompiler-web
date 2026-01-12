@@ -43,7 +43,8 @@ import { GameEvents } from '../../game/events'
 import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
 import { upsertSpell } from '../utils/spellStorage'
-import { registerGameFunctionsForPreview } from '../../game/spells/registerGameFunctions'
+import { registerFunctionSpecs } from '../library/types'
+import { gameFunctions } from '../library/game'
 
 // Define node types
 const nodeTypes = {
@@ -464,7 +465,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			const evaluator = new Evaluator();
 
 			// Register game functions for preview
-			registerGameFunctionsForPreview(evaluator)
+			registerFunctionSpecs(evaluator, gameFunctions)
 
 			// Register user-defined functions
 			functions.forEach(fn => {
@@ -489,13 +490,35 @@ function EditorContent(props: FunctionalEditorProps) {
 			setCurrentAST(ast)
 			setCurrentFunctions(functions)
 
-			const game = getGameInstance()
-			if (!game) {
-				throw new Error('Game is not running')
-			}
+			// Check if any game functions are used
+			const hasGameFunctions = functions.some(fn => fn.name.startsWith('game::')) ||
+				JSON.stringify(ast).includes('game::')
 
-			game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
-			setEvaluationResult({ cast: true })
+			if (hasGameFunctions) {
+				// Skip evaluation, directly register to game
+				const game = getGameInstance()
+				if (!game) {
+					throw new Error('Game is not running')
+				}
+
+				game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
+				setEvaluationResult({ cast: true })
+			} else {
+				// Evaluate first, then register
+				const evaluator = new Evaluator()
+				registerFunctionSpecs(evaluator, gameFunctions)
+				functions.forEach(fn => {
+					evaluator.registerFunction(fn)
+				})
+
+				const result = evaluator.evaluate(ast, new Map())
+				setEvaluationResult(result)
+
+				const game = getGameInstance()
+				if (game) {
+					game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
+				}
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err))
 			setEvaluationResult(null)

@@ -1,5 +1,6 @@
 import { Evaluator } from '../ast/evaluator'
-import { registerGameFunctionsForPreview } from '../../game/spells/registerGameFunctions'
+import { registerFunctionSpecs } from '../library/types'
+import { gameFunctions } from '../library/game'
 
 let done = false
 
@@ -8,7 +9,7 @@ export function ensureBuiltinFunctionsRegistered() {
 	done = true
 
 	const evaluator = new Evaluator()
-	registerGameFunctionsForPreview(evaluator)
+	registerFunctionSpecs(evaluator, gameFunctions)
 }
 
 
