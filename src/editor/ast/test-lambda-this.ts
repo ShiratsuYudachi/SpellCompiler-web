@@ -8,12 +8,12 @@ import type { Lambda, FunctionCall, IfExpression } from './ast';
 
 const evaluator = new Evaluator();
 
-console.log('=== Testing std::this with Lambda AST Nodes ===\n');
+console.log('=== Testing std::fn::this with Lambda AST Nodes ===\n');
 
 // ============================================
 // Test 1: Lambda with std::this (recursive factorial)
 // ============================================
-console.log('Test 1: Lambda (AST node) with std::this - Recursive Factorial');
+console.log('Test 1: Lambda (AST node) with std::fn::this - Recursive Factorial');
 
 const factorialLambda: Lambda = {
 	type: 'Lambda',
@@ -22,7 +22,7 @@ const factorialLambda: Lambda = {
 		type: 'IfExpression',
 		condition: {
 			type: 'FunctionCall',
-			function: 'std::eq',
+			function: 'std::cmp::eq',
 			args: [
 				{ type: 'Identifier', name: 'n' },
 				{ type: 'Literal', value: 0 }
@@ -31,15 +31,15 @@ const factorialLambda: Lambda = {
 		thenBranch: { type: 'Literal', value: 1 },
 		elseBranch: {
 			type: 'FunctionCall',
-			function: 'std::multiply',
+			function: 'std::math::multiply',
 			args: [
 				{ type: 'Identifier', name: 'n' },
 				{
 					type: 'FunctionCall',
-					function: 'std::this',
+					function: 'std::fn::this',
 					args: [{
 						type: 'FunctionCall',
-						function: 'std::subtract',
+						function: 'std::math::subtract',
 						args: [
 							{ type: 'Identifier', name: 'n' },
 							{ type: 'Literal', value: 1 }
@@ -68,10 +68,10 @@ const callLambda: FunctionCall = {
 try {
 	const result = evaluator.run(callLambda);
 	console.log(`✓ Result: ${result}`);
-	console.log('std::this WORKS with Lambda nodes!\n');
+	console.log('std::fn::this WORKS with Lambda nodes!\n');
 } catch (e) {
 	console.error(`✗ Error: ${(e as Error).message}`);
-	console.log('std::this does NOT work with Lambda nodes\n');
+	console.log('std::fn::this does NOT work with Lambda nodes\n');
 }
 
 // ============================================
@@ -81,7 +81,7 @@ console.log('Test 2: Understanding how callStack tracks lambdas');
 console.log('When a Lambda is called:');
 console.log('- Its FunctionValue.definition.name is "<lambda>"');
 console.log('- This name is pushed to callStack');
-console.log('- std::this looks up callStack[-1] in functionTable');
+console.log('- std::fn::this looks up callStack[-1] in functionTable');
 console.log('- Problem: "<lambda>" is not in functionTable!\n');
 
 // ============================================
@@ -112,7 +112,7 @@ const callNamedLambda: FunctionCall = {
 try {
 	const result = evaluator.run(callNamedLambda);
 	console.log(`✓ Named lambda result: ${result}`);
-	console.log('std::this works when lambda is registered with a name!\n');
+	console.log('std::fn::this works when lambda is registered with a name!\n');
 } catch (e) {
 	console.error(`✗ Error: ${(e as Error).message}\n`);
 }
@@ -121,15 +121,15 @@ try {
 // Summary
 // ============================================
 console.log('=== Summary ===');
-console.log('Current std::this implementation:');
+console.log('Current std::fn::this implementation:');
 console.log('1. Relies on callStack to track function names');
 console.log('2. Anonymous lambdas use name "<lambda>"');
 console.log('3. "<lambda>" is not in functionTable, causing lookup failures');
 console.log('\nResult:');
-console.log('- std::this DOES NOT work with truly anonymous Lambda nodes');
-console.log('- std::this DOES work with named/registered functions');
+console.log('- std::fn::this DOES NOT work with truly anonymous Lambda nodes');
+console.log('- std::fn::this DOES work with named/registered functions');
 console.log('\nSolutions:');
-console.log('1. Register lambda before using std::this');
+console.log('1. Register lambda before using std::fn::this');
 console.log('2. Use Y-combinator for anonymous recursion');
 console.log('3. Pass function as parameter (explicit recursion)');
 

@@ -69,10 +69,10 @@ function main() {
 	
 	// multiply(add(3, 5), 2) = (3 + 5) * 2
 	const expr1 = call('std::multiply',
-		call('std::add', literal(3), literal(5)),
+		call('std::math::add', literal(3), literal(5)),
 		literal(2)
 	);
-	console.log('Expression: std::multiply(std::add(3, 5), 2) = (3 + 5) * 2');
+	console.log('Expression: std::math::multiply(std::math::add(3, 5), 2) = (3 + 5) * 2');
 	console.log('Result:', evaluator.run(expr1));
 	console.log();
 
@@ -151,7 +151,7 @@ function main() {
 
 	// Using core library functions directly
 	// Call: add(3, multiply(4, 5))
-	const expr5 = call('std::add', literal(3), call('std::multiply', literal(4), literal(5)));
+	const expr5 = call('std::math::add', literal(3), call('std::math::multiply', literal(4), literal(5)));
 	console.log('Using core library: add, multiply');
 	console.log('Call: add(3, multiply(4, 5))');
 	console.log('Result:', evaluator.run(expr5));
@@ -184,12 +184,12 @@ function main() {
 	console.log();
 
 	// ============================================
-	// Test 6.5: Recursion with std::this
+	// Test 6.5: Recursion with std::fn::this
 	// ============================================
-	console.log('📝 Test 6.5: Recursion with std::this (Factorial)');
+	console.log('📝 Test 6.5: Recursion with std::fn::this (Factorial)');
 	console.log('-'.repeat(40));
 
-	// Define: factorialThis(n) = if eq(n, 0) then 1 else multiply(n, std::this(subtract(n, 1)))
+	// Define: factorialThis(n) = if eq(n, 0) then 1 else multiply(n, std::fn::this(subtract(n, 1)))
 	const factorialThisFn: FunctionDefinition = {
 		name: 'factorialThis',
 		params: ['n'],
@@ -198,48 +198,48 @@ function main() {
 			literal(1),
 			call('std::multiply',
 				identifier('n'),
-				call('std::this', call('std::subtract', identifier('n'), literal(1)))
+				call('std::fn::this', call('std::math::subtract', identifier('n'), literal(1)))
 			)
 		)
 	};
 	evaluator.registerFunction(factorialThisFn);
 
-	console.log('Function: factorialThis(n) = if eq(n, 0) then 1 else multiply(n, std::this(subtract(n, 1)))');
-	console.log('Note: std::this refers to the current function (recursive call)');
+	console.log('Function: factorialThis(n) = if eq(n, 0) then 1 else multiply(n, std::fn::this(subtract(n, 1)))');
+	console.log('Note: std::fn::this refers to the current function (recursive call)');
 	console.log('Call: factorialThis(5) =', evaluator.run(call('factorialThis', literal(5))));
 	console.log('Call: factorialThis(6) =', evaluator.run(call('factorialThis', literal(6))));
 	console.log('Call: factorialThis(0) =', evaluator.run(call('factorialThis', literal(0))));
 
-	// Test Fibonacci with std::this
+	// Test Fibonacci with std::fn::this
 	console.log();
-	console.log('Fibonacci with std::this:');
-	// Define: fib(n) = if lte(n, 1) then n else add(std::this(subtract(n, 1)), std::this(subtract(n, 2)))
+	console.log('Fibonacci with std::fn::this:');
+	// Define: fib(n) = if lte(n, 1) then n else add(std::fn::this(subtract(n, 1)), std::fn::this(subtract(n, 2)))
 	const fibThisFn: FunctionDefinition = {
 		name: 'fib',
 		params: ['n'],
 		body: ifExpr(
-			call('std::lte', identifier('n'), literal(1)),
+			call('std::cmp::lte', identifier('n'), literal(1)),
 			identifier('n'),
-			call('std::add',
-				call('std::this', call('std::subtract', identifier('n'), literal(1))),
-				call('std::this', call('std::subtract', identifier('n'), literal(2)))
+			call('std::math::add',
+				call('std::fn::this', call('std::math::subtract', identifier('n'), literal(1))),
+				call('std::fn::this', call('std::math::subtract', identifier('n'), literal(2)))
 			)
 		)
 	};
 	evaluator.registerFunction(fibThisFn);
 
-	console.log('Function: fib(n) = if lte(n, 1) then n else add(std::this(subtract(n, 1)), std::this(subtract(n, 2)))');
+	console.log('Function: fib(n) = if lte(n, 1) then n else add(std::fn::this(subtract(n, 1)), std::fn::this(subtract(n, 2)))');
 	console.log('Call: fib(0) =', evaluator.run(call('fib', literal(0))));
 	console.log('Call: fib(1) =', evaluator.run(call('fib', literal(1))));
 	console.log('Call: fib(5) =', evaluator.run(call('fib', literal(5))));
 	console.log('Call: fib(8) =', evaluator.run(call('fib', literal(8))));
 	console.log();
 
-	// Test error handling: std::this outside function
+	// Test error handling: std::fn::this outside function
 	console.log('Error handling test:');
 	try {
-		const invalidExpr = call('std::this', literal(5));
-		console.log('Attempting to call std::this outside a function...');
+		const invalidExpr = call('std::fn::this', literal(5));
+		console.log('Attempting to call std::fn::this outside a function...');
 		evaluator.run(invalidExpr);
 		console.log('ERROR: Should have thrown an error!');
 	} catch (error) {
@@ -254,15 +254,15 @@ function main() {
 	console.log('-'.repeat(40));
 
 	// Using list function
-	const listExpr = call('std::list', literal(1), literal(2), literal(3), literal(4), literal(5));
+	const listExpr = call('std::list::list', literal(1), literal(2), literal(3), literal(4), literal(5));
 	console.log('Using list function: list(1, 2, 3, 4, 5)');
 	console.log('Result:', evaluator.run(listExpr));
 
 	// Using cons (Lisp style)
-	const consExpr = call('std::cons', literal(1),
-		call('std::cons', literal(2),
-			call('std::cons', literal(3),
-				call('std::empty')
+	const consExpr = call('std::list::cons', literal(1),
+		call('std::list::cons', literal(2),
+			call('std::list::cons', literal(3),
+				call('std::list::empty')
 			)
 		)
 	);

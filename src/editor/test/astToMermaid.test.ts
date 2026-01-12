@@ -65,7 +65,7 @@ runner.suite('astToMermaid - Function Calls', (suite) => {
 	suite.test('converts simple function call', () => {
 		const ast: FunctionCall = {
 			type: 'FunctionCall',
-			function: 'std::add',
+			function: 'std::math::add',
 			args: [
 				{ type: 'Literal', value: 5 },
 				{ type: 'Literal', value: 3 }
@@ -75,7 +75,7 @@ runner.suite('astToMermaid - Function Calls', (suite) => {
 		const result = astToMermaid(ast);
 
 		expect(result).toContain('graph TD');
-		expect(result).toContain('std::add');
+		expect(result).toContain('std::math::add');
 		expect(result).toContain('5');
 		expect(result).toContain('3');
 	});
@@ -83,11 +83,11 @@ runner.suite('astToMermaid - Function Calls', (suite) => {
 	suite.test('converts nested function call', () => {
 		const ast: FunctionCall = {
 			type: 'FunctionCall',
-			function: 'std::multiply',
+			function: 'std::math::multiply',
 			args: [
 				{
 					type: 'FunctionCall',
-					function: 'std::add',
+					function: 'std::math::add',
 					args: [
 						{ type: 'Literal', value: 5 },
 						{ type: 'Literal', value: 3 }
@@ -99,8 +99,8 @@ runner.suite('astToMermaid - Function Calls', (suite) => {
 
 		const result = astToMermaid(ast);
 
-		expect(result).toContain('std::multiply');
-		expect(result).toContain('std::add');
+		expect(result).toContain('std::math::multiply');
+		expect(result).toContain('std::math::add');
 	});
 
 	suite.test('converts function call with identifier', () => {
@@ -195,7 +195,7 @@ runner.suite('astToMermaid - Lambda', (suite) => {
 			params: ['x', 'y'],
 			body: {
 				type: 'FunctionCall',
-				function: 'std::add',
+				function: 'std::math::add',
 				args: [
 					{ type: 'Identifier', name: 'x' },
 					{ type: 'Identifier', name: 'y' }
@@ -207,7 +207,7 @@ runner.suite('astToMermaid - Lambda', (suite) => {
 
 		expect(result).toContain('λ');
 		expect(result).toContain('x, y');
-		expect(result).toContain('std::add');
+		expect(result).toContain('std::math::add');
 	});
 
 	suite.test('converts nested lambda', () => {
@@ -219,7 +219,7 @@ runner.suite('astToMermaid - Lambda', (suite) => {
 				params: ['y'],
 				body: {
 					type: 'FunctionCall',
-					function: 'std::add',
+					function: 'std::math::add',
 					args: [
 						{ type: 'Identifier', name: 'x' },
 						{ type: 'Identifier', name: 'y' }
@@ -245,7 +245,7 @@ runner.suite('astToMermaid - Function Definitions', (suite) => {
 				params: ['x'],
 				body: {
 					type: 'FunctionCall',
-					function: 'std::add',
+					function: 'std::math::add',
 					args: [
 						{ type: 'Identifier', name: 'x' },
 						{ type: 'Literal', value: 1 }
@@ -265,7 +265,7 @@ runner.suite('astToMermaid - Function Definitions', (suite) => {
 		expect(result).toContain('Function: increment');
 		expect(result).toContain('Parameters: x');
 		expect(result).toContain('Main Expression');
-		expect(result).toContain('std::add');
+		expect(result).toContain('std::math::add');
 	});
 
 	suite.test('converts multiple function definitions', () => {
@@ -275,7 +275,7 @@ runner.suite('astToMermaid - Function Definitions', (suite) => {
 				params: ['x'],
 				body: {
 					type: 'FunctionCall',
-					function: 'std::multiply',
+					function: 'std::math::multiply',
 					args: [
 						{ type: 'Identifier', name: 'x' },
 						{ type: 'Literal', value: 2 }
@@ -321,7 +321,7 @@ runner.suite('astToMermaid - Complex Cases', (suite) => {
 			type: 'IfExpression',
 			condition: {
 				type: 'FunctionCall',
-				function: 'std::gt',
+				function: 'std::cmp::gt',
 				args: [
 					{ type: 'Identifier', name: 'x' },
 					{ type: 'Literal', value: 0 }
@@ -329,7 +329,7 @@ runner.suite('astToMermaid - Complex Cases', (suite) => {
 			},
 			thenBranch: {
 				type: 'FunctionCall',
-				function: 'std::subtract',
+				function: 'std::math::subtract',
 				args: [
 					{ type: 'Identifier', name: 'x' },
 					{ type: 'Literal', value: 1 }
@@ -341,8 +341,8 @@ runner.suite('astToMermaid - Complex Cases', (suite) => {
 		const result = astToMermaid(ast);
 
 		expect(result).toContain('if');
-		expect(result).toContain('std::gt');
-		expect(result).toContain('std::subtract');
+		expect(result).toContain('std::cmp::gt');
+		expect(result).toContain('std::math::subtract');
 	});
 
 	suite.test('generates valid mermaid syntax', () => {

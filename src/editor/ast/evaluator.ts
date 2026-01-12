@@ -203,9 +203,9 @@ export class Evaluator {
 			fnName = node.function;
 
 			// Special handling for recursion
-			if (fnName === 'std::this' || fnName === 'std::fn::this') {
+			if (fnName === 'std::fn::this') {
 				if (this.callStack.length === 0) {
-					throw new Error('std::this can only be used inside a function');
+					throw new Error('std::fn::this can only be used inside a function');
 				}
 				// Get the current function from call stack
 				const currentFnName = this.callStack[this.callStack.length - 1];

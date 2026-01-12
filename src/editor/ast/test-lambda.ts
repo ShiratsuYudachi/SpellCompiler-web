@@ -21,7 +21,7 @@ const lambda1: Lambda = {
 	params: ['x'],
 	body: {
 		type: 'FunctionCall',
-		function: 'std::add',
+		function: 'std::math::add',
 		args: [
 			{ type: 'Identifier', name: 'x' },
 			{ type: 'Literal', value: 1 }
@@ -52,7 +52,7 @@ const lambda2: Lambda = {
 	params: ['x', 'y'],
 	body: {
 		type: 'FunctionCall',
-		function: 'std::multiply',
+		function: 'std::math::multiply',
 		args: [
 			{ type: 'Identifier', name: 'x' },
 			{ type: 'Identifier', name: 'y' }
@@ -90,7 +90,7 @@ evaluator.registerFunction({
 		params: ['y'],
 		body: {
 			type: 'FunctionCall',
-			function: 'std::add',
+			function: 'std::math::add',
 			args: [
 				{ type: 'Identifier', name: 'x' },  // Captured variable
 				{ type: 'Identifier', name: 'y' }
@@ -136,7 +136,7 @@ const curryLambda: Lambda = {
 		params: ['y'],
 		body: {
 			type: 'FunctionCall',
-			function: 'std::add',
+			function: 'std::math::add',
 			args: [
 				{ type: 'Identifier', name: 'x' },
 				{ type: 'Identifier', name: 'y' }
@@ -186,11 +186,11 @@ evaluator.registerFunction({
 			params: ['c'],
 			body: {
 				type: 'FunctionCall',
-				function: 'std::add',
+				function: 'std::math::add',
 				args: [
 					{
 						type: 'FunctionCall',
-						function: 'std::add',
+						function: 'std::math::add',
 						args: [
 							{ type: 'Identifier', name: 'a' },
 							{ type: 'Identifier', name: 'b' }
@@ -229,7 +229,7 @@ const doubleLambda: Lambda = {
 	params: ['x'],
 	body: {
 		type: 'FunctionCall',
-		function: 'std::multiply',
+		function: 'std::math::multiply',
 		args: [
 			{ type: 'Identifier', name: 'x' },
 			{ type: 'Literal', value: 2 }

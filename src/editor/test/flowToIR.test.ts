@@ -114,7 +114,7 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 0, y: 0 },
 				data: {
-					functionName: 'add',
+					functionName: 'std::math::add',
 					displayName: 'Add',
 					namespace: 'std',
 					params: ['a', 'b']
@@ -134,7 +134,7 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 
 		expect(result.ast.type).toBe('FunctionCall');
 		const call = result.ast as FunctionCall;
-		expect(call.function).toBe('std::add');
+		expect(call.function).toBe('std::math::add');
 		expect(call.args).toHaveLength(2);
 		expect((call.args[0] as Literal).value).toBe(5);
 		expect((call.args[1] as Literal).value).toBe(3);
@@ -149,7 +149,7 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 0, y: 0 },
 				data: {
-					functionName: 'multiply',
+					functionName: 'std::math::multiply',
 					displayName: 'Multiply',
 					namespace: 'std',
 					params: ['a', 'b']
@@ -160,7 +160,7 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 0, y: 0 },
 				data: {
-					functionName: 'add',
+					functionName: 'std::math::add',
 					displayName: 'Add',
 					namespace: 'std',
 					params: ['a', 'b']
@@ -183,11 +183,11 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 
 		expect(result.ast.type).toBe('FunctionCall');
 		const mulCall = result.ast as FunctionCall;
-		expect(mulCall.function).toBe('std::multiply');
+		expect(mulCall.function).toBe('std::math::multiply');
 
 		const addCall = mulCall.args[0] as FunctionCall;
 		expect(addCall.type).toBe('FunctionCall');
-		expect(addCall.function).toBe('std::add');
+		expect(addCall.function).toBe('std::math::add');
 	});
 
 	suite.test('converts custom function call', () => {
@@ -395,7 +395,7 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 				id: 'add-1',
 				type: 'dynamicFunction',
 				position: { x: 0, y: 0 },
-				data: { functionName: 'add', displayName: 'Add', namespace: 'std', params: ['a', 'b'] }
+				data: { functionName: 'std::math::add', displayName: 'Add', namespace: 'std', params: ['a', 'b'] }
 			},
 			{ id: 'return-1', type: 'functionOut', position: { x: 0, y: 0 }, data: { lambdaId: 'lambda-1' } },
 			{ id: 'literal-1', type: 'literal', position: { x: 0, y: 0 }, data: { value: 1 } },
@@ -425,7 +425,7 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 		// Check function body
 		expect(funcDef.body.type).toBe('FunctionCall');
 		const bodyCall = funcDef.body as FunctionCall;
-		expect(bodyCall.function).toBe('std::add');
+		expect(bodyCall.function).toBe('std::math::add');
 
 		// Check main expression
 		expect(result.ast.type).toBe('FunctionCall');
@@ -447,7 +447,7 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 				id: 'mul-1',
 				type: 'dynamicFunction',
 				position: { x: 0, y: 0 },
-				data: { functionName: 'multiply', displayName: 'Multiply', namespace: 'std', params: ['a', 'b'] }
+				data: { functionName: 'std::math::multiply', displayName: 'Multiply', namespace: 'std', params: ['a', 'b'] }
 			},
 			{ id: 'return-1', type: 'functionOut', position: { x: 0, y: 0 }, data: { lambdaId: 'lambda-1' } },
 			{ id: 'call-1', type: 'customFunction', position: { x: 0, y: 0 }, data: { functionName: 'multiply' } },
@@ -545,9 +545,9 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 			{ id: 'node-102', type: 'applyFunc', position: { x: 0, y: 0 }, data: { paramCount: 1 } },
 			{ id: 'lit-2', type: 'literal', position: { x: 0, y: 0 }, data: { value: 20 } },
 			{ id: 'node-105', type: 'if', position: { x: 0, y: 0 }, data: {} },
-			{ id: 'node-109', type: 'dynamicFunction', position: { x: 0, y: 0 }, data: { functionName: 'gt', namespace: 'std', params: ['a', 'b'] } },
+			{ id: 'node-109', type: 'dynamicFunction', position: { x: 0, y: 0 }, data: { functionName: 'std::cmp::gt', namespace: 'std', params: ['a', 'b'] } },
 			{ id: 'node-110', type: 'literal', position: { x: 0, y: 0 }, data: { value: 0 } },
-			{ id: 'node-111', type: 'dynamicFunction', position: { x: 0, y: 0 }, data: { functionName: 'subtract', namespace: 'std', params: ['a', 'b'] } },
+			{ id: 'node-111', type: 'dynamicFunction', position: { x: 0, y: 0 }, data: { functionName: 'std::math::subtract', namespace: 'std', params: ['a', 'b'] } },
 			{ id: 'node-112', type: 'literal', position: { x: 0, y: 0 }, data: { value: 1 } }
 		];
 

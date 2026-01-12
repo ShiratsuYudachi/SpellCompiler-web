@@ -45,7 +45,7 @@ const makeAdderFn: FunctionDefinition = {
 		definition: {
 			name: 'adder',
 			params: ['y'],
-			body: call('std::add', identifier('x'), identifier('y'))
+			body: call('std::math::add', identifier('x'), identifier('y'))
 		}
 	})
 };
@@ -104,8 +104,8 @@ const makeAdder2Fn: FunctionDefinition = {
 				definition: {
 					name: 'adder2_inner',
 					params: ['z'],
-					body: call('std::add',
-						call('std::add', identifier('x'), identifier('y')),
+					body: call('std::math::add',
+						call('std::math::add', identifier('x'), identifier('y')),
 						identifier('z')
 					)
 				}
@@ -142,8 +142,8 @@ const makeCalculatorFn: FunctionDefinition = {
 		definition: {
 			name: 'calculator',
 			params: ['x'],
-			body: call('std::add',
-				call('std::multiply', identifier('a'), identifier('x')),
+			body: call('std::math::add',
+				call('std::math::multiply', identifier('a'), identifier('x')),
 				identifier('b')
 			)
 		}
