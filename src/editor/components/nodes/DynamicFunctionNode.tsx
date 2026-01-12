@@ -6,7 +6,7 @@
 import { Handle, Position } from 'reactflow';
 import { memo, useState, useEffect } from 'react';
 import type { NodeProps } from 'reactflow';
-import { useReactFlow, useStore } from 'reactflow';
+import { useStore } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
 import type { ParameterMode, ParameterModeOption } from '../../utils/getFunctionRegistry';
 import { getFunctionInfo } from '../../utils/getFunctionRegistry';
