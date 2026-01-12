@@ -464,7 +464,7 @@ function registerStringFunctions(evaluator: Evaluator): void {
 
 function registerVectorFunctions(evaluator: Evaluator): void {
 	// vec::create(x, y) - Create a vector
-	evaluator.registerNativeFunction('vec::create', ['x', 'y'], (x, y) => {
+	evaluator.registerNativeFunctionFullName('vec::create', ['x', 'y'], (x, y) => {
 		if (typeof x !== 'number' || typeof y !== 'number') {
 			throw new Error(`vec::create requires two numbers, got ${typeof x} and ${typeof y}`);
 		}
@@ -476,7 +476,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::getX(v) - Get X component
-	evaluator.registerNativeFunction('vec::getX', ['v'], (v) => {
+	evaluator.registerNativeFunctionFullName('vec::getX', ['v'], (v) => {
 		if (!isVector2D(v)) {
 			throw new Error(`vec::getX requires a vector, got ${typeof v}`);
 		}
@@ -484,7 +484,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::getY(v) - Get Y component
-	evaluator.registerNativeFunction('vec::getY', ['v'], (v) => {
+	evaluator.registerNativeFunctionFullName('vec::getY', ['v'], (v) => {
 		if (!isVector2D(v)) {
 			throw new Error(`vec::getY requires a vector, got ${typeof v}`);
 		}
@@ -492,7 +492,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::add(v1, v2) - Add two vectors
-	evaluator.registerNativeFunction('vec::add', ['v1', 'v2'], (v1, v2) => {
+	evaluator.registerNativeFunctionFullName('vec::add', ['v1', 'v2'], (v1, v2) => {
 		if (!isVector2D(v1) || !isVector2D(v2)) {
 			throw new Error('vec::add requires two vectors');
 		}
@@ -506,7 +506,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::subtract(v1, v2) - Subtract two vectors
-	evaluator.registerNativeFunction('vec::subtract', ['v1', 'v2'], (v1, v2) => {
+	evaluator.registerNativeFunctionFullName('vec::subtract', ['v1', 'v2'], (v1, v2) => {
 		if (!isVector2D(v1) || !isVector2D(v2)) {
 			throw new Error('vec::subtract requires two vectors');
 		}
@@ -520,7 +520,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::multiply(v, scalar) - Multiply vector by scalar
-	evaluator.registerNativeFunction('vec::multiply', ['v', 'scalar'], (v, scalar) => {
+	evaluator.registerNativeFunctionFullName('vec::multiply', ['v', 'scalar'], (v, scalar) => {
 		if (!isVector2D(v)) {
 			throw new Error('vec::multiply first argument must be a vector');
 		}
@@ -536,7 +536,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::divide(v, scalar) - Divide vector by scalar
-	evaluator.registerNativeFunction('vec::divide', ['v', 'scalar'], (v, scalar) => {
+	evaluator.registerNativeFunctionFullName('vec::divide', ['v', 'scalar'], (v, scalar) => {
 		if (!isVector2D(v)) {
 			throw new Error('vec::divide first argument must be a vector');
 		}
@@ -555,7 +555,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::length(v) - Get magnitude of vector
-	evaluator.registerNativeFunction('vec::length', ['v'], (v) => {
+	evaluator.registerNativeFunctionFullName('vec::length', ['v'], (v) => {
 		if (!isVector2D(v)) {
 			throw new Error('vec::length requires a vector');
 		}
@@ -564,7 +564,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::normalize(v) - Normalize vector to unit length
-	evaluator.registerNativeFunction('vec::normalize', ['v'], (v) => {
+	evaluator.registerNativeFunctionFullName('vec::normalize', ['v'], (v) => {
 		if (!isVector2D(v)) {
 			throw new Error('vec::normalize requires a vector');
 		}
@@ -581,7 +581,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::dot(v1, v2) - Dot product
-	evaluator.registerNativeFunction('vec::dot', ['v1', 'v2'], (v1, v2) => {
+	evaluator.registerNativeFunctionFullName('vec::dot', ['v1', 'v2'], (v1, v2) => {
 		if (!isVector2D(v1) || !isVector2D(v2)) {
 			throw new Error('vec::dot requires two vectors');
 		}
@@ -591,7 +591,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::distance(v1, v2) - Distance between two vectors
-	evaluator.registerNativeFunction('vec::distance', ['v1', 'v2'], (v1, v2) => {
+	evaluator.registerNativeFunctionFullName('vec::distance', ['v1', 'v2'], (v1, v2) => {
 		if (!isVector2D(v1) || !isVector2D(v2)) {
 			throw new Error('vec::distance requires two vectors');
 		}
@@ -603,7 +603,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::angle(v) - Get angle of vector in radians
-	evaluator.registerNativeFunction('vec::angle', ['v'], (v) => {
+	evaluator.registerNativeFunctionFullName('vec::angle', ['v'], (v) => {
 		if (!isVector2D(v)) {
 			throw new Error('vec::angle requires a vector');
 		}
@@ -612,7 +612,7 @@ function registerVectorFunctions(evaluator: Evaluator): void {
 	});
 
 	// vec::rotate(v, angle) - Rotate vector by angle (in radians)
-	evaluator.registerNativeFunction('vec::rotate', ['v', 'angle'], (v, angle) => {
+	evaluator.registerNativeFunctionFullName('vec::rotate', ['v', 'angle'], (v, angle) => {
 		if (!isVector2D(v)) {
 			throw new Error('vec::rotate first argument must be a vector');
 		}

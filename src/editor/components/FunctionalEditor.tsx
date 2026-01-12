@@ -3,7 +3,7 @@
 // 
 // =============================================
 
-import { useCallback, useState, useMemo, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
 	Background,
 	Controls,
@@ -18,7 +18,7 @@ import ReactFlow, {
 	type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Button, Paper, Text, Alert } from '@mantine/core';
+import { Alert, Button, Group, Paper, Text, TextInput } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { TriggerTypeNode } from './nodes/TriggerTypeNode';
@@ -42,6 +42,7 @@ import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
 import { getGameInstance } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
+import { upsertSpell } from '../utils/spellStorage'
 
 // Define node types
 const nodeTypes = {
@@ -57,11 +58,55 @@ const nodeTypes = {
 	vector: VectorNode,
 };
 
+type FlowSnapshot = { nodes: Node[]; edges: Edge[] }
+
+export type FunctionalEditorProps = {
+	initialFlow?: FlowSnapshot
+	initialSpellId?: string | null
+	initialSpellName?: string
+	onExit?: () => void
+}
+
+const defaultNewFlow: FlowSnapshot = {
+	nodes: [
+		{
+			id: 'output-1',
+			type: 'output',
+			position: { x: 560, y: 220 },
+			data: { label: 'Output' },
+		},
+		{
+			id: 'lit-1',
+			type: 'literal',
+			position: { x: 260, y: 220 },
+			data: { value: 0 },
+		},
+	],
+	edges: [{ id: 'e1', source: 'lit-1', target: 'output-1', targetHandle: 'value' }],
+}
+
 let nodeIdCounter = 100;
 
-function EditorContent() {
-	const [nodes, setNodes, onNodesChange] = useNodesState([]);
-	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+function bumpNodeIdCounterFromNodes(nodes: Node[]) {
+	let maxId = nodeIdCounter
+	for (const node of nodes) {
+		const match = node.id.match(/-(\d+)$/)
+		if (!match) continue
+		const num = parseInt(match[1], 10)
+		if (num >= maxId) {
+			maxId = num + 1
+		}
+	}
+	nodeIdCounter = maxId
+}
+
+function EditorContent(props: FunctionalEditorProps) {
+	const isLibraryMode = Boolean(props.onExit)
+	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
+	const [nodes, setNodes, onNodesChange] = useNodesState(startingFlow?.nodes || []);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(startingFlow?.edges || []);
+	const [spellId, setSpellId] = useState<string | null>(props.initialSpellId || null)
+	const [spellName, setSpellName] = useState<string>(props.initialSpellName || 'New Spell')
 
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
@@ -85,6 +130,10 @@ function EditorContent() {
 
 	// Listen for editor context changes and load workflow
 	useEffect(() => {
+		if (isLibraryMode) {
+			return
+		}
+
 		const game = getGameInstance();
 		if (!game) return;
 
@@ -150,10 +199,11 @@ function EditorContent() {
 		return () => {
 			game.events.off(GameEvents.setEditorContext, handler);
 		};
-	}, [editorContext, workflowLoaded]);
+	}, [editorContext, workflowLoaded, isLibraryMode]);
 
 	// Helper function to get scene restrictions
 	const getRestrictions = useCallback(() => {
+		if (isLibraryMode) return null
 		const sceneKey = editorContext?.sceneKey;
 		if (!sceneKey) return null;
 
@@ -163,6 +213,7 @@ function EditorContent() {
 
 	// Check if node type is allowed in current scene context
 	const isNodeTypeAllowed = useCallback((nodeType: string, funcName?: string): boolean => {
+		if (isLibraryMode) return true
 		const restrictions = getRestrictions();
 		if (!restrictions) return true; // No restrictions = all nodes allowed
 
@@ -205,6 +256,7 @@ function EditorContent() {
 
 	// Remove disallowed nodes from state when context changes or nodes are added
 	useEffect(() => {
+		if (isLibraryMode) return
 		const restrictions = getRestrictions();
 		if (!restrictions) return;
 
@@ -229,6 +281,7 @@ function EditorContent() {
 
 	// Auto-save workflow to localStorage when nodes or edges change
 	useEffect(() => {
+		if (isLibraryMode) return
 		if (!workflowLoaded || !editorContext?.sceneKey) return;
 
 		// Debounce save to avoid excessive writes
@@ -251,6 +304,10 @@ function EditorContent() {
 
 		return () => clearTimeout(timeoutId);
 	}, [nodes, edges, editorContext, workflowLoaded]);
+	useEffect(() => {
+		if (!startingFlow) return
+		bumpNodeIdCounterFromNodes(startingFlow.nodes)
+	}, [startingFlow])
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -616,6 +673,20 @@ function EditorContent() {
 		}
 	}
 
+	const handleSaveToLibrary = () => {
+		try {
+			setError(null)
+			const name = spellName.trim() || 'New Spell'
+			const flow = toObject()
+			const nextId = upsertSpell({ id: spellId, name, flow })
+			setSpellId(nextId)
+			setSpellName(name)
+			setEvaluationResult({ saved: true, id: nextId })
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err))
+		}
+	}
+
 	// Export workflow to JSON file
 	const handleExport = () => {
 		try {
@@ -724,6 +795,22 @@ function EditorContent() {
 				<Text size="xl" fw={700}>
 					⚡ Functional Workflow Editor
 				</Text>
+				<Group gap="sm">
+					{props.onExit ? (
+						<Button size="sm" variant="outline" color="gray" onClick={props.onExit}>
+							Back
+						</Button>
+					) : null}
+					<TextInput
+						value={spellName}
+						onChange={(e) => setSpellName(e.currentTarget.value)}
+						placeholder="Spell name"
+						size="sm"
+					/>
+					<Button size="sm" color="blue" onClick={handleSaveToLibrary}>
+						Save
+					</Button>
+				</Group>
 				<div className="flex gap-2">
 					<Button size="sm" variant="outline" color="gray" onClick={handleImport}>
 						📥 Import
@@ -943,10 +1030,10 @@ function EditorContent() {
 	);
 }
 
-export function FunctionalEditor() {
+export function FunctionalEditor(props: FunctionalEditorProps) {
 	return (
 		<ReactFlowProvider>
-			<EditorContent />
+			<EditorContent {...props} />
 		</ReactFlowProvider>
 	);
 }
