@@ -60,8 +60,8 @@ export class SpaceCollapseSkill extends BossSkill {
         
         if (dist < 60) {
           // 中心伤害
-          if (player.takeDamage) player.takeDamage(this.config.damage);
-          
+          this.damagePlayer(this.config.damage);
+
           // 爆炸
           for (let i = 0; i < 12; i++) {
             const angle = (Math.PI * 2 / 12) * i;

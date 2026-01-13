@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { Health } from '../../components';
 
 export enum SkillPhase {
   Phase1 = 0,
@@ -112,5 +113,68 @@ export abstract class BossSkill {
    */
   protected delay(ms: number): Promise<void> {
     return new Promise(resolve => this.scene.time.delayedCall(ms, resolve));
+  }
+
+  /**
+   * 对玩家造成伤害 (ECS Health组件)
+   * 替代不存在的player.takeDamage()方法
+   */
+  protected damagePlayer(damage: number, playerX?: number, playerY?: number): void {
+    const level2Scene = this.scene as any;
+    const playerEid = level2Scene.world?.resources?.playerEid;
+
+    console.log('[BossSkill.damagePlayer] Called with:', {
+      damage,
+      playerEid,
+      hasWorld: !!level2Scene.world,
+      hasResources: !!level2Scene.world?.resources,
+      currentHP: playerEid !== undefined ? Health.current[playerEid] : 'N/A'
+    });
+
+    if (playerEid !== undefined) {
+      // 扣除血量
+      const oldHP = Health.current[playerEid];
+      Health.current[playerEid] = Math.max(0, Health.current[playerEid] - damage);
+      const newHP = Health.current[playerEid];
+
+      console.log('[BossSkill.damagePlayer] HP changed:', {
+        oldHP,
+        newHP,
+        damage,
+        playerEid
+      });
+
+      // 视觉反馈：相机震动
+      this.scene.cameras.main.shake(150, 0.01);
+
+      // 视觉反馈：玩家闪红
+      const playerBody = level2Scene.world?.resources?.bodies?.get(playerEid);
+      if (playerBody) {
+        playerBody.setTint(0xff0000);
+        this.scene.time.delayedCall(100, () => {
+          playerBody.clearTint();
+        });
+      }
+    } else {
+      console.error('[BossSkill.damagePlayer] playerEid is undefined!');
+    }
+  }
+
+  /**
+   * 检查玩家是否在指定范围内
+   */
+  protected isPlayerInRange(centerX: number, centerY: number, radius: number): boolean {
+    const level2Scene = this.scene as any;
+    const playerBody = level2Scene.world?.resources?.bodies?.get(
+      level2Scene.world?.resources?.playerEid
+    );
+
+    if (!playerBody) return false;
+
+    const distance = Phaser.Math.Distance.Between(
+      centerX, centerY, playerBody.x, playerBody.y
+    );
+
+    return distance <= radius;
   }
 }

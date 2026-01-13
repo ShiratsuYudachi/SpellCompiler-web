@@ -104,8 +104,8 @@ export class RedMoonSlashSkill extends BossSkill {
     // 检测伤害
     const player = this.scene.children.getByName('player') as any;
     if (player && this.checkPlayerInSlashZone(type, bossX, bossY, player.x, player.y)) {
-      if (player.takeDamage) player.takeDamage(this.config.damage);
-      
+      this.damagePlayer(this.config.damage);
+
       // 击退
       const dx = player.x - bossX;
       const dy = player.y - bossY;

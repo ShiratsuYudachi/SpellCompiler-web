@@ -86,41 +86,43 @@ export class LinearCutSkill extends BossSkill {
     x2: number,
     y2: number
   ): void {
-    const player = this.scene.children.getByName('player') as any;
-    if (!player) return;
-    
+    const level2Scene = this.scene as any;
+    const playerBody = level2Scene.world?.resources?.bodies?.get(
+      level2Scene.world?.resources?.playerEid
+    );
+    if (!playerBody) return;
+
     // 计算玩家到线段的距离
     const distance = this.pointToLineDistance(
-      player.x,
-      player.y,
+      playerBody.x,
+      playerBody.y,
       x1,
       y1,
       x2,
       y2
     );
-    
-    // 如果距离小于5px，造成伤害
-    if (distance < 5) {
+
+    // 如果距离小于50px，造成伤害 (增大判定范围)
+    if (distance < 50) {
       console.log('[LinearCut] 裂痕爆炸命中玩家！');
-      
-      if (typeof player.takeDamage === 'function') {
-        player.takeDamage(this.config.damage);
-      }
-      
+
+      // 使用统一的伤害方法
+      this.damagePlayer(this.config.damage, playerBody.x, playerBody.y);
+
       // 击退效果
-      const dx = player.x - (x1 + x2) / 2;
-      const dy = player.y - (y1 + y2) / 2;
+      const dx = playerBody.x - (x1 + x2) / 2;
+      const dy = playerBody.y - (y1 + y2) / 2;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      
+
       if (dist > 0) {
         const knockbackForce = 200;
         const knockbackX = (dx / dist) * knockbackForce;
         const knockbackY = (dy / dist) * knockbackForce;
-        
+
         this.scene.tweens.add({
-          targets: player,
-          x: player.x + knockbackX * 0.3,
-          y: player.y + knockbackY * 0.3,
+          targets: playerBody,
+          x: playerBody.x + knockbackX * 0.3,
+          y: playerBody.y + knockbackY * 0.3,
           duration: 200,
           ease: 'Cubic.easeOut',
         });

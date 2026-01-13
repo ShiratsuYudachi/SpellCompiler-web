@@ -93,11 +93,9 @@ export class FinalCollapseSkill extends BossSkill {
           
           // 碰撞检测
           if (dist < 25) {
-            if (player.takeDamage) {
-              player.takeDamage(this.config.damage);
-              console.log('[FinalCollapse] 同归于尽！');
-            }
-            
+            this.damagePlayer(this.config.damage);
+            console.log('[FinalCollapse] 同归于尽！');
+
             // 爆炸
             for (let i = 0; i < 8; i++) {
               const angle = (Math.PI * 2 / 8) * i;

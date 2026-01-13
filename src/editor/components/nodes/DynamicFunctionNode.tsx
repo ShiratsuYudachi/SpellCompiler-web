@@ -13,7 +13,7 @@ import { getFunctionInfo } from '../../utils/getFunctionRegistry';
 import type { TriggerTypeNodeData } from '../../types/flowTypes';
 
 export interface DynamicFunctionNodeData {
-	functionName: string;      //  (e.g., 'std::math::add')
+	functionName: string;      //  (e.g., 'std::add')
 	displayName: string;       //  (e.g., 'add')
 	namespace: string;         //  (e.g., 'std')
 	params: string[];          //

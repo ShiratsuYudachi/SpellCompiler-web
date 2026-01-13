@@ -168,12 +168,10 @@ export class CloakTrackingSkill extends BossSkill {
     fragment.hasHit = true;
     
     console.log('[CloakTracking] 碎片命中玩家！');
-    
+
     // 造成伤害
-    if (typeof player.takeDamage === 'function') {
-      player.takeDamage(this.config.damage);
-    }
-    
+    this.damagePlayer(this.config.damage);
+
     // 碎片爆炸
     const x = fragment.graphics.x;
     const y = fragment.graphics.y;

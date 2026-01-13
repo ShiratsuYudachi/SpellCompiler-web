@@ -3,7 +3,7 @@
 // 
 // =============================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import ReactFlow, {
 	Background,
 	Controls,
@@ -18,7 +18,7 @@ import ReactFlow, {
 	type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Alert, Button, Group, Paper, Text, TextInput } from '@mantine/core';
+import { Button, Paper, Text, Alert } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { TriggerTypeNode } from './nodes/TriggerTypeNode';
@@ -40,11 +40,8 @@ import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
-import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
+import { getGameInstance } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
-import { upsertSpell } from '../utils/spellStorage'
-import { registerFunctionSpecs } from '../library/types'
-import { gameFunctions } from '../library/game'
 
 // Define node types
 const nodeTypes = {
@@ -60,55 +57,11 @@ const nodeTypes = {
 	vector: VectorNode,
 };
 
-type FlowSnapshot = { nodes: Node[]; edges: Edge[] }
-
-export type FunctionalEditorProps = {
-	initialFlow?: FlowSnapshot
-	initialSpellId?: string | null
-	initialSpellName?: string
-	onExit?: () => void
-}
-
-const defaultNewFlow: FlowSnapshot = {
-	nodes: [
-		{
-			id: 'output-1',
-			type: 'output',
-			position: { x: 560, y: 220 },
-			data: { label: 'Output' },
-		},
-		{
-			id: 'lit-1',
-			type: 'literal',
-			position: { x: 260, y: 220 },
-			data: { value: 0 },
-		},
-	],
-	edges: [{ id: 'e1', source: 'lit-1', target: 'output-1', targetHandle: 'value' }],
-}
-
 let nodeIdCounter = 100;
 
-function bumpNodeIdCounterFromNodes(nodes: Node[]) {
-	let maxId = nodeIdCounter
-	for (const node of nodes) {
-		const match = node.id.match(/-(\d+)$/)
-		if (!match) continue
-		const num = parseInt(match[1], 10)
-		if (num >= maxId) {
-			maxId = num + 1
-		}
-	}
-	nodeIdCounter = maxId
-}
-
-function EditorContent(props: FunctionalEditorProps) {
-	const isLibraryMode = Boolean(props.onExit)
-	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
-	const [nodes, setNodes, onNodesChange] = useNodesState(startingFlow?.nodes || []);
-	const [edges, setEdges, onEdgesChange] = useEdgesState(startingFlow?.edges || []);
-	const [spellId, setSpellId] = useState<string | null>(props.initialSpellId || null)
-	const [spellName, setSpellName] = useState<string>(props.initialSpellName || 'New Spell')
+function EditorContent() {
+	const [nodes, setNodes, onNodesChange] = useNodesState([]);
+	const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
@@ -125,71 +78,157 @@ function EditorContent(props: FunctionalEditorProps) {
 		position: { x: number; y: number };
 		nodeId?: string;
 	} | null>(null);
-	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(() => getEditorContext());
+	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(null);
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
-	// Subscribe to editor context changes and load workflow
+	// Listen for editor context changes and load workflow
 	useEffect(() => {
-		const unsubscribe = subscribeEditorContext((context) => {
-			const newSceneKey = context?.sceneKey;
+		const game = getGameInstance();
+		if (!game) return;
 
-			// Only reload workflow if scene key actually changed
-			if (editorContext?.sceneKey === newSceneKey && workflowLoaded) {
-				return;
-			}
+		const handler = (context: { sceneKey?: string }) => {
+			// Defer state update to avoid React warning
+			setTimeout(() => {
+				const newSceneKey = context.sceneKey;
 
-			setEditorContext(context);
-
-			// Load workflow from localStorage or use default
-			const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
-
-			try {
-				const saved = localStorage.getItem(storageKey);
-				if (saved) {
-					const flow = JSON.parse(saved);
-					if (flow.nodes && Array.isArray(flow.nodes)) {
-						setNodes(flow.nodes);
-						// Update nodeIdCounter to avoid conflicts
-						let maxId = nodeIdCounter;
-						flow.nodes.forEach((node: Node) => {
-							const match = node.id.match(/-(\d+)$/);
-							if (match) {
-								const num = parseInt(match[1], 10);
-								if (num >= maxId) maxId = num + 1;
-							}
-						});
-						nodeIdCounter = maxId;
-					}
-					if (flow.edges && Array.isArray(flow.edges)) {
-						setEdges(flow.edges);
-					}
-				} else {
-					// No saved workflow, load from scene config
-					const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
-					const templateNodes = config?.initialSpellWorkflow?.nodes || [];
-					const templateEdges = config?.initialSpellWorkflow?.edges || [];
-
-					setNodes(templateNodes);
-					setEdges(templateEdges);
+				// Only reload workflow if scene key actually changed
+				if (editorContext?.sceneKey === newSceneKey && workflowLoaded) {
+					console.log(`[Editor] Scene key unchanged (${newSceneKey}), skipping workflow reload`);
+					return;
 				}
-			} catch (err) {
-				console.error('[Editor] Failed to load workflow:', err);
-				// Fallback to empty workflow
-				setNodes([{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }]);
-				setEdges([]);
-			}
 
-			setWorkflowLoaded(true);
+				setEditorContext(context);
+
+				// Load workflow from localStorage or use default
+				const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
+
+				try {
+					const saved = localStorage.getItem(storageKey);
+					if (saved) {
+						const flow = JSON.parse(saved);
+						if (flow.nodes && Array.isArray(flow.nodes)) {
+							setNodes(flow.nodes);
+							// Update nodeIdCounter to avoid conflicts
+							let maxId = nodeIdCounter;
+							flow.nodes.forEach((node: Node) => {
+								const match = node.id.match(/-(\d+)$/);
+								if (match) {
+									const num = parseInt(match[1], 10);
+									if (num >= maxId) maxId = num + 1;
+								}
+							});
+							nodeIdCounter = maxId;
+						}
+						if (flow.edges && Array.isArray(flow.edges)) {
+							setEdges(flow.edges);
+						}
+						console.log(`[Editor] Loaded workflow for ${newSceneKey} from localStorage`);
+					} else {
+						// No saved workflow, load from scene config
+						const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
+						const templateNodes = config?.initialSpellWorkflow?.nodes || [];
+						const templateEdges = config?.initialSpellWorkflow?.edges || [];
+
+						setNodes(templateNodes);
+						setEdges(templateEdges);
+						console.log(`[Editor] Using scene config template for ${newSceneKey}`);
+					}
+				} catch (err) {
+					console.error('[Editor] Failed to load workflow:', err);
+					// Fallback to empty workflow
+					setNodes([{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }]);
+					setEdges([]);
+				}
+
+				setWorkflowLoaded(true);
+			}, 0);
+		};
+
+		game.events.on(GameEvents.setEditorContext, handler);
+		return () => {
+			game.events.off(GameEvents.setEditorContext, handler);
+		};
+	}, [editorContext, workflowLoaded]);
+
+	// Helper function to get scene restrictions
+	const getRestrictions = useCallback(() => {
+		const sceneKey = editorContext?.sceneKey;
+		if (!sceneKey) return null;
+
+		const config = getSceneConfig(sceneKey);
+		return config?.editorRestrictions || null;
+	}, [editorContext]);
+
+	// Check if node type is allowed in current scene context
+	const isNodeTypeAllowed = useCallback((nodeType: string, funcName?: string): boolean => {
+		const restrictions = getRestrictions();
+		if (!restrictions) return true; // No restrictions = all nodes allowed
+
+		// For non-function nodes, check allowedNodeTypes
+		if (nodeType !== 'dynamicFunction') {
+			if (restrictions.allowedNodeTypes) {
+				return restrictions.allowedNodeTypes.includes(nodeType);
+			}
+			return true; // No node type restrictions = all basic nodes allowed
+		}
+
+		// For function nodes, check allowedFunctions or allowedNamespaces
+		if (nodeType === 'dynamicFunction' && funcName) {
+			if (restrictions.allowedFunctions) {
+				return restrictions.allowedFunctions.includes(funcName);
+			}
+			if (restrictions.allowedNamespaces) {
+				const namespace = funcName.split('::')[0];
+				return restrictions.allowedNamespaces.includes(namespace);
+			}
+			return true; // No function restrictions = all functions allowed
+		}
+
+		return false;
+	}, [getRestrictions]);
+
+	// Filter nodes based on scene context (memoized for performance)
+	const filteredNodes = useMemo(() => {
+		const restrictions = getRestrictions();
+		if (!restrictions) return nodes;
+
+		return nodes.filter((node) => {
+			if (node.type === 'dynamicFunction') {
+				const funcName = (node.data as any)?.functionName;
+				return isNodeTypeAllowed('dynamicFunction', funcName);
+			}
+			return isNodeTypeAllowed(node.type || 'output');
+		});
+	}, [nodes, getRestrictions, isNodeTypeAllowed]);
+
+	// Remove disallowed nodes from state when context changes or nodes are added
+	useEffect(() => {
+		const restrictions = getRestrictions();
+		if (!restrictions) return;
+
+		const disallowedNodes = nodes.filter((node) => {
+			if (node.type === 'dynamicFunction') {
+				const funcName = (node.data as any)?.functionName;
+				return !isNodeTypeAllowed('dynamicFunction', funcName);
+			}
+			return !isNodeTypeAllowed(node.type || 'output');
 		});
 
-		return unsubscribe;
-	}, [editorContext, workflowLoaded]);
+		if (disallowedNodes.length > 0) {
+			// Remove disallowed nodes from state
+			setNodes((nds) => nds.filter((node) => !disallowedNodes.includes(node)));
+			// Show error message
+			const sceneKey = editorContext?.sceneKey || 'this scene';
+			setTimeout(() => {
+				setError(`Some nodes were removed because they are not allowed in ${sceneKey}.`);
+			}, 0);
+		}
+	}, [nodes, editorContext, getRestrictions, isNodeTypeAllowed]);
 
 	// Auto-save workflow to localStorage when nodes or edges change
 	useEffect(() => {
-		if (isLibraryMode) return
 		if (!workflowLoaded || !editorContext?.sceneKey) return;
 
 		// Debounce save to avoid excessive writes
@@ -204,6 +243,7 @@ function EditorContent(props: FunctionalEditorProps) {
 					timestamp: Date.now()
 				};
 				localStorage.setItem(storageKey, JSON.stringify(flow));
+				console.log(`[Editor] Auto-saved workflow for ${sceneKey}`);
 			} catch (err) {
 				console.error('[Editor] Failed to auto-save workflow:', err);
 			}
@@ -211,10 +251,6 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		return () => clearTimeout(timeoutId);
 	}, [nodes, edges, editorContext, workflowLoaded]);
-	useEffect(() => {
-		if (!startingFlow) return
-		bumpNodeIdCounterFromNodes(startingFlow.nodes)
-	}, [startingFlow])
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -286,6 +322,17 @@ function EditorContent(props: FunctionalEditorProps) {
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
 		if (!menuState) return;
 
+		// Check if this function is allowed in current scene
+		if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
+			// Defer error to avoid React warning
+			const sceneKey = editorContext?.sceneKey || 'this scene';
+			setTimeout(() => {
+				setError(`Function ${funcInfo.displayName} is not available in ${sceneKey}.`);
+			}, 0);
+			setMenuState(null);
+			return;
+		}
+
 		const newNodeId = `node-${nodeIdCounter++}`;
 		const isVariadic = funcInfo.paramCount === 0 && funcInfo.name.includes('list')
 
@@ -320,7 +367,14 @@ function EditorContent(props: FunctionalEditorProps) {
 				}
 			};
 
-			setNodes((nds) => [...nds, newNode]);
+			// Use setNodes with validation to ensure node is actually added
+			setNodes((nds) => {
+				// Double-check before adding
+				if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
+					return nds; // Don't add if not allowed
+				}
+				return [...nds, newNode];
+			});
 
 			if (isVariadic || funcInfo.params.length > 0) {
 				const newEdge: Edge = {
@@ -350,7 +404,14 @@ function EditorContent(props: FunctionalEditorProps) {
 				}
 			};
 
-			setNodes((nds) => [...nds, newNode]);
+			// Use setNodes with validation to ensure node is actually added
+			setNodes((nds) => {
+				// Double-check before adding
+				if (!isNodeTypeAllowed('dynamicFunction', funcInfo.name)) {
+					return nds; // Don't add if not allowed
+				}
+				return [...nds, newNode];
+			});
 		}
 
 		setMenuState(null);
@@ -359,6 +420,17 @@ function EditorContent(props: FunctionalEditorProps) {
 	// Add basic node from menu and connect
 	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
 		if (!menuState) return;
+
+		// Check if this node type is allowed in current scene
+		if (!isNodeTypeAllowed(type)) {
+			// Defer error to avoid React warning
+			const sceneKey = editorContext?.sceneKey || 'this scene';
+			setTimeout(() => {
+				setError(`Node type ${type} is not available in ${sceneKey}.`);
+			}, 0);
+			setMenuState(null);
+			return;
+		}
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 
@@ -403,9 +475,21 @@ function EditorContent(props: FunctionalEditorProps) {
 					position: { x: sourceNode.position.x + 250, y: sourceNode.position.y + 120 },
 					data: { lambdaId: newNodeId }
 				};
-				setNodes((nds) => [...nds, newNode, returnNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode, returnNode];
+				});
 			} else {
-				setNodes((nds) => [...nds, newNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode];
+				});
 			}
 
 			// Create edge
@@ -442,9 +526,21 @@ function EditorContent(props: FunctionalEditorProps) {
 					position: { x: flowPos.x, y: flowPos.y + 120 },
 					data: { lambdaId: newNodeId }
 				};
-				setNodes((nds) => [...nds, newNode, returnNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode, returnNode];
+				});
 			} else {
-				setNodes((nds) => [...nds, newNode]);
+				setNodes((nds) => {
+					// Double-check before adding
+					if (!isNodeTypeAllowed(type)) {
+						return nds; // Don't add if not allowed
+					}
+					return [...nds, newNode];
+				});
 			}
 		}
 
@@ -465,7 +561,24 @@ function EditorContent(props: FunctionalEditorProps) {
 			const evaluator = new Evaluator();
 
 			// Register game functions for preview
-			registerFunctionSpecs(evaluator, gameFunctions)
+			evaluator.registerNativeFunctionFullName('game::getPlayer', [], () => {
+				return 'player'
+			})
+			evaluator.registerNativeFunctionFullName('game::teleportRelative', ['entityId', 'dx', 'dy'], (_entityId, dx, dy) => {
+				return [dx, dy]
+			})
+			evaluator.registerNativeFunctionFullName('game::deflectAfterTime', ['angle', 'delayMs'], () => {
+				return true // Mock value for preview
+			})
+			evaluator.registerNativeFunctionFullName('game::getProjectileAge', [], () => {
+				return 0 // Mock value for preview
+			})
+			evaluator.registerNativeFunctionFullName('game::getProjectileDistance', [], () => {
+				return 0 // Mock value for preview
+			})
+			evaluator.registerNativeFunctionFullName('game::onTrigger', ['triggerType', 'condition'], (_triggerType, _condition) => {
+				return 1 // Mock trigger ID for preview
+			})
 
 			// Register user-defined functions
 			functions.forEach(fn => {
@@ -490,52 +603,16 @@ function EditorContent(props: FunctionalEditorProps) {
 			setCurrentAST(ast)
 			setCurrentFunctions(functions)
 
-			// Check if any game functions are used
-			const hasGameFunctions = functions.some(fn => fn.name.startsWith('game::')) ||
-				JSON.stringify(ast).includes('game::')
-
-			if (hasGameFunctions) {
-				// Skip evaluation, directly register to game
-				const game = getGameInstance()
-				if (!game) {
-					throw new Error('Game is not running')
-				}
-
-				game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
-				setEvaluationResult({ cast: true })
-			} else {
-				// Evaluate first, then register
-				const evaluator = new Evaluator()
-				registerFunctionSpecs(evaluator, gameFunctions)
-				functions.forEach(fn => {
-					evaluator.registerFunction(fn)
-				})
-
-				const result = evaluator.evaluate(ast, new Map())
-				setEvaluationResult(result)
-
-				const game = getGameInstance()
-				if (game) {
-					game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
-				}
+			const game = getGameInstance()
+			if (!game) {
+				throw new Error('Game is not running')
 			}
+
+			game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
+			setEvaluationResult({ cast: true })
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err))
 			setEvaluationResult(null)
-		}
-	}
-
-	const handleSaveToLibrary = () => {
-		try {
-			setError(null)
-			const name = spellName.trim() || 'New Spell'
-			const flow = toObject()
-			const nextId = upsertSpell({ id: spellId, name, flow })
-			setSpellId(nextId)
-			setSpellName(name)
-			setEvaluationResult({ saved: true, id: nextId })
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err))
 		}
 	}
 
@@ -577,12 +654,34 @@ function EditorContent(props: FunctionalEditorProps) {
 						
 						// Restore nodes and edges from the imported flow
 						if (flow.nodes && Array.isArray(flow.nodes)) {
-							setNodes(flow.nodes);
+							const restrictions = getRestrictions();
+
+							// Filter nodes if restrictions exist
+							let nodesToImport = flow.nodes;
+							if (restrictions) {
+								nodesToImport = flow.nodes.filter((node: Node) => {
+									if (node.type === 'dynamicFunction') {
+										const funcName = (node.data as any)?.functionName;
+										return isNodeTypeAllowed('dynamicFunction', funcName);
+									}
+									return isNodeTypeAllowed(node.type || 'output');
+								});
+
+								if (nodesToImport.length < flow.nodes.length) {
+									// Defer error to avoid React warning
+									const sceneKey = editorContext?.sceneKey || 'this scene';
+									setTimeout(() => {
+										setError(`Some nodes were removed during import because they are not allowed in ${sceneKey}.`);
+									}, 0);
+								}
+							}
+
+							setNodes(nodesToImport);
 							
 							// Update nodeIdCounter to avoid ID conflicts
 							// Find the maximum node ID number from imported nodes
 							let maxId = nodeIdCounter;
-							flow.nodes.forEach((node: Node) => {
+							nodesToImport.forEach((node: Node) => {
 								// Extract number from IDs like "node-123", "lit-45", etc.
 								const match = node.id.match(/-(\d+)$/);
 								if (match) {
@@ -625,22 +724,6 @@ function EditorContent(props: FunctionalEditorProps) {
 				<Text size="xl" fw={700}>
 					⚡ Functional Workflow Editor
 				</Text>
-				<Group gap="sm">
-					{props.onExit ? (
-						<Button size="sm" variant="outline" color="gray" onClick={props.onExit}>
-							Back
-						</Button>
-					) : null}
-					<TextInput
-						value={spellName}
-						onChange={(e) => setSpellName(e.currentTarget.value)}
-						placeholder="Spell name"
-						size="sm"
-					/>
-					<Button size="sm" color="blue" onClick={handleSaveToLibrary}>
-						Save
-					</Button>
-				</Group>
 				<div className="flex gap-2">
 					<Button size="sm" variant="outline" color="gray" onClick={handleImport}>
 						📥 Import
@@ -711,7 +794,7 @@ function EditorContent(props: FunctionalEditorProps) {
 					}}
 				>
 					<ReactFlow
-						nodes={nodes}
+						nodes={filteredNodes}
 						edges={edges}
 						onNodeContextMenu={(event, node) => {
 							event.preventDefault();
@@ -758,7 +841,51 @@ function EditorContent(props: FunctionalEditorProps) {
 								position: { x: event.clientX, y: event.clientY }
 							});
 						}}
-						onNodesChange={onNodesChange}
+						onNodesChange={(changes) => {
+							// Filter out disallowed node additions
+							const restrictions = getRestrictions();
+							if (restrictions) {
+								const filteredChanges: typeof changes = [];
+								const sceneKey = editorContext?.sceneKey || 'this scene';
+
+								for (const change of changes) {
+									// Block adding disallowed node types
+									if (change.type === 'add' && change.item) {
+										const node = change.item as Node;
+										let isAllowed = false;
+
+										if (node.type === 'dynamicFunction') {
+											const funcName = (node.data as any)?.functionName;
+											isAllowed = isNodeTypeAllowed('dynamicFunction', funcName);
+											if (!isAllowed) {
+												// Defer error to avoid React warning
+												setTimeout(() => {
+													setError(`Function ${funcName || 'unknown'} is not allowed in ${sceneKey}.`);
+												}, 0);
+											}
+										} else {
+											isAllowed = isNodeTypeAllowed(node.type || 'output');
+											if (!isAllowed) {
+												// Defer error to avoid React warning
+												setTimeout(() => {
+													setError(`Node type ${node.type} is not allowed in ${sceneKey}.`);
+												}, 0);
+											}
+										}
+
+										if (isAllowed) {
+											filteredChanges.push(change);
+										}
+									} else {
+										// Allow all other changes (remove, select, position, etc.)
+										filteredChanges.push(change);
+									}
+								}
+								onNodesChange(filteredChanges);
+							} else {
+								onNodesChange(changes);
+							}
+						}}
 						onEdgesChange={onEdgesChange}
 						onConnect={onConnect}
 						nodeTypes={nodeTypes}
@@ -787,7 +914,6 @@ function EditorContent(props: FunctionalEditorProps) {
 				onSelectFunction={addFunctionNodeFromMenu}
 				onSelectBasicNode={addBasicNodeFromMenu}
 				onClose={() => setMenuState(null)}
-				editorContext={editorContext}
 			/>
 		)}
 
@@ -817,10 +943,10 @@ function EditorContent(props: FunctionalEditorProps) {
 	);
 }
 
-export function FunctionalEditor(props: FunctionalEditorProps) {
+export function FunctionalEditor() {
 	return (
 		<ReactFlowProvider>
-			<EditorContent {...props} />
+			<EditorContent />
 		</ReactFlowProvider>
 	);
 }

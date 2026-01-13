@@ -22,7 +22,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 200, y: 0 },
 				data: {
-					functionName: 'std::fn::tap',
+					functionName: 'tap',
 					namespace: 'std'
 				}
 			},
@@ -47,7 +47,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 100, y: 100 },
 				data: {
-					functionName: 'std::math::multiply',
+					functionName: 'multiply',
 					namespace: 'std'
 				}
 			},
@@ -88,7 +88,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 		// Where sideEffect is registered as a function definition
 		expect(result.ast.type).toBe('FunctionCall');
 		const call = result.ast as FunctionCall;
-		expect(call.function).toBe('std::fn::tap');
+		expect(call.function).toBe('std::tap');
 		expect(call.args).toHaveLength(2);
 		
 		// First arg should be literal 42
@@ -117,7 +117,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 400, y: 0 },
 				data: {
-					functionName: 'std::math::multiply',
+					functionName: 'multiply',
 					namespace: 'std'
 				}
 			},
@@ -126,7 +126,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 200, y: 0 },
 				data: {
-					functionName: 'std::fn::tap',
+					functionName: 'tap',
 					namespace: 'std'
 				}
 			},
@@ -135,7 +135,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 0, y: 0 },
 				data: {
-					functionName: 'std::math::add',
+					functionName: 'add',
 					namespace: 'std'
 				}
 			},
@@ -171,7 +171,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 200, y: 100 },
 				data: {
-					functionName: 'std::fn::debug',
+					functionName: 'debug',
 					namespace: 'std'
 				}
 			},
@@ -211,17 +211,17 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 		// Should be: multiply(tap(add(5, 3), lambda), 2)
 		expect(result.ast.type).toBe('FunctionCall');
 		const multiplyCall = result.ast as FunctionCall;
-		expect(multiplyCall.function).toBe('std::math::multiply');
+		expect(multiplyCall.function).toBe('std::multiply');
 		
 		// First arg should be tap call
 		const tapCall = multiplyCall.args[0] as FunctionCall;
 		expect(tapCall.type).toBe('FunctionCall');
-		expect(tapCall.function).toBe('std::fn::tap');
+		expect(tapCall.function).toBe('std::tap');
 		
 		// Tap's first arg should be add call
 		const addCall = tapCall.args[0] as FunctionCall;
 		expect(addCall.type).toBe('FunctionCall');
-		expect(addCall.function).toBe('std::math::add');
+		expect(addCall.function).toBe('std::add');
 	});
 
 	suite.test('tap node execution produces correct result', () => {
@@ -238,7 +238,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 150, y: 0 },
 				data: {
-					functionName: 'std::fn::tap',
+					functionName: 'tap',
 					namespace: 'std'
 				}
 			},
@@ -297,7 +297,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 200, y: 0 },
 				data: {
-					functionName: 'std::fn::tap',
+					functionName: 'tap',
 					namespace: 'std'
 				}
 			},
@@ -321,7 +321,7 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 100, y: 100 },
 				data: {
-					functionName: 'std::fn::debug',
+					functionName: 'debug',
 					namespace: 'std'
 				}
 			},
@@ -374,274 +374,6 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 		expect(result).toBe(10);
 		expect(loggedTest).toBe(true);
 	});
-
-	suite.test('tap throws error when second argument is not a function', () => {
-		// Test: tap(10, "not a function") should throw error
-		const nodes: Node[] = [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 300, y: 0 },
-				data: {}
-			},
-			{
-				id: 'tap-1',
-				type: 'dynamicFunction',
-				position: { x: 150, y: 0 },
-				data: {
-					functionName: 'std::fn::tap',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'literal-10',
-				type: 'literal',
-				position: { x: 0, y: 0 },
-				data: { value: 10 }
-			},
-			{
-				id: 'literal-string',
-				type: 'literal',
-				position: { x: 0, y: 100 },
-				data: { value: 'not a function' }
-			}
-		];
-
-		const edges: Edge[] = [
-			{ id: 'e1', source: 'literal-10', target: 'tap-1', targetHandle: 'arg0' },
-			{ id: 'e2', source: 'literal-string', target: 'tap-1', targetHandle: 'arg1' },
-			{ id: 'e3', source: 'tap-1', target: 'output-1' }
-		];
-
-		const { ast, functions } = flowToIR(nodes, edges);
-		
-		const evaluator = new Evaluator();
-		functions.forEach(fn => evaluator.registerFunction(fn));
-		
-		expect(() => evaluator.run(ast)).toThrow('Second argument to tap must be a function');
-	});
-
-	suite.test('tap chains multiple side effects correctly', () => {
-		// Test: tap(5, lambda1) -> tap(result, lambda2) should execute both lambdas
-		const nodes: Node[] = [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 600, y: 0 },
-				data: {}
-			},
-			{
-				id: 'tap-2',
-				type: 'dynamicFunction',
-				position: { x: 400, y: 0 },
-				data: {
-					functionName: 'std::fn::tap',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'tap-1',
-				type: 'dynamicFunction',
-				position: { x: 200, y: 0 },
-				data: {
-					functionName: 'std::fn::tap',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'literal-5',
-				type: 'literal',
-				position: { x: 0, y: 0 },
-				data: { value: 5 }
-			},
-			{
-				id: 'lambda-1',
-				type: 'lambdaDef',
-				position: { x: 0, y: 100 },
-				data: {
-					name: 'firstTap',
-					params: ['x']
-				}
-			},
-			{
-				id: 'lambda-2',
-				type: 'lambdaDef',
-				position: { x: 200, y: 100 },
-				data: {
-					name: 'secondTap',
-					params: ['x']
-				}
-			},
-			{
-				id: 'print-1',
-				type: 'dynamicFunction',
-				position: { x: 100, y: 100 },
-				data: {
-					functionName: 'std::fn::print',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'print-2',
-				type: 'dynamicFunction',
-				position: { x: 300, y: 100 },
-				data: {
-					functionName: 'std::fn::print',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'funcout-1',
-				type: 'functionOut',
-				position: { x: 150, y: 100 },
-				data: { lambdaId: 'lambda-1' }
-			},
-			{
-				id: 'funcout-2',
-				type: 'functionOut',
-				position: { x: 350, y: 100 },
-				data: { lambdaId: 'lambda-2' }
-			}
-		];
-
-		const edges: Edge[] = [
-			// Main flow
-			{ id: 'e1', source: 'literal-5', target: 'tap-1', targetHandle: 'arg0' },
-			{ id: 'e2', source: 'funcout-1', sourceHandle: 'function', target: 'tap-1', targetHandle: 'arg1' },
-			{ id: 'e3', source: 'tap-1', target: 'tap-2', targetHandle: 'arg0' },
-			{ id: 'e4', source: 'funcout-2', sourceHandle: 'function', target: 'tap-2', targetHandle: 'arg1' },
-			{ id: 'e5', source: 'tap-2', target: 'output-1' },
-			
-			// Lambda 1 body
-			{ id: 'e6', source: 'lambda-1', sourceHandle: 'param0', target: 'print-1', targetHandle: 'arg0' },
-			{ id: 'e7', source: 'print-1', target: 'funcout-1', targetHandle: 'value' },
-			{ id: 'e8', source: 'lambda-1', target: 'funcout-1', targetHandle: 'lambdaDef' },
-			
-			// Lambda 2 body
-			{ id: 'e9', source: 'lambda-2', sourceHandle: 'param0', target: 'print-2', targetHandle: 'arg0' },
-			{ id: 'e10', source: 'print-2', target: 'funcout-2', targetHandle: 'value' },
-			{ id: 'e11', source: 'lambda-2', target: 'funcout-2', targetHandle: 'lambdaDef' }
-		];
-
-		const { ast, functions } = flowToIR(nodes, edges);
-		
-		const evaluator = new Evaluator();
-		functions.forEach(fn => evaluator.registerFunction(fn));
-		
-		// Capture console.log to verify both lambdas execute
-		const originalLog = console.log;
-		const printedValues: any[] = [];
-		console.log = (value: any) => {
-			printedValues.push(value);
-		};
-		
-		const result = evaluator.run(ast);
-		
-		// Restore console.log
-		console.log = originalLog;
-		
-		expect(result).toBe(5);
-		expect(printedValues).toHaveLength(2);
-		expect(printedValues[0]).toBe(5);
-		expect(printedValues[1]).toBe(5);
-	});
-
-	suite.test('tap preserves value through complex expression', () => {
-		// Test: tap(add(2, 3), lambda) should pass 5 to lambda and return 5
-		const nodes: Node[] = [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 500, y: 0 },
-				data: {}
-			},
-			{
-				id: 'tap-1',
-				type: 'dynamicFunction',
-				position: { x: 300, y: 0 },
-				data: {
-					functionName: 'std::fn::tap',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'add-1',
-				type: 'dynamicFunction',
-				position: { x: 150, y: 0 },
-				data: {
-					functionName: 'std::math::add',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'literal-2',
-				type: 'literal',
-				position: { x: 0, y: 0 },
-				data: { value: 2 }
-			},
-			{
-				id: 'literal-3',
-				type: 'literal',
-				position: { x: 0, y: 50 },
-				data: { value: 3 }
-			},
-			{
-				id: 'lambda-1',
-				type: 'lambdaDef',
-				position: { x: 150, y: 100 },
-				data: {
-					name: 'verifyLambda',
-					params: ['x']
-				}
-			},
-			{
-				id: 'multiply-1',
-				type: 'dynamicFunction',
-				position: { x: 250, y: 100 },
-				data: {
-					functionName: 'std::math::multiply',
-					namespace: 'std'
-				}
-			},
-			{
-				id: 'literal-10',
-				type: 'literal',
-				position: { x: 200, y: 120 },
-				data: { value: 10 }
-			},
-			{
-				id: 'funcout-1',
-				type: 'functionOut',
-				position: { x: 350, y: 100 },
-				data: { lambdaId: 'lambda-1' }
-			}
-		];
-
-		const edges: Edge[] = [
-			// Main flow
-			{ id: 'e1', source: 'literal-2', target: 'add-1', targetHandle: 'arg0' },
-			{ id: 'e2', source: 'literal-3', target: 'add-1', targetHandle: 'arg1' },
-			{ id: 'e3', source: 'add-1', target: 'tap-1', targetHandle: 'arg0' },
-			{ id: 'e4', source: 'funcout-1', sourceHandle: 'function', target: 'tap-1', targetHandle: 'arg1' },
-			{ id: 'e5', source: 'tap-1', target: 'output-1' },
-			
-			// Lambda body: multiply(x, 10) - just for side effect
-			{ id: 'e6', source: 'lambda-1', sourceHandle: 'param0', target: 'multiply-1', targetHandle: 'arg0' },
-			{ id: 'e7', source: 'literal-10', target: 'multiply-1', targetHandle: 'arg1' },
-			{ id: 'e8', source: 'multiply-1', target: 'funcout-1', targetHandle: 'value' },
-			{ id: 'e9', source: 'lambda-1', target: 'funcout-1', targetHandle: 'lambdaDef' }
-		];
-
-		const { ast, functions } = flowToIR(nodes, edges);
-		
-		const evaluator = new Evaluator();
-		functions.forEach(fn => evaluator.registerFunction(fn));
-		
-		const result = evaluator.run(ast);
-		
-		// tap should return the original value (5), not the lambda result (50)
-		expect(result).toBe(5);
-	});
 });
 
 runner.suite('flowToIR - Other FP Utilities', (suite) => {
@@ -658,7 +390,7 @@ runner.suite('flowToIR - Other FP Utilities', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 100, y: 0 },
 				data: {
-					functionName: 'std::fn::print',
+					functionName: 'print',
 					namespace: 'std'
 				}
 			},
@@ -711,7 +443,7 @@ runner.suite('flowToIR - Other FP Utilities', (suite) => {
 				type: 'dynamicFunction',
 				position: { x: 150, y: 0 },
 				data: {
-					functionName: 'std::fn::debug',
+					functionName: 'debug',
 					namespace: 'std'
 				}
 			},

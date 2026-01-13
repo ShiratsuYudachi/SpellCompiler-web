@@ -7,7 +7,6 @@ import { TerrainType, type ObjectiveConfig } from './TerrainTypes'
 import { TerrainRenderer } from './TerrainRenderer'
 import { Health, Enemy } from '../../components'
 import { LevelProgress } from './LevelProgress'
-import { setEditorContext } from '../../gameInstance'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
@@ -333,6 +332,16 @@ export abstract class BaseScene extends Phaser.Scene {
 		const currentMana = this.world.resources.mana ?? 100
 		const maxMana = 100
 
+		// Debug: Log HP every 60 frames (约1秒)
+		if (this.game.loop.frame % 60 === 0) {
+			console.log('[BaseScene.updatePlayerHUD] Current HP:', {
+				playerEid,
+				currentHP,
+				maxHP,
+				healthArrayValue: Health.current[playerEid]
+			});
+		}
+
 		const hpPercent = currentHP / maxHP
 		this.hpBar.clear()
 		this.hpBar.fillStyle(0xff0000, 0.8)
@@ -515,7 +524,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		// TAB key for editor
 		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
 			e.preventDefault()
-			setEditorContext({ sceneKey: this.scene.key })
+			this.game.events.emit(GameEvents.setEditorContext, { sceneKey: this.scene.key })
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
 

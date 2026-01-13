@@ -14,6 +14,7 @@ import { SkillManager } from '../skills/SkillManager';
 import { SkillSelector } from '../ai/SkillSelector';
 import { HitboxManager } from '../collision/HitboxManager';
 import { SkillPhase } from '../skills/BossSkill';
+import { Health } from '../../components';
 
 // 导入第一阶段技能
 import { LinearCutSkill } from '../skills/phase1/LinearCutSkill';
@@ -33,7 +34,7 @@ import { FullScreenPurgeSkill } from '../skills/phase3/FullScreenPurgeSkill';
 import { TripleIllusionSkill } from '../skills/phase3/TripleIllusionSkill';
 import { FinalCollapseSkill } from '../skills/phase3/FinalCollapseSkill';
 
-export class Boss {
+export class Boss extends Phaser.Events.EventEmitter {
   private store: BossStore;
   private eventBus: EventBus;
   private scene: Phaser.Scene;
@@ -64,8 +65,18 @@ export class Boss {
   // 普攻系统
   private lastBasicAttackTime: number = 0;
   private nextBasicAttackDelay: number = 0;
-  
+
+  // 编程挑战阶段系统
+  private currentColor: 'red' | 'blue' = 'red';
+  private colorSwitchTimer: number = 0;
+  private shields: Array<{x: number, y: number, destroyed: boolean, visual?: Phaser.GameObjects.Arc}> = [];
+  private shielded: boolean = false;
+  private phantoms: Array<{x: number, y: number, isReal: boolean, visual?: Phaser.GameObjects.Graphics}> = [];
+  private phantomSwapTimer: number = 0;
+  private programmingPhase: 0 | 1 | 2 = 0; // 0=颜色, 1=护盾, 2=幻影
+
   constructor(scene: Phaser.Scene, x: number, y: number, config: BossConfig) {
+    super();
     this.scene = scene;
     this.config = config;
     this.eventBus = new EventBus();
@@ -217,27 +228,30 @@ export class Boss {
   
   update(delta: number, playerX: number, playerY: number): void {
     if (this.store.get('currentState') === 'dead') return;
-    
+
     const deltaSeconds = delta / 1000;
     const pos = this.store.get('position');
-    
+
+    // 更新编程挑战阶段
+    this.updateProgrammingPhase(delta);
+
     // 更新目标距离
     const dx = playerX - pos.x;
     const dy = playerY - pos.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     this.store.dispatch({ type: 'UPDATE_TARGET_DISTANCE', payload: distance });
-    
+
     // 更新攻击冷却
     const lastAttackTime = this.store.get('lastAttackTime');
-    const attackCooldown = this.config.attackCooldown * 
+    const attackCooldown = this.config.attackCooldown *
       (this.currentPhaseConfig?.attackIntervalMultiplier || 1);
-    
+
     // 简单AI状态机
     this.updateAI(distance, dx, dy, deltaSeconds, attackCooldown, lastAttackTime);
-    
+
     // 应用速度
     this.applyVelocity(deltaSeconds);
-    
+
     // 同步视觉Boss位置
     const currentPos = this.store.get('position');
     this.visualBoss.setPosition(currentPos.x, currentPos.y);
@@ -433,8 +447,35 @@ export class Boss {
           
           const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y);
           if (dist < 30) {
-            if (player.takeDamage) player.takeDamage(40);
+            console.log('[Boss.rangedAttack] Bullet hit player! Distance:', dist);
+
+            // 使用ECS Health组件伤害玩家
+            const level2Scene = this.scene as any;
+            const playerEid = level2Scene.world?.resources?.playerEid;
+
+            console.log('[Boss.rangedAttack] Scene data:', {
+              hasWorld: !!level2Scene.world,
+              hasResources: !!level2Scene.world?.resources,
+              playerEid,
+              currentHP: playerEid !== undefined ? Health.current[playerEid] : 'N/A'
+            });
+
+            if (playerEid !== undefined) {
+              const oldHP = Health.current[playerEid];
+              Health.current[playerEid] = Math.max(0, Health.current[playerEid] - 40);
+              const newHP = Health.current[playerEid];
+
+              console.log('[Boss.rangedAttack] HP changed:', { oldHP, newHP, damage: 40 });
+
+              // 视觉反馈：玩家闪红
+              const playerBody = level2Scene.world?.resources?.bodies?.get(playerEid);
+              if (playerBody) {
+                playerBody.setTint(0xff0000);
+                this.scene.time.delayedCall(100, () => playerBody.clearTint());
+              }
+            }
             this.effects.createImpactFlash(bullet.x, bullet.y, 0xff00ff);
+            this.scene.cameras.main.shake(150, 0.01);
             bullet.destroy();
           }
         },
@@ -458,7 +499,19 @@ export class Boss {
       // 检测伤害
       const currentDist = Phaser.Math.Distance.Between(pos.x, pos.y, player.x, player.y);
       if (currentDist < 120) {
-        if (player.takeDamage) player.takeDamage(60);
+        // 使用ECS Health组件伤害玩家
+        const level2Scene = this.scene as any;
+        const playerEid = level2Scene.world?.resources?.playerEid;
+        if (playerEid !== undefined) {
+          Health.current[playerEid] = Math.max(0, Health.current[playerEid] - 60);
+
+          // 视觉反馈：玩家闪红
+          const playerBody = level2Scene.world?.resources?.bodies?.get(playerEid);
+          if (playerBody) {
+            playerBody.setTint(0xff0000);
+            this.scene.time.delayedCall(100, () => playerBody.clearTint());
+          }
+        }
         this.effects.createImpactFlash(player.x, player.y, 0xff0066);
         this.scene.cameras.main.shake(200, 0.015);
       }
@@ -515,45 +568,6 @@ export class Boss {
       this.scene.time.delayedCall(phase.invincibleDuration * 1000, () => {
         this.store.dispatch({ type: 'SET_INVINCIBLE', payload: false });
       });
-    }
-  }
-  
-  takeDamage(amount: number, isCritical: boolean = false): void {
-    const finalAmount = isCritical ? amount * this.config.criticalMultiplier : amount;
-    
-    // 尝试触发碎片替身（被动技能）
-    const fragmentDecoy = this.skillManager.getSkill('FragmentDecoy');
-    if (fragmentDecoy && fragmentDecoy.canUse(Date.now())) {
-      console.log('[Boss] 碎片替身触发！');
-      
-      const pos = this.store.get('position');
-      const player = this.scene.children.getByName('player') as any;
-      
-      if (player) {
-        // 异步执行技能（不阻塞）
-        this.skillManager.executeSkill(
-          fragmentDecoy,
-          pos.x,
-          pos.y,
-          player.x,
-          player.y
-        );
-      }
-      
-      // 闪避成功，不受伤
-      return;
-    }
-    
-    // 正常受伤
-    this.store.dispatch({ type: 'TAKE_DAMAGE', payload: finalAmount });
-    
-    // 受击闪烁
-    this.visualBoss.flash(100);
-    
-    this.eventBus.emit({ type: 'damaged', amount: finalAmount, isCritical });
-    
-    if (this.store.get('health') === 0) {
-      this.onDeath();
     }
   }
   
@@ -618,11 +632,446 @@ export class Boss {
     console.log(`[Boss] 瞬移到 (${data.x}, ${data.y})`);
     this.store.dispatch({ type: 'SET_POSITION', payload: { x: data.x, y: data.y } });
   }
-  
-  on(eventType: string, callback: (event: any) => void): () => void {
+
+  subscribeEvent(eventType: string, callback: (event: any) => void): () => void {
     return this.eventBus.on(eventType as any, callback);
   }
-  
+
+  // ========================================
+  // 编程挑战阶段系统
+  // ========================================
+
+  /**
+   * 更新编程挑战阶段
+   */
+  private updateProgrammingPhase(delta: number): void {
+    const health = this.store.get('health');
+    const maxHealth = this.store.get('maxHealth');
+    const healthPercent = health / maxHealth;
+
+    // 确定当前编程阶段
+    let newPhase: 0 | 1 | 2;
+    if (healthPercent > 0.6) {
+      newPhase = 0; // 阶段1：颜色挑战
+    } else if (healthPercent > 0.3) {
+      newPhase = 1; // 阶段2：护盾挑战
+    } else {
+      newPhase = 2; // 阶段3：幻影挑战
+    }
+
+    // 阶段切换
+    if (newPhase !== this.programmingPhase) {
+      this.onProgrammingPhaseChange(this.programmingPhase, newPhase);
+      this.programmingPhase = newPhase;
+    }
+
+    // 更新当前阶段
+    switch (this.programmingPhase) {
+      case 0:
+        this.updateColorPhase(delta);
+        break;
+      case 1:
+        this.updateShieldPhase(delta);
+        break;
+      case 2:
+        this.updatePhantomPhase(delta);
+        break;
+    }
+  }
+
+  /**
+   * 阶段切换事件
+   */
+  private onProgrammingPhaseChange(oldPhase: number, newPhase: number): void {
+    console.log(`[Boss] Programming Phase: ${oldPhase} → ${newPhase}`);
+
+    // 清理旧阶段
+    this.cleanupPhase(oldPhase);
+
+    // 初始化新阶段
+    this.initializePhase(newPhase);
+
+    // 发送事件给Level2
+    this.scene.events.emit('boss-phase-changed', newPhase);
+    this.emit('phaseChanged', { phase: newPhase });
+  }
+
+  /**
+   * 清理阶段资源
+   */
+  private cleanupPhase(phase: number): void {
+    switch (phase) {
+      case 1:
+        // 清理护盾
+        this.shields.forEach(shield => {
+          if (shield.visual) shield.visual.destroy();
+        });
+        this.shields = [];
+        this.shielded = false;
+        break;
+      case 2:
+        // 清理幻影
+        this.phantoms.forEach(phantom => {
+          if (phantom.visual) phantom.visual.destroy();
+        });
+        this.phantoms = [];
+        break;
+    }
+  }
+
+  /**
+   * 初始化阶段
+   */
+  private initializePhase(phase: number): void {
+    switch (phase) {
+      case 0:
+        // 阶段1：初始化颜色系统
+        this.currentColor = 'red';
+        this.colorSwitchTimer = 0;
+        this.updateBossColor();
+        break;
+      case 1:
+        // 阶段2：创建护盾
+        this.createShields();
+        break;
+      case 2:
+        // 阶段3：创建幻影
+        this.createPhantoms();
+        break;
+    }
+  }
+
+  // ========================================
+  // 阶段1：红蓝颜色挑战
+  // ========================================
+
+  private updateColorPhase(delta: number): void {
+    this.colorSwitchTimer += delta;
+
+    // 每5秒切换颜色
+    if (this.colorSwitchTimer >= 5000) {
+      this.currentColor = this.currentColor === 'red' ? 'blue' : 'red';
+      this.colorSwitchTimer = 0;
+      this.updateBossColor();
+
+      // 通知玩家
+      this.scene.events.emit('boss-color-changed', this.currentColor);
+    }
+  }
+
+  private updateBossColor(): void {
+    const color = this.currentColor === 'red' ? 0xff3333 : 0x3333ff;
+    // 更新视觉颜色（目前只更新透明度，未来可添加颜色滤镜）
+    this.visualBoss.getContainer().setAlpha(1);
+    // TODO: 使用color变量添加实际颜色效果，例如: setTint(color)
+    console.log(`[Boss] Color changed to ${this.currentColor} (${color.toString(16)})`);
+  }
+
+  public getCurrentColor(): 'red' | 'blue' {
+    return this.currentColor;
+  }
+
+  public setColor(color: 'red' | 'blue'): void {
+    this.currentColor = color;
+    this.updateBossColor();
+  }
+
+  /**
+   * 元素属性伤害
+   */
+  public takeElementalDamage(amount: number, element: 'fire' | 'ice'): void {
+    // 阶段1的特殊逻辑
+    if (this.programmingPhase === 0) {
+      const correctElement = (this.currentColor === 'red' && element === 'fire') ||
+                            (this.currentColor === 'blue' && element === 'ice');
+
+      if (correctElement) {
+        // 正确元素，造成伤害
+        this.takeDamage(amount);
+        console.log(`[Boss] Correct element! ${element} vs ${this.currentColor}`);
+      } else {
+        // 错误元素，反弹伤害
+        console.log(`[Boss] Wrong element! ${element} vs ${this.currentColor} - Reflected!`);
+
+        // 发出错误元素事件
+        const expectedElement = this.currentColor === 'red' ? 'fire' : 'ice';
+        this.emit('wrongElement', { expected: expectedElement, got: element });
+
+        // 反弹50%伤害给玩家
+        const level2Scene = this.scene as any;
+        const playerEid = level2Scene.world?.resources?.playerEid;
+        if (playerEid !== undefined) {
+          Health.current[playerEid] = Math.max(0, Health.current[playerEid] - amount * 0.5);
+        }
+
+        // 视觉反馈
+        this.effects.createImpactFlash(this.store.get('position').x, this.store.get('position').y, 0xffaa00);
+        this.scene.events.emit('boss-attack-reflected', element);
+      }
+    } else {
+      // 其他阶段直接造成伤害
+      this.takeDamage(amount);
+    }
+  }
+
+  // ========================================
+  // 阶段2：护盾挑战
+  // ========================================
+
+  private createShields(): void {
+    const pos = this.store.get('position');
+    const shieldCount = 5;
+    const radius = 100;
+
+    for (let i = 0; i < shieldCount; i++) {
+      const angle = (Math.PI * 2 / shieldCount) * i;
+      const x = pos.x + Math.cos(angle) * radius;
+      const y = pos.y + Math.sin(angle) * radius;
+
+      // 创建护盾视觉
+      const shieldVisual = this.scene.add.circle(x, y, 20, 0x00ffff, 0.6);
+      shieldVisual.setStrokeStyle(3, 0x00ffff);
+      shieldVisual.setDepth(999);
+
+      this.shields.push({
+        x, y,
+        destroyed: false,
+        visual: shieldVisual
+      });
+    }
+
+    this.shielded = true;
+    console.log('[Boss] Shields created: 5 shields');
+  }
+
+  private updateShieldPhase(_delta: number): void {
+    if (this.shields.length === 0) return;
+
+    const pos = this.store.get('position');
+    const radius = 100;
+    const rotationSpeed = 0.001; // 旋转速度
+
+    // 更新护盾位置（环绕Boss旋转）
+    this.shields.forEach((shield, i) => {
+      if (!shield.destroyed) {
+        const angle = (Math.PI * 2 / this.shields.length) * i + (Date.now() * rotationSpeed);
+        shield.x = pos.x + Math.cos(angle) * radius;
+        shield.y = pos.y + Math.sin(angle) * radius;
+
+        if (shield.visual) {
+          shield.visual.setPosition(shield.x, shield.y);
+        }
+      }
+    });
+
+    // 检查是否所有护盾被破坏
+    const activeShields = this.shields.filter(s => !s.destroyed);
+    this.shielded = activeShields.length > 0;
+  }
+
+  public getShieldCount(): number {
+    return this.shields.filter(s => !s.destroyed).length;
+  }
+
+  public destroyShield(index: number): void {
+    if (index < 0 || index >= this.shields.length) return;
+
+    const shield = this.shields[index];
+    if (!shield.destroyed) {
+      shield.destroyed = true;
+
+      // 销毁视觉
+      if (shield.visual) {
+        this.scene.tweens.add({
+          targets: shield.visual,
+          alpha: 0,
+          scale: 2,
+          duration: 300,
+          onComplete: () => {
+            shield.visual?.destroy();
+          }
+        });
+      }
+
+      // 特效
+      this.effects.createExplosion(shield.x, shield.y, 30, 0x00ffff);
+
+      console.log(`[Boss] Shield ${index} destroyed. Remaining: ${this.getShieldCount()}`);
+      this.scene.events.emit('boss-shield-destroyed', index, this.getShieldCount());
+    }
+  }
+
+  /**
+   * 重写takeDamage，阶段2时如果有护盾则无敌
+   */
+  takeDamage(amount: number, isCritical: boolean = false): void {
+    // 阶段2护盾保护
+    if (this.programmingPhase === 1 && this.shielded) {
+      console.log('[Boss] Protected by shields!');
+      this.scene.events.emit('boss-shield-blocked');
+      this.emit('shieldBlocked');
+      return;
+    }
+
+    // 原有的takeDamage逻辑
+    const finalAmount = isCritical ? amount * this.config.criticalMultiplier : amount;
+
+    // 尝试触发碎片替身（被动技能）
+    const fragmentDecoy = this.skillManager.getSkill('FragmentDecoy');
+    if (fragmentDecoy && fragmentDecoy.canUse(Date.now())) {
+      console.log('[Boss] 碎片替身触发！');
+
+      const pos = this.store.get('position');
+      const player = this.scene.children.getByName('player') as any;
+
+      if (player) {
+        this.skillManager.executeSkill(
+          fragmentDecoy,
+          pos.x,
+          pos.y,
+          player.x,
+          player.y
+        );
+      }
+
+      return;
+    }
+
+    // 正常受伤
+    this.store.dispatch({ type: 'TAKE_DAMAGE', payload: finalAmount });
+
+    // 受击闪烁
+    this.visualBoss.flash(100);
+
+    this.eventBus.emit({ type: 'damaged', amount: finalAmount, isCritical });
+
+    if (this.store.get('health') === 0) {
+      this.onDeath();
+    }
+  }
+
+  // ========================================
+  // 阶段3：幻影挑战
+  // ========================================
+
+  private createPhantoms(): void {
+    const pos = this.store.get('position');
+    const spacing = 150;
+
+    // 创建3个位置：左、中、右
+    const positions = [
+      { x: pos.x - spacing, y: pos.y, isReal: false },
+      { x: pos.x, y: pos.y, isReal: true }, // 中间是真身
+      { x: pos.x + spacing, y: pos.y, isReal: false }
+    ];
+
+    // 随机打乱
+    for (let i = positions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [positions[i], positions[j]] = [positions[j], positions[i]];
+    }
+
+    positions.forEach((pos) => {
+      // 创建幻影视觉
+      const phantom = this.scene.add.graphics();
+      phantom.lineStyle(2, 0xff00ff, 0.7);
+      phantom.strokeCircle(0, 0, 50);
+      phantom.fillStyle(0xff00ff, pos.isReal ? 0.5 : 0.3);
+      phantom.fillCircle(0, 0, 50);
+      phantom.setPosition(pos.x, pos.y);
+      phantom.setDepth(998);
+
+      this.phantoms.push({
+        x: pos.x,
+        y: pos.y,
+        isReal: pos.isReal,
+        visual: phantom
+      });
+    });
+
+    // 隐藏真实Boss视觉（或降低透明度）
+    this.visualBoss.getContainer().setAlpha(0.3);
+
+    this.phantomSwapTimer = 0;
+    console.log('[Boss] Phantoms created: 3 illusions');
+  }
+
+  private updatePhantomPhase(delta: number): void {
+    if (this.phantoms.length === 0) return;
+
+    this.phantomSwapTimer += delta;
+
+    // 每10秒交换位置
+    if (this.phantomSwapTimer >= 10000) {
+      this.swapPhantoms();
+      this.phantomSwapTimer = 0;
+    }
+
+    // 幻影脉冲动画
+    this.phantoms.forEach((phantom, i) => {
+      if (phantom.visual) {
+        const pulse = Math.sin(Date.now() * 0.003 + i) * 0.1 + 0.9;
+        phantom.visual.setScale(pulse);
+      }
+    });
+  }
+
+  private swapPhantoms(): void {
+    if (this.phantoms.length < 2) return;
+
+    console.log('[Boss] Swapping phantom positions');
+
+    // 随机交换位置
+    for (let i = this.phantoms.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+
+      // 交换坐标
+      const tempX = this.phantoms[i].x;
+      const tempY = this.phantoms[i].y;
+      this.phantoms[i].x = this.phantoms[j].x;
+      this.phantoms[i].y = this.phantoms[j].y;
+      this.phantoms[j].x = tempX;
+      this.phantoms[j].y = tempY;
+
+      // 动画移动视觉
+      if (this.phantoms[i].visual) {
+        this.scene.tweens.add({
+          targets: this.phantoms[i].visual,
+          x: this.phantoms[i].x,
+          y: this.phantoms[i].y,
+          duration: 500,
+          ease: 'Cubic.easeInOut'
+        });
+      }
+      if (this.phantoms[j].visual) {
+        this.scene.tweens.add({
+          targets: this.phantoms[j].visual,
+          x: this.phantoms[j].x,
+          y: this.phantoms[j].y,
+          duration: 500,
+          ease: 'Cubic.easeInOut'
+        });
+      }
+    }
+
+    this.scene.events.emit('boss-phantoms-swapped');
+  }
+
+  public getBossPositions(): Array<{x: number, y: number, isReal: boolean}> {
+    if (this.programmingPhase !== 2 || this.phantoms.length === 0) {
+      // 非幻影阶段，返回真实位置
+      const pos = this.store.get('position');
+      return [{ x: pos.x, y: pos.y, isReal: true }];
+    }
+
+    // 返回所有幻影位置
+    return this.phantoms.map(p => ({
+      x: p.x,
+      y: p.y,
+      isReal: p.isReal
+    }));
+  }
+
   destroy(): void {
     this.visualBoss.destroy();
     this.weapon.destroy();

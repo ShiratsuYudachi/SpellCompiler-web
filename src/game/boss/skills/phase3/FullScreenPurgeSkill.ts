@@ -318,14 +318,11 @@ export class FullScreenPurgeSkill extends BossSkill {
     
     if (hitCount > 0) {
       console.log(`[FullScreenPurge] 命中玩家！爆炸数: ${hitCount}`);
-      
+
       // 每个爆炸造成伤害
       const totalDamage = this.config.damage * hitCount;
-      
-      if (typeof player.takeDamage === 'function') {
-        player.takeDamage(totalDamage);
-      }
-      
+      this.damagePlayer(totalDamage);
+
       // 强烈击退
       const centerX = this.scene.cameras.main.centerX;
       const centerY = this.scene.cameras.main.centerY;

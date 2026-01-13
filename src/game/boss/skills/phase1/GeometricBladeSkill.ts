@@ -72,11 +72,14 @@ export class GeometricBladeSkill extends BossSkill {
       duration: (distance / 200) * 1000,
       onUpdate: () => {
         // 碰撞检测
-        const player = this.scene.children.getByName('player') as any;
-        if (player) {
-          const dist = Phaser.Math.Distance.Between(blade.x, blade.y, player.x, player.y);
+        const level2Scene = this.scene as any;
+        const playerBody = level2Scene.world?.resources?.bodies?.get(
+          level2Scene.world?.resources?.playerEid
+        );
+        if (playerBody) {
+          const dist = Phaser.Math.Distance.Between(blade.x, blade.y, playerBody.x, playerBody.y);
           if (dist < 30) {
-            if (player.takeDamage) player.takeDamage(this.config.damage);
+            this.damagePlayer(this.config.damage, playerBody.x, playerBody.y);
             
             // 爆炸粒子
             for (let i = 0; i < 8; i++) {

@@ -14,6 +14,7 @@ export function createPlayer(
 ) {
 	const body = createRectBody(scene, 'player-rect', 0x4a90e2, 32, 32, x, y, 5)
 	body.setCollideWorldBounds(true)
+	body.setName('player') // 设置name属性，供Boss技能系统识别
 
 	const eid = spawnEntity(world)
 	bodies.set(eid, body)
@@ -29,6 +30,12 @@ export function createPlayer(
 
 	Health.max[eid] = 100
 	Health.current[eid] = 100
+
+	console.log('[createPlayer] Player created with Health:', {
+		eid,
+		maxHP: Health.max[eid],
+		currentHP: Health.current[eid]
+	});
 
 	PlayerControl.moveSpeed[eid] = 220
 

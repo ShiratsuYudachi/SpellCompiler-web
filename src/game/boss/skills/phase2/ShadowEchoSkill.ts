@@ -104,8 +104,8 @@ export class ShadowEchoSkill extends BossSkill {
       player.y
     );
     
-    if (dist < 60 && player.takeDamage) {
-      player.takeDamage(30);
+    if (dist < 60) {
+      this.damagePlayer(30);
     }
     
     this.scene.tweens.add({
@@ -128,8 +128,8 @@ export class ShadowEchoSkill extends BossSkill {
       duration: 800,
       onUpdate: () => {
         const dist = Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y);
-        if (dist < 25 && player.takeDamage) {
-          player.takeDamage(20);
+        if (dist < 25) {
+          this.damagePlayer(20);
           bullet.destroy();
         }
       },

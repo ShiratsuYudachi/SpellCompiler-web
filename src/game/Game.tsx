@@ -29,7 +29,7 @@ import {
 	Level19,
 	Level20,
 } from './scenes/levels/LevelEmpty'
-import { setGameInstance, setEditorContext } from './gameInstance'
+import { setGameInstance } from './gameInstance'
 
 export function Game() {
 	const containerRef = useRef<HTMLDivElement | null>(null)
@@ -102,10 +102,14 @@ export function Game() {
 					// When opening editor, set context to current scene
 					const currentScene = game.scene.getScenes(true).find(s => s.scene.isActive())
 					if (currentScene) {
-						setEditorContext({ sceneKey: currentScene.scene.key })
+						setTimeout(() => {
+							game.events.emit(GameEvents.setEditorContext, { sceneKey: currentScene.scene.key })
+						}, 0)
 					}
 				} else {
-					setEditorContext({ sceneKey: undefined })
+					setTimeout(() => {
+						game.events.emit(GameEvents.setEditorContext, { sceneKey: undefined })
+					}, 0)
 				}
 				return newValue
 			})

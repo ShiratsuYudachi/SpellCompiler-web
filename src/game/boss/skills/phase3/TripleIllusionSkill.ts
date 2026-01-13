@@ -128,8 +128,8 @@ export class TripleIllusionSkill extends BossSkill {
         
         // 检测伤害
         const dist = Phaser.Math.Distance.Between(illusion.x, illusion.y, player.x, player.y);
-        if (dist < 60 && player.takeDamage) {
-          player.takeDamage(40);
+        if (dist < 60) {
+          this.damagePlayer(40);
         }
         
         this.scene.tweens.add({

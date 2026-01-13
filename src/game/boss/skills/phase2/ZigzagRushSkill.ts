@@ -81,9 +81,9 @@ export class ZigzagRushSkill extends BossSkill {
         
         // 检测伤害
         const dist = Phaser.Math.Distance.Between(boss.x, boss.y, player.x, player.y);
-        if (dist < 70 && player.takeDamage) {
-          player.takeDamage(this.config.damage);
-          
+        if (dist < 70) {
+          this.damagePlayer(this.config.damage);
+
           // 击退
           const dx = player.x - boss.x;
           const dy = player.y - boss.y;
