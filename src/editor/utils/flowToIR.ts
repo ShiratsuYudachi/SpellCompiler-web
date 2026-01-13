@@ -4,7 +4,7 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Vector2D } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Vector2D, Lambda } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
@@ -300,19 +300,44 @@ function convertNode(
 							if (!sourceNode) {
 								throw new Error(`Source node ${edge.source} not found`);
 							}
-							args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+							
+							// Special handling for onTrigger's action parameter
+							// If the source is a function call (dynamicFunction), wrap it in a Lambda
+							if (functionName === 'game::onTrigger' && paramName === 'action') {
+								const actionAST = convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
+								// Wrap the action in a Lambda with no parameters
+								args.push({
+									type: 'Lambda',
+									params: [],
+									body: actionAST
+								} as Lambda);
+							} else {
+								args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+							}
 							edgeIndex++;
 						}
 					}
 				});
 			} else {
 				// No parameter modes: use old behavior
-				sortedEdges.forEach(edge => {
+				sortedEdges.forEach((edge, index) => {
 					const sourceNode = allNodes.find(n => n.id === edge.source);
 					if (!sourceNode) {
 						throw new Error(`Source node ${edge.source} not found`);
 					}
-					args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+					
+					// Special handling for onTrigger's action parameter (third parameter, index 2)
+					if (functionName === 'game::onTrigger' && index === 2) {
+						const actionAST = convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
+						// Wrap the action in a Lambda with no parameters
+						args.push({
+							type: 'Lambda',
+							params: [],
+							body: actionAST
+						} as Lambda);
+					} else {
+						args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+					}
 				});
 			}
 

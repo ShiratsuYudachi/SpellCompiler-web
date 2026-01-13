@@ -274,6 +274,14 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 									</div>
 								)}
 
+								{/* Special hint for onTrigger action parameter */}
+								{isOnTrigger && group.originalParam === 'action' && (
+									<div className={`text-xs ${colors.text} opacity-70 mb-1 px-1 py-1 rounded`} style={{ backgroundColor: `${colors.text}15` }}>
+										⚡ <strong>Action:</strong> Connect an action function (e.g., teleportRelative) or a Lambda node<br/>
+										This action will be executed when the trigger fires.
+									</div>
+								)}
+
 								{/* Mode selector if available */}
 								{modeOptions && modeOptions.length > 1 && (
 									<select

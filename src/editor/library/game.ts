@@ -280,7 +280,7 @@ export const gameFunctions: FunctionSpec[] = [
 	},
 	{
 		fullName: 'game::onTrigger',
-		params: { triggerType: 'string', condition: 'value' },
+		params: { triggerType: 'string', condition: 'value', action: 'function' },
 		returns: 'number',
 		getFn: (evaluator) => {
 			const ctx = getRuntimeContext(evaluator)
@@ -288,7 +288,7 @@ export const gameFunctions: FunctionSpec[] = [
 				return () => 1
 			}
 			const { world, casterEid, spell } = ctx
-			return (triggerType: Value, condition: Value) => {
+			return (triggerType: Value, condition: Value, action: Value) => {
 				if (typeof triggerType !== 'string') {
 					throw new Error('onTrigger first argument must be a string (triggerType)')
 				}
@@ -296,6 +296,11 @@ export const gameFunctions: FunctionSpec[] = [
 				const validTypes: TriggerType[] = ['onEnemyNearby', 'onTimeInterval', 'onPlayerHurt', 'onEnemyKilled', 'onPlayerLowHealth']
 				if (!validTypes.includes(triggerType as TriggerType)) {
 					throw new Error(`Invalid triggerType: ${triggerType}.`)
+				}
+
+				// Check if action is a function
+				if (!action || typeof action !== 'object' || (action as any).type !== 'function') {
+					throw new Error('onTrigger third argument must be a function (Lambda). Connect an action like teleportRelative to onTrigger.')
 				}
 
 				const type = triggerType as TriggerType
@@ -318,12 +323,19 @@ export const gameFunctions: FunctionSpec[] = [
 					params.healthThreshold = condition
 				}
 
+				// Create a spell from the action function
+				const actionFn = action as any
+				const actionSpell: CompiledSpell = {
+					ast: actionFn.definition.body,
+					dependencies: spell.dependencies || []
+				}
+
 				const triggerId = world.resources.triggerIdCounter++
 				const trigger: TriggerConfig = {
 					id: triggerId,
 					type,
 					casterEid,
-					spell,
+					spell: actionSpell, // Use the action spell instead of the whole spell
 					params,
 					lastTriggerTime: 0,
 					active: true,
