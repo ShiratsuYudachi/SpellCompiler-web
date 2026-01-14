@@ -54,7 +54,7 @@ export class Level6 extends BaseScene {
 			{ x: 800, y: 200 },
 		]
 
-		spawnPositions.forEach((pos, index) => {
+		spawnPositions.forEach((pos) => {
 			const enemyEid = this.createEnemy(pos.x, pos.y, playerEid)
 			this.enemies.push(enemyEid)
 		})
