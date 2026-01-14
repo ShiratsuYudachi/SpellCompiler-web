@@ -5,8 +5,8 @@ import { Enemy, EnemyAI, Health, Sprite, Velocity } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 
 /**
- * Level 6 - Trigger Mastery（触发器精通）
- * 学习使用 onTrigger 法术来自动响应游戏事件
+ * Level 6 - Trigger Mastery
+ * Learn to use onTrigger spells to automatically respond to game events
  */
 export class Level6 extends BaseScene {
 	private enemies: number[] = []
@@ -29,10 +29,10 @@ export class Level6 extends BaseScene {
 			'- onEnemyKilled(): Auto-trigger when enemy is killed'
 		)
 
-		// 创建几个敌人用于测试
+		// Create a few enemies for testing
 		this.createTestEnemies()
 
-		// 设置相机跟随玩家
+		// Set camera to follow player
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
@@ -40,11 +40,11 @@ export class Level6 extends BaseScene {
 	}
 
 	protected onLevelUpdate(): void {
-		// 可以在这里添加关卡特定的更新逻辑
+		// Add level-specific update logic here
 	}
 
 	/**
-	 * 创建测试敌人
+	 * Create test enemies
 	 */
 	private createTestEnemies(): void {
 		const playerEid = this.world.resources.playerEid
@@ -57,20 +57,11 @@ export class Level6 extends BaseScene {
 		spawnPositions.forEach((pos, index) => {
 			const enemyEid = this.createEnemy(pos.x, pos.y, playerEid)
 			this.enemies.push(enemyEid)
-
-			// 添加标签
-			const labelText = index === 0 ? 'Test Enemy 1' : index === 1 ? 'Test Enemy 2' : 'Test Enemy 3'
-			this.add.text(pos.x, pos.y - 40, labelText, {
-				fontSize: '14px',
-				color: '#ff6666',
-				stroke: '#000000',
-				strokeThickness: 2,
-			}).setOrigin(0.5)
 		})
 	}
 
 	/**
-	 * 创建敌人实体
+	 * Create enemy entity
 	 */
 	private createEnemy(x: number, y: number, targetEid: number): number {
 		const body = createRectBody(this, 'enemy', 0xff4444, 32, 32, x, y, 4)
