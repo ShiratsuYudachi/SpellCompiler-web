@@ -42,9 +42,9 @@ import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
 import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
-import { upsertSpell } from '../utils/spellStorage'
+import { upsertSpell, saveUIState } from '../utils/spellStorage'
 import { registerFunctionSpecs } from '../library/types'
-import { gameFunctions } from '../library/game'
+import { getGameFunctions } from '../library/game'
 
 // Define node types
 const nodeTypes = {
@@ -67,6 +67,9 @@ export type FunctionalEditorProps = {
 	initialSpellId?: string | null
 	initialSpellName?: string
 	onExit?: () => void
+	backButtonText?: string
+	isLibraryMode?: boolean
+	onBeforeExit?: () => void
 }
 
 const defaultNewFlow: FlowSnapshot = {
@@ -103,11 +106,19 @@ function bumpNodeIdCounterFromNodes(nodes: Node[]) {
 }
 
 function EditorContent(props: FunctionalEditorProps) {
-	const isLibraryMode = Boolean(props.onExit)
+	const isLibraryMode = props.isLibraryMode ?? Boolean(props.onExit && props.initialSpellId !== null)
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
 	const [nodes, setNodes, onNodesChange] = useNodesState(startingFlow?.nodes || []);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(startingFlow?.edges || []);
-	const [spellId, setSpellId] = useState<string | null>(props.initialSpellId || null)
+
+	// Always ensure we have a spellId (both Library and Game mode need it for saving)
+	const [spellId, setSpellId] = useState<string | null>(() => {
+		if (props.initialSpellId) return props.initialSpellId
+		// Create a temporary ID immediately for new workflows (both modes)
+		const tempId = `spell-${Date.now()}`
+		console.log('[Editor] Created new spell ID:', tempId)
+		return tempId
+	})
 	const [spellName, setSpellName] = useState<string>(props.initialSpellName || 'New Spell')
 
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
@@ -130,8 +141,14 @@ function EditorContent(props: FunctionalEditorProps) {
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
-	// Subscribe to editor context changes and load workflow
+	// Subscribe to editor context changes and load workflow (ONLY in game mode)
 	useEffect(() => {
+		// Skip this effect entirely in library mode
+		if (isLibraryMode) {
+			console.log('[Editor] Library mode: skipping sceneKey-based workflow loading')
+			return
+		}
+
 		const unsubscribe = subscribeEditorContext((context) => {
 			const newSceneKey = context?.sceneKey;
 
@@ -144,12 +161,14 @@ function EditorContent(props: FunctionalEditorProps) {
 
 			// Load workflow from localStorage or use default
 			const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
+			console.log('[Editor] Game mode: loading workflow for sceneKey:', newSceneKey, 'storageKey:', storageKey)
 
 			try {
 				const saved = localStorage.getItem(storageKey);
 				if (saved) {
 					const flow = JSON.parse(saved);
 					if (flow.nodes && Array.isArray(flow.nodes)) {
+						console.log('[Editor] Game mode: loaded saved workflow, nodes:', flow.nodes.length)
 						setNodes(flow.nodes);
 						// Update nodeIdCounter to avoid conflicts
 						let maxId = nodeIdCounter;
@@ -166,6 +185,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						setEdges(flow.edges);
 					}
 				} else {
+					console.log('[Editor] Game mode: no saved workflow, loading defaults')
 					// No saved workflow, load from scene config
 					const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
 					const templateNodes = config?.initialSpellWorkflow?.nodes || [];
@@ -185,12 +205,62 @@ function EditorContent(props: FunctionalEditorProps) {
 		});
 
 		return unsubscribe;
-	}, [editorContext, workflowLoaded]);
+	}, [editorContext, workflowLoaded, isLibraryMode]);
 
 	// Auto-save workflow to localStorage when nodes or edges change
 	useEffect(() => {
-		if (isLibraryMode) return
-		if (!workflowLoaded || !editorContext?.sceneKey) return;
+		console.log('[Editor] Auto-save check:', {
+			isLibraryMode,
+			spellId,
+			workflowLoaded,
+			sceneKey: editorContext?.sceneKey,
+			nodeCount: nodes.length,
+			edgeCount: edges.length
+		})
+
+		// Library mode: save spell data AND UI state
+		if (isLibraryMode) {
+			if (!spellId) {
+				console.log('[Editor] Library mode: No spellId, skipping save')
+				return // Only save if we have a spell ID
+			}
+
+			const timeoutId = setTimeout(() => {
+				try {
+					console.log('[Editor] Auto-saving spell data for:', spellId, 'name:', spellName)
+
+					// Save both the spell data AND UI state
+					upsertSpell({
+						id: spellId,
+						name: spellName,
+						flow: { nodes, edges }
+					})
+					console.log('[Editor] Spell data auto-saved successfully')
+
+					saveUIState(spellId, {
+						nodes,
+						edges,
+						timestamp: Date.now()
+					})
+					console.log('[Editor] UI state auto-saved successfully')
+				} catch (err) {
+					console.error('[Editor] Failed to auto-save:', err)
+				}
+			}, 1000) // 1 second debounce
+
+			return () => clearTimeout(timeoutId)
+		}
+
+		// Game mode: save to scene-specific storage
+		if (!workflowLoaded) {
+			console.log('[Editor] Game mode: Workflow not loaded yet, skipping save')
+			return
+		}
+
+		if (!editorContext?.sceneKey) {
+			console.log('[Editor] Game mode: No sceneKey, skipping save')
+			return
+		}
 
 		// Debounce save to avoid excessive writes
 		const timeoutId = setTimeout(() => {
@@ -203,18 +273,88 @@ function EditorContent(props: FunctionalEditorProps) {
 					edges,
 					timestamp: Date.now()
 				};
+				console.log('[Editor] Saving workflow for scene:', sceneKey, 'to key:', storageKey)
 				localStorage.setItem(storageKey, JSON.stringify(flow));
+				console.log('[Editor] Workflow saved successfully')
 			} catch (err) {
 				console.error('[Editor] Failed to auto-save workflow:', err);
 			}
 		}, 1000); // 1 second debounce
 
 		return () => clearTimeout(timeoutId);
-	}, [nodes, edges, editorContext, workflowLoaded]);
+	}, [nodes, edges, editorContext, workflowLoaded, isLibraryMode, spellId, spellName]);
 	useEffect(() => {
 		if (!startingFlow) return
 		bumpNodeIdCounterFromNodes(startingFlow.nodes)
 	}, [startingFlow])
+
+	// Force save function (no debounce)
+	const forceSave = useCallback(() => {
+		console.log('[Editor] Force save triggered')
+
+		if (isLibraryMode) {
+			if (!spellId) {
+				console.log('[Editor] Force save: No spellId in library mode')
+				return
+			}
+			try {
+				console.log('[Editor] Force saving spell data for:', spellId, 'name:', spellName)
+
+				// Save both the spell data AND UI state
+				upsertSpell({
+					id: spellId,
+					name: spellName,
+					flow: { nodes, edges }
+				})
+				console.log('[Editor] Spell data saved successfully')
+
+				saveUIState(spellId, {
+					nodes,
+					edges,
+					timestamp: Date.now()
+				})
+				console.log('[Editor] UI state saved successfully')
+			} catch (err) {
+				console.error('[Editor] Force save failed:', err)
+			}
+		} else {
+			// Game mode
+			if (!editorContext?.sceneKey) {
+				console.log('[Editor] Force save: No sceneKey in game mode')
+				return
+			}
+			const sceneKey = editorContext.sceneKey
+			const storageKey = `spell-workflow-${sceneKey || 'default'}`
+			try {
+				const flow = {
+					nodes,
+					edges,
+					timestamp: Date.now()
+				}
+				console.log('[Editor] Force saving workflow for scene:', sceneKey, 'to key:', storageKey)
+				localStorage.setItem(storageKey, JSON.stringify(flow))
+				console.log('[Editor] Force save workflow successful')
+			} catch (err) {
+				console.error('[Editor] Force save workflow failed:', err)
+			}
+		}
+	}, [isLibraryMode, spellId, spellName, nodes, edges, editorContext])
+
+	// Save on component unmount
+	useEffect(() => {
+		return () => {
+			console.log('[Editor] Component unmounting, force saving...')
+			forceSave()
+		}
+	}, [forceSave])
+
+	// Expose force save to parent via onBeforeExit
+	useEffect(() => {
+		if (props.onBeforeExit) {
+			// Call onBeforeExit with force save
+			// This allows parent to trigger save before closing
+		}
+	}, [props.onBeforeExit])
 
 	const onConnect = useCallback(
 		(params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -456,8 +596,14 @@ function EditorContent(props: FunctionalEditorProps) {
 		try {
 			setError(null);
 
+			console.log('[Evaluate] Starting evaluation...')
+			console.log('[Evaluate] Nodes:', nodes)
+			console.log('[Evaluate] Edges:', edges)
+
 			// Convert Flow to IR
 			const { ast, functions } = flowToIR(nodes, edges);
+			console.log('[Evaluate] Generated AST:', JSON.stringify(ast, null, 2))
+			console.log('[Evaluate] Generated functions:', functions)
 			setCurrentAST(ast);
 			setCurrentFunctions(functions);
 
@@ -465,7 +611,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			const evaluator = new Evaluator();
 
 			// Register game functions for preview
-			registerFunctionSpecs(evaluator, gameFunctions)
+			registerFunctionSpecs(evaluator, getGameFunctions())
 
 			// Register user-defined functions
 			functions.forEach(fn => {
@@ -473,9 +619,11 @@ function EditorContent(props: FunctionalEditorProps) {
 			});
 
 			const result = evaluator.evaluate(ast, new Map());
+			console.log('[Evaluate] Result:', result)
 
 			setEvaluationResult(result);
 		} catch (err) {
+			console.error('[Evaluate] Error:', err);
 			setError(err instanceof Error ? err.message : String(err));
 			setEvaluationResult(null);
 			setCurrentAST(null);
@@ -486,40 +634,53 @@ function EditorContent(props: FunctionalEditorProps) {
 	const handleRegisterSpell = () => {
 		try {
 			setError(null)
+			console.log('[RegisterSpell] Starting registration...')
+			console.log('[RegisterSpell] Nodes:', nodes)
+			console.log('[RegisterSpell] Edges:', edges)
+
 			const { ast, functions } = flowToIR(nodes, edges)
+			console.log('[RegisterSpell] Generated AST:', JSON.stringify(ast, null, 2))
+			console.log('[RegisterSpell] Generated functions:', functions)
 			setCurrentAST(ast)
 			setCurrentFunctions(functions)
 
 			// Check if any game functions are used
 			const hasGameFunctions = functions.some(fn => fn.name.startsWith('game::')) ||
 				JSON.stringify(ast).includes('game::')
+			console.log('[RegisterSpell] Has game functions:', hasGameFunctions)
 
 			if (hasGameFunctions) {
 				// Skip evaluation, directly register to game
 				const game = getGameInstance()
+				console.log('[RegisterSpell] Game instance:', game ? 'found' : 'not found')
 				if (!game) {
 					throw new Error('Game is not running')
 				}
 
+				console.log('[RegisterSpell] Emitting registerSpell event with:', { ast, dependencies: functions })
 				game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
 				setEvaluationResult({ cast: true })
 			} else {
 				// Evaluate first, then register
 				const evaluator = new Evaluator()
-				registerFunctionSpecs(evaluator, gameFunctions)
+				registerFunctionSpecs(evaluator, getGameFunctions())
 				functions.forEach(fn => {
 					evaluator.registerFunction(fn)
 				})
 
 				const result = evaluator.evaluate(ast, new Map())
+				console.log('[RegisterSpell] Evaluation result:', result)
 				setEvaluationResult(result)
 
 				const game = getGameInstance()
 				if (game) {
+					console.log('[RegisterSpell] Emitting registerSpell event')
 					game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
 				}
 			}
+			console.log('[RegisterSpell] Registration complete')
 		} catch (err) {
+			console.error('[RegisterSpell] Error:', err)
 			setError(err instanceof Error ? err.message : String(err))
 			setEvaluationResult(null)
 		}
@@ -530,7 +691,19 @@ function EditorContent(props: FunctionalEditorProps) {
 			setError(null)
 			const name = spellName.trim() || 'New Spell'
 			const flow = toObject()
+
+			// Save spell data
 			const nextId = upsertSpell({ id: spellId, name, flow })
+			console.log('[Editor] Saved to library:', nextId, 'name:', name)
+
+			// Save UI state (preserves node positions, zoom, etc.)
+			saveUIState(nextId, {
+				nodes,
+				edges,
+				timestamp: Date.now()
+			})
+			console.log('[Editor] UI state saved for:', nextId)
+
 			setSpellId(nextId)
 			setSpellName(name)
 			setEvaluationResult({ saved: true, id: nextId })
@@ -628,9 +801,10 @@ function EditorContent(props: FunctionalEditorProps) {
 				<Group gap="sm">
 					{props.onExit ? (
 						<Button size="sm" variant="outline" color="gray" onClick={props.onExit}>
-							Back
+							{props.backButtonText || 'Back'}
 						</Button>
 					) : null}
+					{/* Always show Save button and spell name input (both Library and Game mode) */}
 					<TextInput
 						value={spellName}
 						onChange={(e) => setSpellName(e.currentTarget.value)}
@@ -638,7 +812,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						size="sm"
 					/>
 					<Button size="sm" color="blue" onClick={handleSaveToLibrary}>
-						Save
+						Save to Library
 					</Button>
 				</Group>
 				<div className="flex gap-2">

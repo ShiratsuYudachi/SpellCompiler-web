@@ -34,7 +34,8 @@ function getRuntimeContext(evaluator: Evaluator): RuntimeContext | null {
 	return runtimeContextMap.get(evaluator) || null
 }
 
-export const gameFunctions: FunctionSpec[] = [
+export function getGameFunctions(): FunctionSpec[] {
+	return [
 	{
 		fullName: 'game::getPlayer',
 		params: {},
@@ -347,5 +348,6 @@ export const gameFunctions: FunctionSpec[] = [
 		},
 		ui: { displayName: '⚡ onTrigger' },
 	},
-]
+	]
+}
 

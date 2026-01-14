@@ -1,6 +1,6 @@
 import { Evaluator } from '../ast/evaluator'
 import { registerFunctionSpecs } from '../library/types'
-import { gameFunctions } from '../library/game'
+import { getGameFunctions } from '../library/game'
 
 let done = false
 
@@ -9,7 +9,7 @@ export function ensureBuiltinFunctionsRegistered() {
 	done = true
 
 	const evaluator = new Evaluator()
-	registerFunctionSpecs(evaluator, gameFunctions)
+	registerFunctionSpecs(evaluator, getGameFunctions())
 }
 
 

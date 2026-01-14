@@ -71,4 +71,29 @@ export function upsertSpell(params: { id?: string | null; name: string; flow: un
 	return id
 }
 
+// UI State storage for library mode (preserves node positions, zoom, etc.)
+const UI_STATE_KEY_PREFIX = 'spellcompiler:ui-state:'
+
+export type UIState = {
+	nodes: any[]
+	edges: any[]
+	viewport?: { x: number; y: number; zoom: number }
+	timestamp: number
+}
+
+export function saveUIState(spellId: string, state: UIState) {
+	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
+	writeJson(key, state)
+}
+
+export function loadUIState(spellId: string): UIState | null {
+	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
+	return readJson<UIState>(localStorage.getItem(key))
+}
+
+export function deleteUIState(spellId: string) {
+	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
+	localStorage.removeItem(key)
+}
+
 

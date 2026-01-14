@@ -222,6 +222,11 @@ function convertNode(
 			const data = node.data as DynamicFunctionNodeData;
 			const edges = incomingEdges.get(node.id) || [];
 
+			// Compute functionName first (needed for special handling below)
+			const functionName = data.functionName.includes('::')
+				? data.functionName
+				: (data.namespace ? `${data.namespace}::${data.functionName}` : data.functionName);
+
 			// Sort edges by target handle (arg0, arg1, arg2, ...)
 			const sortedEdges = edges
 				.filter(e => e.targetHandle?.startsWith('arg'))
@@ -340,11 +345,6 @@ function convertNode(
 					}
 				});
 			}
-
-			// Check if functionName already includes namespace
-			const functionName = data.functionName.includes('::')
-				? data.functionName
-				: (data.namespace ? `${data.namespace}::${data.functionName}` : data.functionName);
 
 			return {
 				type: 'FunctionCall',
