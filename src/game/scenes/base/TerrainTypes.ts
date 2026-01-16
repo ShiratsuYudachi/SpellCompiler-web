@@ -8,6 +8,9 @@ export enum TerrainType {
 	PLATFORM = 2,  // 平台（可跳上）
 	HAZARD = 3,    // 危险区（扣血）
 	OBJECTIVE = 4, // 目标点（任务点）
+	PRESSURE_PLATE_RED = 5,    // 红色压力板
+	PRESSURE_PLATE_YELLOW = 6, // 黄色压力板
+	SENSOR = 7,    // 感应器
 }
 
 export interface ObjectiveConfig {
@@ -33,4 +36,7 @@ export const TERRAIN_STYLES: Record<TerrainType, TerrainStyle> = {
 	[TerrainType.PLATFORM]: { color: 0x4a7c59, strokeColor: 0x6a9c79, strokeWidth: 2 },
 	[TerrainType.HAZARD]: { color: 0x8b3a3a, alpha: 0.8, strokeColor: 0xff0000, strokeWidth: 2 },
 	[TerrainType.OBJECTIVE]: { color: 0x3a8b3a, alpha: 0.6, strokeColor: 0x00ff00, strokeWidth: 3 },
+	[TerrainType.PRESSURE_PLATE_RED]: { color: 0xcc3333, alpha: 0.9, strokeColor: 0xff0000, strokeWidth: 3 },
+	[TerrainType.PRESSURE_PLATE_YELLOW]: { color: 0xcccc33, alpha: 0.9, strokeColor: 0xffff00, strokeWidth: 3 },
+	[TerrainType.SENSOR]: { color: 0x3366cc, alpha: 0.7, strokeColor: 0x00aaff, strokeWidth: 2 },
 }

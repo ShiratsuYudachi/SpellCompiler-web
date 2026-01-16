@@ -348,6 +348,141 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '⚡ onTrigger' },
 	},
+	{
+		fullName: 'game::getPlayerPlateColor',
+		params: {},
+		returns: 'string',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 'NONE'
+			}
+			const { world } = ctx
+			return () => {
+				return world.resources.currentPlateColor || 'NONE'
+			}
+		},
+		ui: { displayName: '👤 getPlayerPlateColor' },
+	},
+	{
+		fullName: 'game::getFireballPlateColor',
+		params: {},
+		returns: 'string',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 'NONE'
+			}
+			const { world, casterEid } = ctx
+			return () => {
+				// Find the most recent fireball owned by caster
+				let mostRecentEid = -1
+				let mostRecentTime = -1
+
+				for (const eid of query(world, [Fireball, Owner, Lifetime])) {
+					if (Owner.eid[eid] === casterEid) {
+						const bornAt = Lifetime.bornAt[eid]
+						if (bornAt > mostRecentTime) {
+							mostRecentTime = bornAt
+							mostRecentEid = eid
+						}
+					}
+				}
+
+				if (mostRecentEid === -1) {
+					return 'NONE'
+				}
+
+				// Get fireball position and check plate
+				const body = world.resources.bodies.get(mostRecentEid)
+				if (!body) {
+					return 'NONE'
+				}
+
+				// Check which plate the fireball is over
+				for (const plate of world.resources.pressurePlates) {
+					const bounds = plate.rect.getBounds()
+					if (body.x > bounds.left && body.x < bounds.right &&
+						body.y > bounds.top && body.y < bounds.bottom) {
+						return plate.color
+					}
+				}
+				return 'NONE'
+			}
+		},
+		ui: { displayName: '🔥 getFireballPlateColor' },
+	},
+	{
+		fullName: 'game::deflectOnPlate',
+		params: { plateColor: 'string', angle: 'number' },
+		returns: 'boolean',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => true
+			}
+			const { world, casterEid } = ctx
+			return (plateColor: Value, angle: Value) => {
+				if (typeof plateColor !== 'string') {
+					throw new Error('deflectOnPlate requires plateColor to be a string (RED or YELLOW)')
+				}
+				if (typeof angle !== 'number') {
+					throw new Error('deflectOnPlate requires angle to be a number')
+				}
+
+				// Convert color string to number
+				let colorNum = 0
+				if (plateColor === 'RED') colorNum = 1
+				else if (plateColor === 'YELLOW') colorNum = 2
+				else {
+					throw new Error(`Invalid plateColor: ${plateColor}. Use "RED" or "YELLOW"`)
+				}
+
+				// Find the most recent fireball owned by caster
+				let mostRecentEid = -1
+				let mostRecentTime = -1
+
+				for (const eid of query(world, [Fireball, Owner, Lifetime, FireballStats])) {
+					if (Owner.eid[eid] === casterEid) {
+						const bornAt = Lifetime.bornAt[eid]
+						if (bornAt > mostRecentTime) {
+							mostRecentTime = bornAt
+							mostRecentEid = eid
+						}
+					}
+				}
+
+				if (mostRecentEid === -1) {
+					throw new Error('No fireball found to set plate deflection')
+				}
+
+				// Set plate-based deflection parameters
+				FireballStats.deflectOnPlateColor[mostRecentEid] = colorNum
+				FireballStats.deflectOnPlateAngle[mostRecentEid] = angle
+				FireballStats.plateDeflected[mostRecentEid] = 0
+
+				console.log(`[deflectOnPlate] Set fireball to deflect ${angle}° when over ${plateColor} plate`)
+				return true
+			}
+		},
+		ui: { displayName: '🎯 deflectOnPlate' },
+	},
+	{
+		fullName: 'game::getSensorState',
+		params: {},
+		returns: 'boolean',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => true
+			}
+			const { world } = ctx
+			return () => {
+				return world.resources.sensorState ?? true
+			}
+		},
+		ui: { displayName: '📡 getSensorState' },
+	},
 	]
 }
 

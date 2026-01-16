@@ -103,6 +103,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.updateMinimap()
 		this.updateHazards()
 		this.updateObjectives()
+		this.updatePressurePlates()
 		this.onLevelUpdate()
 	}
 
@@ -179,6 +180,15 @@ export abstract class BaseScene extends Phaser.Scene {
 					case TerrainType.OBJECTIVE:
 						this.createObjectiveMarker(posX, posY, size, `obj-${x}-${y}`)
 						break
+					case TerrainType.PRESSURE_PLATE_RED:
+						this.createPressurePlate(posX, posY, size, 'RED')
+						break
+					case TerrainType.PRESSURE_PLATE_YELLOW:
+						this.createPressurePlate(posX, posY, size, 'YELLOW')
+						break
+					case TerrainType.SENSOR:
+						this.createSensor(posX, posY, size)
+						break
 				}
 			})
 		})
@@ -209,6 +219,53 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.objectives.set(id, {
 			sprite: marker,
 			config: { id, description: 'Reach objective', type: 'reach' },
+		})
+	}
+
+	/**
+	 * 创建压力板
+	 */
+	private createPressurePlate(x: number, y: number, size: number, color: 'RED' | 'YELLOW') {
+		// 渲染压力板
+		if (color === 'RED') {
+			this.terrainRenderer.renderPressurePlateRed(x, y, size)
+		} else {
+			this.terrainRenderer.renderPressurePlateYellow(x, y, size)
+		}
+
+		// 创建碰撞检测区域（不可见）
+		const plateHeight = size / 4
+		const rect = this.add.rectangle(x, y, size - 12, plateHeight, 0x000000, 0)
+
+		// 存储压力板信息
+		this.world.resources.pressurePlates.push({
+			x,
+			y,
+			width: size - 12,
+			height: plateHeight,
+			color,
+			rect,
+		})
+	}
+
+	/**
+	 * 创建感应器
+	 */
+	private createSensor(x: number, y: number, size: number) {
+		// 渲染感应器
+		this.terrainRenderer.renderSensor(x, y, size)
+
+		// 创建碰撞检测区域（不可见）
+		const rect = this.add.rectangle(x, y, size / 2 - 8, size - 16, 0x000000, 0)
+
+		// 存储感应器信息
+		this.world.resources.sensors.push({
+			x,
+			y,
+			width: size / 2 - 8,
+			height: size - 16,
+			active: true,
+			rect,
 		})
 	}
 
@@ -287,6 +344,32 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.scene.pause()
 			this.game.events.emit(GameEvents.showVictory, { level: levelNum })
 		}
+	}
+
+	// --- 压力板检测 ---
+	private updatePressurePlates() {
+		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (!playerBody) return
+
+		// 重置压力板状态
+		let currentPlateColor: 'NONE' | 'RED' | 'YELLOW' = 'NONE'
+
+		// 检测玩家是否在压力板上
+		for (const plate of this.world.resources.pressurePlates) {
+			const bounds = plate.rect.getBounds()
+			if (
+				playerBody.x > bounds.left &&
+				playerBody.x < bounds.right &&
+				playerBody.y > bounds.top &&
+				playerBody.y < bounds.bottom
+			) {
+				currentPlateColor = plate.color
+				break
+			}
+		}
+
+		// 更新全局状态
+		this.world.resources.currentPlateColor = currentPlateColor
 	}
 
 	// --- UI 系统 ---

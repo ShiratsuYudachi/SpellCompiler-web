@@ -57,6 +57,10 @@ export function spawnFireball(
 	FireballStats.initialY[eid] = y
 	FireballStats.pendingDeflection[eid] = 0
 	FireballStats.deflectAtTime[eid] = 0
+	// Plate-based deflection
+	FireballStats.deflectOnPlateColor[eid] = 0
+	FireballStats.deflectOnPlateAngle[eid] = 0
+	FireballStats.plateDeflected[eid] = 0
 
 	Lifetime.bornAt[eid] = Date.now()
 	Lifetime.lifetimeMs[eid] = 1500

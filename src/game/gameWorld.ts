@@ -50,6 +50,11 @@ export function createGameWorld(
 		input,
 		triggers,
 		triggerIdCounter: 0,
+		// 压力板和感应器状态
+		currentPlateColor: 'NONE',
+		sensorState: true,
+		pressurePlates: [],
+		sensors: [],
 	}
 
 	return world

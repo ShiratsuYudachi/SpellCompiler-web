@@ -1,5 +1,5 @@
 import { query } from 'bitecs'
-import { Enemy, Health, Sprite } from '../../components'
+import { Health, Sprite } from '../../components'
 import type { GameWorld } from '../../gameWorld'
 import { flashBody } from './flash'
 
@@ -32,9 +32,7 @@ export function areaDamage(
 	damage: number,
 ) {
 	const { x, y } = location
-	const processedEntities = new Set<number>()
 
-	// Check all entities with Sprite and Health components
 	for (const targetEid of query(world, [Sprite, Health])) {
 		if (targetEid === attackerEid) {
 			continue
@@ -53,50 +51,6 @@ export function areaDamage(
 		}
 
 		applyDamage(world, targetEid, damage)
-		processedEntities.add(targetEid)
-	}
-
-	// Explicitly check player entity to ensure it can be damaged
-	// This is a fallback in case the player wasn't caught by the query above
-	const playerEid = world.resources.playerEid
-	if (playerEid !== undefined && playerEid !== attackerEid && !processedEntities.has(playerEid)) {
-		const playerBody = world.resources.bodies.get(playerEid)
-		if (playerBody) {
-			const dx = playerBody.x - x
-			const dy = playerBody.y - y
-			const dist = Math.sqrt(dx * dx + dy * dy)
-			if (dist <= radius) {
-				// Check if player has Health component before applying damage
-				if (Health.current[playerEid] !== undefined) {
-					applyDamage(world, playerEid, damage)
-					processedEntities.add(playerEid)
-				}
-			}
-		}
-	}
-
-	// Explicitly check all enemy entities to ensure they can be damaged
-	// This is a fallback in case enemies weren't caught by the query above
-	for (const enemyEid of query(world, [Enemy, Sprite, Health])) {
-		if (enemyEid === attackerEid || processedEntities.has(enemyEid)) {
-			continue
-		}
-
-		const enemyBody = world.resources.bodies.get(enemyEid)
-		if (!enemyBody) {
-			continue
-		}
-
-		const dx = enemyBody.x - x
-		const dy = enemyBody.y - y
-		const dist = Math.sqrt(dx * dx + dy * dy)
-		if (dist <= radius) {
-			// Check if enemy has Health component before applying damage
-			if (Health.current[enemyEid] !== undefined) {
-				applyDamage(world, enemyEid, damage)
-				processedEntities.add(enemyEid)
-			}
-		}
 	}
 }
 

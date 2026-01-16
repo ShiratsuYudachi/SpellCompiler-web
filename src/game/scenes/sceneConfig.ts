@@ -275,12 +275,99 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// 批量生成 Level 7-20
+	// 批量生成 Level 7-10
 	...Object.fromEntries(
-		Array.from({ length: 14 }, (_, i) => [
+		Array.from({ length: 4 }, (_, i) => [
 			`Level${i + 7}`,
 			{
 				key: `Level${i + 7}`,
+				playerSpawnX: 96,
+				playerSpawnY: 288,
+				mapData: createRoom(15, 9),
+				tileSize: 64,
+				initialSpellWorkflow: {
+					nodes: [
+						{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+					],
+					edges: [],
+				},
+			},
+		])
+	),
+
+	// Level 11 - 折射初探（基础赋值与时空预判）
+	// 地形说明: 0=空地, 1=墙, 5=红色压力板, 6=黄色压力板
+	Level11: {
+		key: 'Level11',
+		playerSpawnX: 150,
+		playerSpawnY: 300,
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+			[1, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+			[1, 0, 6, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
+			{
+				id: 'task1-left',
+				description: 'Task 1: Hit target with 30° deflection (y=30, delay=400ms)',
+				type: 'defeat',
+			},
+			{
+				id: 'task2-right',
+				description: 'Task 2: Hit target with -30° deflection (y=-30, delay=800ms)',
+				type: 'defeat',
+				prerequisite: 'task1-left',
+			},
+			{
+				id: 'task3-cover',
+				description: 'Task 3: Hit target with 15° deflection (y=15, delay=600ms)',
+				type: 'defeat',
+				prerequisite: 'task2-right',
+			},
+		],
+		initialSpellWorkflow: {
+			nodes: [
+				{
+					id: 'output-1',
+					type: 'output',
+					position: { x: 600, y: 250 },
+					data: { label: 'Output' },
+				},
+				{
+					id: 'func-deflect',
+					type: 'dynamicFunction',
+					position: { x: 340, y: 230 },
+					data: {
+						functionName: 'game::deflectAfterTime',
+						displayName: 'deflectAfterTime',
+						namespace: 'game',
+						params: ['angle', 'delayMs'],
+					},
+				},
+				{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 30 } },
+				{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 400 } },
+			],
+			edges: [
+				{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
+				{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+			],
+		},
+	},
+
+	// 批量生成 Level 12-20 (占位)
+	...Object.fromEntries(
+		Array.from({ length: 9 }, (_, i) => [
+			`Level${i + 12}`,
+			{
+				key: `Level${i + 12}`,
 				playerSpawnX: 96,
 				playerSpawnY: 288,
 				mapData: createRoom(15, 9),

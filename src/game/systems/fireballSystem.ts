@@ -4,6 +4,48 @@ import type { GameWorld } from '../gameWorld'
 import { despawnEntity } from '../gameWorld'
 import { applyDamage } from './utils/attack'
 
+// Helper: check which plate color the fireball is over
+function getFireballPlateColor(world: GameWorld, x: number, y: number): number {
+	for (const plate of world.resources.pressurePlates) {
+		const bounds = plate.rect.getBounds()
+		if (x > bounds.left && x < bounds.right && y > bounds.top && y < bounds.bottom) {
+			if (plate.color === 'RED') return 1
+			if (plate.color === 'YELLOW') return 2
+		}
+	}
+	return 0 // NONE
+}
+
+// Helper: apply deflection to fireball
+function applyDeflection(world: GameWorld, eid: number, angle: number) {
+	const body = world.resources.bodies.get(eid)
+	if (!body) return
+
+	// Calculate current direction angle
+	const currentAngle = Math.atan2(Direction.y[eid], Direction.x[eid])
+	// Add deflection angle (convert degrees to radians)
+	const newAngle = currentAngle + (angle * Math.PI / 180)
+
+	// Update direction components
+	Direction.x[eid] = Math.cos(newAngle)
+	Direction.y[eid] = Math.sin(newAngle)
+
+	// Update velocity based on new direction
+	const speed = FireballStats.speed[eid]
+	Velocity.x[eid] = Direction.x[eid] * speed
+	Velocity.y[eid] = Direction.y[eid] * speed
+
+	// Visual feedback: briefly tint the fireball
+	body.setTint(0x00ff00)
+	setTimeout(() => {
+		if (body && body.active) {
+			body.clearTint()
+		}
+	}, 100)
+
+	console.log(`[Fireball] Deflected by ${angle}° at position (${body.x.toFixed(0)}, ${body.y.toFixed(0)})`)
+}
+
 export function fireballSystem(world: GameWorld, _dt: number) {
 	for (const eid of query(world, [Fireball, Sprite, FireballStats, Owner, Lifetime])) {
 		const body = world.resources.bodies.get(eid)
@@ -17,37 +59,27 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 			continue
 		}
 
-		// Deflection system: check if projectile should deflect
+		// Plate-based deflection: check if fireball is over a pressure plate
+		const expectedPlateColor = FireballStats.deflectOnPlateColor[eid]
+		if (expectedPlateColor !== 0 && FireballStats.plateDeflected[eid] === 0) {
+			const currentPlateColor = getFireballPlateColor(world, body.x, body.y)
+			if (currentPlateColor === expectedPlateColor) {
+				const angle = FireballStats.deflectOnPlateAngle[eid]
+				applyDeflection(world, eid, angle)
+				FireballStats.plateDeflected[eid] = 1 // Mark as deflected
+			}
+		}
+
+		// Time-based deflection system: check if projectile should deflect
 		const deflectAngle = FireballStats.pendingDeflection[eid]
 		if (deflectAngle !== 0) {
 			const deflectTime = FireballStats.deflectAtTime[eid]
 			const now = Date.now()
 
 			if (now >= deflectTime) {
-				// Calculate current direction angle
-				const currentAngle = Math.atan2(Direction.y[eid], Direction.x[eid])
-				// Add deflection angle (convert degrees to radians)
-				const newAngle = currentAngle + (deflectAngle * Math.PI / 180)
-
-				// Update direction components
-				Direction.x[eid] = Math.cos(newAngle)
-				Direction.y[eid] = Math.sin(newAngle)
-
-				// Update velocity based on new direction
-				const speed = FireballStats.speed[eid]
-				Velocity.x[eid] = Direction.x[eid] * speed
-				Velocity.y[eid] = Direction.y[eid] * speed
-
+				applyDeflection(world, eid, deflectAngle)
 				// Clear deflection flag
 				FireballStats.pendingDeflection[eid] = 0
-
-				// Visual feedback: briefly tint the fireball
-				body.setTint(0x00ff00)
-				setTimeout(() => {
-					if (body && body.active) {
-						body.clearTint()
-					}
-				}, 100)
 			}
 		}
 
