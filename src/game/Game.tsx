@@ -12,10 +12,11 @@ import { Level2 } from './scenes/levels/Level2'
 import { Level3 } from './scenes/levels/Level3'
 import { Level4 } from './scenes/levels/Level4'
 import { Level6 } from './scenes/levels/Level6'
+import { Level7 } from './scenes/levels/Level7'
+import { Level8 } from './scenes/levels/Level8'
+import { Level11 } from './scenes/levels/Level11'
 import {
 	Level5,
-	Level7,
-	Level8,
 	Level9,
 	Level10,
 	Level12,
@@ -28,7 +29,6 @@ import {
 	Level19,
 	Level20,
 } from './scenes/levels/LevelEmpty'
-import { Level11 } from './scenes/levels/Level11'
 import { setGameInstance, setEditorContext } from './gameInstance'
 
 export function Game() {

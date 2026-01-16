@@ -55,6 +55,8 @@ export function createGameWorld(
 		sensorState: true,
 		pressurePlates: [],
 		sensors: [],
+		// 关卡特定数据
+		levelData: {},
 	}
 
 	return world

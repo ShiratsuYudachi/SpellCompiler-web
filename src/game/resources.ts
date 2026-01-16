@@ -84,5 +84,7 @@ export type GameResources = {
 	sensorState: boolean                 // 感应器状态（true=未被遮挡）
 	pressurePlates: PressurePlateInfo[]  // 所有压力板
 	sensors: SensorInfo[]                // 所有感应器
+	// 关卡特定数据
+	levelData?: Record<string, any>      // 关卡特定的数据存储（如收集的物品等）
 }
 

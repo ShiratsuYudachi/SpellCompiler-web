@@ -83,6 +83,22 @@ const tailImpl = (list: Value) => {
 	return arr.slice(1)
 }
 
+const sortImpl = (list: Value) => {
+	if (!Array.isArray(list)) {
+		throw new Error('sort requires a list')
+	}
+	const arr = list as Value[]
+	// Create a copy and sort it
+	const sorted = [...arr].sort((a, b) => {
+		if (typeof a === 'number' && typeof b === 'number') {
+			return a - b
+		}
+		// For non-numbers, convert to string and compare
+		return String(a).localeCompare(String(b))
+	})
+	return sorted
+}
+
 export const listFunctions: FunctionSpec[] = [
 	{
 		fullName: 'std::list::list',
@@ -204,6 +220,13 @@ export const listFunctions: FunctionSpec[] = [
 		returns: 'list',
 		fn: tailImpl,
 		ui: { displayName: '🐾 rest of list (tail)' },
+	},
+	{
+		fullName: 'std::list::sort',
+		params: { list: 'list' },
+		returns: 'list',
+		fn: sortImpl,
+		ui: { displayName: '🔢 sort list' },
 	},
 ]
 

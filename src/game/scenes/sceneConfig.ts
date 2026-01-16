@@ -12,6 +12,7 @@ export type SceneConfig = {
 		edges: any[]
 	}
 	editorRestrictions?: RegExp
+	allowedNodeTypes?: Array<'literal' | 'triggerType' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction'>
 }
 
 // 快速生成围墙房间
@@ -275,12 +276,85 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// 批量生成 Level 7-10
-	...Object.fromEntries(
-		Array.from({ length: 4 }, (_, i) => [
-			`Level${i + 7}`,
+	// Level 7 - Sorting Challenge（排序挑战）
+	Level7: {
+		key: 'Level7',
+		playerSpawnX: 200,
+		playerSpawnY: 300,
+		mapData: createRoom(15, 9),
+		tileSize: 64,
+		// Allow only sorting-related functions
+		editorRestrictions: /^(game::getCollectedBallWeights|std::list::(list|sort|append|cons|empty|length|nth|head|tail|concat|map|filter|reduce)|std::(logic|cmp|math)::|std::fn::)/,
+		// Only allow necessary node types for sorting
+		allowedNodeTypes: ['literal', 'output', 'dynamicFunction'],
+		objectives: [
 			{
-				key: `Level${i + 7}`,
+				id: 'collect-balls',
+				description: 'Collect all balls (0/5)',
+				type: 'collect',
+			},
+			{
+				id: 'sort-weights',
+				description: 'Sort the collected ball weights in ascending order',
+				type: 'defeat',
+				prerequisite: 'collect-balls',
+			},
+		],
+		// Pre-made spell: getCollectedBallWeights + sort
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 600, y: 250 }, data: { label: 'Output' } },
+				{
+					id: 'func-sort',
+					type: 'dynamicFunction',
+					position: { x: 400, y: 230 },
+					data: {
+						functionName: 'std::list::sort',
+						displayName: 'sort',
+						namespace: 'std::list',
+						params: ['list'],
+					},
+				},
+				{
+					id: 'func-getWeights',
+					type: 'dynamicFunction',
+					position: { x: 200, y: 200 },
+					data: {
+						functionName: 'game::getCollectedBallWeights',
+						displayName: 'getCollectedBallWeights',
+						namespace: 'game',
+						params: [],
+					},
+				},
+			],
+			edges: [
+				{ id: 'e1', source: 'func-sort', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e2', source: 'func-getWeights', target: 'func-sort', targetHandle: 'arg0' },
+			],
+		},
+	},
+
+	// Level 8 - (待实现)
+	Level8: {
+		key: 'Level8',
+		playerSpawnX: 200,
+		playerSpawnY: 300,
+		mapData: createRoom(15, 9),
+		tileSize: 64,
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+			],
+			edges: [],
+		},
+	},
+
+	// Level 9-10 (placeholder)
+	...Object.fromEntries(
+		Array.from({ length: 2 }, (_, i) => [
+			`Level${i + 9}`,
+			{
+				key: `Level${i + 9}`,
 				playerSpawnX: 96,
 				playerSpawnY: 288,
 				mapData: createRoom(15, 9),
