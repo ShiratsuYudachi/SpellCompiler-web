@@ -483,6 +483,48 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '📡 getSensorState' },
 	},
+	{
+		fullName: 'game::getCollectedBallWeights',
+		params: {},
+		returns: 'list',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => []
+			}
+			const { world } = ctx
+			return () => {
+				// Get collected ball weights from level data
+				const levelData = world.resources.levelData
+				if (levelData && levelData.collectedBallWeights) {
+					return levelData.collectedBallWeights as Value[]
+				}
+				return []
+			}
+		},
+		ui: { displayName: '⚽ getCollectedBallWeights' },
+	},
+	{
+		fullName: 'game::getWeight',
+		params: {},
+		returns: 'number',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 0
+			}
+			const { world } = ctx
+			return () => {
+				// Get current ball weight from level data
+				const levelData = world.resources.levelData
+				if (levelData && typeof levelData.currentBallWeight === 'number') {
+					return levelData.currentBallWeight
+				}
+				return 0
+			}
+		},
+		ui: { displayName: '⚖️ getWeight' },
+	},
 	]
 }
 

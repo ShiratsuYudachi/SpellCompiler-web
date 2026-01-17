@@ -34,8 +34,15 @@ export function NodeSelectionMenu({
 	onClose,
 	editorContext
 }: NodeSelectionMenuProps) {
-	const restrictions = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey)?.editorRestrictions : undefined
+	const sceneConfig = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey) : undefined
+	const restrictions = sceneConfig?.editorRestrictions
+	const allowedNodeTypes = sceneConfig?.allowedNodeTypes
 	const tree = getFunctionTreeForMenu(restrictions)
+	
+	// Filter basic nodes based on allowedNodeTypes
+	const filteredBasicNodes = allowedNodeTypes
+		? BASIC_NODES.filter(node => allowedNodeTypes.includes(node.type))
+		: BASIC_NODES
 
 	const toFunctionInfo = (fullName: string, params: string[], displayName: string): FunctionInfo => {
 		const parts = fullName.split('::').filter(Boolean)
@@ -117,7 +124,7 @@ export function NodeSelectionMenu({
 				style={{ maxHeight: '500px', overflowY: 'auto', padding: '8px' }}
 			>
 				<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Basic Nodes</Menu.Label>
-				{BASIC_NODES.map(node => (
+				{filteredBasicNodes.map(node => (
 					<Menu.Item
 						key={node.type}
 						leftSection={node.icon}

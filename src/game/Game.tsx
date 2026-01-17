@@ -12,10 +12,11 @@ import { Level2 } from './scenes/levels/Level2'
 import { Level3 } from './scenes/levels/Level3'
 import { Level4 } from './scenes/levels/Level4'
 import { Level6 } from './scenes/levels/Level6'
+import { Level7 } from './scenes/levels/Level7'
+import { Level8 } from './scenes/levels/Level8'
+import { Level11 } from './scenes/levels/Level11'
 import {
 	Level5,
-	Level7,
-	Level8,
 	Level9,
 	Level10,
 	Level16,
@@ -24,11 +25,14 @@ import {
 	Level19,
 	Level20,
 } from './scenes/levels/LevelEmpty'
+<<<<<<< HEAD
 import { Level11 } from './scenes/levels/Level11'
 import { Level12 } from './scenes/levels/Level12'
 import { Level13 } from './scenes/levels/Level13'
 import { Level14 } from './scenes/levels/Level14'
 import { Level15 } from './scenes/levels/Level15'
+=======
+>>>>>>> 9b516cdbffd26435b17a673ac629f22d7dc15cfa
 import { setGameInstance, setEditorContext } from './gameInstance'
 
 export function Game() {

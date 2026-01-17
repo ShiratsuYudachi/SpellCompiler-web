@@ -12,6 +12,7 @@ export type SceneConfig = {
 		edges: any[]
 	}
 	editorRestrictions?: RegExp
+	allowedNodeTypes?: Array<'literal' | 'triggerType' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction'>
 }
 
 // 快速生成围墙房间
@@ -275,12 +276,129 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// 批量生成 Level 7-10
-	...Object.fromEntries(
-		Array.from({ length: 4 }, (_, i) => [
-			`Level${i + 7}`,
+	// Level 7 - Weight Finding Challenge
+	Level7: {
+		key: 'Level7',
+		playerSpawnX: 200,
+		playerSpawnY: 300,
+		mapData: createRoom(15, 9),
+		tileSize: 64,
+		// Allow only getWeight function and output node
+		editorRestrictions: /^(game::getWeight)$/,
+		// Only allow necessary node types
+		allowedNodeTypes: ['output', 'dynamicFunction'],
+		objectives: [
 			{
-				key: `Level${i + 7}`,
+				id: 'throw-heaviest',
+				description: 'Find the heaviest ball and throw it to the gate',
+				type: 'defeat',
+			},
+		],
+		// Pre-made spell: getWeight + output
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
+				{
+					id: 'func-getWeight',
+					type: 'dynamicFunction',
+					position: { x: 200, y: 200 },
+					data: {
+						functionName: 'game::getWeight',
+						displayName: 'getWeight',
+						namespace: 'game',
+						params: [],
+					},
+				},
+			],
+			edges: [
+				{ id: 'e1', source: 'func-getWeight', target: 'output-1', targetHandle: 'value' },
+			],
+		},
+	},
+
+	// Level 8 - Array and List Operations Challenge
+	Level8: {
+		key: 'Level8',
+		playerSpawnX: 200,
+		playerSpawnY: 300,
+		mapData: createRoom(15, 9),
+		tileSize: 64,
+		// Allow only list-related functions: getCollectedBallWeights, list operations, comparison, and logic
+		editorRestrictions: /^(game::getCollectedBallWeights|std::list::.*|std::cmp::.*|std::logic::.*)$/,
+		// Only allow necessary node types
+		allowedNodeTypes: ['output', 'dynamicFunction', 'literal'],
+		objectives: [
+			{
+				id: 'collect-balls',
+				description: 'Collect at least 3 balls',
+				type: 'collect',
+			},
+			{
+				id: 'verify-count',
+				description: 'Use length() to verify you collected at least 3 balls',
+				type: 'spell',
+				prerequisite: 'collect-balls',
+			},
+			{
+				id: 'throw-heaviest',
+				description: 'Find the heaviest ball using sort() + nth() and throw it to the gate',
+				type: 'defeat',
+				prerequisite: 'verify-count',
+			},
+			{
+				id: 'throw-second-heaviest',
+				description: 'Find the second heaviest ball using sort() + tail() + head() and throw it',
+				type: 'defeat',
+				prerequisite: 'throw-heaviest',
+			},
+			{
+				id: 'throw-heavy-balls',
+				description: 'Use filter() + gt() to find all balls heavier than 20 and throw them',
+				type: 'defeat',
+				prerequisite: 'throw-second-heaviest',
+			},
+		],
+		// Pre-made spell: getCollectedBallWeights -> length -> output
+		// Simple example to get started with list operations
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
+				{
+					id: 'func-getCollectedBallWeights',
+					type: 'dynamicFunction',
+					position: { x: 200, y: 200 },
+					data: {
+						functionName: 'game::getCollectedBallWeights',
+						displayName: 'getCollectedBallWeights',
+						namespace: 'game',
+						params: [],
+					},
+				},
+				{
+					id: 'func-length',
+					type: 'dynamicFunction',
+					position: { x: 300, y: 200 },
+					data: {
+						functionName: 'std::list::length',
+						displayName: 'length',
+						namespace: 'std::list',
+						params: ['list'],
+					},
+				},
+			],
+			edges: [
+				{ id: 'e1', source: 'func-getCollectedBallWeights', target: 'func-length', targetHandle: 'arg0' },
+				{ id: 'e2', source: 'func-length', target: 'output-1', targetHandle: 'value' },
+			],
+		},
+	},
+
+	// Level 9-10 (placeholder)
+	...Object.fromEntries(
+		Array.from({ length: 2 }, (_, i) => [
+			`Level${i + 9}`,
+			{
+				key: `Level${i + 9}`,
 				playerSpawnX: 96,
 				playerSpawnY: 288,
 				mapData: createRoom(15, 9),

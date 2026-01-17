@@ -499,6 +499,15 @@ function EditorContent(props: FunctionalEditorProps) {
 	// Add basic node from menu and connect
 	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
 		if (!menuState) return;
+		
+		// Check if node type is allowed
+		const sceneConfig = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey) : undefined
+		const allowedNodeTypes = sceneConfig?.allowedNodeTypes
+		if (allowedNodeTypes && !allowedNodeTypes.includes(type)) {
+			setError(`Node type "${type}" is not allowed in this level.`)
+			setMenuState(null)
+			return
+		}
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 
