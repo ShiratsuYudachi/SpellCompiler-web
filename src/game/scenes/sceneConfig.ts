@@ -297,39 +297,43 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 
 	// Level 11 - 折射初探（基础赋值与时空预判）
 	// 地形说明: 0=空地, 1=墙, 5=红色压力板, 6=黄色压力板
+	// 封闭实验室：玩家在左侧，三道高墙将目标分隔开
+	// 玩家需要通过计算偏转角度和延迟来击中墙后的目标
 	Level11: {
 		key: 'Level11',
-		playerSpawnX: 150,
-		playerSpawnY: 300,
+		playerSpawnX: 96,
+		playerSpawnY: 288,
 		tileSize: 64,
 		mapData: [
+			// 15列 x 9行 = 960x576
+			// 设计：玩家区(3列) | 第一墙(1列+过道) | 区域1 | 第二墙 | 区域2 | 第三墙 | 区域3
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-			[1, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-			[1, 0, 6, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // 墙上方有过道
+			[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1], // 第一墙有缺口(过道)
+			[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // 玩家水平线
+			[1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], // 第二墙有缺口
+			[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+			[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // 墙下方有过道
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 		],
 		objectives: [
 			{
-				id: 'task1-left',
-				description: 'Task 1: Hit target with 30° deflection (y=30, delay=400ms)',
+				id: 'task1-corridor',
+				description: 'Task 1: Deflect 30° up through corridor (delay=400ms)',
 				type: 'defeat',
 			},
 			{
-				id: 'task2-right',
-				description: 'Task 2: Hit target with -30° deflection (y=-30, delay=800ms)',
+				id: 'task2-deep',
+				description: 'Task 2: Deflect -30° down to deep target (delay=800ms)',
 				type: 'defeat',
-				prerequisite: 'task1-left',
+				prerequisite: 'task1-corridor',
 			},
 			{
 				id: 'task3-cover',
-				description: 'Task 3: Hit target with 15° deflection (y=15, delay=600ms)',
+				description: 'Task 3: Deflect 15° to hit shielded target (delay=600ms)',
 				type: 'defeat',
-				prerequisite: 'task2-right',
+				prerequisite: 'task2-deep',
 			},
 		],
 		initialSpellWorkflow: {
@@ -362,12 +366,229 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// 批量生成 Level 12-20 (占位)
-	...Object.fromEntries(
-		Array.from({ length: 9 }, (_, i) => [
-			`Level${i + 12}`,
+	// Level 12 - 安全分流（If-Else 条件分支）
+	Level12: {
+		key: 'Level12',
+		playerSpawnX: 150,
+		playerSpawnY: 288,
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
 			{
-				key: `Level${i + 12}`,
+				id: 'task1-red',
+				description: 'Task 1: Stand on RED plate, deflect 45° up to hit target',
+				type: 'defeat',
+			},
+			{
+				id: 'task2-yellow',
+				description: 'Task 2: Stand on YELLOW plate, deflect -45° down to hit target',
+				type: 'defeat',
+				prerequisite: 'task1-red',
+			},
+			{
+				id: 'task3-shield',
+				description: 'Task 3: Time your shot when shield is OFF',
+				type: 'defeat',
+				prerequisite: 'task2-yellow',
+			},
+		],
+		initialSpellWorkflow: {
+			nodes: [
+				{
+					id: 'output-1',
+					type: 'output',
+					position: { x: 750, y: 250 },
+					data: { label: 'Output' },
+				},
+				{
+					id: 'func-deflect',
+					type: 'dynamicFunction',
+					position: { x: 500, y: 230 },
+					data: {
+						functionName: 'game::deflectAfterTime',
+						displayName: 'deflectAfterTime',
+						namespace: 'game',
+						params: ['angle', 'delayMs'],
+					},
+				},
+				{
+					id: 'if-node',
+					type: 'if',
+					position: { x: 280, y: 200 },
+					data: { label: 'If' },
+				},
+				{
+					id: 'func-getPlate',
+					type: 'dynamicFunction',
+					position: { x: 50, y: 100 },
+					data: {
+						functionName: 'game::getPlayerPlateColor',
+						displayName: 'getPlayerPlateColor',
+						namespace: 'game',
+						params: [],
+					},
+				},
+				{ id: 'lit-red', type: 'literal', position: { x: 50, y: 180 }, data: { value: 'RED' } },
+				{ id: 'lit-angle-up', type: 'literal', position: { x: 50, y: 260 }, data: { value: 45 } },
+				{ id: 'lit-angle-down', type: 'literal', position: { x: 50, y: 340 }, data: { value: -45 } },
+				{ id: 'lit-delay', type: 'literal', position: { x: 280, y: 350 }, data: { value: 500 } },
+			],
+			edges: [
+				{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e2', source: 'if-node', target: 'func-deflect', targetHandle: 'arg0' },
+				{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+			],
+		},
+	},
+
+	// Level 13 - 多重制导（Else-If 多分支）
+	Level13: {
+		key: 'Level13',
+		playerSpawnX: 150,
+		playerSpawnY: 288,
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
+			{
+				id: 'task1-red-up',
+				description: 'Task 1: RED plate -> deflect UP (60°)',
+				type: 'defeat',
+			},
+			{
+				id: 'task2-yellow-down',
+				description: 'Task 2: YELLOW plate -> deflect DOWN (-60°)',
+				type: 'defeat',
+				prerequisite: 'task1-red-up',
+			},
+			{
+				id: 'task3-none-straight',
+				description: 'Task 3: NO plate -> go STRAIGHT (0°)',
+				type: 'defeat',
+				prerequisite: 'task2-yellow-down',
+			},
+		],
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 700, y: 250 }, data: { label: 'Output' } },
+			],
+			edges: [],
+		},
+	},
+
+	// Level 14 - 精密验证（AND 复合条件）
+	Level14: {
+		key: 'Level14',
+		playerSpawnX: 150,
+		playerSpawnY: 288,
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 5, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 6, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
+			{
+				id: 'task1-red-sensor',
+				description: 'Task 1: RED plate AND sensor ON -> deflect 45°',
+				type: 'defeat',
+			},
+			{
+				id: 'task2-yellow-sensor',
+				description: 'Task 2: YELLOW plate AND sensor OFF -> deflect -45°',
+				type: 'defeat',
+				prerequisite: 'task1-red-sensor',
+			},
+			{
+				id: 'task3-complex',
+				description: 'Task 3: Combined logic with timing',
+				type: 'defeat',
+				prerequisite: 'task2-yellow-sensor',
+			},
+		],
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 700, y: 250 }, data: { label: 'Output' } },
+			],
+			edges: [],
+		},
+	},
+
+	// Level 15 - 时空预判（时序控制）
+	Level15: {
+		key: 'Level15',
+		playerSpawnX: 150,
+		playerSpawnY: 288,
+		tileSize: 64,
+		mapData: [
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		],
+		objectives: [
+			{
+				id: 'task1-timing',
+				description: 'Task 1: Time deflection to pass through rotating gap',
+				type: 'defeat',
+			},
+			{
+				id: 'task2-sequence',
+				description: 'Task 2: Use two deflections in sequence',
+				type: 'defeat',
+				prerequisite: 'task1-timing',
+			},
+			{
+				id: 'task3-master',
+				description: 'Task 3: Combine timing and multiple deflections',
+				type: 'defeat',
+				prerequisite: 'task2-sequence',
+			},
+		],
+		initialSpellWorkflow: {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 700, y: 250 }, data: { label: 'Output' } },
+			],
+			edges: [],
+		},
+	},
+
+	// 批量生成 Level 16-20 (占位)
+	...Object.fromEntries(
+		Array.from({ length: 5 }, (_, i) => [
+			`Level${i + 16}`,
+			{
+				key: `Level${i + 16}`,
 				playerSpawnX: 96,
 				playerSpawnY: 288,
 				mapData: createRoom(15, 9),

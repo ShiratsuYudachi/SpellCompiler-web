@@ -55,6 +55,8 @@ export function createGameWorld(
 		sensorState: true,
 		pressurePlates: [],
 		sensors: [],
+		// 墙体碰撞
+		walls: [],
 	}
 
 	return world

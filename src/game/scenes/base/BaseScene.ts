@@ -199,6 +199,8 @@ export abstract class BaseScene extends Phaser.Scene {
 		const wall = this.add.rectangle(x, y, size - 2, size - 2, 0x3e4a59, 1)
 		this.physics.add.existing(wall, true)
 		this.platforms.add(wall)
+		// 将墙体添加到 world.resources.walls 用于火球碰撞检测
+		this.world.resources.walls.push(wall)
 	}
 
 	private createPlatform(x: number, y: number, size: number) {

@@ -84,5 +84,7 @@ export type GameResources = {
 	sensorState: boolean                 // 感应器状态（true=未被遮挡）
 	pressurePlates: PressurePlateInfo[]  // 所有压力板
 	sensors: SensorInfo[]                // 所有感应器
+	// 墙体碰撞组（用于火球碰撞检测）
+	walls: Phaser.GameObjects.Rectangle[] // 所有墙体
 }
 
