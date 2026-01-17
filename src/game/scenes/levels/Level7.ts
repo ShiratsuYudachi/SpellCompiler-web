@@ -45,6 +45,7 @@ export class Level7 extends BaseScene {
 	private heaviestWeight: number = 0
 	private ballReturning: boolean = false
 	private minimapBallDots: Phaser.GameObjects.Arc[] = []
+	private weightRevealed: boolean = false // Track if weight has been revealed by casting spell
 
 	constructor() {
 		super({ key: 'Level7' })
@@ -77,10 +78,10 @@ export class Level7 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// Create current weight display
-		this.currentWeightText = this.add.text(20, 130, 'Current ball weight: None', {
+		// Create current weight display - hidden until spell is cast
+		this.currentWeightText = this.add.text(20, 130, 'Current ball weight: (Cast getWeight() spell to reveal)', {
 			fontSize: '12px',
-			color: '#00ff00',
+			color: '#888888',
 			backgroundColor: '#333333',
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
@@ -114,12 +115,16 @@ export class Level7 extends BaseScene {
 	}
 
 	protected onLevelUpdate(): void {
-		// Update current weight display
-		const currentWeight = this.world.resources.levelData?.currentBallWeight
-		if (currentWeight !== null && currentWeight !== undefined) {
-			this.currentWeightText.setText(`Current ball weight: ${currentWeight}`)
+		// Update current weight display - only show if weight has been revealed by casting spell
+		if (this.weightRevealed) {
+			const currentWeight = this.world.resources.levelData?.currentBallWeight
+			if (currentWeight !== null && currentWeight !== undefined) {
+				this.currentWeightText.setText(`Current ball weight: ${currentWeight}`)
+			} else {
+				this.currentWeightText.setText('Current ball weight: None')
+			}
 		} else {
-			this.currentWeightText.setText('Current ball weight: None')
+			this.currentWeightText.setText('Current ball weight: (Cast getWeight() spell to reveal)')
 		}
 
 		// Keep collected ball near player (only if not being thrown)
@@ -157,8 +162,14 @@ export class Level7 extends BaseScene {
 				const result = castSpell(this.world, playerEid, spell)
 				console.log('[Level7] Spell cast successfully, result:', result)
 
-				// Display weight result
+				// Display weight result - weight is now revealed
 				if (typeof result === 'number') {
+					// Mark weight as revealed
+					this.weightRevealed = true
+					
+					// Update weight display text color to visible
+					this.currentWeightText.setColor('#00ff00')
+					
 					if (result === this.heaviestWeight && this.currentBall) {
 						this.instructionText.setText(`Ball weight: ${result}. This is the heaviest! Press SPACE to throw it at the gate!`)
 						this.instructionText.setColor('#00ff00')
@@ -497,17 +508,26 @@ export class Level7 extends BaseScene {
 		// If player already has a ball, discard it first
 		if (this.currentBall && this.currentBall !== ball) {
 			this.discardBall(this.currentBall)
+			// Reset weight revealed flag when discarding old ball
+			this.weightRevealed = false
 		}
 
 		// Collect the new ball
 		ball.collected = true
 		this.currentBall = ball
 
-		// Update level data with current ball weight
+		// Update level data with current ball weight (but don't reveal it yet)
 		if (!this.world.resources.levelData) {
 			this.world.resources.levelData = {}
 		}
 		this.world.resources.levelData.currentBallWeight = ball.weight
+		
+		// Reset weight revealed flag - player must cast spell to see weight
+		this.weightRevealed = false
+		
+		// Update weight display text to hidden state
+		this.currentWeightText.setText('Current ball weight: (Cast getWeight() spell to reveal)')
+		this.currentWeightText.setColor('#888888')
 
 		// Show the ball body and position it near player
 		const ballBody = this.world.resources.bodies.get(ball.eid)
@@ -634,10 +654,15 @@ export class Level7 extends BaseScene {
 				ball.collected = false
 				this.currentBall = null
 
-				// Clear current weight
+				// Clear current weight and reset revealed flag
 				if (this.world.resources.levelData) {
 					this.world.resources.levelData.currentBallWeight = null
 				}
+				this.weightRevealed = false
+				
+				// Update weight display text
+				this.currentWeightText.setText('Current ball weight: (Cast getWeight() spell to reveal)')
+				this.currentWeightText.setColor('#888888')
 
 				// Restore visual marker and label
 				ball.marker = this.add.circle(
