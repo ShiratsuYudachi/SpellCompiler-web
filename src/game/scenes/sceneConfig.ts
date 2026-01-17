@@ -276,60 +276,42 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// Level 7 - Sorting Challenge（排序挑战）
+	// Level 7 - Weight Finding Challenge
 	Level7: {
 		key: 'Level7',
 		playerSpawnX: 200,
 		playerSpawnY: 300,
 		mapData: createRoom(15, 9),
 		tileSize: 64,
-		// Allow only sorting-related functions
-		editorRestrictions: /^(game::getCollectedBallWeights|std::list::(list|sort|append|cons|empty|length|nth|head|tail|concat|map|filter|reduce)|std::(logic|cmp|math)::|std::fn::)/,
-		// Only allow necessary node types for sorting
-		allowedNodeTypes: ['literal', 'output', 'dynamicFunction'],
+		// Allow only getWeight function and output node
+		editorRestrictions: /^(game::getWeight)$/,
+		// Only allow necessary node types
+		allowedNodeTypes: ['output', 'dynamicFunction'],
 		objectives: [
 			{
-				id: 'collect-balls',
-				description: 'Collect all balls (0/5)',
-				type: 'collect',
-			},
-			{
-				id: 'sort-weights',
-				description: 'Sort the collected ball weights in ascending order',
+				id: 'throw-heaviest',
+				description: 'Find the heaviest ball and throw it to the gate',
 				type: 'defeat',
-				prerequisite: 'collect-balls',
 			},
 		],
-		// Pre-made spell: getCollectedBallWeights + sort
+		// Pre-made spell: getWeight + output
 		initialSpellWorkflow: {
 			nodes: [
-				{ id: 'output-1', type: 'output', position: { x: 600, y: 250 }, data: { label: 'Output' } },
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
 				{
-					id: 'func-sort',
-					type: 'dynamicFunction',
-					position: { x: 400, y: 230 },
-					data: {
-						functionName: 'std::list::sort',
-						displayName: 'sort',
-						namespace: 'std::list',
-						params: ['list'],
-					},
-				},
-				{
-					id: 'func-getWeights',
+					id: 'func-getWeight',
 					type: 'dynamicFunction',
 					position: { x: 200, y: 200 },
 					data: {
-						functionName: 'game::getCollectedBallWeights',
-						displayName: 'getCollectedBallWeights',
+						functionName: 'game::getWeight',
+						displayName: 'getWeight',
 						namespace: 'game',
 						params: [],
 					},
 				},
 			],
 			edges: [
-				{ id: 'e1', source: 'func-sort', target: 'output-1', targetHandle: 'value' },
-				{ id: 'e2', source: 'func-getWeights', target: 'func-sort', targetHandle: 'arg0' },
+				{ id: 'e1', source: 'func-getWeight', target: 'output-1', targetHandle: 'value' },
 			],
 		},
 	},

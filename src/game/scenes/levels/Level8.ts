@@ -1,7 +1,7 @@
 /**
- * Level 8 - (待实现)
+ * Level 8
  *
- * 此关卡待后续开发
+ * This level is under development.
  */
 
 import { BaseScene } from '../base/BaseScene'

@@ -504,6 +504,27 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '⚽ getCollectedBallWeights' },
 	},
+	{
+		fullName: 'game::getWeight',
+		params: {},
+		returns: 'number',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 0
+			}
+			const { world } = ctx
+			return () => {
+				// Get current ball weight from level data
+				const levelData = world.resources.levelData
+				if (levelData && typeof levelData.currentBallWeight === 'number') {
+					return levelData.currentBallWeight
+				}
+				return 0
+			}
+		},
+		ui: { displayName: '⚖️ getWeight' },
+	},
 	]
 }
 
