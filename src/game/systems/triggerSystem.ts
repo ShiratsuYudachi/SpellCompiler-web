@@ -1,6 +1,6 @@
 import { query } from 'bitecs'
 import type { GameWorld } from '../gameWorld'
-import { Enemy, Health, Sprite } from '../components'
+import { Enemy, Fireball, Health, Lifetime, Owner, Sprite } from '../components'
 import type { TriggerConfig } from '../resources'
 import { castSpell } from '../spells/castSpell'
 
@@ -37,6 +37,10 @@ export function triggerSystem(world: GameWorld) {
 			}
 			case 'onPlayerLowHealth': {
 				shouldTrigger = checkPlayerLowHealth(world, trigger)
+				break
+			}
+			case 'onFireballFlying': {
+				shouldTrigger = checkFireballFlying(world, now, trigger)
 				break
 			}
 		}
@@ -150,4 +154,28 @@ function checkPlayerLowHealth(world: GameWorld, trigger: TriggerConfig): boolean
 
 	const healthRatio = currentHealth / maxHealth
 	return healthRatio <= threshold
+}
+
+/**
+ * 检查是否有火球在飞行中（用于持续检测压力板状态）
+ */
+function checkFireballFlying(world: GameWorld, now: number, trigger: TriggerConfig): boolean {
+	const interval = trigger.params.intervalMs || 50
+
+	// 检查时间间隔
+	if (now - trigger.lastTriggerTime < interval) {
+		return false
+	}
+
+	// 检查是否有属于施法者的火球在飞行
+	for (const eid of query(world, [Fireball, Owner, Lifetime])) {
+		if (Owner.eid[eid] === trigger.casterEid) {
+			const body = world.resources.bodies.get(eid)
+			if (body && body.active) {
+				return true // 有火球在飞行，触发法术执行
+			}
+		}
+	}
+
+	return false
 }

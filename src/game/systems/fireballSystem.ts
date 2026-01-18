@@ -59,6 +59,25 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 			continue
 		}
 
+		// Wall collision detection: destroy fireball if it hits a wall
+		let hitWall = false
+		for (const wall of world.resources.walls) {
+			const bounds = wall.getBounds()
+			if (
+				body.x > bounds.left &&
+				body.x < bounds.right &&
+				body.y > bounds.top &&
+				body.y < bounds.bottom
+			) {
+				hitWall = true
+				break
+			}
+		}
+		if (hitWall) {
+			despawnEntity(world, eid)
+			continue
+		}
+
 		// Plate-based deflection: check if fireball is over a pressure plate
 		const expectedPlateColor = FireballStats.deflectOnPlateColor[eid]
 		if (expectedPlateColor !== 0 && FireballStats.plateDeflected[eid] === 0) {

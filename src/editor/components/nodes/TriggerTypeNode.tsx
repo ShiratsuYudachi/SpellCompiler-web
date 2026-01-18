@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import type { NodeProps } from 'reactflow';
 import type { TriggerTypeNodeData } from '../../types/flowTypes';
 
-type TriggerType = 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth';
+type TriggerType = 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth' | 'onFireballFlying';
 
 const TRIGGER_TYPES: Array<{ value: TriggerType; label: string; description: string }> = [
 	{ value: 'onEnemyNearby', label: 'onEnemyNearby', description: 'Trigger when enemy is nearby' },
@@ -16,6 +16,7 @@ const TRIGGER_TYPES: Array<{ value: TriggerType; label: string; description: str
 	{ value: 'onPlayerHurt', label: 'onPlayerHurt', description: 'Trigger when player takes damage' },
 	{ value: 'onEnemyKilled', label: 'onEnemyKilled', description: 'Trigger when enemy is killed' },
 	{ value: 'onPlayerLowHealth', label: 'onPlayerLowHealth', description: 'Trigger when health is low' },
+	{ value: 'onFireballFlying', label: 'onFireballFlying', description: 'Trigger while fireball is flying (continuous check)' },
 ];
 
 export function TriggerTypeNode({ data, id }: NodeProps) {
