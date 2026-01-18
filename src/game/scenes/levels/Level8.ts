@@ -1,14 +1,15 @@
 /**
- * Level 8 - Array and List Operations Challenge
+ * Level 8 - Manual Sorting with Variable Storage
  *
- * Programming concept: Use getCollectedBallWeights() and list operations to find the heaviest ball
- * Level design: Player collects multiple balls, uses list operations (sort, length, nth) to find the heaviest, and throws it to a gate
+ * Programming concept: Use measureWeight() with comparison operators and temporary storage to manually sort balls
+ * Level design: Player collects balls one at a time, uses slot1/slot2 to store weights, compares and throws in ascending order
  * 
  * Learning objectives:
- * - Understand arrays/lists as collections of multiple data items
- * - Use getCollectedBallWeights() to get a list of all collected ball weights
- * - Use list operations: length(), sort(), nth(), head() to process the list
- * - Find the heaviest ball from a collection and throw it to the gate
+ * - Understand variables/temporary storage (slot1, slot2)
+ * - Use setSlot() and getSlot() to store and retrieve values
+ * - Implement manual sorting algorithm (selection sort)
+ * - Use comparison operators (gt, lt) to make decisions
+ * - Throw balls in correct ascending order to numbered gates
  */
 
 import { addComponent } from 'bitecs'
@@ -17,6 +18,8 @@ import { spawnEntity } from '../../gameWorld'
 import { Sprite } from '../../components'
 import { createCircleBody } from '../../prefabs/createCircleBody'
 import { castSpell } from '../../spells/castSpell'
+import { updateSceneConfig } from '../sceneConfig'
+import { forceRefreshEditor } from '../../gameInstance'
 
 interface Ball {
 	eid: number
@@ -27,70 +30,120 @@ interface Ball {
 	collected: boolean
 	originalX: number
 	originalY: number
-	index: number // Index in collectedBalls array
 }
 
 interface Gate {
 	rect: Phaser.GameObjects.Rectangle
 	label: Phaser.GameObjects.Text
 	activated: boolean
+	expectedOrder: number  // 1, 2, 3, 4
+	receivedWeight: number | null
 }
 
 export class Level8 extends BaseScene {
 	private balls: Ball[] = []
-	private collectedBalls: Ball[] = [] // Can hold multiple balls (different from Level 7)
-	private gate!: Gate
+	private currentBall: Ball | null = null  // Currently collected ball
+	private gates: Gate[] = []  // 4 gates
 	private instructionText!: Phaser.GameObjects.Text
-	private listDisplayText!: Phaser.GameObjects.Text
-	private countText!: Phaser.GameObjects.Text
+	private slotDisplayText!: Phaser.GameObjects.Text  // Display slot1, slot2 values
+	private currentWeightText!: Phaser.GameObjects.Text  // Display current ball weight (hidden until measured)
+	private sortedWeights: number[] = []  // Track thrown balls' weights in order
 	private tutorialPanel!: Phaser.GameObjects.Container
 	private tutorialVisible: boolean = false
+	private tutorialCurrentPage: number = 0
+	private tutorialTotalPages: number = 4
+	private tutorialContentText!: Phaser.GameObjects.Text
+	private tutorialPageIndicator!: Phaser.GameObjects.Text
+	private tutorialPrevBtn!: Phaser.GameObjects.Text
+	private tutorialNextBtn!: Phaser.GameObjects.Text
 	private ballReturning: boolean = false
 	private minimapBallDots: Phaser.GameObjects.Arc[] = []
-	private selectedBallForThrow: Ball | null = null
-	private filteredWeightsForThrow: number[] = []
-	private ballsInFlight: Ball[] = [] // Track balls currently being thrown
 
 	constructor() {
 		super({ key: 'Level8' })
 	}
 
 	protected onLevelCreate(): void {
-		// Initialize collected ball weights list in level data
+		// Reset all state when entering the level (in case scene is reused)
+		this.currentBall = null
+		this.balls = []
+		this.gates = []
+		this.sortedWeights = []
+		this.ballReturning = false
+		this.minimapBallDots = []
+		this.tutorialVisible = false
+		this.tutorialCurrentPage = 0
+
+		// Reset scene config to Level 8 settings (in case coming from another level)
+		updateSceneConfig('Level8', {
+			editorRestrictions: /^(game::measureWeight|game::setSlot|game::getSlot|game::clearSlots|std::cmp::.*|std::logic::.*)$/,
+			allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
+		})
+
+		// Clear any old workflow and restore Level 8 default workflow
+		const storageKey = `spell-workflow-Level8`
+		const defaultWorkflow = {
+			nodes: [
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
+				{
+					id: 'func-measureWeight',
+					type: 'dynamicFunction',
+					position: { x: 200, y: 200 },
+					data: {
+						functionName: 'game::measureWeight',
+						displayName: 'measureWeight',
+						namespace: 'game',
+						params: [],
+					},
+				},
+			],
+			edges: [],
+		}
+		localStorage.setItem(storageKey, JSON.stringify(defaultWorkflow))
+
+		// Force editor to refresh with Level 8 settings
+		this.time.delayedCall(50, () => {
+			forceRefreshEditor()
+		})
+
+		// Initialize level data
 		if (!this.world.resources.levelData) {
 			this.world.resources.levelData = {}
 		}
-		this.world.resources.levelData.collectedBallWeights = []
+		this.world.resources.levelData.currentBallWeight = null
+		this.world.resources.levelData.slot1 = null
+		this.world.resources.levelData.slot2 = null
+		this.world.resources.levelData.collectedBallIndex = 0
 
 		// Show pre-game tutorial first
 		this.showPreGameTutorial()
 
-		// Create balls with different weights
+		// Create balls with predefined weights
 		this.createBalls()
 
-		// Create gate
-		this.createGate()
+		// Create 4 gates vertically arranged on the right
+		this.createGates()
 
 		// Create instruction panel
-		this.instructionText = this.add.text(20, 100, 'Collect multiple balls! Use getCollectedBallWeights() to get the list!', {
+		this.instructionText = this.add.text(20, 100, 'Sort 4 balls by weight! Use measureWeight() with comparison operators to sort.', {
 			fontSize: '14px',
 			color: '#ffff00',
 			backgroundColor: '#333333',
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// Create list display - shows current weights list
-		this.listDisplayText = this.add.text(20, 130, 'Collected weights: []', {
+		// Create slot display
+		this.slotDisplayText = this.add.text(20, 130, 'Slot1: - | Slot2: -', {
 			fontSize: '12px',
-			color: '#888888',
+			color: '#00ffff',
 			backgroundColor: '#333333',
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// Create count display
-		this.countText = this.add.text(20, 160, 'Balls collected: 0', {
+		// Create current weight display - weight is always hidden (like Level7)
+		this.currentWeightText = this.add.text(20, 160, 'Current ball weight: ??? (Use measureWeight() with comparison operators)', {
 			fontSize: '12px',
-			color: '#00ff00',
+			color: '#888888',
 			backgroundColor: '#333333',
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
@@ -111,9 +164,9 @@ export class Level8 extends BaseScene {
 			this.toggleTutorial()
 		})
 
-		// Bind SPACE key to throw selected ball
+		// Bind SPACE key to throw ball
 		this.input.keyboard?.on('keydown-SPACE', () => {
-			this.throwSelectedBall()
+			this.throwBallManually()
 		})
 
 		// Camera settings
@@ -124,57 +177,60 @@ export class Level8 extends BaseScene {
 	}
 
 	protected onLevelUpdate(): void {
-		// Update collected balls display
-		this.updateListDisplay()
+		// Update slot display
+		this.updateSlotDisplay()
 
-		// Keep collected balls near player (arranged in a line)
-		this.updateCollectedBallsPosition()
+		// Update current weight display
+		this.updateCurrentWeightDisplay()
+
+		// Keep current ball near player
+		if (this.currentBall && !this.ballReturning) {
+			const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
+			const ballBody = this.world.resources.bodies.get(this.currentBall.eid)
+			
+			if (playerBody && ballBody) {
+				// Check if ball has velocity (is being thrown)
+				if (ballBody.body && ballBody.body.velocity.x === 0 && ballBody.body.velocity.y === 0) {
+					const dx = playerBody.x - ballBody.x
+					const dy = playerBody.y - ballBody.y
+					const dist = Math.sqrt(dx * dx + dy * dy)
+					
+					if (dist > 50) {
+						ballBody.setPosition(playerBody.x + 30, playerBody.y)
+					}
+				}
+			}
+		}
 
 		// Update minimap with balls
 		this.updateMinimapWithBalls()
 
-		// Check if gate is activated
-		if (this.gate && !this.gate.activated) {
-			this.checkGateActivation()
-		}
-	}
-
-	private updateListDisplay() {
-		const weights = this.collectedBalls.map(b => b.weight)
-		// Hide actual weights - only show count
-		this.listDisplayText.setText(`Collected weights: [???] (Use getCollectedBallWeights() to see)`)
-		this.countText.setText(`Balls collected: ${this.collectedBalls.length}`)
-		
-		// Update level data for getCollectedBallWeights()
-		if (!this.world.resources.levelData) {
-			this.world.resources.levelData = {}
-		}
-		this.world.resources.levelData.collectedBallWeights = weights
-	}
-
-	private updateCollectedBallsPosition() {
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (!playerBody) return
-
-		this.collectedBalls.forEach((ball, index) => {
-			const ballBody = this.world.resources.bodies.get(ball.eid)
-			if (ballBody) {
-				// Arrange balls in a line behind the player
-				const offsetX = -40 - (index * 50)
-				const offsetY = 0
-				const targetX = playerBody.x + offsetX
-				const targetY = playerBody.y + offsetY
-				
-				const dx = targetX - ballBody.x
-				const dy = targetY - ballBody.y
-				const dist = Math.sqrt(dx * dx + dy * dy)
-				
-				if (dist > 10) {
-					ballBody.setPosition(targetX, targetY)
-					ballBody.setVelocity(0, 0)
-				}
+		// Check all gates for ball arrivals
+		this.gates.forEach(gate => {
+			if (!gate.activated) {
+				this.checkGateActivation(gate)
 			}
 		})
+	}
+
+	private updateSlotDisplay() {
+		const levelData = this.world.resources.levelData
+		if (!levelData) return
+
+		const slot1 = typeof levelData.slot1 === 'number' ? levelData.slot1 : '-'
+		const slot2 = typeof levelData.slot2 === 'number' ? levelData.slot2 : '-'
+		this.slotDisplayText.setText(`Slot1: ${slot1} | Slot2: ${slot2}`)
+	}
+
+	private updateCurrentWeightDisplay() {
+		// Weight is always hidden - never show the actual number (like Level7)
+		if (this.currentBall) {
+			this.currentWeightText.setText(`Current ball weight: ??? (Use comparison operators to sort)`)
+			this.currentWeightText.setColor('#888888')
+		} else {
+			this.currentWeightText.setText(`Current ball weight: (No ball collected)`)
+			this.currentWeightText.setColor('#888888')
+		}
 	}
 
 	private castSpell() {
@@ -182,31 +238,42 @@ export class Level8 extends BaseScene {
 		const spell = this.world.resources.spellByEid.get(playerEid)
 		if (spell) {
 			try {
+				// Anti-cheat detection: check if measureWeight() is directly connected to output
+				const isDirectMeasureWeight = this.isDirectMeasureWeightConnection(spell.ast)
+				if (isDirectMeasureWeight) {
+					this.instructionText.setText('ERROR: measureWeight() cannot be directly connected to Output! You must use comparison or storage.')
+					this.instructionText.setColor('#ff0000')
+					this.time.delayedCall(3000, () => {
+						this.instructionText.setText('Use measureWeight() with setSlot() or comparison operators!')
+						this.instructionText.setColor('#ffff00')
+					})
+					return
+				}
+
 				const result = castSpell(this.world, playerEid, spell)
 				console.log('[Level8] Spell cast successfully, result:', result)
 
-				// Task 2: Verify count using length()
-				this.checkTask2VerifyCount(result)
-
-				// Display result
-				if (Array.isArray(result)) {
-					// List result (could be filtered list for Task 5)
-					this.instructionText.setText(`List result: [${result.join(', ')}]`)
+				// Don't show the actual weight value - measureWeight() is hidden like in Level7
+				// Only show feedback for comparison results or successful operations
+				if (typeof result === 'boolean') {
+					// Comparison result - this is useful feedback
+					this.instructionText.setText(`Comparison result: ${result}. Press SPACE to throw ball.`)
 					this.instructionText.setColor('#00ff00')
-					
-					// Task 5: Check if this is a filtered list for throwing heavy balls
-					this.checkTask5FilteredList(result)
-				} else if (typeof result === 'number') {
-					// Number result (could be length, heaviest weight, second heaviest, etc.)
-					this.instructionText.setText(`Result: ${result}`)
-					this.instructionText.setColor('#00ff00')
-					
-					// Task 3 & 4: Check if this is a target weight for throwing
-					this.checkTask3And4TargetWeight(result)
 				} else {
-					this.instructionText.setText(`Result: ${JSON.stringify(result)}`)
+					// For other results (setSlot, getSlot, etc.), don't reveal the weight
+					// Just confirm the spell was cast
+					this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your sorting logic.`)
 					this.instructionText.setColor('#00ff00')
 				}
+
+				this.time.delayedCall(2000, () => {
+					if (this.currentBall) {
+						this.instructionText.setText('Press SPACE to throw ball to nearest gate.')
+					} else {
+						this.instructionText.setText('Collect a ball and continue sorting!')
+					}
+					this.instructionText.setColor('#ffff00')
+				})
 			} catch (err) {
 				console.error('[Level8] Spell error:', err)
 				this.instructionText.setText(`Error: ${err instanceof Error ? err.message : String(err)}`)
@@ -222,71 +289,30 @@ export class Level8 extends BaseScene {
 		}
 	}
 
-	private checkTask2VerifyCount(result: any) {
-		// Task 2: Verify count - result should be a number >= 3
-		const task2 = this.allObjectives.find(obj => obj.id === 'verify-count')
-		if (task2 && !task2.completed && typeof result === 'number' && result >= 3) {
-			this.completeObjectiveById('verify-count')
-			this.instructionText.setText(`✓ Count verified: ${result} balls collected!`)
-			this.instructionText.setColor('#00ff00')
-		}
-	}
-
-	private checkTask3And4TargetWeight(result: any) {
-		// Task 3: Throw heaviest ball
-		const task3 = this.allObjectives.find(obj => obj.id === 'throw-heaviest')
-		if (task3 && !task3.completed && typeof result === 'number') {
-			// Check if this is the heaviest weight
-			const sortedWeights = [...this.collectedBalls.map(b => b.weight)].sort((a, b) => a - b)
-			const heaviestWeight = sortedWeights[sortedWeights.length - 1]
-			if (result === heaviestWeight) {
-				// Player found the heaviest weight, prompt to throw
-				this.instructionText.setText(`Found heaviest weight: ${result}. Press SPACE to throw it!`)
-				this.instructionText.setColor('#ffff00')
-				this.selectedBallForThrow = this.collectedBalls.find(b => b.weight === result) || null
-			}
-		}
-
-		// Task 4: Throw second heaviest ball
-		const task4 = this.allObjectives.find(obj => obj.id === 'throw-second-heaviest')
-		if (task4 && !task4.completed && typeof result === 'number') {
-			// Check if this is the second heaviest weight
-			const sortedWeights = [...this.collectedBalls.map(b => b.weight)].sort((a, b) => a - b)
-			const secondHeaviestWeight = sortedWeights.length >= 2 ? sortedWeights[sortedWeights.length - 2] : null
-			if (secondHeaviestWeight !== null && result === secondHeaviestWeight) {
-				// Player found the second heaviest weight, prompt to throw
-				this.instructionText.setText(`Found second heaviest weight: ${result}. Press SPACE to throw it!`)
-				this.instructionText.setColor('#ffff00')
-				this.selectedBallForThrow = this.collectedBalls.find(b => b.weight === result) || null
-			}
-		}
-	}
-
-	private checkTask5FilteredList(result: any) {
-		// Task 5: Throw all balls heavier than 20
-		const task5 = this.allObjectives.find(obj => obj.id === 'throw-heavy-balls')
-		if (task5 && !task5.completed && Array.isArray(result)) {
-			// Check if this is a filtered list of weights > 20
-			const allWeights = this.collectedBalls.map(b => b.weight)
-			const expectedFiltered = allWeights.filter(w => w > 20).sort((a, b) => a - b)
-			const resultSorted = [...result].sort((a, b) => (a as number) - (b as number))
+	/**
+	 * Check if the spell AST is just a direct call to measureWeight()
+	 * This is to prevent players from seeing the weight value directly
+	 */
+	private isDirectMeasureWeightConnection(ast: any): boolean {
+		// Check if the root node is a FunctionCall to measureWeight
+		if (ast.type === 'FunctionCall') {
+			// Check if function is measureWeight (could be string or Identifier)
+			const funcName = typeof ast.function === 'string' 
+				? ast.function 
+				: (ast.function?.name || '')
 			
-			// Check if result matches expected filtered list
-			if (expectedFiltered.length > 0 && 
-				resultSorted.length === expectedFiltered.length &&
-				resultSorted.every((w, i) => w === expectedFiltered[i])) {
-				// Player found the filtered list, prompt to throw
-				this.instructionText.setText(`Found ${result.length} heavy ball(s) (>20). Press SPACE to throw them!`)
-				this.instructionText.setColor('#ffff00')
-				// Store filtered weights for throwing
-				this.filteredWeightsForThrow = result as number[]
+			if (funcName === 'game::measureWeight' || funcName === 'measureWeight') {
+				console.log('[Level8] Detected direct measureWeight() connection')
+				return true
 			}
 		}
+		
+		return false
 	}
 
-	private throwSelectedBall() {
-		if (this.collectedBalls.length === 0) {
-			this.instructionText.setText('No balls collected! Collect some balls first.')
+	private throwBallManually() {
+		if (!this.currentBall) {
+			this.instructionText.setText('No ball collected! Collect a ball first.')
 			this.instructionText.setColor('#ffaa00')
 			this.time.delayedCall(2000, () => {
 				this.instructionText.setColor('#ffff00')
@@ -294,72 +320,41 @@ export class Level8 extends BaseScene {
 			return
 		}
 
-		// Task 5: Throw multiple filtered balls
-		if (this.filteredWeightsForThrow.length > 0) {
-			this.throwBallsByFilter(this.filteredWeightsForThrow)
-			this.filteredWeightsForThrow = []
-			return
+		// Find nearest gate
+		const ballBody = this.world.resources.bodies.get(this.currentBall.eid)
+		if (!ballBody) return
+
+		let nearestGate: Gate | undefined = undefined
+		let minDist = Infinity
+
+		for (const gate of this.gates) {
+			if (!gate.activated) {
+				const dx = gate.rect.x - ballBody.x
+				const dy = gate.rect.y - ballBody.y
+				const dist = Math.sqrt(dx * dx + dy * dy)
+				if (dist < minDist) {
+					minDist = dist
+					nearestGate = gate
+				}
+			}
 		}
 
-		// Task 3 & 4: Throw single ball by weight
-		if (this.selectedBallForThrow) {
-			this.throwBallToGate(this.selectedBallForThrow)
-			this.ballsInFlight.push(this.selectedBallForThrow)
-			this.instructionText.setText(`Throwing ball to gate...`)
+		if (nearestGate) {
+			this.throwBallToGate(this.currentBall, nearestGate)
+			this.instructionText.setText(`Throwing ball to Gate ${nearestGate.expectedOrder}...`)
 			this.instructionText.setColor('#ffff00')
-			this.selectedBallForThrow = null
-			return
+		} else {
+			this.instructionText.setText('No available gates!')
+			this.instructionText.setColor('#ffaa00')
 		}
-
-		// Fallback: Find the heaviest ball (for backward compatibility)
-		const heaviestBall = this.collectedBalls.reduce((max, ball) => 
-			ball.weight > max.weight ? ball : max
-		)
-
-		// Select it for throwing
-		this.selectedBallForThrow = heaviestBall
-		this.throwBallToGate(heaviestBall)
-		this.ballsInFlight.push(heaviestBall)
-		this.instructionText.setText(`Throwing ball to gate...`)
-		this.instructionText.setColor('#ffff00')
 	}
 
-	private throwBallsByFilter(filteredWeights: number[]): void {
-		if (filteredWeights.length === 0) {
-			this.instructionText.setText('No balls match the filter!')
-			this.instructionText.setColor('#ffaa00')
-			return
-		}
-
-		// Find all balls matching the filtered weights
-		const ballsToThrow = this.collectedBalls.filter(b => filteredWeights.includes(b.weight))
-		
-		if (ballsToThrow.length === 0) {
-			this.instructionText.setText('No balls match the filtered weights!')
-			this.instructionText.setColor('#ffaa00')
-			return
-		}
-
-		// Throw all matching balls with slight delays
-		ballsToThrow.forEach((ball, index) => {
-			this.time.delayedCall(index * 200, () => {
-				this.throwBallToGate(ball)
-				this.ballsInFlight.push(ball)
-			})
-		})
-
-		this.instructionText.setText(`Throwing ${ballsToThrow.length} heavy ball(s) to gate...`)
-		this.instructionText.setColor('#ffff00')
-	}
-
-	private throwBallToGate(ball: Ball) {
-		if (!ball || !this.gate) return
-
+	private throwBallToGate(ball: Ball, gate: Gate) {
 		const ballBody = this.world.resources.bodies.get(ball.eid)
 		if (!ballBody) return
 
-		const gateX = this.gate.rect.x
-		const gateY = this.gate.rect.y
+		const gateX = gate.rect.x
+		const gateY = gate.rect.y
 
 		// Calculate direction to gate
 		const dx = gateX - ballBody.x
@@ -371,265 +366,191 @@ export class Level8 extends BaseScene {
 		ballBody.setVelocity((dx / dist) * speed, (dy / dist) * speed)
 	}
 
-	private createTutorialPanel() {
-		const panelWidth = 500
-		const panelHeight = 450
-		const panelX = 480
-		const panelY = 270
+	private checkGateActivation(gate: Gate) {
+		if (!this.currentBall || this.ballReturning) return
 
-		// Create background
-		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.95)
-		bg.setStrokeStyle(3, 0xffffff)
-		bg.setScrollFactor(0)
-		bg.setDepth(2000)
+		const ballBody = this.world.resources.bodies.get(this.currentBall.eid)
+		if (!ballBody) return
 
-		// Create title
-		const title = this.add.text(panelX, panelY - 200, 'Arrays and Lists Tutorial', {
-			fontSize: '20px',
-			color: '#ffff00',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		const gateX = gate.rect.x
+		const gateY = gate.rect.y
 
-		// Create content
-		const content = [
-			'📚 WHAT IS AN ARRAY/LIST?',
-			'',
-			'An array (or list) is a collection of multiple data items.',
-			'Think of it like a shopping list or a row of boxes.',
-			'',
-			'Example: [15, 8, 23, 5, 31]',
-			'  • This is a list of 5 numbers (ball weights)',
-			'  • Each number is an element in the list',
-			'  • Elements are ordered (first, second, third...)',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'🔧 LIST OPERATIONS',
-			'',
-			'length(list) - Get the number of elements',
-			'  Example: length([15, 8, 23]) = 3',
-			'',
-			'sort(list) - Sort elements (smallest to largest)',
-			'  Example: sort([15, 8, 23]) = [8, 15, 23]',
-			'',
-			'nth(list, index) - Get element at position',
-			'  Example: nth([8, 15, 23], 0) = 8 (first element)',
-			'  Example: nth([8, 15, 23], 2) = 23 (last element)',
-			'',
-			'head(list) - Get first element',
-			'  Example: head([8, 15, 23]) = 8',
-			'',
-			'tail(list) - Get all elements except first',
-			'  Example: tail([8, 15, 23]) = [15, 23]',
-			'  Use: tail() then head() to get second element!',
-			'',
-			'filter(fn, list) - Keep only elements that pass test',
-			'  Example: filter(gt(20), [15, 8, 23, 5, 31])',
-			'  Returns: [23, 31] (only weights > 20)',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'🔍 COMPARISON FUNCTIONS',
-			'',
-			'gt(a, b) - Greater than: returns true if a > b',
-			'  Example: gt(23, 20) = true',
-			'',
-			'lt(a, b) - Less than: returns true if a < b',
-			'',
-			'Use with filter to find specific elements!',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'In this level:',
-			'  • Task 1: Collect at least 3 balls',
-			'  • Task 2: Use length() to verify count',
-			'  • Task 3: Use sort() + nth() to find heaviest',
-			'  • Task 4: Use sort() + tail() + head() for second',
-			'  • Task 5: Use filter() + gt() to find balls > 20',
-		]
+		const dx = ballBody.x - gateX
+		const dy = ballBody.y - gateY
+		const dist = Math.sqrt(dx * dx + dy * dy)
 
-		const contentText = this.add.text(panelX, panelY - 150, content, {
-			fontSize: '12px',
-			color: '#ffffff',
-			align: 'left',
-			lineSpacing: 4,
-			wordWrap: { width: panelWidth - 40 },
-		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(2001)
+		// Check if ball reached the gate
+		if (dist < 60) {
+			ballBody.setVelocity(0, 0)
 
-		// Create close button
-		const closeBtn = this.add.text(panelX + panelWidth / 2 - 20, panelY - panelHeight / 2 + 20, '✕', {
-			fontSize: '24px',
-			color: '#ff6666',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
-		closeBtn.setInteractive({ useHandCursor: true })
-		closeBtn.on('pointerdown', () => {
-			this.toggleTutorial()
-		})
-
-		// Create container
-		this.tutorialPanel = this.add.container(0, 0, [bg, title, contentText, closeBtn])
-		this.tutorialPanel.setVisible(false)
-		this.tutorialPanel.setScrollFactor(0)
-	}
-
-	private showPreGameTutorial() {
-		const panelWidth = 600
-		const panelHeight = 500
-		const panelX = 480
-		const panelY = 270
-
-		// Create background overlay
-		const overlay = this.add.rectangle(panelX, panelY, 960, 540, 0x000000, 0.85)
-		overlay.setScrollFactor(0).setDepth(3000)
-
-		// Create background panel
-		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.98)
-		bg.setStrokeStyle(4, 0x4a90e2)
-		bg.setScrollFactor(0).setDepth(3001)
-
-		// Create title
-		const title = this.add.text(panelX, panelY - 220, '📚 Arrays and Lists Tutorial', {
-			fontSize: '24px',
-			color: '#ffff00',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(3002)
-
-		// Create content
-		const content = [
-			'Welcome to Level 8! In this level, you\'ll learn about arrays and lists.',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'📦 WHAT IS AN ARRAY/LIST?',
-			'',
-			'An array (also called a list) is a collection of multiple data items.',
-			'Think of it like:',
-			'  • A shopping list: [milk, bread, eggs]',
-			'  • A row of numbered boxes: [box1, box2, box3]',
-			'  • A list of numbers: [15, 8, 23, 5, 31]',
-			'',
-			'In Level 7, you worked with ONE ball at a time.',
-			'In Level 8, you can collect MULTIPLE balls and work with them as a list!',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'🔧 LIST OPERATIONS',
-			'',
-			'getCollectedBallWeights() - Get list of all collected ball weights',
-			'  Returns: [15, 8, 23] (example)',
-			'',
-			'length(list) - Count how many items in the list',
-			'  Example: length([15, 8, 23]) = 3',
-			'',
-			'sort(list) - Sort from smallest to largest',
-			'  Example: sort([15, 8, 23]) = [8, 15, 23]',
-			'',
-			'nth(list, index) - Get item at position (0 = first, 1 = second...)',
-			'  Example: nth([8, 15, 23], 2) = 23 (third item = heaviest)',
-			'',
-			'head(list) - Get first item (smallest after sort)',
-			'  Example: head([8, 15, 23]) = 8',
-			'',
-			'To find heaviest: sort first, then use nth(sorted, length-1)',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'🔍 MORE LIST OPERATIONS',
-			'',
-			'tail(list) - Get all elements except first',
-			'  Example: tail([8, 15, 23]) = [15, 23]',
-			'  Use: tail() then head() to get second element!',
-			'',
-			'filter(fn, list) - Keep only elements that pass test',
-			'  Requires a function that returns true/false',
-			'  Example: filter(gt(20), [15, 8, 23, 5, 31])',
-			'  Returns: [23, 31] (only weights > 20)',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'YOUR MISSION:',
-			'Task 1: Collect at least 3 balls',
-			'Task 2: Use length() to verify count >= 3',
-			'Task 3: Use sort() + nth() to find heaviest ball',
-			'Task 4: Use sort() + tail() + head() for second heaviest',
-			'Task 5: Use filter() + gt() to find all balls > 20',
-		]
-
-		const contentText = this.add.text(panelX, panelY - 180, content, {
-			fontSize: '13px',
-			color: '#ffffff',
-			align: 'left',
-			lineSpacing: 5,
-			wordWrap: { width: panelWidth - 60 },
-		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(3002)
-
-		// Create continue button
-		const continueBtn = this.add.rectangle(panelX, panelY + 200, 200, 50, 0x4a90e2, 1)
-		continueBtn.setStrokeStyle(2, 0xffffff)
-		continueBtn.setScrollFactor(0).setDepth(3002)
-		continueBtn.setInteractive({ useHandCursor: true })
-
-		const continueText = this.add.text(panelX, panelY + 200, 'Continue to Game', {
-			fontSize: '18px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(3003)
-
-		// Button hover effect
-		continueBtn.on('pointerover', () => {
-			continueBtn.setFillStyle(0x5aa0f2)
-		})
-		continueBtn.on('pointerout', () => {
-			continueBtn.setFillStyle(0x4a90e2)
-		})
-
-		// Button click handler
-		continueBtn.on('pointerdown', () => {
-			overlay.destroy()
-			bg.destroy()
-			title.destroy()
-			contentText.destroy()
-			continueBtn.destroy()
-			continueText.destroy()
-
-			// Show game instructions
-			this.showInstruction(
-				'【Level 8: Array and List Operations】\n\n' +
-				'GOAL: Complete 5 tasks using different list operations!\n\n' +
-				'TASK 1: Collect at least 3 balls\n' +
-				'TASK 2: Use length() to verify you collected >= 3 balls\n' +
-				'TASK 3: Use sort() + nth() to find the heaviest ball and throw it\n' +
-				'TASK 4: Use sort() + tail() + head() to find the second heaviest and throw it\n' +
-				'TASK 5: Use filter() + gt() to find all balls > 20 and throw them\n\n' +
-				'CONTROLS:\n' +
-				'- TAB: Open editor\n' +
-				'- 1: Cast spell\n' +
-				'- SPACE: Throw selected ball(s)\n' +
-				'- T: Toggle tutorial\n\n' +
-				'NOTE: Weights are hidden! Use getCollectedBallWeights() to see them.\n' +
-				'Only list-related functions are allowed (no math functions).'
-			)
-		})
-	}
-
-	private toggleTutorial() {
-		this.tutorialVisible = !this.tutorialVisible
-		this.tutorialPanel.setVisible(this.tutorialVisible)
-		
-		if (this.tutorialVisible) {
-			this.instructionText.setText('Tutorial opened! Press T again to close.')
-		} else {
-			this.instructionText.setText('Tutorial closed. Press T to open again.')
-		}
-		this.time.delayedCall(2000, () => {
-			if (this.collectedBalls.length > 0) {
-				this.instructionText.setText(`Collected ${this.collectedBalls.length} balls! Use getCollectedBallWeights() to get the list.`)
+			// Verify if this ball is thrown in correct order
+			const ballWeight = this.currentBall.weight
+			
+			// Get all ball weights and sort them
+			const allWeights = this.balls.map(b => b.weight).sort((a, b) => a - b)
+			
+			// The expected weight for this gate is the (sortedWeights.length + 1)-th smallest
+			const expectedWeight = allWeights[this.sortedWeights.length]
+			
+			if (ballWeight === expectedWeight) {
+				// Correct! This is the next lightest ball
+				gate.activated = true
+				gate.receivedWeight = ballWeight
+				this.sortedWeights.push(ballWeight)
+				
+				// Destroy the ball body
+				ballBody.destroy()
+				
+				// Remove ball from balls array
+				const ballIndex = this.balls.indexOf(this.currentBall)
+				if (ballIndex > -1) {
+					this.balls.splice(ballIndex, 1)
+				}
+				
+				// Clear current ball
+				this.currentBall = null
+				if (this.world.resources.levelData) {
+					this.world.resources.levelData.currentBallWeight = null
+				}
+				
+				// Flash green
+				this.cameras.main.flash(200, 0, 255, 0)
+				
+				// Check if all balls sorted
+				if (this.sortedWeights.length === 4) {
+					this.instructionText.setText('SUCCESS! All balls sorted correctly! Level Complete!')
+					this.instructionText.setColor('#00ff00')
+					
+					// Complete the sorting objective
+					const sortObjective = this.allObjectives.find(obj => obj.id === 'complete-sort')
+					if (sortObjective && !sortObjective.completed) {
+						this.completeObjectiveById('complete-sort')
+					}
+				} else {
+					this.instructionText.setText(`Correct! ${4 - this.sortedWeights.length} more ball(s) to sort. Collect next ball!`)
+					this.instructionText.setColor('#00ff00')
+					
+					this.time.delayedCall(2000, () => {
+						this.instructionText.setText('Collect next ball and continue sorting!')
+						this.instructionText.setColor('#ffff00')
+					})
+				}
 			} else {
-				this.instructionText.setText('Collect multiple balls! Use getCollectedBallWeights() to get the list!')
+				// Wrong! Ball is not in correct order
+				// Return ball to original position
+				this.returnBallToOriginalPosition(this.currentBall)
+				
+				// Flash red
+				this.cameras.main.flash(200, 255, 0, 0)
+				
+				// Show error message (without revealing correct answer or weight)
+				this.instructionText.setText(`WRONG order! Try again.`)
+				this.instructionText.setColor('#ff0000')
+				
+				this.time.delayedCall(3000, () => {
+					this.instructionText.setText('Collect balls and throw in ascending order (lightest to heaviest)!')
+					this.instructionText.setColor('#ffff00')
+				})
 			}
-			this.instructionText.setColor('#ffff00')
+		}
+	}
+
+	private returnBallToOriginalPosition(ball: Ball) {
+		const ballBody = this.world.resources.bodies.get(ball.eid)
+		if (!ballBody) return
+
+		// Set flag to prevent multiple triggers
+		this.ballReturning = true
+
+		// Stop the ball
+		ballBody.setVelocity(0, 0)
+
+		// Clear current ball
+		this.currentBall = null
+		if (this.world.resources.levelData) {
+			this.world.resources.levelData.currentBallWeight = null
+		}
+
+		// Animate ball returning to original position
+		this.tweens.add({
+			targets: ballBody,
+			x: ball.originalX,
+			y: ball.originalY,
+			duration: 800,
+			ease: 'Power2',
+			onComplete: () => {
+				// Hide the ball body
+				ballBody.setVisible(false)
+				ball.collected = false
+
+				// Restore visual marker and label at original position
+				ball.marker = this.add.circle(ball.originalX, ball.originalY, 20, 0x4a90e2, 0.8).setStrokeStyle(2, 0x4a90e2)
+				ball.label = this.add.text(ball.originalX, ball.originalY - 35, '?', {
+					fontSize: '12px',
+					color: '#ffffff',
+					stroke: '#000000',
+					strokeThickness: 2,
+				}).setOrigin(0.5)
+
+				// Recreate collector at original position
+				ball.collector = this.physics.add.image(ball.originalX, ball.originalY, '').setVisible(false).setSize(40, 40)
+
+				// Recreate collision detection for the restored ball
+				this.physics.add.overlap(
+					this.world.resources.bodies.get(this.world.resources.playerEid)!,
+					ball.collector,
+					() => {
+						if (ball && !ball.collected) {
+							this.collectBall(ball)
+						}
+					}
+				)
+
+				// Reset flag
+				this.ballReturning = false
+			}
 		})
+	}
+
+	private collectBall(ball: Ball) {
+		// Can only collect one ball at a time (similar to Level 7)
+		if (this.currentBall) {
+			this.instructionText.setText('Already holding a ball! Throw it first (SPACE) before collecting another.')
+			this.instructionText.setColor('#ffaa00')
+			this.time.delayedCall(2000, () => {
+				this.instructionText.setColor('#ffff00')
+			})
+			return
+		}
+
+		if (ball.collected) return
+
+	// Collect the ball
+	ball.collected = true
+	this.currentBall = ball
+
+	// Update level data with current ball weight
+	if (this.world.resources.levelData) {
+		this.world.resources.levelData.currentBallWeight = ball.weight
+	}
+
+	// Show the ball body and position it near player
+		const ballBody = this.world.resources.bodies.get(ball.eid)
+		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (ballBody && playerBody) {
+			ballBody.setVisible(true)
+			ballBody.setPosition(playerBody.x + 30, playerBody.y)
+			ballBody.setVelocity(0, 0)
+		}
+
+		// Remove visual marker and label of collected ball
+		ball.marker.destroy()
+		ball.label.destroy()
+		ball.collector.destroy()
+
+		// Update instruction
+		this.instructionText.setText(`Ball collected! Use measureWeight() with comparison operators to sort.`)
+		this.instructionText.setColor('#ffff00')
 	}
 
 	private updateMinimapWithBalls() {
@@ -659,274 +580,23 @@ export class Level8 extends BaseScene {
 		})
 	}
 
-	private createGate() {
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)!
-		const worldWidth = (this as any).worldWidth || 960
-		
-		// Create gate on the right side
-		const gateX = worldWidth - 100
-		const gateY = playerBody.y
-		
-		const rect = this.add.rectangle(gateX, gateY, 60, 120, 0x888888, 0.8)
-		rect.setStrokeStyle(3, 0xffffff)
-		
-		const label = this.add.text(gateX, gateY - 70, 'GATE\n(Throw heaviest ball here)', {
-			fontSize: '14px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 2,
-			align: 'center',
-		}).setOrigin(0.5)
-
-		this.gate = {
-			rect,
-			label,
-			activated: false,
-		}
-	}
-
-	private collectBall(ball: Ball) {
-		// Unlike Level 7, we can collect multiple balls
-		if (ball.collected) return
-
-		// Collect the ball
-		ball.collected = true
-		ball.index = this.collectedBalls.length
-		this.collectedBalls.push(ball)
-
-		// Update level data with collected ball weights list
-		this.updateListDisplay()
-
-		// Show the ball body and position it near player
-		const ballBody = this.world.resources.bodies.get(ball.eid)
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (ballBody && playerBody) {
-			ballBody.setVisible(true)
-			ballBody.setPosition(playerBody.x - 40 - (this.collectedBalls.length - 1) * 50, playerBody.y)
-			ballBody.setVelocity(0, 0)
-		}
-
-		// Remove visual marker and label of collected ball
-		ball.marker.destroy()
-		ball.label.destroy()
-		ball.collector.destroy()
-
-		// Update instruction
-		this.instructionText.setText(`Collected ${this.collectedBalls.length} balls! Use getCollectedBallWeights() to get the list.`)
-		this.instructionText.setColor('#ffff00')
-
-		// Update task progress
-		this.updateObjectiveDescription('collect-balls', `Collect at least 3 balls (${this.collectedBalls.length}/3)`)
-		
-		// Check task progress
-		if (this.collectedBalls.length >= 3) {
-			this.completeObjectiveById('collect-balls')
-		}
-	}
-
-	private checkGateActivation() {
-		if (!this.gate || this.gate.activated || this.ballReturning) return
-
-		const gateX = this.gate.rect.x
-		const gateY = this.gate.rect.y
-
-		// Check all balls in flight
-		for (let i = this.ballsInFlight.length - 1; i >= 0; i--) {
-			const ball = this.ballsInFlight[i]
-			const ballBody = this.world.resources.bodies.get(ball.eid)
-			if (!ballBody) {
-				this.ballsInFlight.splice(i, 1)
-				continue
-			}
-
-			const dx = ballBody.x - gateX
-			const dy = ballBody.y - gateY
-			const dist = Math.sqrt(dx * dx + dy * dy)
-
-			// Check if ball reached the gate
-			if (dist < 40) {
-				ballBody.setVelocity(0, 0)
-				this.ballsInFlight.splice(i, 1)
-
-				// Task 3: Verify heaviest ball
-				const task3 = this.allObjectives.find(obj => obj.id === 'throw-heaviest')
-				if (task3 && !task3.completed) {
-					const sortedWeights = [...this.collectedBalls.map(b => b.weight)].sort((a, b) => a - b)
-					const heaviestWeight = sortedWeights[sortedWeights.length - 1]
-					if (ball.weight === heaviestWeight) {
-						this.completeObjectiveById('throw-heaviest')
-						this.instructionText.setText('SUCCESS! Heaviest ball thrown! Now find the second heaviest.')
-						this.instructionText.setColor('#00ff00')
-						this.cameras.main.flash(200, 0, 255, 0)
-						this.removeBallFromCollection(ball)
-						return
-					} else {
-						this.returnBallToOriginalPosition(ball)
-						this.instructionText.setText('WRONG! This ball is not the heaviest. Try again!')
-						this.instructionText.setColor('#ff0000')
-						this.cameras.main.flash(200, 255, 0, 0)
-						return
-					}
-				}
-
-				// Task 4: Verify second heaviest ball
-				const task4 = this.allObjectives.find(obj => obj.id === 'throw-second-heaviest')
-				if (task4 && !task4.completed) {
-					const sortedWeights = [...this.collectedBalls.map(b => b.weight)].sort((a, b) => a - b)
-					const secondHeaviestWeight = sortedWeights.length >= 2 ? sortedWeights[sortedWeights.length - 2] : null
-					if (secondHeaviestWeight !== null && ball.weight === secondHeaviestWeight) {
-						this.completeObjectiveById('throw-second-heaviest')
-						this.instructionText.setText('SUCCESS! Second heaviest ball thrown! Now filter balls > 20.')
-						this.instructionText.setColor('#00ff00')
-						this.cameras.main.flash(200, 0, 255, 0)
-						this.removeBallFromCollection(ball)
-						return
-					} else {
-						this.returnBallToOriginalPosition(ball)
-						this.instructionText.setText('WRONG! This ball is not the second heaviest. Try again!')
-						this.instructionText.setColor('#ff0000')
-						this.cameras.main.flash(200, 255, 0, 0)
-						return
-					}
-				}
-
-				// Task 5: Verify filtered heavy balls
-				const task5 = this.allObjectives.find(obj => obj.id === 'throw-heavy-balls')
-				if (task5 && !task5.completed) {
-					// Check if this ball is heavier than 20
-					if (ball.weight > 20) {
-						this.removeBallFromCollection(ball)
-						
-						// Check if all heavy balls (>20) have been thrown
-						const remainingHeavyBalls = this.collectedBalls.filter(b => b.weight > 20)
-						if (remainingHeavyBalls.length === 0) {
-							// All heavy balls thrown!
-							this.completeObjectiveById('throw-heavy-balls')
-							this.gate.activated = true
-							this.gate.rect.setFillStyle(0x00ff00, 0.8)
-							this.instructionText.setText('SUCCESS! All heavy balls (>20) thrown! Level complete!')
-							this.instructionText.setColor('#00ff00')
-							this.cameras.main.flash(200, 0, 255, 0)
-						} else {
-							this.instructionText.setText(`Good! ${remainingHeavyBalls.length} more heavy ball(s) to throw.`)
-							this.instructionText.setColor('#ffff00')
-						}
-						return
-					} else {
-						this.returnBallToOriginalPosition(ball)
-						this.instructionText.setText('WRONG! This ball is not heavier than 20. Try again!')
-						this.instructionText.setColor('#ff0000')
-						this.cameras.main.flash(200, 255, 0, 0)
-						return
-					}
-				}
-			}
-		}
-	}
-
-	private removeBallFromCollection(ball: Ball) {
-		const index = this.collectedBalls.indexOf(ball)
-		if (index > -1) {
-			this.collectedBalls.splice(index, 1)
-		}
-		ball.collected = false
-		
-		// Hide the ball body
-		const ballBody = this.world.resources.bodies.get(ball.eid)
-		if (ballBody) {
-			ballBody.setVisible(false)
-		}
-
-		// Update list display
-		this.updateListDisplay()
-	}
-
-	private returnBallToOriginalPosition(ball: Ball) {
-		const ballBody = this.world.resources.bodies.get(ball.eid)
-		if (!ballBody) return
-
-		// Set flag to prevent multiple triggers
-		this.ballReturning = true
-
-		// Stop the ball
-		ballBody.setVelocity(0, 0)
-
-		// Remove from collected balls
-		const index = this.collectedBalls.indexOf(ball)
-		if (index > -1) {
-			this.collectedBalls.splice(index, 1)
-		}
-		ball.collected = false
-		this.selectedBallForThrow = null
-
-		// Update list display
-		this.updateListDisplay()
-
-		// Animate ball returning to original position
-		this.tweens.add({
-			targets: ballBody,
-			x: ball.originalX,
-			y: ball.originalY,
-			duration: 800,
-			ease: 'Power2',
-			onComplete: () => {
-				// Hide the ball body
-				ballBody.setVisible(false)
-
-				// Restore visual marker and label at original position
-				ball.marker = this.add.circle(
-					ball.originalX,
-					ball.originalY,
-					20,
-					0x4a90e2,
-					0.8
-				).setStrokeStyle(2, 0x4a90e2)
-				ball.label = this.add.text(
-					ball.originalX,
-					ball.originalY - 35,
-					'?',
-					{
-						fontSize: '12px',
-						color: '#ffffff',
-						stroke: '#000000',
-						strokeThickness: 2,
-					}
-				).setOrigin(0.5)
-
-				// Recreate collector at original position
-				ball.collector = this.physics.add.image(ball.originalX, ball.originalY, '').setVisible(false).setSize(40, 40)
-
-				// Recreate collision detection for the restored ball
-				this.physics.add.overlap(
-					this.world.resources.bodies.get(this.world.resources.playerEid)!,
-					ball.collector,
-					() => {
-						if (ball && !ball.collected) {
-							this.collectBall(ball)
-						}
-					}
-				)
-
-				// Reset flag
-				this.ballReturning = false
-			}
-		})
-	}
-
 	private createBalls() {
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)!
 		const worldWidth = (this as any).worldWidth || 960
 		const worldHeight = (this as any).worldHeight || 540
 
-		// Create 6 balls with different weights
-		const weights = [15, 8, 23, 5, 31, 12] // Predefined weights for consistency
+		// Create 4 balls with predefined weights (to ensure clear sorting order)
+		// Ball A: 15 (2nd lightest)
+		// Ball B: 8 (lightest)
+		// Ball C: 23 (heaviest)
+		// Ball D: 18 (3rd lightest)
+		// Correct order: B(8) → A(15) → D(18) → C(23)
+		const weights = [15, 8, 23, 18]
 		const positions = [
 			{ x: Math.min(playerBody.x + 200, worldWidth - 50), y: Math.max(playerBody.y - 100, 50) },
-			{ x: Math.min(playerBody.x + 350, worldWidth - 50), y: Math.max(playerBody.y - 50, 50) },
-			{ x: Math.min(playerBody.x + 500, worldWidth - 50), y: Math.min(playerBody.y + 100, worldHeight - 50) },
+			{ x: Math.min(playerBody.x + 350, worldWidth - 50), y: Math.min(playerBody.y + 100, worldHeight - 50) },
 			{ x: Math.max(playerBody.x - 150, 50), y: Math.min(playerBody.y + 150, worldHeight - 50) },
 			{ x: Math.max(playerBody.x - 300, 50), y: Math.max(playerBody.y - 150, 50) },
-			{ x: Math.min(playerBody.x + 150, worldWidth - 50), y: Math.min(playerBody.y + 200, worldHeight - 50) },
 		]
 
 		positions.forEach((pos, index) => {
@@ -976,8 +646,440 @@ export class Level8 extends BaseScene {
 				collected: false,
 				originalX: pos.x,
 				originalY: pos.y,
-				index: -1,
 			})
+		})
+	}
+
+	private createGates() {
+		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)!
+		const worldWidth = (this as any).worldWidth || 960
+		
+		// Create 4 gates vertically arranged on the right side
+		const gateX = worldWidth - 100
+		const gateSpacing = 120
+		const startY = playerBody.y - 180
+
+		for (let i = 0; i < 4; i++) {
+			const expectedOrder = i + 1
+			const gateY = startY + i * gateSpacing
+			
+			// Color based on order: lightest (green), middle (yellow/orange), heaviest (red)
+			let gateColor = 0x888888
+			if (i === 0) gateColor = 0x66ff66  // 1st - green (lightest)
+			else if (i === 1) gateColor = 0xffff66  // 2nd - yellow
+			else if (i === 2) gateColor = 0xffaa66  // 3rd - orange
+			else gateColor = 0xff6666  // 4th - red (heaviest)
+			
+			const rect = this.add.rectangle(gateX, gateY, 80, 100, gateColor, 0.7)
+			rect.setStrokeStyle(3, 0xffffff)
+			
+			const orderSuffix = expectedOrder === 1 ? 'st' : expectedOrder === 2 ? 'nd' : expectedOrder === 3 ? 'rd' : 'th'
+			const label = this.add.text(gateX, gateY, `${expectedOrder}${orderSuffix}\n${i === 0 ? '(Lightest)' : i === 3 ? '(Heaviest)' : ''}`, {
+				fontSize: '14px',
+				color: '#000000',
+				fontStyle: 'bold',
+				stroke: '#ffffff',
+				strokeThickness: 1,
+				align: 'center',
+			}).setOrigin(0.5)
+
+			this.gates.push({
+				rect,
+				label,
+				activated: false,
+				expectedOrder,
+				receivedWeight: null,
+			})
+		}
+	}
+
+	private createTutorialPanel() {
+		const panelWidth = 500
+		const panelHeight = 400
+		const panelX = 480
+		const panelY = 270
+
+		// Create background
+		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.95)
+		bg.setStrokeStyle(3, 0xffffff)
+		bg.setScrollFactor(0)
+		bg.setDepth(2000)
+
+		// Create title
+		const title = this.add.text(panelX, panelY - 170, 'Sorting Tutorial', {
+			fontSize: '20px',
+			color: '#ffff00',
+			fontStyle: 'bold',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+
+		// Create content text (will be updated based on page)
+		this.tutorialContentText = this.add.text(panelX, panelY - 120, '', {
+			fontSize: '12px',
+			color: '#ffffff',
+			align: 'left',
+			lineSpacing: 4,
+			wordWrap: { width: panelWidth - 40 },
+		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(2001)
+
+		// Create page indicator
+		this.tutorialPageIndicator = this.add.text(panelX, panelY + 160, '', {
+			fontSize: '14px',
+			color: '#aaaaaa',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+
+		// Create navigation buttons
+		this.tutorialPrevBtn = this.add.text(panelX - 150, panelY + 160, '← Previous', {
+			fontSize: '14px',
+			color: '#4a90e2',
+			fontStyle: 'bold',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		this.tutorialPrevBtn.setInteractive({ useHandCursor: true })
+		this.tutorialPrevBtn.on('pointerdown', () => {
+			this.changeTutorialPage(-1)
+		})
+		this.tutorialPrevBtn.on('pointerover', () => {
+			this.tutorialPrevBtn.setColor('#5aa0f2')
+		})
+		this.tutorialPrevBtn.on('pointerout', () => {
+			this.tutorialPrevBtn.setColor('#4a90e2')
+		})
+
+		this.tutorialNextBtn = this.add.text(panelX + 150, panelY + 160, 'Next →', {
+			fontSize: '14px',
+			color: '#4a90e2',
+			fontStyle: 'bold',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		this.tutorialNextBtn.setInteractive({ useHandCursor: true })
+		this.tutorialNextBtn.on('pointerdown', () => {
+			this.changeTutorialPage(1)
+		})
+		this.tutorialNextBtn.on('pointerover', () => {
+			this.tutorialNextBtn.setColor('#5aa0f2')
+		})
+		this.tutorialNextBtn.on('pointerout', () => {
+			this.tutorialNextBtn.setColor('#4a90e2')
+		})
+
+		// Create close button
+		const closeBtn = this.add.text(panelX + panelWidth / 2 - 20, panelY - panelHeight / 2 + 20, '✕', {
+			fontSize: '24px',
+			color: '#ff6666',
+			fontStyle: 'bold',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		closeBtn.setInteractive({ useHandCursor: true })
+		closeBtn.on('pointerdown', () => {
+			this.toggleTutorial()
+		})
+
+		// Create container
+		this.tutorialPanel = this.add.container(0, 0, [
+			bg, 
+			title, 
+			this.tutorialContentText, 
+			this.tutorialPageIndicator,
+			this.tutorialPrevBtn,
+			this.tutorialNextBtn,
+			closeBtn
+		])
+		this.tutorialPanel.setVisible(false)
+		this.tutorialPanel.setScrollFactor(0)
+
+		// Set initial page
+		this.updateTutorialPage()
+	}
+
+	private getTutorialPageContent(page: number): string[] {
+		switch (page) {
+			case 0:
+				return [
+					'📦 WHAT IS A VARIABLE / TEMPORARY STORAGE?',
+					'',
+					'A variable is like a labeled box where you can store a value temporarily.',
+					'In this level, you have 2 storage slots: slot1 and slot2.',
+					'',
+					'Think of it like:',
+					'  • A notebook where you write down important numbers',
+					'  • A container where you put items for safekeeping',
+					'  • A memory that helps you remember values',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'⚠️ IMPORTANT:',
+					'',
+					'measureWeight() does NOT show you the weight!',
+					'You cannot see the number directly (like Level 7).',
+					'',
+					'You MUST use comparison operators to compare:',
+					'  • gt(a, b) - is a greater than b?',
+					'  • lt(a, b) - is a less than b?',
+					'  • eq(a, b) - is a equal to b?',
+					'',
+					'Example:',
+					'  gt(getSlot(1), measureWeight())',
+					'  → Returns true/false, not the actual numbers!',
+				]
+			case 1:
+				return [
+					'🔧 STORAGE FUNCTIONS',
+					'',
+					'setSlot(slotId, value)',
+					'  • Store a number in slot1 or slot2',
+					'  • Example: setSlot(1, measureWeight())',
+					'  • The value is stored but you can\'t see it!',
+					'',
+					'getSlot(slotId)',
+					'  • Retrieve the number from slot1 or slot2',
+					'  • Example: getSlot(1) returns stored value',
+					'  • If slot is empty, returns 0',
+					'  • You still can\'t see the number directly!',
+					'',
+					'clearSlots()',
+					'  • Clear all slots (start over)',
+					'  • Both slot1 and slot2 become empty',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'Using storage in your spell:',
+					'  1. measureWeight() → setSlot(1, ...) to store',
+					'  2. Later: getSlot(1) → compare with measureWeight()',
+					'  3. Use gt() or lt() to compare (returns true/false)',
+					'  4. Use if/else to decide what to do',
+					'',
+					'Remember: You never see the actual weight numbers!',
+				]
+			case 2:
+				return [
+					'🎯 SORTING STRATEGY',
+					'',
+					'Goal: Throw balls in order from lightest to heaviest',
+					'',
+					'Algorithm idea:',
+					'1. Collect first ball, measure and store in slot1',
+					'   (You can\'t see the weight, but it\'s stored!)',
+					'2. Collect second ball, measure it',
+					'3. Compare: lt(getSlot(1), measureWeight())',
+					'   - Returns true if slot1 < current ball',
+					'   - Returns false if slot1 >= current ball',
+					'4. Use if/else:',
+					'   - If true: throw current ball (it\'s heavier)',
+					'   - If false: throw stored ball, store current',
+					'5. Repeat until all balls are sorted!',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'Key points:',
+					'  • measureWeight() never shows you the number',
+					'  • Use gt() or lt() to compare (returns boolean)',
+					'  • Use if/else to make decisions',
+					'  • Always throw the lightest ball found so far',
+					'  • Store the heavier one for next comparison',
+				]
+			case 3:
+				return [
+					'🎯 YOUR MISSION: SORT THE BALLS',
+					'',
+					'Goal: Sort 4 balls by weight and throw them in',
+					'ascending order (lightest to heaviest).',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'KEY POINTS:',
+					'  • measureWeight() does NOT show you the number!',
+					'  • You MUST use comparison operators (gt, lt)',
+					'  • Use setSlot() to store weights',
+					'  • Use getSlot() to retrieve stored weights',
+					'  • Use if/else to make decisions',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'GATES (in order):',
+					'  → 1st gate: Lightest ball',
+					'  → 2nd gate: Second lightest',
+					'  → 3rd gate: Third lightest',
+					'  → 4th gate: Heaviest ball',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'CONTROLS:',
+					'  • TAB: Open editor',
+					'  • 1: Cast spell',
+					'  • SPACE: Throw ball to nearest gate',
+					'  • T: Toggle tutorial',
+					'',
+					'REMEMBER:',
+					'  • Only ONE ball at a time',
+					'  • Weights are hidden - use comparisons!',
+					'  • Sort from lightest to heaviest',
+				]
+			default:
+				return ['Invalid page']
+		}
+	}
+
+	private updateTutorialPage() {
+		const content = this.getTutorialPageContent(this.tutorialCurrentPage)
+		this.tutorialContentText.setText(content)
+		this.tutorialPageIndicator.setText(`Page ${this.tutorialCurrentPage + 1} / ${this.tutorialTotalPages}`)
+		
+		// Update button visibility
+		this.tutorialPrevBtn.setVisible(this.tutorialCurrentPage > 0)
+		this.tutorialNextBtn.setVisible(this.tutorialCurrentPage < this.tutorialTotalPages - 1)
+	}
+
+	private changeTutorialPage(delta: number) {
+		this.tutorialCurrentPage += delta
+		if (this.tutorialCurrentPage < 0) {
+			this.tutorialCurrentPage = 0
+		}
+		if (this.tutorialCurrentPage >= this.tutorialTotalPages) {
+			this.tutorialCurrentPage = this.tutorialTotalPages - 1
+		}
+		this.updateTutorialPage()
+	}
+
+	private showPreGameTutorial() {
+		const panelWidth = 600
+		const panelHeight = 450
+		const panelX = 480
+		const panelY = 270
+
+		// Create background overlay
+		const overlay = this.add.rectangle(panelX, panelY, 960, 540, 0x000000, 0.85)
+		overlay.setScrollFactor(0).setDepth(3000)
+
+		// Create background panel
+		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.98)
+		bg.setStrokeStyle(4, 0x4a90e2)
+		bg.setScrollFactor(0).setDepth(3001)
+
+		// Create title
+		const title = this.add.text(panelX, panelY - 200, '📚 Sorting Challenge Tutorial', {
+			fontSize: '24px',
+			color: '#ffff00',
+			fontStyle: 'bold',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(3002)
+
+		// Create content
+		const content = [
+			'Welcome to Level 8! In this level, you\'ll learn about:',
+			'  • Variables / Temporary Storage',
+			'  • Sorting Algorithms',
+			'',
+			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+			'',
+			'⚠️ IMPORTANT:',
+			'',
+			'measureWeight() does NOT show you the weight value!',
+			'(Just like Level 7, you cannot see the number directly)',
+			'',
+			'You MUST use comparison operators (gt, lt, eq) to',
+			'compare weights and make sorting decisions.',
+			'',
+			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+			'',
+			'🎯 YOUR GOAL:',
+			'',
+			'Sort 4 balls by weight and throw them to gates in',
+			'ascending order (lightest to heaviest).',
+			'',
+			'  • 1st gate: Lightest ball',
+			'  • 2nd gate: Second lightest',
+			'  • 3rd gate: Third lightest',
+			'  • 4th gate: Heaviest ball',
+		]
+
+		const contentText = this.add.text(panelX, panelY - 150, content, {
+			fontSize: '13px',
+			color: '#ffffff',
+			align: 'left',
+			lineSpacing: 5,
+			wordWrap: { width: panelWidth - 60 },
+		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(3002)
+
+		// Create continue button
+		const continueBtn = this.add.rectangle(panelX, panelY + 180, 200, 50, 0x4a90e2, 1)
+		continueBtn.setStrokeStyle(2, 0xffffff)
+		continueBtn.setScrollFactor(0).setDepth(3002)
+		continueBtn.setInteractive({ useHandCursor: true })
+
+		const continueText = this.add.text(panelX, panelY + 180, 'Continue to Game', {
+			fontSize: '18px',
+			color: '#ffffff',
+			fontStyle: 'bold',
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(3003)
+
+		// Button hover effect
+		continueBtn.on('pointerover', () => {
+			continueBtn.setFillStyle(0x5aa0f2)
+		})
+		continueBtn.on('pointerout', () => {
+			continueBtn.setFillStyle(0x4a90e2)
+		})
+
+		// Button click handler
+		continueBtn.on('pointerdown', () => {
+			overlay.destroy()
+			bg.destroy()
+			title.destroy()
+			contentText.destroy()
+			continueBtn.destroy()
+			continueText.destroy()
+
+			// Show game instructions
+			this.showInstruction(
+				'【Level 8: Sorting Challenge】\n\n' +
+				'YOUR GOAL: Sort 4 balls by weight and throw them to gates in ascending order (lightest to heaviest).\n\n' +
+				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+				'IMPORTANT RULES:\n\n' +
+				'• measureWeight() does NOT show you the weight value!\n' +
+				'  (Just like Level 7, you cannot see the number directly)\n' +
+				'• You MUST use comparison operators (gt, lt, eq) to compare weights\n' +
+				'• Use setSlot() and getSlot() to store and retrieve weights\n' +
+				'• Use if/else logic to decide which ball to throw\n\n' +
+				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+				'HOW TO SORT:\n\n' +
+				'1. Collect a ball by walking into it (only one at a time)\n' +
+				'2. Press TAB to open editor\n' +
+				'3. Use measureWeight() to get the weight (hidden from you)\n' +
+				'4. Use setSlot(1, measureWeight()) to store it\n' +
+				'5. Collect another ball, measure it\n' +
+				'6. Compare: gt(getSlot(1), measureWeight()) or lt(getSlot(1), measureWeight())\n' +
+				'7. Use if/else to decide which ball is lighter\n' +
+				'8. Throw the lighter ball to the next gate (press SPACE)\n' +
+				'9. Store the heavier ball in slot1 for next comparison\n' +
+				'10. Repeat until all 4 balls are sorted!\n\n' +
+				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+				'GATES:\n' +
+				'• 1st gate: Lightest ball\n' +
+				'• 2nd gate: Second lightest\n' +
+				'• 3rd gate: Third lightest\n' +
+				'• 4th gate: Heaviest ball\n\n' +
+				'CONTROLS:\n' +
+				'• TAB: Open editor\n' +
+				'• 1: Cast spell\n' +
+				'• SPACE: Throw ball to nearest gate\n' +
+				'• T: Toggle tutorial\n\n' +
+				'Press T anytime to view the full tutorial!'
+			)
+		})
+	}
+
+	private toggleTutorial() {
+		this.tutorialVisible = !this.tutorialVisible
+		this.tutorialPanel.setVisible(this.tutorialVisible)
+		
+		if (this.tutorialVisible) {
+			this.instructionText.setText('Tutorial opened! Press T again to close.')
+		} else {
+			this.instructionText.setText('Tutorial closed. Press T to open again.')
+		}
+		this.time.delayedCall(2000, () => {
+			if (this.currentBall) {
+				this.instructionText.setText('Ball collected! Use measureWeight() with comparison operators to sort.')
+			} else {
+				this.instructionText.setText('Collect a ball and start sorting!')
+			}
+			this.instructionText.setColor('#ffff00')
 		})
 	}
 }

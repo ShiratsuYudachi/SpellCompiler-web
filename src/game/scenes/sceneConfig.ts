@@ -323,80 +323,41 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// Level 8 - Array and List Operations Challenge
+	// Level 8 - Sorting Challenge with Variable Storage
 	Level8: {
 		key: 'Level8',
 		playerSpawnX: 200,
 		playerSpawnY: 300,
 		mapData: createRoom(15, 9),
 		tileSize: 64,
-		// Allow only list-related functions: getCollectedBallWeights, list operations, comparison, and logic
-		editorRestrictions: /^(game::getCollectedBallWeights|std::list::.*|std::cmp::.*|std::logic::.*)$/,
-		// Only allow necessary node types
-		allowedNodeTypes: ['output', 'dynamicFunction', 'literal'],
+		// Allow only storage functions, measureWeight, comparison operators, and logic
+		editorRestrictions: /^(game::measureWeight|game::setSlot|game::getSlot|game::clearSlots|std::cmp::.*|std::logic::.*)$/,
+		// Allow necessary node types including 'if' for decision making
+		allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
 		objectives: [
 			{
-				id: 'collect-balls',
-				description: 'Collect at least 3 balls',
-				type: 'collect',
-			},
-			{
-				id: 'verify-count',
-				description: 'Use length() to verify you collected at least 3 balls',
-				type: 'spell',
-				prerequisite: 'collect-balls',
-			},
-			{
-				id: 'throw-heaviest',
-				description: 'Find the heaviest ball using sort() + nth() and throw it to the gate',
+				id: 'complete-sort',
+				description: 'Sort all 4 balls by weight and throw them to gates in ascending order (lightest to heaviest)',
 				type: 'defeat',
-				prerequisite: 'verify-count',
-			},
-			{
-				id: 'throw-second-heaviest',
-				description: 'Find the second heaviest ball using sort() + tail() + head() and throw it',
-				type: 'defeat',
-				prerequisite: 'throw-heaviest',
-			},
-			{
-				id: 'throw-heavy-balls',
-				description: 'Use filter() + gt() to find all balls heavier than 20 and throw them',
-				type: 'defeat',
-				prerequisite: 'throw-second-heaviest',
 			},
 		],
-		// Pre-made spell: getCollectedBallWeights -> length -> output
-		// Simple example to get started with list operations
+		// Simple initial spell: measureWeight -> output (will be blocked by anti-cheat)
 		initialSpellWorkflow: {
 			nodes: [
 				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
 				{
-					id: 'func-getCollectedBallWeights',
+					id: 'func-measureWeight',
 					type: 'dynamicFunction',
 					position: { x: 200, y: 200 },
 					data: {
-						functionName: 'game::getCollectedBallWeights',
-						displayName: 'getCollectedBallWeights',
+						functionName: 'game::measureWeight',
+						displayName: 'measureWeight',
 						namespace: 'game',
 						params: [],
 					},
 				},
-				{
-					id: 'func-length',
-					type: 'dynamicFunction',
-					position: { x: 300, y: 200 },
-					data: {
-						functionName: 'std::list::length',
-						displayName: 'length',
-						namespace: 'std::list',
-						params: ['list'],
-					},
-				},
 			],
-			edges: [
-				{ id: 'e1', source: 'func-getCollectedBallWeights', target: 'func-length', targetHandle: 'arg0' },
-				{ id: 'e2', source: 'func-length', target: 'output-1', targetHandle: 'value' },
-			],
+			edges: [],
 		},
 	},
 

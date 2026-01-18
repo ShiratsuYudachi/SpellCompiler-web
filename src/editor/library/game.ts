@@ -569,6 +569,100 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '🎯 getThreshold' },
 	},
+	{
+		fullName: 'game::setSlot',
+		params: { slotId: 'number', value: 'number' },
+		returns: 'boolean',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => true
+			}
+			const { world } = ctx
+			return (slotId: Value, value: Value) => {
+				if (typeof slotId !== 'number' || typeof value !== 'number') {
+					throw new Error('setSlot requires two numbers (slotId, value)')
+				}
+				
+				// Only allow slot 1 or 2
+				if (slotId !== 1 && slotId !== 2) {
+					throw new Error('setSlot: slotId must be 1 or 2')
+				}
+				
+				// Store value in level data
+				const levelData = world.resources.levelData
+				if (!levelData) {
+					throw new Error('Level data not initialized')
+				}
+				
+				if (slotId === 1) {
+					levelData.slot1 = value
+				} else {
+					levelData.slot2 = value
+				}
+				
+				return true
+			}
+		},
+		ui: { displayName: '💾 setSlot' },
+	},
+	{
+		fullName: 'game::getSlot',
+		params: { slotId: 'number' },
+		returns: 'number',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 0
+			}
+			const { world } = ctx
+			return (slotId: Value) => {
+				if (typeof slotId !== 'number') {
+					throw new Error('getSlot requires a number (slotId)')
+				}
+				
+				// Only allow slot 1 or 2
+				if (slotId !== 1 && slotId !== 2) {
+					throw new Error('getSlot: slotId must be 1 or 2')
+				}
+				
+				// Get value from level data
+				const levelData = world.resources.levelData
+				if (!levelData) {
+					return 0
+				}
+				
+				if (slotId === 1) {
+					return typeof levelData.slot1 === 'number' ? levelData.slot1 : 0
+				} else {
+					return typeof levelData.slot2 === 'number' ? levelData.slot2 : 0
+				}
+			}
+		},
+		ui: { displayName: '📤 getSlot' },
+	},
+	{
+		fullName: 'game::clearSlots',
+		params: {},
+		returns: 'boolean',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => true
+			}
+			const { world } = ctx
+			return () => {
+				// Clear all slots in level data
+				const levelData = world.resources.levelData
+				if (levelData) {
+					levelData.slot1 = null
+					levelData.slot2 = null
+				}
+				return true
+			}
+		},
+		ui: { displayName: '🗑️ clearSlots' },
+	},
 	]
 }
 
