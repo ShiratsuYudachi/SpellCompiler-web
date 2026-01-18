@@ -1,15 +1,11 @@
 /**
- * Level 11 - 折射初探（基础赋值与时空预判）
+ * Level 15 - 闪电回廊 (状态机挑战)
  *
- * 编程概念：变量赋值 (Variable Assignment) —— 学习设置 Angle(角度) 与 Delay(延迟)
+ * 编程概念：多重条件分支 (Else-If Chains) —— 根据不同条件执行不同操作
  *
- * 关卡目标：学习使用 deflectAfterTime(angle, delayMs) 控制火球偏转
+ * 关卡目标：学习使用 if-else if 结构处理多个压力板的触发条件
  *
- * 地形：封闭实验室，三道高墙将目标分隔开
- *
- * Task 1: 侧翼切入 - 穿过第一道墙的过道，击中右侧目标 (30°, 400ms)
- * Task 2: 镜像深处 - 向下偏转穿过第二道墙的过道 (-30°, 800ms)
- * Task 3: 掩体打击 - 小角度偏转击中最远的目标 (15°, 600ms)
+ * 任务分阶段：玩家需要通过多次经过红/黄压力板并根据顺序改变行为（状态机挑战）
  */
 
 import { addComponent } from 'bitecs'
@@ -28,57 +24,51 @@ interface TargetInfo {
 	taskId: string
 }
 
-export class Level11 extends BaseScene {
+export class Level15 extends BaseScene {
 	private targets: TargetInfo[] = []
 	private task2Unlocked = false
 	private task3Unlocked = false
 
+
 	constructor() {
-		super({ key: 'Level11' })
+		super({ key: 'Level15' })
 	}
 
 	protected onLevelCreate(): void {
 		this.showInstruction(
-			'【Level 11: 折射初探】\n\n' +
-			'学习使用 deflectAfterTime(angle, delayMs) 控制火球偏转。\n\n' +
-			'• angle: 偏转角度（正数向上，负数向下）\n' +
-			'• delayMs: 延迟时间（毫秒）\n\n' +
-			'火球速度 = 250 px/s\n' +
-			'火球碰到墙壁会消失！\n\n' +
-			'按 TAB 编辑法术。\n' +
-			'按 1 发射火球并施放法术。'
+			'[Level 15: Multi-Stage Guidance Challenge]\n\n' +
+			'Practice building Else-If chains to react to different pressure plates during a single fireball flight.\n\n' +
+			'• First RED plate near grid (4,2)\n' +
+			'• YELLOW plate near grid (8,7)\n' +
+			'• Use getFireballPlateColor() inside an onFireballFlying trigger to decide actions.\n+\n' +
+			'Tips:\n' +
+			"- Distinguish plate hits by tracking a `stage` variable across multiple plate encounters.\n" +
+			"- Example: if (color === 'RED' && stage === 1) { deflect(-45) } else if (color === 'YELLOW' && stage === 2) { deflect(0) }\n\n" +
+			'Press TAB to edit spells, press 1 to fire a ball and run your spell.'
 		)
 
-		// 锁定玩家位置在左侧区域
+		// 锁定玩家位置（起点坐标：96,96）
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
-			playerBody.setPosition(96, 288)
+			playerBody.setPosition(96, 96)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// 根据地形布局设置目标位置
-		// 地形：15列x9行，tileSize=64
-		// 玩家在 x=96 (第1-2列)
-		// 第一墙在 x=256 (第4列)，过道在 row=3 (y=224)
-		// 第二墙在 x=512 (第8列)，过道在 row=5 (y=352)
-		// 第三墙在 x=768 (第12列)，过道在 row=3 (y=224)
+		// 按你提供的配置创建目标（使用格子中心计算）
+		// T1: 黄板1附近 (grid 2,5) -> (2*64+32, 5*64+32) = (160, 352)
+		// T2: 黄板2附近 (grid 8,1) -> (8*64+32, 1*64+32) = (544, 96)
+		// T3: 终点区域 (grid 13,1) -> (13*64+32, 1*64+32) = (864, 96)
 
-		// Task 1: 第一道墙后的目标 - 通过上方过道 (row=3, x~384)
-		// 火球需要 30° 向上偏转，延迟 400ms
-		// 位置: 在第一墙和第二墙之间的上方区域
-		this.createTarget(384, 160, 'Task 1: 30°, 400ms', 0x00ff00, 'task1-corridor', true)
+		// Phase 1: Angled Rebound (visible)
+		this.createTarget(160, 352, 'Phase 1: Angled Rebound', 0xffcc00, 'T1', true)
 
-		// Task 2: 第二道墙后的目标 - 通过下方过道 (row=5, x~640)
-		// 火球需要 -30° 向下偏转，延迟 800ms
-		// 位置: 在第二墙和第三墙之间的下方区域
-		this.createTarget(640, 416, 'Task 2: -30°, 800ms', 0xffaa00, 'task2-deep', false)
+		// Phase 2: Vertical Ascent (initially hidden)
+		this.createTarget(544, 96, 'Phase 2: Vertical Ascent', 0xff6666, 'T2', false)
 
-		// Task 3: 最远的目标 - 需要精确控制
-		// 火球需要 15° 小角度偏转，延迟 600ms
-		// 位置: 在第三墙后的区域
-		this.createTarget(864, 224, 'Task 3: 15°, 600ms', 0xff00ff, 'task3-cover', false)
+		// Phase 3: Final Strike (initially hidden)
+		this.createTarget(864, 96, 'Phase 3: Final Strike', 0xffff66, 'T3', false)
 
-		// 绑定按键 '1' 发射火球 + 施放法术
+		// 绑定按键
 		this.input.keyboard?.on('keydown-ONE', () => {
 			this.shootAndCastSpell()
 		})
@@ -88,12 +78,12 @@ export class Level11 extends BaseScene {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// 锁定玩家在左侧区域（只允许在玩家区域内移动）
+		// 限制玩家移动在发射区域（左上起点附近）
 		if (playerBody) {
 			const minX = 64
-			const maxX = 192 // 第一墙前
-			const minY = 96
-			const maxY = 480
+			const maxX = 224 // 发射区宽度
+			const minY = 64
+			const maxY = 160
 			if (playerBody.x < minX) playerBody.x = minX
 			if (playerBody.x > maxX) playerBody.x = maxX
 			if (playerBody.y < minY) playerBody.y = minY
@@ -102,23 +92,25 @@ export class Level11 extends BaseScene {
 
 		// 检测目标销毁
 		this.targets.forEach((target) => {
-			if (!target.destroyed && Health.current[target.eid] <= 0) {
+			if (!target.destroyed && target.eid >= 0 && Health.current[target.eid] <= 0) {
 				target.destroyed = true
 				target.marker.destroy()
 				target.label.destroy()
-				target.body.destroy()
+				// destroy physics body if present
+				if (target.body) {
+					target.body.destroy()
+				}
 
-				// 完成对应任务并解锁下一个
-				if (target.taskId === 'task1-corridor') {
-					this.completeObjectiveById('task1-corridor')
+				if (target.taskId === 'T1') {
+					this.completeObjectiveById('T1')
 					this.unlockTask2()
 					this.cameras.main.flash(200, 0, 255, 0)
-				} else if (target.taskId === 'task2-deep') {
-					this.completeObjectiveById('task2-deep')
+				} else if (target.taskId === 'T2') {
+					this.completeObjectiveById('T2')
 					this.unlockTask3()
 					this.cameras.main.flash(200, 255, 165, 0)
-				} else if (target.taskId === 'task3-cover') {
-					this.completeObjectiveById('task3-cover')
+				} else if (target.taskId === 'T3') {
+					this.completeObjectiveById('T3')
 					this.cameras.main.flash(200, 255, 0, 255)
 				}
 			}
@@ -129,14 +121,16 @@ export class Level11 extends BaseScene {
 		if (this.task2Unlocked) return
 		this.task2Unlocked = true
 
-		// 显示 Task 2 目标（包括 body）
-		const task2Target = this.targets.find(t => t.taskId === 'task2-deep')
+		const task2Target = this.targets.find(t => t.taskId === 'T2')
 		if (task2Target) {
 			task2Target.marker.setVisible(true)
 			task2Target.label.setVisible(true)
-			task2Target.body.setVisible(true)
+			if (task2Target.body) {
+				task2Target.body.setVisible(true)
+				// enable physics body so it can be hit
+				if ((task2Target.body.body as any)) (task2Target.body.body as any).enable = true
+			}
 
-			// 添加出现动画
 			this.tweens.add({
 				targets: [task2Target.marker, task2Target.label, task2Target.body],
 				alpha: { from: 0, to: 1 },
@@ -151,14 +145,15 @@ export class Level11 extends BaseScene {
 		if (this.task3Unlocked) return
 		this.task3Unlocked = true
 
-		// 显示 Task 3 目标（包括 body）
-		const task3Target = this.targets.find(t => t.taskId === 'task3-cover')
+		const task3Target = this.targets.find(t => t.taskId === 'T3')
 		if (task3Target) {
 			task3Target.marker.setVisible(true)
 			task3Target.label.setVisible(true)
-			task3Target.body.setVisible(true)
+			if (task3Target.body) {
+				task3Target.body.setVisible(true)
+				if ((task3Target.body.body as any)) (task3Target.body.body as any).enable = true
+			}
 
-			// 添加出现动画
 			this.tweens.add({
 				targets: [task3Target.marker, task3Target.label, task3Target.body],
 				alpha: { from: 0, to: 1 },
@@ -174,25 +169,22 @@ export class Level11 extends BaseScene {
 		const playerBody = this.world.resources.bodies.get(playerEid)
 		if (!playerBody) return
 
-		// 1. 发射火球（固定向右）
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 2. 立即施放法术
 		const spell = this.world.resources.spellByEid.get(playerEid)
 		if (spell) {
 			try {
 				castSpell(this.world, playerEid, spell)
-				console.log('[Level11] Spell cast successfully')
+				console.log('[Level15] Spell cast successfully')
 			} catch (err) {
-				console.error('[Level11] Spell error:', err)
+				console.error('[Level15] Spell error:', err)
 			}
 		} else {
-			console.warn('[Level11] No spell equipped. Use TAB to create a spell.')
+			console.warn('[Level15] No spell equipped. Use TAB to create a spell.')
 		}
 	}
 
 	private spawnFireball(x: number, y: number, dirX: number, dirY: number) {
-		// 确保火球纹理存在
 		const key = 'fireball'
 		if (!this.textures.exists(key)) {
 			const g = this.add.graphics()
@@ -202,11 +194,9 @@ export class Level11 extends BaseScene {
 			g.destroy()
 		}
 
-		// 创建物理体
 		const body = this.physics.add.image(x, y, key)
 		body.setDepth(20)
 
-		// 创建 ECS 实体
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 
@@ -224,21 +214,19 @@ export class Level11 extends BaseScene {
 		Direction.x[eid] = dirX
 		Direction.y[eid] = dirY
 
-		FireballStats.speed[eid] = 250
+		FireballStats.speed[eid] = 220
 		FireballStats.damage[eid] = 50
 		FireballStats.hitRadius[eid] = 20
 		FireballStats.initialX[eid] = x
 		FireballStats.initialY[eid] = y
 		FireballStats.pendingDeflection[eid] = 0
 		FireballStats.deflectAtTime[eid] = 0
-		// Plate-based deflection (initialized to 0)
 		FireballStats.deflectOnPlateColor[eid] = 0
 		FireballStats.deflectOnPlateAngle[eid] = 0
 		FireballStats.plateDeflected[eid] = 0
 
-		// 延长生命周期（5秒）以便穿越复杂地形
 		Lifetime.bornAt[eid] = Date.now()
-		Lifetime.lifetimeMs[eid] = 5000
+		Lifetime.lifetimeMs[eid] = 8000
 
 		Velocity.x[eid] = dirX * FireballStats.speed[eid]
 		Velocity.y[eid] = dirY * FireballStats.speed[eid]
@@ -247,7 +235,6 @@ export class Level11 extends BaseScene {
 	}
 
 	private createTarget(x: number, y: number, labelText: string, color: number, taskId: string, visible: boolean) {
-		// 创建视觉标记
 		const marker = this.add.circle(x, y, 25, color, 0.6).setStrokeStyle(3, color)
 		marker.setVisible(visible)
 
@@ -261,10 +248,11 @@ export class Level11 extends BaseScene {
 		}).setOrigin(0.5)
 		label.setVisible(visible)
 
-		// 创建敌人实体 - 注意：body 也需要根据 visible 设置可见性
 		const body = createRectBody(this, `target-${taskId}`, color, 50, 50, x, y, 3)
 		body.setImmovable(true)
-		body.setVisible(visible) // 隐藏任务的 body 也应该隐藏
+		body.setVisible(visible)
+		// disable physics when hidden
+		if ((body.body as any)) (body.body as any).enable = visible
 
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)

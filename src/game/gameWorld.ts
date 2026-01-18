@@ -57,6 +57,8 @@ export function createGameWorld(
 		sensors: [],
 		// 关卡特定数据
 		levelData: {},
+		// 墙体碰撞
+		walls: [],
 	}
 
 	return world
