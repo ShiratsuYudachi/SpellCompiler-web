@@ -11,7 +11,10 @@ export function getGameInstance() {
 }
 
 // Editor context management
-export type EditorContext = { sceneKey?: string } | null
+export type EditorContext = { 
+	sceneKey?: string
+	refreshId?: number // Force refresh when restrictions change
+} | null
 
 let editorContext: EditorContext = null
 const listeners = new Set<(context: EditorContext) => void>()
@@ -23,6 +26,12 @@ export function setEditorContext(context: EditorContext) {
 
 export function getEditorContext(): EditorContext {
 	return editorContext
+}
+
+export function forceRefreshEditor() {
+	if (editorContext) {
+		setEditorContext({ ...editorContext, refreshId: Date.now() })
+	}
 }
 
 export function subscribeEditorContext(listener: (context: EditorContext) => void): () => void {

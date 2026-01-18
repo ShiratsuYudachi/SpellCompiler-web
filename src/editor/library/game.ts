@@ -525,6 +525,50 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '⚖️ getWeight' },
 	},
+	{
+		fullName: 'game::measureWeight',
+		params: {},
+		returns: 'number',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 0
+			}
+			const { world } = ctx
+			return () => {
+				// Get current ball weight from level data
+				// This function returns the weight but doesn't display it to the player
+				// The player's spell can use this value for comparisons
+				const levelData = world.resources.levelData
+				if (levelData && typeof levelData.currentBallWeight === 'number') {
+					return levelData.currentBallWeight
+				}
+				return 0
+			}
+		},
+		ui: { displayName: '📏 measureWeight' },
+	},
+	{
+		fullName: 'game::getThreshold',
+		params: {},
+		returns: 'number',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 20
+			}
+			const { world } = ctx
+			return () => {
+				// Get threshold weight from level data (for Level 7 Task 2)
+				const levelData = world.resources.levelData
+				if (levelData && typeof levelData.thresholdWeight === 'number') {
+					return levelData.thresholdWeight
+				}
+				return 20 // Default threshold
+			}
+		},
+		ui: { displayName: '🎯 getThreshold' },
+	},
 	]
 }
 

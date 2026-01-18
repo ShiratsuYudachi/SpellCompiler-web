@@ -276,22 +276,29 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// Level 7 - Weight Finding Challenge
+	// Level 7 - Object-Oriented Programming (Two Tasks)
 	Level7: {
 		key: 'Level7',
 		playerSpawnX: 200,
 		playerSpawnY: 300,
 		mapData: createRoom(15, 9),
 		tileSize: 64,
-		// Allow only getWeight function and output node
+		// Task 1: Allow only getWeight function and output node
 		editorRestrictions: /^(game::getWeight)$/,
-		// Only allow necessary node types
+		// Task 2 (dynamically updated): measureWeight, getThreshold, comparison operators (std::cmp::*)
+		// Only allow necessary node types for Task 1
 		allowedNodeTypes: ['output', 'dynamicFunction'],
 		objectives: [
 			{
-				id: 'throw-heaviest',
-				description: 'Find the heaviest ball and throw it to the gate',
+				id: 'task1-heaviest',
+				description: 'Task 1: Find the heaviest ball and throw it to the gate',
 				type: 'defeat',
+			},
+			{
+				id: 'task2-classify',
+				description: 'Task 2: Classify all balls by weight comparison',
+				type: 'defeat',
+				prerequisite: 'task1-heaviest',
 			},
 		],
 		// Pre-made spell: getWeight + output
@@ -503,6 +510,13 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 
 export function getSceneConfig(sceneKey: string) {
 	return SCENE_CONFIGS[sceneKey]
+}
+
+export function updateSceneConfig(sceneKey: string, updates: Partial<SceneConfig>) {
+	const config = SCENE_CONFIGS[sceneKey]
+	if (config) {
+		Object.assign(config, updates)
+	}
 }
 
 export function getPlayerSpawnPosition(sceneKey: string) {

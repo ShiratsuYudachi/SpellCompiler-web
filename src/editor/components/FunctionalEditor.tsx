@@ -136,7 +136,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		position: { x: number; y: number };
 		nodeId?: string;
 	} | null>(null);
-	const [editorContext, setEditorContext] = useState<{ sceneKey?: string } | null>(() => getEditorContext());
+	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
@@ -151,9 +151,12 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		const unsubscribe = subscribeEditorContext((context) => {
 			const newSceneKey = context?.sceneKey;
+			const newRefreshId = context?.refreshId;
 
-			// Only reload workflow if scene key actually changed
-			if (editorContext?.sceneKey === newSceneKey && workflowLoaded) {
+			// Only reload workflow if scene key actually changed OR refreshId changed (for config updates)
+			if (editorContext?.sceneKey === newSceneKey && 
+			    editorContext?.refreshId === newRefreshId && 
+			    workflowLoaded) {
 				return;
 			}
 
