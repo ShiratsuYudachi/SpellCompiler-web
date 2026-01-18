@@ -13,6 +13,8 @@ export type SceneConfig = {
 	}
 	editorRestrictions?: RegExp
 	allowedNodeTypes?: Array<'literal' | 'triggerType' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction'>
+	hints?: string[]
+	logicReference?: Record<string, { gridX: number; gridY: number; action: string }>
 }
 
 // 快速生成围墙房间

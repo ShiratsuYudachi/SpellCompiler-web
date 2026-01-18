@@ -23,7 +23,7 @@ export interface LiteralNodeData extends BaseNodeData {
  * Trigger Type Node - 触发器类型选择节点
  */
 export interface TriggerTypeNodeData extends BaseNodeData {
-	triggerType: 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth';
+	triggerType: 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth' | 'onFireballFlying';
 }
 
 /**
