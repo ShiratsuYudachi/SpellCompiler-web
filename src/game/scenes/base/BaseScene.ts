@@ -45,6 +45,11 @@ export abstract class BaseScene extends Phaser.Scene {
 	create() {
 		const config = getSceneConfig(this.scene.key)
 
+		// 重置关卡的 spell workflow 到初始状态
+		// 这确保每次进入关卡时，编辑器显示的是关卡的默认法术
+		const storageKey = `spell-workflow-${this.scene.key}`
+		localStorage.removeItem(storageKey)
+
 		// 计算动态世界大小
 		if (config?.mapData) {
 			const tileSize = config.tileSize || 64
@@ -119,11 +124,18 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	private updateTaskDisplay() {
-		const visibleTasks = this.allObjectives
-			.filter(obj => obj.visible)
-			.map(obj => `${obj.completed ? '✓' : '☐'} ${obj.description}`)
+		// 只显示当前激活的任务（第一个未完成的可见任务）
+		// 已完成的任务自动隐藏
+		const currentTask = this.allObjectives.find(obj => obj.visible && !obj.completed)
 
-		this.taskText.setText(visibleTasks.join('\n'))
+		if (currentTask) {
+			this.taskText.setText(`☐ ${currentTask.description}`)
+		} else if (this.allObjectives.every(obj => obj.completed)) {
+			// 所有任务完成
+			this.taskText.setText('✓ All objectives complete!')
+		} else {
+			this.taskText.setText('')
+		}
 	}
 
 	private unlockNextObjective(completedId: string) {
@@ -199,6 +211,8 @@ export abstract class BaseScene extends Phaser.Scene {
 		const wall = this.add.rectangle(x, y, size - 2, size - 2, 0x3e4a59, 1)
 		this.physics.add.existing(wall, true)
 		this.platforms.add(wall)
+		// 将墙体添加到 world.resources.walls 用于火球碰撞检测
+		this.world.resources.walls.push(wall)
 	}
 
 	private createPlatform(x: number, y: number, size: number) {
@@ -432,18 +446,22 @@ export abstract class BaseScene extends Phaser.Scene {
 	private initTaskUI() {
 		this.taskPanel = this.add.container(735, 20).setScrollFactor(0).setDepth(1000)
 
+		// 缩小面板尺寸，因为现在只显示一个任务
+		const panelWidth = 210
+		const panelHeight = 90
+
 		const bg = this.add.graphics()
 		bg.fillStyle(0x1a1f2e, 0.95)
-		bg.fillRoundedRect(0, 0, 210, 150, 8)
+		bg.fillRoundedRect(0, 0, panelWidth, panelHeight, 8)
 		bg.lineStyle(2, 0x4a90e2, 0.9)
-		bg.strokeRoundedRect(0, 0, 210, 150, 8)
+		bg.strokeRoundedRect(0, 0, panelWidth, panelHeight, 8)
 
 		const titleBg = this.add.graphics()
 		titleBg.fillStyle(0x2d3748, 1)
-		titleBg.fillRoundedRect(0, 0, 210, 35, { tl: 8, tr: 8, bl: 0, br: 0 })
+		titleBg.fillRoundedRect(0, 0, panelWidth, 35, { tl: 8, tr: 8, bl: 0, br: 0 })
 
 		const title = this.add
-			.text(105, 17, '>> OBJECTIVES', {
+			.text(panelWidth / 2, 17, '>> OBJECTIVE', {
 				fontSize: '15px',
 				color: '#4a90e2',
 				fontStyle: 'bold',
@@ -454,7 +472,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			fontSize: '13px',
 			color: '#e0e0e0',
 			lineSpacing: 7,
-			wordWrap: { width: 186 },
+			wordWrap: { width: panelWidth - 24 },
 		})
 
 		this.taskPanel.add([bg, titleBg, title, this.taskText])

@@ -11,12 +11,13 @@ export type InputState = {
 /**
  * 触发器类型
  */
-export type TriggerType = 
+export type TriggerType =
 	| 'onEnemyNearby'      // 敌人进入指定距离时触发
 	| 'onTimeInterval'      // 每隔指定时间触发
 	| 'onPlayerHurt'        // 玩家受伤时触发
 	| 'onEnemyKilled'       // 敌人被击杀时触发
 	| 'onPlayerLowHealth'   // 玩家生命值低于阈值时触发
+	| 'onFireballFlying'    // 火球飞行时每帧触发（用于持续检测压力板）
 
 /**
  * 触发器配置
@@ -84,7 +85,12 @@ export type GameResources = {
 	sensorState: boolean                 // 感应器状态（true=未被遮挡）
 	pressurePlates: PressurePlateInfo[]  // 所有压力板
 	sensors: SensorInfo[]                // 所有感应器
+<<<<<<< HEAD
 	// 关卡特定数据
 	levelData?: Record<string, any>      // 关卡特定的数据存储（如收集的物品等）
+=======
+	// 墙体碰撞组（用于火球碰撞检测）
+	walls: Phaser.GameObjects.Rectangle[] // 所有墙体
+>>>>>>> c95e6c2 (feat: 完成第15关逻辑开发)
 }
 

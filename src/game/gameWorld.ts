@@ -55,8 +55,13 @@ export function createGameWorld(
 		sensorState: true,
 		pressurePlates: [],
 		sensors: [],
+<<<<<<< HEAD
 		// 关卡特定数据
 		levelData: {},
+=======
+		// 墙体碰撞
+		walls: [],
+>>>>>>> c95e6c2 (feat: 完成第15关逻辑开发)
 	}
 
 	return world

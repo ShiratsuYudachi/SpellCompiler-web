@@ -122,8 +122,14 @@ export function getGameFunctions(): FunctionSpec[] {
 					throw new Error('No fireball found to deflect')
 				}
 
+				// 防止重复设置偏转：如果已经有 pending deflection，则跳过
+				if (FireballStats.pendingDeflection[mostRecentEid] !== 0) {
+					return false // 已有偏转等待执行，不重复设置
+				}
+
 				FireballStats.pendingDeflection[mostRecentEid] = angle
 				FireballStats.deflectAtTime[mostRecentEid] = Date.now() + delayMs
+				console.log(`[deflectAfterTime] Set deflection ${angle}° after ${delayMs}ms for fireball ${mostRecentEid}`)
 				return true
 			}
 		},
@@ -294,14 +300,33 @@ export function getGameFunctions(): FunctionSpec[] {
 					throw new Error('onTrigger first argument must be a string (triggerType)')
 				}
 
-				const validTypes: TriggerType[] = ['onEnemyNearby', 'onTimeInterval', 'onPlayerHurt', 'onEnemyKilled', 'onPlayerLowHealth']
+				const validTypes: TriggerType[] = ['onEnemyNearby', 'onTimeInterval', 'onPlayerHurt', 'onEnemyKilled', 'onPlayerLowHealth', 'onFireballFlying']
 				if (!validTypes.includes(triggerType as TriggerType)) {
 					throw new Error(`Invalid triggerType: ${triggerType}.`)
 				}
 
-				// Check if action is a function
-				if (!action || typeof action !== 'object' || (action as any).type !== 'function') {
-					throw new Error('onTrigger third argument must be a function (Lambda). Connect an action like teleportRelative to onTrigger.')
+				// Handle action parameter - can be either:
+				// 1. A function object { type: 'function', definition: { params, body } }
+				// 2. A function name (string) that references a function in spell.dependencies
+				let actionBody: any = null
+
+				if (action && typeof action === 'object' && (action as any).type === 'function') {
+					// Direct function object
+					actionBody = (action as any).definition.body
+				} else if (typeof action === 'string') {
+					// Function name - look up in dependencies
+					const funcDef = spell.dependencies?.find((fn: any) => fn.name === action)
+					if (funcDef) {
+						actionBody = funcDef.body
+					} else {
+						throw new Error(`onTrigger: function "${action}" not found in dependencies`)
+					}
+				} else {
+					throw new Error('onTrigger third argument must be a function (Lambda). Connect a Return node with "fn" handle to onTrigger.')
+				}
+
+				if (!actionBody) {
+					throw new Error('onTrigger: could not resolve action function body')
 				}
 
 				const type = triggerType as TriggerType
@@ -322,12 +347,18 @@ export function getGameFunctions(): FunctionSpec[] {
 						throw new Error('onPlayerLowHealth requires a number between 0 and 1 (health threshold)')
 					}
 					params.healthThreshold = condition
+				} else if (type === 'onFireballFlying') {
+					// onFireballFlying: condition is the check interval in ms (default 50ms)
+					if (typeof condition === 'number' && condition > 0) {
+						params.intervalMs = condition
+					} else {
+						params.intervalMs = 50 // Default: check every 50ms
+					}
 				}
 
 				// Create a spell from the action function
-				const actionFn = action as any
 				const actionSpell: CompiledSpell = {
-					ast: actionFn.definition.body,
+					ast: actionBody,
 					dependencies: spell.dependencies || []
 				}
 
@@ -336,13 +367,14 @@ export function getGameFunctions(): FunctionSpec[] {
 					id: triggerId,
 					type,
 					casterEid,
-					spell: actionSpell, // Use the action spell instead of the whole spell
+					spell: actionSpell,
 					params,
 					lastTriggerTime: 0,
 					active: true,
 				}
 
 				world.resources.triggers.set(triggerId, trigger)
+				console.log(`[onTrigger] Registered trigger ${triggerId} type=${type}`)
 				return triggerId
 			}
 		},
@@ -438,30 +470,22 @@ export function getGameFunctions(): FunctionSpec[] {
 					throw new Error(`Invalid plateColor: ${plateColor}. Use "RED" or "YELLOW"`)
 				}
 
-				// Find the most recent fireball owned by caster
-				let mostRecentEid = -1
-				let mostRecentTime = -1
-
+				// Apply plate-based deflection parameters to all active fireballs owned by caster
+				let applied = false
 				for (const eid of query(world, [Fireball, Owner, Lifetime, FireballStats])) {
 					if (Owner.eid[eid] === casterEid) {
-						const bornAt = Lifetime.bornAt[eid]
-						if (bornAt > mostRecentTime) {
-							mostRecentTime = bornAt
-							mostRecentEid = eid
-						}
+						FireballStats.deflectOnPlateColor[eid] = colorNum
+						FireballStats.deflectOnPlateAngle[eid] = angle
+						FireballStats.plateDeflected[eid] = 0
+						applied = true
 					}
 				}
 
-				if (mostRecentEid === -1) {
+				if (!applied) {
 					throw new Error('No fireball found to set plate deflection')
 				}
 
-				// Set plate-based deflection parameters
-				FireballStats.deflectOnPlateColor[mostRecentEid] = colorNum
-				FireballStats.deflectOnPlateAngle[mostRecentEid] = angle
-				FireballStats.plateDeflected[mostRecentEid] = 0
-
-				console.log(`[deflectOnPlate] Set fireball to deflect ${angle}° when over ${plateColor} plate`)
+				console.log(`[deflectOnPlate] Set deflection ${angle}° for player ${casterEid} fireballs when over ${plateColor} plate`)
 				return true
 			}
 		},
@@ -662,6 +686,59 @@ export function getGameFunctions(): FunctionSpec[] {
 			}
 		},
 		ui: { displayName: '🗑️ clearSlots' },
+	},
+	{
+		fullName: 'game::conditionalDeflectOnPlate',
+		params: { plateColor: 'string', trueAngle: 'number', falseAngle: 'number', delayMs: 'number' },
+		returns: 'boolean',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => true
+			}
+			const { world, casterEid } = ctx
+			return (plateColor: Value, trueAngle: Value, falseAngle: Value, delayMs: Value) => {
+				if (typeof plateColor !== 'string') {
+					throw new Error('conditionalDeflectOnPlate requires plateColor to be a string (RED or YELLOW)')
+				}
+				if (typeof trueAngle !== 'number' || typeof falseAngle !== 'number') {
+					throw new Error('conditionalDeflectOnPlate requires trueAngle and falseAngle to be numbers')
+				}
+				if (typeof delayMs !== 'number') {
+					throw new Error('conditionalDeflectOnPlate requires delayMs to be a number')
+				}
+
+				// Check current player plate color
+				const currentPlate = world.resources.currentPlateColor || 'NONE'
+				const angle = currentPlate === plateColor ? trueAngle : falseAngle
+
+				// Find the most recent fireball owned by caster
+				let mostRecentEid = -1
+				let mostRecentTime = -1
+
+				for (const eid of query(world, [Fireball, Owner, Lifetime, FireballStats])) {
+					if (Owner.eid[eid] === casterEid) {
+						const bornAt = Lifetime.bornAt[eid]
+						if (bornAt > mostRecentTime) {
+							mostRecentTime = bornAt
+							mostRecentEid = eid
+						}
+					}
+				}
+
+				if (mostRecentEid === -1) {
+					throw new Error('No fireball found to deflect')
+				}
+
+				// Set time-based deflection
+				FireballStats.pendingDeflection[mostRecentEid] = angle
+				FireballStats.deflectAtTime[mostRecentEid] = Date.now() + delayMs
+
+				console.log(`[conditionalDeflectOnPlate] Player on ${currentPlate}, deflecting ${angle}° after ${delayMs}ms`)
+				return true
+			}
+		},
+		ui: { displayName: '🔀 conditionalDeflectOnPlate' },
 	},
 	]
 }
