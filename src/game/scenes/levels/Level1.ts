@@ -158,13 +158,13 @@ export class Level1 extends BaseScene {
 			const marker = this.add.circle(loc.x, loc.y, 30, 0x00ffff, 0.4).setStrokeStyle(2, 0x00ffff)
 			const collector = this.physics.add.image(loc.x, loc.y, '').setVisible(false).setSize(60, 60)
 			
-			// Create coordinate text for each marker
+			// Create coordinate text for each marker (initially hidden)
 			const coordText = this.add.text(loc.x, loc.y + 50, '', {
 				fontSize: '12px',
 				color: '#00ffff',
 				stroke: '#000000',
 				strokeThickness: 2,
-			}).setOrigin(0.5)
+			}).setOrigin(0.5).setVisible(false)
 
 			this.physics.add.overlap(
 				this.world.resources.bodies.get(this.world.resources.playerEid)!,
@@ -179,6 +179,7 @@ export class Level1 extends BaseScene {
 						target.collector.destroy()
 						if (target.coordText) {
 							target.coordText.destroy()
+							target.coordText = undefined
 						}
 
 						// Update progress
@@ -205,9 +206,22 @@ export class Level1 extends BaseScene {
 
 	private setTeleportTargetsVisible(v: boolean) {
 		this.teleportTargets.forEach((t) => {
-			t.marker.setVisible(v)
-			if (t.coordText) {
-				t.coordText.setVisible(v)
+			// Only update marker if it exists, is active, and belongs to this scene
+			if (t.marker && t.marker.active && t.marker.scene === this) {
+				try {
+					t.marker.setVisible(v)
+				} catch (error) {
+					console.warn('Failed to set marker visibility, object may be destroyed:', error)
+				}
+			}
+			// Only update coordText if it exists, is active, and belongs to this scene
+			if (t.coordText && t.coordText.active && t.coordText.scene === this) {
+				try {
+					t.coordText.setVisible(v)
+				} catch (error) {
+					console.warn('Failed to set coordText visibility, clearing reference:', error)
+					t.coordText = undefined
+				}
 			}
 		})
 	}
@@ -257,11 +271,18 @@ export class Level1 extends BaseScene {
 		if (!player) return
 
 		this.teleportTargets.forEach((target) => {
-			if (!target.collected && target.coordText) {
-				const dx = Math.round(target.x - player.x)
-				const dy = Math.round(target.y - player.y)
-				target.coordText.setText(`dx: ${dx} dy: ${dy}`)
-				target.coordText.setPosition(target.x, target.y + 50)
+			// Only update if target is not collected, coordText exists, is active, and scene matches
+			if (!target.collected && target.coordText && target.coordText.active && target.coordText.scene === this) {
+				try {
+					const dx = Math.round(target.x - player.x)
+					const dy = Math.round(target.y - player.y)
+					target.coordText.setText(`dx: ${dx} dy: ${dy}`)
+					target.coordText.setPosition(target.x, target.y + 50)
+				} catch (error) {
+					// If update fails, the object may have been destroyed, clear the reference
+					console.warn('Failed to update coordText, clearing reference:', error)
+					target.coordText = undefined
+				}
 			}
 		})
 	}

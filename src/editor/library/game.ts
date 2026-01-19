@@ -740,6 +740,57 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '🔀 conditionalDeflectOnPlate' },
 	},
+	{
+		fullName: 'game::detectTreasure',
+		params: {},
+		returns: 'boolean',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => false
+			}
+			const { world } = ctx
+			return () => {
+				// Get player position
+				const playerBody = world.resources.bodies.get(world.resources.playerEid)
+				if (!playerBody) {
+					return false
+				}
+
+				// Get chests from level data (Level6 specific)
+				const levelData = world.resources.levelData
+				if (!levelData || !levelData.chests || !Array.isArray(levelData.chests)) {
+					return false
+				}
+
+				const chests = levelData.chests as Array<{
+					x: number
+					y: number
+					item?: boolean
+				}>
+				const detectionDistance = levelData.chestOpenDistance || 30
+
+				// Find the nearest chest within detection distance
+				let nearestChest: { item?: boolean } | null = null
+				let nearestDistance = detectionDistance
+
+				for (const chest of chests) {
+					const dx = chest.x - playerBody.x
+					const dy = chest.y - playerBody.y
+					const distance = Math.sqrt(dx * dx + dy * dy)
+
+					if (distance < nearestDistance) {
+						nearestDistance = distance
+						nearestChest = chest
+					}
+				}
+
+				// Return true if nearest chest contains treasure, false if bomb or no chest found
+				return nearestChest ? (nearestChest.item === true) : false
+			}
+		},
+		ui: { displayName: '💎 detectTreasure' },
+	},
 	]
 }
 

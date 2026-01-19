@@ -25,11 +25,13 @@ function createRoom(w: number, h: number): number[][] {
 }
 
 export const SCENE_CONFIGS: Record<string, SceneConfig> = {
-	// Level 1 - 逻辑之门（教学关卡）
+	// Level 1 - Transport
 	Level1: {
 		key: 'Level1',
 		playerSpawnX: 120,
 		playerSpawnY: 270,
+		editorRestrictions: /^(game::teleportRelative|game::getPlayer)$/,
+		allowedNodeTypes: ['output', 'literal', 'vector', 'dynamicFunction'],
 		objectives: [
 			{
 				id: 'defeat-boss',
@@ -212,69 +214,27 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		},
 	},
 
-	// Level 6 - Trigger Mastery（触发器精通）
+	// Level 6 - Treasure Detection
 	Level6: {
 		key: 'Level6',
 		playerSpawnX: 200,
 		playerSpawnY: 270,
 		mapData: createRoom(15, 9),
 		tileSize: 64,
+		editorRestrictions: /^(game::detectTreasure)$/,
+		allowedNodeTypes: ['output', 'literal', 'dynamicFunction', 'if'],
 		objectives: [
 			{
-				id: 'task1-enemy-nearby',
-				description: 'Task 1: Use onEnemyNearby(200) to auto-teleport when enemy approaches',
-				type: 'defeat',
-			},
-			{
-				id: 'task2-time-interval',
-				description: 'Task 2: Use onTimeInterval(2000) to auto-heal every 2 seconds',
-				type: 'defeat',
-				prerequisite: 'task1-enemy-nearby',
-			},
-			{
-				id: 'task3-low-health',
-				description: 'Task 3: Use onPlayerLowHealth(0.5) to auto-teleport when health < 50%',
-				type: 'defeat',
-				prerequisite: 'task2-time-interval',
+				id: 'find-treasure',
+				description: 'Use detectTreasure to find the chest containing treasure and avoid bombs',
+				type: 'reach',
 			},
 		],
 		initialSpellWorkflow: {
 			nodes: [
-				{
-					id: 'output-1',
-					type: 'output',
-					position: { x: 600, y: 200 },
-					data: { label: 'Output' },
-				},
-				{
-					id: 'func-onTrigger',
-					type: 'dynamicFunction',
-					position: { x: 300, y: 180 },
-					data: {
-						functionName: 'game::onTrigger',
-						displayName: 'onTrigger',
-						namespace: 'game',
-						params: ['triggerType', 'condition'],
-					},
-				},
-				{
-					id: 'lit-triggerType',
-					type: 'literal',
-					position: { x: 100, y: 120 },
-					data: { value: 'onEnemyNearby' },
-				},
-				{
-					id: 'lit-condition',
-					type: 'literal',
-					position: { x: 100, y: 240 },
-					data: { value: 200 },
-				},
+				{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
 			],
-			edges: [
-				{ id: 'e1', source: 'func-onTrigger', target: 'output-1', targetHandle: 'value' },
-				{ id: 'e2', source: 'lit-triggerType', target: 'func-onTrigger', targetHandle: 'arg0' },
-				{ id: 'e3', source: 'lit-condition', target: 'func-onTrigger', targetHandle: 'arg1' },
-			],
+			edges: [],
 		},
 	},
 

@@ -49,13 +49,15 @@ export class Level8 extends BaseScene {
 	private currentWeightText!: Phaser.GameObjects.Text  // Display current ball weight (hidden until measured)
 	private sortedWeights: number[] = []  // Track thrown balls' weights in order
 	private tutorialPanel!: Phaser.GameObjects.Container
+	private tutorialBgOverlay!: Phaser.GameObjects.Rectangle
 	private tutorialVisible: boolean = false
 	private tutorialCurrentPage: number = 0
-	private tutorialTotalPages: number = 4
+	private tutorialTotalPages: number = 9  // Combined: 2 pregame pages + 4 tutorial pages + 3 instruction pages
 	private tutorialContentText!: Phaser.GameObjects.Text
 	private tutorialPageIndicator!: Phaser.GameObjects.Text
 	private tutorialPrevBtn!: Phaser.GameObjects.Text
 	private tutorialNextBtn!: Phaser.GameObjects.Text
+	private tutorialCloseBtn!: Phaser.GameObjects.Text
 	private ballReturning: boolean = false
 	private minimapBallDots: Phaser.GameObjects.Arc[] = []
 
@@ -115,9 +117,6 @@ export class Level8 extends BaseScene {
 		this.world.resources.levelData.slot2 = null
 		this.world.resources.levelData.collectedBallIndex = 0
 
-		// Show pre-game tutorial first
-		this.showPreGameTutorial()
-
 		// Create balls with predefined weights
 		this.createBalls()
 
@@ -132,10 +131,10 @@ export class Level8 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// Create slot display
-		this.slotDisplayText = this.add.text(20, 130, 'Slot1: - | Slot2: -', {
+		// Create slot display - values are hidden from players
+		this.slotDisplayText = this.add.text(20, 130, 'Slot1: ??? | Slot2: ???', {
 			fontSize: '12px',
-			color: '#00ffff',
+			color: '#888888',
 			backgroundColor: '#333333',
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
@@ -148,8 +147,11 @@ export class Level8 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// Create tutorial panel
+		// Create combined tutorial/instruction panel
 		this.createTutorialPanel()
+
+		// Show combined tutorial/instruction panel first (after creating it)
+		this.showTutorial()
 
 		// Update minimap to show balls
 		this.updateMinimapWithBalls()
@@ -177,6 +179,10 @@ export class Level8 extends BaseScene {
 	}
 
 	protected onLevelUpdate(): void {
+		// Continuously clear spell message to prevent it from showing in HUD
+		// Players should not see spell results, slot values, or outputs
+		this.world.resources.spellMessageByEid.set(this.world.resources.playerEid, '')
+
 		// Update slot display
 		this.updateSlotDisplay()
 
@@ -214,12 +220,8 @@ export class Level8 extends BaseScene {
 	}
 
 	private updateSlotDisplay() {
-		const levelData = this.world.resources.levelData
-		if (!levelData) return
-
-		const slot1 = typeof levelData.slot1 === 'number' ? levelData.slot1 : '-'
-		const slot2 = typeof levelData.slot2 === 'number' ? levelData.slot2 : '-'
-		this.slotDisplayText.setText(`Slot1: ${slot1} | Slot2: ${slot2}`)
+		// Hide slot values from players - they should not see the stored values
+		this.slotDisplayText.setText(`Slot1: ??? | Slot2: ???`)
 	}
 
 	private updateCurrentWeightDisplay() {
@@ -250,21 +252,22 @@ export class Level8 extends BaseScene {
 					return
 				}
 
+				// Clear spell message before casting to prevent it from showing
+				this.world.resources.spellMessageByEid.set(playerEid, '')
 				const result = castSpell(this.world, playerEid, spell)
 				console.log('[Level8] Spell cast successfully, result:', result)
 
-				// Don't show the actual weight value - measureWeight() is hidden like in Level7
-				// Only show feedback for comparison results or successful operations
-				if (typeof result === 'boolean') {
-					// Comparison result - this is useful feedback
-					this.instructionText.setText(`Comparison result: ${result}. Press SPACE to throw ball.`)
-					this.instructionText.setColor('#00ff00')
-				} else {
-					// For other results (setSlot, getSlot, etc.), don't reveal the weight
-					// Just confirm the spell was cast
-					this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your sorting logic.`)
-					this.instructionText.setColor('#00ff00')
-				}
+				// Don't show spell result - players should not see it
+				// Clear any spell message to prevent it from showing in HUD
+				// Clear immediately and also in next frame to ensure it's cleared
+				this.world.resources.spellMessageByEid.set(playerEid, '')
+				this.time.delayedCall(0, () => {
+					this.world.resources.spellMessageByEid.set(playerEid, '')
+				})
+				// Don't show comparison results, slot values, or any outputs
+				// Just show a generic message without revealing any result
+				this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your sorting logic.`)
+				this.instructionText.setColor('#ffff00')
 
 				this.time.delayedCall(2000, () => {
 					if (this.currentBall) {
@@ -694,45 +697,64 @@ export class Level8 extends BaseScene {
 	}
 
 	private createTutorialPanel() {
-		const panelWidth = 500
-		const panelHeight = 400
+		const panelWidth = 600
+		const panelHeight = 450
 		const panelX = 480
 		const panelY = 270
 
-		// Create background
-		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.95)
-		bg.setStrokeStyle(3, 0xffffff)
-		bg.setScrollFactor(0)
-		bg.setDepth(2000)
+		// Create background overlay (clickable to close)
+		this.tutorialBgOverlay = this.add.rectangle(panelX, panelY, 960, 540, 0x000000, 0.85)
+		this.tutorialBgOverlay.setScrollFactor(0).setDepth(2000)
+		this.tutorialBgOverlay.setInteractive({ useHandCursor: false })
+		this.tutorialBgOverlay.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+			// Only close if clicking outside the panel area
+			const panelLeft = panelX - panelWidth / 2
+			const panelRight = panelX + panelWidth / 2
+			const panelTop = panelY - panelHeight / 2
+			const panelBottom = panelY + panelHeight / 2
+			
+			if (pointer.x < panelLeft || pointer.x > panelRight || 
+			    pointer.y < panelTop || pointer.y > panelBottom) {
+				this.hideTutorial()
+			}
+		})
+		this.tutorialBgOverlay.setVisible(false)
+
+		// Create background panel
+		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.98)
+		bg.setStrokeStyle(4, 0x4a90e2)
+		bg.setScrollFactor(0).setDepth(2001)
 
 		// Create title
-		const title = this.add.text(panelX, panelY - 170, 'Sorting Tutorial', {
-			fontSize: '20px',
+		const title = this.add.text(panelX, panelY - 200, '【Level 8: Sorting Challenge】', {
+			fontSize: '24px',
 			color: '#ffff00',
 			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2002)
 
-		// Create content text (will be updated based on page)
-		this.tutorialContentText = this.add.text(panelX, panelY - 120, '', {
-			fontSize: '12px',
+		// Create content text (will be updated based on page) - NOT in container
+		this.tutorialContentText = this.add.text(panelX, panelY - 150, '', {
+			fontSize: '13px',
 			color: '#ffffff',
 			align: 'left',
-			lineSpacing: 4,
-			wordWrap: { width: panelWidth - 40 },
-		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(2001)
+			lineSpacing: 5,
+			wordWrap: { width: panelWidth - 60 },
+		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(2002)
+		this.tutorialContentText.setVisible(false)
 
-		// Create page indicator
-		this.tutorialPageIndicator = this.add.text(panelX, panelY + 160, '', {
+		// Create page indicator - NOT in container
+		this.tutorialPageIndicator = this.add.text(panelX, panelY + 180, '', {
 			fontSize: '14px',
 			color: '#aaaaaa',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2002)
+		this.tutorialPageIndicator.setVisible(false)
 
-		// Create navigation buttons
-		this.tutorialPrevBtn = this.add.text(panelX - 150, panelY + 160, '← Previous', {
-			fontSize: '14px',
+		// Create navigation buttons - NOT in container
+		this.tutorialPrevBtn = this.add.text(panelX - 150, panelY + 180, '← Previous', {
+			fontSize: '16px',
 			color: '#4a90e2',
 			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2002)
 		this.tutorialPrevBtn.setInteractive({ useHandCursor: true })
 		this.tutorialPrevBtn.on('pointerdown', () => {
 			this.changeTutorialPage(-1)
@@ -743,12 +765,13 @@ export class Level8 extends BaseScene {
 		this.tutorialPrevBtn.on('pointerout', () => {
 			this.tutorialPrevBtn.setColor('#4a90e2')
 		})
+		this.tutorialPrevBtn.setVisible(false)
 
-		this.tutorialNextBtn = this.add.text(panelX + 150, panelY + 160, 'Next →', {
-			fontSize: '14px',
+		this.tutorialNextBtn = this.add.text(panelX + 150, panelY + 180, 'Next →', {
+			fontSize: '16px',
 			color: '#4a90e2',
 			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2002)
 		this.tutorialNextBtn.setInteractive({ useHandCursor: true })
 		this.tutorialNextBtn.on('pointerdown', () => {
 			this.changeTutorialPage(1)
@@ -759,30 +782,28 @@ export class Level8 extends BaseScene {
 		this.tutorialNextBtn.on('pointerout', () => {
 			this.tutorialNextBtn.setColor('#4a90e2')
 		})
+		this.tutorialNextBtn.setVisible(false)
 
-		// Create close button
-		const closeBtn = this.add.text(panelX + panelWidth / 2 - 20, panelY - panelHeight / 2 + 20, '✕', {
+		// Create close button - NOT in container
+		this.tutorialCloseBtn = this.add.text(panelX + panelWidth / 2 - 20, panelY - panelHeight / 2 + 20, '✕', {
 			fontSize: '24px',
 			color: '#ff6666',
 			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(2001)
-		closeBtn.setInteractive({ useHandCursor: true })
-		closeBtn.on('pointerdown', () => {
-			this.toggleTutorial()
+		}).setOrigin(0.5).setScrollFactor(0).setDepth(2003)
+		this.tutorialCloseBtn.setInteractive({ useHandCursor: true })
+		this.tutorialCloseBtn.on('pointerdown', () => {
+			this.hideTutorial()
 		})
+		this.tutorialCloseBtn.setVisible(false)
 
-		// Create container
+		// Create container (only for static background elements)
 		this.tutorialPanel = this.add.container(0, 0, [
-			bg, 
-			title, 
-			this.tutorialContentText, 
-			this.tutorialPageIndicator,
-			this.tutorialPrevBtn,
-			this.tutorialNextBtn,
-			closeBtn
+			bg,
+			title
 		])
 		this.tutorialPanel.setVisible(false)
 		this.tutorialPanel.setScrollFactor(0)
+		this.tutorialPanel.setDepth(2001)
 
 		// Set initial page
 		this.updateTutorialPage()
@@ -790,7 +811,49 @@ export class Level8 extends BaseScene {
 
 	private getTutorialPageContent(page: number): string[] {
 		switch (page) {
+			// Page 0: Welcome and Goal
 			case 0:
+				return [
+					'Welcome to Level 8! In this level, you\'ll learn about:',
+					'  • Variables / Temporary Storage',
+					'  • Sorting Algorithms',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'🎯 YOUR GOAL:',
+					'',
+					'Sort 4 balls by weight and throw them to gates in',
+					'ascending order (lightest to heaviest).',
+					'',
+					'  • 1st gate: Lightest ball',
+					'  • 2nd gate: Second lightest',
+					'  • 3rd gate: Third lightest',
+					'  • 4th gate: Heaviest ball',
+				]
+			// Page 1: Important Rules
+			case 1:
+				return [
+					'⚠️ IMPORTANT RULES:',
+					'',
+					'measureWeight() does NOT show you the weight value!',
+					'(Just like Level 7, you cannot see the number directly)',
+					'',
+					'You MUST use comparison operators (gt, lt, eq) to',
+					'compare weights and make sorting decisions.',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'KEY FUNCTIONS:',
+					'',
+					'• measureWeight() - Get weight (hidden from you)',
+					'• setSlot(slotId, value) - Store value in slot1/slot2',
+					'• getSlot(slotId) - Retrieve value from slot1/slot2',
+					'• gt(a, b) / lt(a, b) - Compare two values',
+					'',
+					'Use if/else logic to decide which ball to throw.',
+				]
+			// Page 2: What is a Variable
+			case 2:
 				return [
 					'📦 WHAT IS A VARIABLE / TEMPORARY STORAGE?',
 					'',
@@ -813,12 +876,9 @@ export class Level8 extends BaseScene {
 					'  • gt(a, b) - is a greater than b?',
 					'  • lt(a, b) - is a less than b?',
 					'  • eq(a, b) - is a equal to b?',
-					'',
-					'Example:',
-					'  gt(getSlot(1), measureWeight())',
-					'  → Returns true/false, not the actual numbers!',
 				]
-			case 1:
+			// Page 3: Storage Functions
+			case 3:
 				return [
 					'🔧 STORAGE FUNCTIONS',
 					'',
@@ -844,10 +904,9 @@ export class Level8 extends BaseScene {
 					'  2. Later: getSlot(1) → compare with measureWeight()',
 					'  3. Use gt() or lt() to compare (returns true/false)',
 					'  4. Use if/else to decide what to do',
-					'',
-					'Remember: You never see the actual weight numbers!',
 				]
-			case 2:
+			// Page 4: Sorting Strategy
+			case 4:
 				return [
 					'🎯 SORTING STRATEGY',
 					'',
@@ -872,44 +931,93 @@ export class Level8 extends BaseScene {
 					'  • Use gt() or lt() to compare (returns boolean)',
 					'  • Use if/else to make decisions',
 					'  • Always throw the lightest ball found so far',
-					'  • Store the heavier one for next comparison',
 				]
-			case 3:
+			// Page 5: How to Sort - Part 1
+			case 5:
 				return [
-					'🎯 YOUR MISSION: SORT THE BALLS',
+					'HOW TO SORT - Part 1:',
 					'',
-					'Goal: Sort 4 balls by weight and throw them in',
-					'ascending order (lightest to heaviest).',
+					'1. Collect a ball by walking into it',
+					'   (only one at a time)',
 					'',
-					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'2. Press TAB to open editor',
 					'',
-					'KEY POINTS:',
-					'  • measureWeight() does NOT show you the number!',
-					'  • You MUST use comparison operators (gt, lt)',
-					'  • Use setSlot() to store weights',
-					'  • Use getSlot() to retrieve stored weights',
-					'  • Use if/else to make decisions',
+					'3. Use measureWeight() to get the weight',
+					'   (hidden from you)',
+					'',
+					'4. Use setSlot(1, measureWeight()) to store it',
 					'',
 					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
 					'',
+					'This stores the first ball\'s weight in slot1.',
+					'You can\'t see the number, but it\'s stored!',
+				]
+			// Page 6: How to Sort - Part 2
+			case 6:
+				return [
+					'HOW TO SORT - Part 2:',
+					'',
+					'5. Collect another ball, measure it',
+					'',
+					'6. Compare: gt(getSlot(1), measureWeight())',
+					'   or lt(getSlot(1), measureWeight())',
+					'',
+					'7. Use if/else to decide which ball is lighter',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'The comparison returns true/false:',
+					'  • gt(a, b) = true if a > b',
+					'  • lt(a, b) = true if a < b',
+					'  • Use this to decide which ball to throw',
+				]
+			// Page 7: How to Sort - Part 3
+			case 7:
+				return [
+					'HOW TO SORT - Part 3:',
+					'',
+					'8. Throw the lighter ball to the next gate',
+					'   (press SPACE)',
+					'',
+					'9. Store the heavier ball in slot1 for',
+					'   next comparison',
+					'',
+					'10. Repeat until all 4 balls are sorted!',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'Strategy:',
+					'  • Always throw the lightest ball you\'ve found so far',
+					'  • Use storage to remember the lightest weight',
+					'  • Compare each new ball with stored weight',
+					'  • Update storage if you find a lighter ball',
+				]
+			// Page 8: Gates and Controls
+			case 8:
+				return [
 					'GATES (in order):',
-					'  → 1st gate: Lightest ball',
-					'  → 2nd gate: Second lightest',
-					'  → 3rd gate: Third lightest',
-					'  → 4th gate: Heaviest ball',
+					'',
+					'• 1st gate: Lightest ball',
+					'• 2nd gate: Second lightest',
+					'• 3rd gate: Third lightest',
+					'• 4th gate: Heaviest ball',
 					'',
 					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
 					'',
 					'CONTROLS:',
-					'  • TAB: Open editor',
-					'  • 1: Cast spell',
-					'  • SPACE: Throw ball to nearest gate',
-					'  • T: Toggle tutorial',
 					'',
-					'REMEMBER:',
+					'• TAB: Open editor',
+					'• 1: Cast spell',
+					'• SPACE: Throw ball to nearest gate',
+					'• T: Toggle tutorial',
+					'',
+					'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+					'',
+					'IMPORTANT:',
 					'  • Only ONE ball at a time',
 					'  • Weights are hidden - use comparisons!',
 					'  • Sort from lightest to heaviest',
+					'  • Press T anytime to view this tutorial again!',
 				]
 			default:
 				return ['Invalid page']
@@ -918,12 +1026,22 @@ export class Level8 extends BaseScene {
 
 	private updateTutorialPage() {
 		const content = this.getTutorialPageContent(this.tutorialCurrentPage)
-		this.tutorialContentText.setText(content)
-		this.tutorialPageIndicator.setText(`Page ${this.tutorialCurrentPage + 1} / ${this.tutorialTotalPages}`)
+		if (this.tutorialContentText) {
+			this.tutorialContentText.setText(content)
+			this.tutorialContentText.setVisible(true)
+		}
+		if (this.tutorialPageIndicator) {
+			this.tutorialPageIndicator.setText(`Page ${this.tutorialCurrentPage + 1} / ${this.tutorialTotalPages}`)
+			this.tutorialPageIndicator.setVisible(true)
+		}
 		
 		// Update button visibility
-		this.tutorialPrevBtn.setVisible(this.tutorialCurrentPage > 0)
-		this.tutorialNextBtn.setVisible(this.tutorialCurrentPage < this.tutorialTotalPages - 1)
+		if (this.tutorialPrevBtn) {
+			this.tutorialPrevBtn.setVisible(this.tutorialCurrentPage > 0)
+		}
+		if (this.tutorialNextBtn) {
+			this.tutorialNextBtn.setVisible(this.tutorialCurrentPage < this.tutorialTotalPages - 1)
+		}
 	}
 
 	private changeTutorialPage(delta: number) {
@@ -937,141 +1055,45 @@ export class Level8 extends BaseScene {
 		this.updateTutorialPage()
 	}
 
-	private showPreGameTutorial() {
-		const panelWidth = 600
-		const panelHeight = 450
-		const panelX = 480
-		const panelY = 270
+	private showTutorial() {
+		// Ensure all elements are created before showing
+		if (!this.tutorialBgOverlay || !this.tutorialPanel || !this.tutorialContentText) {
+			console.warn('[Level8] Tutorial panel not created yet, creating now...')
+			this.createTutorialPanel()
+		}
+		
+		this.tutorialCurrentPage = 0
+		this.tutorialVisible = true
+		this.tutorialBgOverlay.setVisible(true)
+		this.tutorialPanel.setVisible(true)
+		this.tutorialContentText.setVisible(true)
+		this.tutorialPageIndicator.setVisible(true)
+		this.tutorialPrevBtn.setVisible(true)
+		this.tutorialNextBtn.setVisible(true)
+		this.tutorialCloseBtn.setVisible(true)
+		this.updateTutorialPage()
+	}
 
-		// Create background overlay
-		const overlay = this.add.rectangle(panelX, panelY, 960, 540, 0x000000, 0.85)
-		overlay.setScrollFactor(0).setDepth(3000)
-
-		// Create background panel
-		const bg = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a1a, 0.98)
-		bg.setStrokeStyle(4, 0x4a90e2)
-		bg.setScrollFactor(0).setDepth(3001)
-
-		// Create title
-		const title = this.add.text(panelX, panelY - 200, '📚 Sorting Challenge Tutorial', {
-			fontSize: '24px',
-			color: '#ffff00',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(3002)
-
-		// Create content
-		const content = [
-			'Welcome to Level 8! In this level, you\'ll learn about:',
-			'  • Variables / Temporary Storage',
-			'  • Sorting Algorithms',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'⚠️ IMPORTANT:',
-			'',
-			'measureWeight() does NOT show you the weight value!',
-			'(Just like Level 7, you cannot see the number directly)',
-			'',
-			'You MUST use comparison operators (gt, lt, eq) to',
-			'compare weights and make sorting decisions.',
-			'',
-			'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-			'',
-			'🎯 YOUR GOAL:',
-			'',
-			'Sort 4 balls by weight and throw them to gates in',
-			'ascending order (lightest to heaviest).',
-			'',
-			'  • 1st gate: Lightest ball',
-			'  • 2nd gate: Second lightest',
-			'  • 3rd gate: Third lightest',
-			'  • 4th gate: Heaviest ball',
-		]
-
-		const contentText = this.add.text(panelX, panelY - 150, content, {
-			fontSize: '13px',
-			color: '#ffffff',
-			align: 'left',
-			lineSpacing: 5,
-			wordWrap: { width: panelWidth - 60 },
-		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(3002)
-
-		// Create continue button
-		const continueBtn = this.add.rectangle(panelX, panelY + 180, 200, 50, 0x4a90e2, 1)
-		continueBtn.setStrokeStyle(2, 0xffffff)
-		continueBtn.setScrollFactor(0).setDepth(3002)
-		continueBtn.setInteractive({ useHandCursor: true })
-
-		const continueText = this.add.text(panelX, panelY + 180, 'Continue to Game', {
-			fontSize: '18px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0).setDepth(3003)
-
-		// Button hover effect
-		continueBtn.on('pointerover', () => {
-			continueBtn.setFillStyle(0x5aa0f2)
-		})
-		continueBtn.on('pointerout', () => {
-			continueBtn.setFillStyle(0x4a90e2)
-		})
-
-		// Button click handler
-		continueBtn.on('pointerdown', () => {
-			overlay.destroy()
-			bg.destroy()
-			title.destroy()
-			contentText.destroy()
-			continueBtn.destroy()
-			continueText.destroy()
-
-			// Show game instructions
-			this.showInstruction(
-				'【Level 8: Sorting Challenge】\n\n' +
-				'YOUR GOAL: Sort 4 balls by weight and throw them to gates in ascending order (lightest to heaviest).\n\n' +
-				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-				'IMPORTANT RULES:\n\n' +
-				'• measureWeight() does NOT show you the weight value!\n' +
-				'  (Just like Level 7, you cannot see the number directly)\n' +
-				'• You MUST use comparison operators (gt, lt, eq) to compare weights\n' +
-				'• Use setSlot() and getSlot() to store and retrieve weights\n' +
-				'• Use if/else logic to decide which ball to throw\n\n' +
-				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-				'HOW TO SORT:\n\n' +
-				'1. Collect a ball by walking into it (only one at a time)\n' +
-				'2. Press TAB to open editor\n' +
-				'3. Use measureWeight() to get the weight (hidden from you)\n' +
-				'4. Use setSlot(1, measureWeight()) to store it\n' +
-				'5. Collect another ball, measure it\n' +
-				'6. Compare: gt(getSlot(1), measureWeight()) or lt(getSlot(1), measureWeight())\n' +
-				'7. Use if/else to decide which ball is lighter\n' +
-				'8. Throw the lighter ball to the next gate (press SPACE)\n' +
-				'9. Store the heavier ball in slot1 for next comparison\n' +
-				'10. Repeat until all 4 balls are sorted!\n\n' +
-				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-				'GATES:\n' +
-				'• 1st gate: Lightest ball\n' +
-				'• 2nd gate: Second lightest\n' +
-				'• 3rd gate: Third lightest\n' +
-				'• 4th gate: Heaviest ball\n\n' +
-				'CONTROLS:\n' +
-				'• TAB: Open editor\n' +
-				'• 1: Cast spell\n' +
-				'• SPACE: Throw ball to nearest gate\n' +
-				'• T: Toggle tutorial\n\n' +
-				'Press T anytime to view the full tutorial!'
-			)
-		})
+	private hideTutorial() {
+		this.tutorialVisible = false
+		this.tutorialBgOverlay.setVisible(false)
+		this.tutorialPanel.setVisible(false)
+		this.tutorialContentText.setVisible(false)
+		this.tutorialPageIndicator.setVisible(false)
+		this.tutorialPrevBtn.setVisible(false)
+		this.tutorialNextBtn.setVisible(false)
+		this.tutorialCloseBtn.setVisible(false)
+		// Reset to first page when hiding
+		this.tutorialCurrentPage = 0
 	}
 
 	private toggleTutorial() {
-		this.tutorialVisible = !this.tutorialVisible
-		this.tutorialPanel.setVisible(this.tutorialVisible)
-		
 		if (this.tutorialVisible) {
-			this.instructionText.setText('Tutorial opened! Press T again to close.')
-		} else {
+			this.hideTutorial()
 			this.instructionText.setText('Tutorial closed. Press T to open again.')
+		} else {
+			this.showTutorial()
+			this.instructionText.setText('Tutorial opened! Press T again to close.')
 		}
 		this.time.delayedCall(2000, () => {
 			if (this.currentBall) {
@@ -1082,4 +1104,5 @@ export class Level8 extends BaseScene {
 			this.instructionText.setColor('#ffff00')
 		})
 	}
+
 }

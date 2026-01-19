@@ -120,6 +120,7 @@ export class Level7 extends BaseScene {
 		}
 		this.world.resources.levelData.currentBallWeight = null
 		this.world.resources.levelData.thresholdWeight = this.thresholdWeight
+		this.world.resources.levelData.currentTask = 'task1' // Set initial task
 
 		// Show pre-game tutorial first
 		this.showPreGameTutorial()
@@ -178,6 +179,11 @@ export class Level7 extends BaseScene {
 	}
 
 	protected onLevelUpdate(): void {
+		// Task 2: Continuously clear spell message to prevent it from showing in HUD
+		if (this.currentTask === 'task2') {
+			this.world.resources.spellMessageByEid.set(this.world.resources.playerEid, '')
+		}
+
 		// Update current weight display based on task
 		if (this.currentTask === 'task1') {
 			// Task 1: Show weight when revealed
@@ -269,6 +275,8 @@ export class Level7 extends BaseScene {
 						})
 						return // Don't execute the spell
 					}
+					// Clear spell message before casting to prevent it from showing
+					this.world.resources.spellMessageByEid.set(this.world.resources.playerEid, '')
 				}
 				
 				const result = castSpell(this.world, playerEid, spell)
@@ -294,16 +302,16 @@ export class Level7 extends BaseScene {
 						})
 					}
 				} else {
-					// Task 2: Let player test their logic by throwing the ball
-					// Don't give error messages - they'll learn from gate feedback
-					if (typeof result === 'string') {
-						this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your logic.`)
-						this.instructionText.setColor('#ffff00')
-					} else {
-						// Even for wrong type, don't tell them - let them figure it out
-						this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your logic.`)
-						this.instructionText.setColor('#ffff00')
-					}
+					// Task 2: Don't show spell result - players should not see it
+					// Clear any spell message to prevent it from showing in HUD
+					// Clear immediately and also in next frame to ensure it's cleared
+					this.world.resources.spellMessageByEid.set(this.world.resources.playerEid, '')
+					this.time.delayedCall(0, () => {
+						this.world.resources.spellMessageByEid.set(this.world.resources.playerEid, '')
+					})
+					// Just show a generic message without revealing any result
+					this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your logic.`)
+					this.instructionText.setColor('#ffff00')
 				}
 			} catch (err) {
 				console.error('[Level7] Spell error:', err)
@@ -1120,6 +1128,12 @@ export class Level7 extends BaseScene {
 
 	private startTask2() {
 		this.currentTask = 'task2'
+		
+		// Update levelData to indicate we're in Task 2 (for hudSystem to check)
+		if (!this.world.resources.levelData) {
+			this.world.resources.levelData = {}
+		}
+		this.world.resources.levelData.currentTask = 'task2'
 		
 		// Clear existing spell workflow to remove Task 1 nodes
 		const storageKey = `spell-workflow-Level7`
