@@ -14,10 +14,10 @@ import { Level4 } from './scenes/levels/Level4'
 import { Level6 } from './scenes/levels/Level6'
 import { Level7 } from './scenes/levels/Level7'
 import { Level8 } from './scenes/levels/Level8'
+import { Level9 } from './scenes/levels/Level9'
 
 import {
 	Level5,
-	Level9,
 	Level10,
 	Level16,
 	Level17,

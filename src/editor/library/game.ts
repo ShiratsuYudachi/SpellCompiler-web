@@ -791,6 +791,43 @@ export function getGameFunctions(): FunctionSpec[] {
 		},
 		ui: { displayName: '💎 detectTreasure' },
 	},
+	{
+		fullName: 'game::getLightColor',
+		params: { id: 'number' },
+		returns: 'string',
+		getFn: (evaluator) => {
+			const ctx = getRuntimeContext(evaluator)
+			if (!ctx) {
+				return () => 'green'
+			}
+			const { world } = ctx
+			return (id: Value) => {
+				if (typeof id !== 'number') {
+					throw new Error('getLightColor requires a number (light ID)')
+				}
+
+				// Get lights from level data
+				const levelData = world.resources.levelData
+				if (!levelData || !levelData.lights || !Array.isArray(levelData.lights)) {
+					throw new Error('Lights not found in level data')
+				}
+
+				const lights = levelData.lights as Array<{
+					ID: number
+					color: 'green' | 'red' | 'yellow'
+				}>
+
+				// Find light by ID
+				const light = lights.find(l => l.ID === id)
+				if (!light) {
+					throw new Error(`Light with ID ${id} not found`)
+				}
+
+				return light.color.toUpperCase() // Return 'GREEN', 'RED', or 'YELLOW'
+			}
+		},
+		ui: { displayName: '💡 getLightColor' },
+	},
 	]
 }
 

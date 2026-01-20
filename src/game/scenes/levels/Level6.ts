@@ -27,7 +27,7 @@ export class Level6 extends BaseScene {
 		// Adjust frameWidth and frameHeight based on your actual image dimensions
 		// If the image is 128x64 (2 frames of 64x64), use frameWidth: 64
 		// If the image is arranged vertically, adjust accordingly
-		this.load.spritesheet('chest', '/assets/chest.png', {
+		this.load.spritesheet('chest', '/assets/level6/chest.png', {
 			frameWidth: 32, // Adjust based on actual image size (half of total width if horizontal)
 			frameHeight: 32, // Adjust based on actual image size
 			startFrame: 0,

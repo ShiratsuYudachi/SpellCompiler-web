@@ -71,11 +71,12 @@ export class Level5 extends LevelEmpty {
 // 	}
 // }
 
-export class Level9 extends LevelEmpty {
-	constructor() {
-		super('Level9')
-	}
-}
+// Level9 is implemented in Level9.ts
+// export class Level9 extends LevelEmpty {
+// 	constructor() {
+// 		super('Level9')
+// 	}
+// }
 
 export class Level10 extends LevelEmpty {
 	constructor() {
