@@ -30,6 +30,7 @@ import { OutputNode } from './nodes/OutputNode';
 import { LambdaDefNode } from './nodes/LambdaDefNode';
 import { FunctionOutNode } from './nodes/FunctionOutNode';
 import { VectorNode } from './nodes/VectorNode';
+import { SequenceNode } from './nodes/SequenceNode';
 
 import { flowToIR } from '../utils/flowToIR';
 import { Evaluator } from '../ast/evaluator';
@@ -58,6 +59,7 @@ const nodeTypes = {
 	lambdaDef: LambdaDefNode,
 	functionOut: FunctionOutNode,
 	vector: VectorNode,
+	sequence: SequenceNode,
 };
 
 type FlowSnapshot = { nodes: Node[]; edges: Edge[] }
@@ -500,7 +502,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'sequence') => {
 		if (!menuState) return;
 		
 		// Check if node type is allowed
@@ -523,6 +525,8 @@ function EditorContent(props: FunctionalEditorProps) {
 					return { triggerType: 'onEnemyNearby' };
 				case 'vector':
 					return { x: 0, y: 0 };
+				case 'sequence':
+					return { stepCount: 2 };
 				case 'lambdaDef':
 					return { functionName: 'lambda', paramCount: 1, params: ['arg0'] };
 				case 'customFunction':

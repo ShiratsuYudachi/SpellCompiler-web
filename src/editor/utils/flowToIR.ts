@@ -4,7 +4,7 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Vector2D, Lambda } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Vector2D, Lambda, Sequence } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
@@ -421,6 +421,37 @@ function convertNode(
 				function: funcExpr,  // Function is an expression, not a string
 				args
 			} as FunctionCall;
+		}
+
+		case 'sequence': {
+			const edges = incomingEdges.get(node.id) || [];
+
+			// Get all step edges and sort by step number
+			const sortedEdges = edges
+				.filter(e => e.targetHandle?.startsWith('step'))
+				.sort((a, b) => {
+					const aIndex = parseInt(a.targetHandle?.replace('step', '') || '0');
+					const bIndex = parseInt(b.targetHandle?.replace('step', '') || '0');
+					return aIndex - bIndex;
+				});
+
+			if (sortedEdges.length === 0) {
+				throw new Error(`Sequence node ${node.id} has no steps connected`);
+			}
+
+			// Recursively convert each step
+			const expressions: ASTNode[] = sortedEdges.map((edge, index) => {
+				const sourceNode = allNodes.find(n => n.id === edge.source);
+				if (!sourceNode) {
+					throw new Error(`Source node ${edge.source} for sequence step ${index} not found`);
+				}
+				return convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
+			});
+
+			return {
+				type: 'Sequence',
+				expressions
+			} as Sequence;
 		}
 
 		case 'if': {

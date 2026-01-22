@@ -75,6 +75,13 @@ export interface VectorNodeData extends BaseNodeData {
 }
 
 /**
+ * Sequence Node - 顺序执行多个表达式
+ */
+export interface SequenceNodeData extends BaseNodeData {
+	stepCount: number;  // 步骤数量
+}
+
+/**
  * All node types
  */
 export type FlowNodeType =
@@ -88,7 +95,8 @@ export type FlowNodeType =
 	| 'lambdaDef'
 	| 'functionOut'
 	| 'output'
-	| 'vector';
+	| 'vector'
+	| 'sequence';
 
 /**
  * Dynamic Function Node Data
@@ -132,7 +140,8 @@ export type FlowNode =
 	| Node<LambdaDefNodeData, 'lambdaDef'>
 	| Node<FunctionOutNodeData, 'functionOut'>
 	| Node<OutputNodeData, 'output'>
-	| Node<VectorNodeData, 'vector'>;
+	| Node<VectorNodeData, 'vector'>
+	| Node<SequenceNodeData, 'sequence'>;
 
 /**
  * Edge labels for better clarity
