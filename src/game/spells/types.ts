@@ -1,6 +1,9 @@
-import type { ASTNode, FunctionDefinition } from '../../editor/ast/ast'
+import type { ASTNode, FunctionDefinition, Spell } from '../../editor/ast/ast'
 
-export type CompiledSpell = {
+export type CompiledSpell = Spell
+
+// Legacy format for backward compatibility
+export type LegacyCompiledSpell = {
 	ast: ASTNode
 	dependencies: FunctionDefinition[]
 }

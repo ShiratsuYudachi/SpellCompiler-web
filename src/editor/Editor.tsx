@@ -121,8 +121,8 @@ export function Editor() {
 						throw new Error('Game is not running')
 					}
 
-					const { ast, functions } = flowToIR(flow.nodes, flow.edges)
-					game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
+				const compiledSpell = flowToIR(flow.nodes, flow.edges)
+				game.events.emit(GameEvents.registerSpell, compiledSpell)
 				}}
 			/>
 		)

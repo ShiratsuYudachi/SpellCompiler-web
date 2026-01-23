@@ -78,7 +78,7 @@ export interface VectorNodeData extends BaseNodeData {
  * Spell Input Node - Marks spell input parameters
  */
 export interface SpellInputNodeData extends BaseNodeData {
-	paramName?: string; // e.g., 'state' for GameState
+	params?: string[]; // Parameter names, e.g., ['state', 'target', 'amount']
 }
 
 /**

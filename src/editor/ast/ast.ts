@@ -62,7 +62,13 @@ export interface Lambda extends BaseASTNode {
 // AST
 // =============================================
 
-
+// Spell - Top-level program node
+// Represents a complete castable spell with input parameters
+export interface Spell {
+	params: string[];      // Parameter names (e.g., ['state', 'target', 'amount'])
+	body: ASTNode;         // Main expression
+	dependencies: FunctionDefinition[];  // Custom function definitions used by this spell
+}
 
 // GameState - Token/handle for game world context
 // This is just a reference, not the actual state

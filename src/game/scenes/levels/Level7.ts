@@ -265,7 +265,7 @@ export class Level7 extends BaseScene {
 			try {
 				// Task 2: Check if measureWeight() is directly connected to output (cheating detection)
 				if (this.currentTask === 'task2') {
-					const isDirectMeasureWeight = this.isDirectMeasureWeightConnection(spell.ast)
+					const isDirectMeasureWeight = this.isDirectMeasureWeightConnection(spell.body)
 					if (isDirectMeasureWeight) {
 						this.instructionText.setText('ERROR: measureWeight() cannot be directly connected to Output! You must use comparison operators.')
 						this.instructionText.setColor('#ff0000')

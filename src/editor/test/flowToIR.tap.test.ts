@@ -4,7 +4,15 @@ import type { Node, Edge } from 'reactflow';
 import { flowToIR } from '../utils/flowToIR';
 import { Evaluator } from '../ast/evaluator';
 import { runner, expect } from './framework';
-import type { FunctionCall } from '../ast/ast';
+import type { FunctionCall, Spell } from '../ast/ast';
+
+// Helper function to extract legacy format from Spell for test compatibility
+function toLegacyFormat(spell: Spell) {
+	return {
+		ast: spell.body,
+		functions: spell.dependencies
+	};
+}
 
 runner.suite('flowToIR - Tap Node', (suite) => {
 	suite.test('converts tap node with literal value and lambda', () => {
@@ -82,7 +90,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e7', source: 'lambda-1', target: 'funcout-1', targetHandle: 'lambdaDef' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 		
 		// Should be: tap(42, sideEffect)
 		// Where sideEffect is registered as a function definition
@@ -206,7 +215,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e11', source: 'lambda-debug', target: 'funcout-1', targetHandle: 'lambdaDef' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 		
 		// Should be: multiply(tap(add(5, 3), lambda), 2)
 		expect(result.ast.type).toBe('FunctionCall');
@@ -273,7 +283,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e5', source: 'lambda-1', target: 'funcout-1', targetHandle: 'lambdaDef' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		// Execute with evaluator
 		const evaluator = new Evaluator();
@@ -349,7 +360,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e7', source: 'lambda-1', target: 'funcout-1', targetHandle: 'lambdaDef' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		// Execute
 		const evaluator = new Evaluator();
@@ -413,7 +425,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e3', source: 'tap-1', target: 'output-1' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		const evaluator = new Evaluator();
 		functions.forEach(fn => evaluator.registerFunction(fn));
@@ -523,7 +536,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e11', source: 'lambda-2', target: 'funcout-2', targetHandle: 'lambdaDef' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		const evaluator = new Evaluator();
 		functions.forEach(fn => evaluator.registerFunction(fn));
@@ -632,7 +646,8 @@ runner.suite('flowToIR - Tap Node', (suite) => {
 			{ id: 'e9', source: 'lambda-1', target: 'funcout-1', targetHandle: 'lambdaDef' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		const evaluator = new Evaluator();
 		functions.forEach(fn => evaluator.registerFunction(fn));
@@ -675,7 +690,8 @@ runner.suite('flowToIR - Other FP Utilities', (suite) => {
 			{ id: 'e2', source: 'print-1', target: 'output-1' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		const evaluator = new Evaluator();
 		functions.forEach(fn => evaluator.registerFunction(fn));
@@ -735,7 +751,8 @@ runner.suite('flowToIR - Other FP Utilities', (suite) => {
 			{ id: 'e3', source: 'debug-1', target: 'output-1' }
 		];
 
-		const { ast, functions } = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const { ast, functions } = toLegacyFormat(spell);
 		
 		const evaluator = new Evaluator();
 		functions.forEach(fn => evaluator.registerFunction(fn));

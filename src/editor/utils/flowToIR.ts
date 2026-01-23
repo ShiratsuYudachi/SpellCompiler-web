@@ -4,7 +4,7 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Lambda } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Lambda, Spell } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
@@ -14,16 +14,17 @@ import type {
 	CustomFunctionNodeData,
 	LambdaDefNodeData,
 	FunctionOutNodeData,
-	VectorNodeData
+	VectorNodeData,
+	SpellInputNodeData
 } from '../types/flowTypes';
 
 /**
- * Convert React Flow graph to IR
+ * Convert React Flow graph to Spell IR
  * @param nodes - All nodes in the graph
  * @param edges - All edges connecting nodes
- * @returns Object containing main expression and function definitions
+ * @returns Spell object containing parameters, body, and function definitions
  */
-export function flowToIR(nodes: Node[], edges: Edge[]): { ast: ASTNode; functions: FunctionDefinition[] } {
+export function flowToIR(nodes: Node[], edges: Edge[]): Spell {
 	// Build adjacency map: nodeId -> list of incoming edges
 	const incomingEdges = new Map<string, Edge[]>();
 	edges.forEach(edge => {
@@ -102,6 +103,10 @@ export function flowToIR(nodes: Node[], edges: Edge[]): { ast: ASTNode; function
 		});
 	}
 
+	// Find spell input node to extract parameters
+	const spellInputNode = nodes.find(n => n.type === 'spellInput') as Node<SpellInputNodeData> | undefined;
+	const spellParams = spellInputNode?.data.params || ['state'];  // Default to ['state'] if no input node
+
 	// Find the output node (entry point for main expression)
 	const outputNode = nodes.find(n => n.type === 'output');
 	if (!outputNode) {
@@ -124,9 +129,14 @@ export function flowToIR(nodes: Node[], edges: Edge[]): { ast: ASTNode; function
 	}
 
 	// Convert recursively
-	const ast = convertNode(rootNode as FlowNode, nodes, incomingEdges);
+	const body = convertNode(rootNode as FlowNode, nodes, incomingEdges);
 
-	return { ast, functions: functionDefs };
+	// Return Spell structure
+	return {
+		params: spellParams,
+		body,
+		dependencies: functionDefs
+	};
 }
 
 /**
@@ -174,10 +184,19 @@ function convertNode(
 		}
 
 		case 'spellInput': {
-			// SpellInput represents a parameter that will be injected by the evaluator
-			// It's converted to an Identifier that will be resolved from the environment
-			const data = node.data as import('../types/flowTypes').SpellInputNodeData;
-			const paramName = data.paramName || 'state';
+			// SpellInput represents parameters that will be injected by the evaluator
+			// sourceHandle specifies which parameter (e.g., 'param-0', 'param-1')
+			// If no sourceHandle, default to first parameter
+			const data = node.data as SpellInputNodeData;
+			const params = data.params || ['state'];
+			
+			// Extract parameter index from sourceHandle (e.g., 'param-0' -> 0)
+			let paramIndex = 0;
+			if (sourceHandle && sourceHandle.startsWith('param-')) {
+				paramIndex = parseInt(sourceHandle.split('-')[1], 10);
+			}
+			
+			const paramName = params[paramIndex] || params[0];
 			return {
 				type: 'Identifier',
 				name: paramName

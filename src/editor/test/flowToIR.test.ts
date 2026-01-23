@@ -6,7 +6,15 @@
 import type { Node, Edge } from 'reactflow';
 import { flowToIR } from '../utils/flowToIR';
 import { runner, expect } from './framework';
-import type { Literal, Identifier, FunctionCall, IfExpression } from '../ast/ast';
+import type { Literal, Identifier, FunctionCall, IfExpression, Spell } from '../ast/ast';
+
+// Helper function to extract legacy format from Spell for test compatibility
+function toLegacyFormat(spell: Spell) {
+	return {
+		ast: spell.body,
+		functions: spell.dependencies
+	};
+}
 
 // =============================================
 // Test Suite
@@ -37,7 +45,8 @@ runner.suite('flowToIR - Basic Nodes', (suite) => {
 			}
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.ast.type).toBe('Literal');
 		expect((result.ast as Literal).value).toBe(42);
@@ -68,7 +77,8 @@ runner.suite('flowToIR - Basic Nodes', (suite) => {
 			}
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.ast.type).toBe('Identifier');
 		expect((result.ast as Identifier).name).toBe('x');
@@ -84,7 +94,8 @@ runner.suite('flowToIR - Basic Nodes', (suite) => {
 			{ id: 'e1', source: 'literal-1', target: 'output-1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect((result.ast as Literal).value).toBe('hello');
 	});
@@ -99,7 +110,8 @@ runner.suite('flowToIR - Basic Nodes', (suite) => {
 			{ id: 'e1', source: 'literal-1', target: 'output-1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect((result.ast as Literal).value).toBe(true);
 	});
@@ -130,7 +142,8 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 			{ id: 'e3', source: 'literal-2', target: 'add-1', targetHandle: 'arg1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.ast.type).toBe('FunctionCall');
 		const call = result.ast as FunctionCall;
@@ -179,7 +192,8 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 			{ id: 'e5', source: 'literal-2', target: 'add-1', targetHandle: 'arg1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.ast.type).toBe('FunctionCall');
 		const mulCall = result.ast as FunctionCall;
@@ -207,7 +221,8 @@ runner.suite('flowToIR - Function Calls', (suite) => {
 			{ id: 'e2', source: 'literal-1', target: 'custom-1', targetHandle: 'arg0' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		const call = result.ast as FunctionCall;
 		expect(call.type).toBe('FunctionCall');
@@ -232,7 +247,8 @@ runner.suite('flowToIR - ApplyFunc Node', (suite) => {
 			{ id: 'e3', source: 'arg-1', target: 'apply-1', targetHandle: 'arg0' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		const call = result.ast as FunctionCall;
 		expect(call.type).toBe('FunctionCall');
@@ -259,7 +275,8 @@ runner.suite('flowToIR - ApplyFunc Node', (suite) => {
 			{ id: 'e4', source: 'lit-3', target: 'apply-1', targetHandle: 'arg0' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		const call = result.ast as FunctionCall;
 		expect(call.type).toBe('FunctionCall');
@@ -294,7 +311,8 @@ runner.suite('flowToIR - ApplyFunc Node', (suite) => {
 			{ id: 'e5', source: 'lit-3', target: 'apply-1', targetHandle: 'arg2' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		const call = result.ast as FunctionCall;
 		expect(call.args).toHaveLength(3);
@@ -337,7 +355,8 @@ runner.suite('flowToIR - If Expression', (suite) => {
 			{ id: 'e4', source: 'else-1', target: 'if-1', targetHandle: 'else' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.ast.type).toBe('IfExpression');
 		const ifExpr = result.ast as IfExpression;
@@ -369,7 +388,8 @@ runner.suite('flowToIR - If Expression', (suite) => {
 			{ id: 'e7', source: 'lit-2', target: 'if-2', targetHandle: 'else' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		const outerIf = result.ast as IfExpression;
 		expect(outerIf.type).toBe('IfExpression');
@@ -413,7 +433,8 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 			{ id: 'e5', source: 'call-1', target: 'output-1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		// Check function definition
 		expect(result.functions).toHaveLength(1);
@@ -466,7 +487,8 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 			{ id: 'e6', source: 'call-1', target: 'output-1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.functions).toHaveLength(1);
 		expect(result.functions[0].params).toHaveLength(2);
@@ -522,7 +544,8 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 			{ id: 'e8', source: 'call-main', target: 'output-1' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		expect(result.functions).toHaveLength(2);
 		
@@ -570,7 +593,8 @@ runner.suite('flowToIR - Lambda Definitions', (suite) => {
 			{ id: 'e11', source: 'node-102', target: 'node-113' }
 		];
 
-		const result = flowToIR(nodes, edges);
+		const spell = flowToIR(nodes, edges);
+		const result = toLegacyFormat(spell);
 
 		// Check lambda definition
 		expect(result.functions).toHaveLength(1);

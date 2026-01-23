@@ -1277,7 +1277,7 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 					position: { x: 50, y: 250 },
 					data: {
 						label: 'Spell Input',
-						paramName: 'state',
+						params: ['state'],  // Default parameter
 					},
 				},
 				

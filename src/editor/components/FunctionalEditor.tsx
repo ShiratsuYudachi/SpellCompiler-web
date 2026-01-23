@@ -611,14 +611,13 @@ function EditorContent(props: FunctionalEditorProps) {
 
 			console.log('[Evaluate] Starting evaluation...')
 			console.log('[Evaluate] Nodes:', nodes)
-			console.log('[Evaluate] Edges:', edges)
+		console.log('[Evaluate] Edges:', edges)
 
-			// Convert Flow to IR
-			const { ast, functions } = flowToIR(nodes, edges);
-			console.log('[Evaluate] Generated AST:', JSON.stringify(ast, null, 2))
-			console.log('[Evaluate] Generated functions:', functions)
-			setCurrentAST(ast);
-			setCurrentFunctions(functions);
+		// Convert Flow to Spell IR
+		const spell = flowToIR(nodes, edges);
+		console.log('[Evaluate] Generated Spell:', JSON.stringify(spell, null, 2))
+		setCurrentAST(spell.body);
+		setCurrentFunctions(spell.dependencies);
 
 		// Evaluate IR
 		const evaluator = new Evaluator();
@@ -627,12 +626,12 @@ function EditorContent(props: FunctionalEditorProps) {
 		registerGameFunctions(evaluator)
 
 		// Register user-defined functions
-		functions.forEach(fn => {
+		spell.dependencies.forEach(fn => {
 			evaluator.registerFunction(fn);
 		});
 
-			const result = evaluator.evaluate(ast, new Map());
-			console.log('[Evaluate] Result:', result)
+		const result = evaluator.evaluate(spell.body, new Map());
+		console.log('[Evaluate] Result:', result)
 
 			setEvaluationResult(result);
 		} catch (err) {
@@ -648,49 +647,48 @@ function EditorContent(props: FunctionalEditorProps) {
 		try {
 			setError(null)
 			console.log('[RegisterSpell] Starting registration...')
-			console.log('[RegisterSpell] Nodes:', nodes)
-			console.log('[RegisterSpell] Edges:', edges)
+		console.log('[RegisterSpell] Nodes:', nodes)
+		console.log('[RegisterSpell] Edges:', edges)
 
-			const { ast, functions } = flowToIR(nodes, edges)
-			console.log('[RegisterSpell] Generated AST:', JSON.stringify(ast, null, 2))
-			console.log('[RegisterSpell] Generated functions:', functions)
-			setCurrentAST(ast)
-			setCurrentFunctions(functions)
+		const spell = flowToIR(nodes, edges)
+		console.log('[RegisterSpell] Generated Spell:', JSON.stringify(spell, null, 2))
+		setCurrentAST(spell.body)
+		setCurrentFunctions(spell.dependencies)
 
-			// Check if any game functions are used
-			const hasGameFunctions = functions.some(fn => fn.name.startsWith('game::')) ||
-				JSON.stringify(ast).includes('game::')
-			console.log('[RegisterSpell] Has game functions:', hasGameFunctions)
+		// Check if any game functions are used
+		const hasGameFunctions = spell.dependencies.some(fn => fn.name.startsWith('game::')) ||
+			JSON.stringify(spell.body).includes('game::')
+		console.log('[RegisterSpell] Has game functions:', hasGameFunctions)
 
-			if (hasGameFunctions) {
-				// Skip evaluation, directly register to game
-				const game = getGameInstance()
-				console.log('[RegisterSpell] Game instance:', game ? 'found' : 'not found')
-				if (!game) {
-					throw new Error('Game is not running')
-				}
-
-				console.log('[RegisterSpell] Emitting registerSpell event with:', { ast, dependencies: functions })
-				game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
-				setEvaluationResult({ cast: true })
-			} else {
-			// Evaluate first, then register
-			const evaluator = new Evaluator()
-			registerGameFunctions(evaluator)
-			functions.forEach(fn => {
-				evaluator.registerFunction(fn)
-			})
-
-				const result = evaluator.evaluate(ast, new Map())
-				console.log('[RegisterSpell] Evaluation result:', result)
-				setEvaluationResult(result)
-
-				const game = getGameInstance()
-				if (game) {
-					console.log('[RegisterSpell] Emitting registerSpell event')
-					game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
-				}
+		if (hasGameFunctions) {
+			// Skip evaluation, directly register to game
+			const game = getGameInstance()
+			console.log('[RegisterSpell] Game instance:', game ? 'found' : 'not found')
+			if (!game) {
+				throw new Error('Game is not running')
 			}
+
+			console.log('[RegisterSpell] Emitting registerSpell event with spell:', spell)
+			game.events.emit(GameEvents.registerSpell, spell)
+			setEvaluationResult({ cast: true })
+		} else {
+		// Evaluate first, then register
+		const evaluator = new Evaluator()
+		registerGameFunctions(evaluator)
+		spell.dependencies.forEach(fn => {
+			evaluator.registerFunction(fn)
+		})
+
+			const result = evaluator.evaluate(spell.body, new Map())
+			console.log('[RegisterSpell] Evaluation result:', result)
+			setEvaluationResult(result)
+
+			const game = getGameInstance()
+			if (game) {
+				console.log('[RegisterSpell] Emitting registerSpell event')
+				game.events.emit(GameEvents.registerSpell, spell)
+			}
+		}
 			console.log('[RegisterSpell] Registration complete')
 		} catch (err) {
 			console.error('[RegisterSpell] Error:', err)

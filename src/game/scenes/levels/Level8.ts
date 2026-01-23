@@ -241,7 +241,7 @@ export class Level8 extends BaseScene {
 		if (spell) {
 			try {
 				// Anti-cheat detection: check if measureWeight() is directly connected to output
-				const isDirectMeasureWeight = this.isDirectMeasureWeightConnection(spell.ast)
+				const isDirectMeasureWeight = this.isDirectMeasureWeightConnection(spell.body)
 				if (isDirectMeasureWeight) {
 					this.instructionText.setText('ERROR: measureWeight() cannot be directly connected to Output! You must use comparison or storage.')
 					this.instructionText.setColor('#ff0000')
