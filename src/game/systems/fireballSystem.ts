@@ -3,7 +3,6 @@ import { Direction, Fireball, FireballStats, Health, Lifetime, Owner, Sprite, Ve
 import type { GameWorld } from '../gameWorld'
 import { despawnEntity } from '../gameWorld'
 import { applyDamage } from './utils/attack'
-import { onDeflectionExecuted } from '../../editor/library/game'
 
 // Helper: check which plate color the fireball is over
 function getFireballPlateColor(world: GameWorld, x: number, y: number): number {
@@ -98,8 +97,8 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 
 			if (now >= deflectTime) {
 				applyDeflection(world, eid, deflectAngle)
-				// Clear deflection flag and process next deflection from queue
-				onDeflectionExecuted(eid)
+				// Clear deflection flag
+				FireballStats.pendingDeflection[eid] = 0
 			}
 		}
 

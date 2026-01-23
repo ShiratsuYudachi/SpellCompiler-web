@@ -11,7 +11,7 @@ import { getSceneConfig } from '../../../game/scenes/sceneConfig';
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
-	onSelectBasicNode: (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'sequence') => void;
+	onSelectBasicNode: (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => void;
 	onClose: () => void;
 	editorContext?: { sceneKey?: string } | null;
 }
@@ -20,7 +20,6 @@ const BASIC_NODES = [
 	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value (number)' },
 	{ type: 'triggerType' as const, label: 'Trigger Type', icon: '⚡', description: 'Select trigger type for onTrigger' },
 	{ type: 'vector' as const, label: 'Vector2D', icon: '📐', description: '2D Vector (x, y)' },
-	{ type: 'sequence' as const, label: 'Sequence', icon: '📜', description: 'Execute multiple actions in order' },
 	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
 	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞', description: 'Call custom function' },
 	{ type: 'applyFunc' as const, label: 'Apply', icon: '⚡', description: 'Apply function dynamically' },

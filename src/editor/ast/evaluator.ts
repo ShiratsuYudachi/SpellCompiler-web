@@ -12,10 +12,8 @@ import type {
 	Identifier,
 	FunctionCall,
 	IfExpression,
-	Lambda,
-	Sequence
+	Lambda
 } from './ast';
-import { isAsyncOperation } from './ast';
 import { registerCoreLibrary } from './library';
 import { registerUiFunction, type FunctionUiMeta, type ParameterModeOption } from '../utils/functionRegistry'
 
@@ -41,7 +39,6 @@ export class Evaluator {
 	private cache: Map<CacheKey, Value>;
 	private callStack: string[]; // Track current function call stack
 	private callStackValues: FunctionValue[]; // Track actual function values for lambdas
-	public sequenceDelay: number = 0; // Accumulated delay from Sequence async operations
 
 	constructor() {
 		this.functionTable = new Map();
@@ -156,9 +153,6 @@ export class Evaluator {
 
 			case 'Lambda':
 				return this.evalLambda(node, env);
-
-			case 'Sequence':
-				return this.evalSequence(node, env);
 
 			default:
 				throw new Error(`Unknown node type: ${(node as any).type}`);
@@ -464,47 +458,5 @@ export class Evaluator {
 				this.callStackValues.pop();
 			}
 		}
-	}
-
-	private evalSequence(node: Sequence, env: Environment): Value {
-		const seqNode = node as Sequence;
-
-		if (seqNode.expressions.length === 0) {
-			throw new Error('Sequence node has no expressions');
-		}
-
-		let lastResult: Value = 0; // Default value
-		const savedDelay = this.sequenceDelay; // Save previous delay
-		this.sequenceDelay = 0; // Reset for this sequence
-
-		// Execute each expression in order
-		for (const expr of seqNode.expressions) {
-			lastResult = this.evaluate(expr, env);
-
-			// Check if the result is an async operation
-			if (isAsyncOperation(lastResult)) {
-				// Calculate the delay for this operation
-				const operationDelay = lastResult.waitUntil - Date.now();
-				if (operationDelay > 0) {
-					this.sequenceDelay += operationDelay;
-					console.log(`[Sequence] Step returned async operation, cumulative delay now: ${this.sequenceDelay}ms`);
-				}
-			}
-		}
-
-		// Restore previous delay
-		const finalDelay = this.sequenceDelay;
-		this.sequenceDelay = savedDelay;
-
-		// Return the result of the last expression
-		// If we accumulated delay, return an AsyncOperation
-		if (finalDelay > 0 && !isAsyncOperation(lastResult)) {
-			return {
-				type: 'async',
-				waitUntil: Date.now() + finalDelay
-			} as Value;
-		}
-
-		return lastResult;
 	}
 }

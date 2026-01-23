@@ -7,13 +7,12 @@ export interface BaseASTNode {
 }
 
 // AST Node Types ()
-export type ASTNode =
-	| Literal
+export type ASTNode = 
+	| Literal 
 	| Identifier
-	| FunctionCall
+	| FunctionCall 
 	| IfExpression
-	| Lambda
-	| Sequence;
+	| Lambda;
 
 
 // Primitive value type ()
@@ -54,15 +53,8 @@ export interface IfExpression extends BaseASTNode {
 // Lambda ，、、
 export interface Lambda extends BaseASTNode {
 	type: 'Lambda';
-	params: string[];  //
+	params: string[];  // 
 	body: ASTNode;     // （）
-}
-
-// Sequence Expression (顺序执行多个表达式)
-// 用于执行多个副作用操作，返回最后一个表达式的结果
-export interface Sequence extends BaseASTNode {
-	type: 'Sequence';
-	expressions: ASTNode[];  // 按顺序执行的表达式列表
 }
 
 
@@ -94,22 +86,10 @@ export interface Vector2D {
 	y: number;
 }
 
-// AsyncOperation Type - Represents an operation that will complete in the future
-export interface AsyncOperation {
-	type: 'async';
-	waitUntil: number;  // Timestamp (Date.now()) when this operation will complete
-}
-
 // Type guard for Vector2D
 export function isVector2D(value: any): value is Vector2D {
 	return value && typeof value === 'object' && value.type === 'vector2d' &&
 		typeof value.x === 'number' && typeof value.y === 'number';
-}
-
-// Type guard for AsyncOperation
-export function isAsyncOperation(value: any): value is AsyncOperation {
-	return value && typeof value === 'object' && value.type === 'async' &&
-		typeof value.waitUntil === 'number';
 }
 
 // Value Type ()
@@ -120,5 +100,4 @@ export type Value =
 	| boolean
 	| Value[]
 	| FunctionValue
-	| Vector2D
-	| AsyncOperation;
+	| Vector2D;

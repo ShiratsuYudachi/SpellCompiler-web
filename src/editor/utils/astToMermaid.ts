@@ -3,7 +3,7 @@
 //  AST  Mermaid 
 // =============================================
 
-import type { ASTNode, FunctionDefinition, Lambda, Sequence } from '../ast/ast';
+import type { ASTNode, FunctionDefinition, Lambda } from '../ast/ast';
 
 let nodeCounter = 0;
 
@@ -114,8 +114,8 @@ function generateMermaidNode(node: ASTNode, lines: string[], prefix: string = ''
 
 	case 'Lambda': {
 		const lambda = node as Lambda;
-		const paramsStr = lambda.params.length > 0
-			? lambda.params.join(', ')
+		const paramsStr = lambda.params.length > 0 
+			? lambda.params.join(', ') 
 			: 'no params';
 		lines.push(`${nodeId}["λ (${paramsStr})"]`);
 		lines.push(`style ${nodeId} fill:#f5e1ff`);
@@ -123,19 +123,6 @@ function generateMermaidNode(node: ASTNode, lines: string[], prefix: string = ''
 		// Lambda body
 		const bodyId = generateMermaidNode(lambda.body, lines, prefix);
 		lines.push(`${bodyId} -->|body| ${nodeId}`);
-		break;
-	}
-
-	case 'Sequence': {
-		const sequence = node as Sequence;
-		lines.push(`${nodeId}["📜 Sequence (${sequence.expressions.length} steps)"]`);
-		lines.push(`style ${nodeId} fill:#fff4e6,stroke:#fd7e14,stroke-width:2px`);
-
-		// Each expression in the sequence
-		sequence.expressions.forEach((expr, index) => {
-			const exprId = generateMermaidNode(expr, lines, prefix);
-			lines.push(`${exprId} -->|step${index + 1}| ${nodeId}`);
-		});
 		break;
 	}
 

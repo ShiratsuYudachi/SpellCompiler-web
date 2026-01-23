@@ -12,7 +12,6 @@ import { velocitySystem } from './systems/velocitySystem'
 import { deathSystem } from './systems/deathSystem'
 import { hudSystem } from './systems/hudSystem'
 import { triggerSystem } from './systems/triggerSystem'
-import { processDelayedActions } from '../editor/library/game'
 
 export type GameWorld = World & {
 	resources: GameResources
@@ -72,7 +71,6 @@ export function updateGameWorld(world: GameWorld, dt: number) {
 	velocitySystem(world)
 	deathSystem(world)
 	triggerSystem(world) // 检查并执行触发器
-	processDelayedActions() // 处理延迟执行的操作（如Sequence中的延迟传送）
 	hudSystem(world)
 }
 

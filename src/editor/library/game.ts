@@ -21,94 +21,6 @@ type RuntimeContext = {
 
 const runtimeContextMap = new WeakMap<Evaluator, RuntimeContext>()
 
-// Queue structure for multiple deflections per fireball
-interface DeflectionQueueItem {
-	angle: number
-	delayMs: number
-	scheduledAt: number  // When this deflection was scheduled
-}
-
-// Map from entity ID to queue of pending deflections
-const deflectionQueues = new Map<number, DeflectionQueueItem[]>()
-
-// Delayed action queue structure
-interface DelayedAction {
-	executeAt: number  // Timestamp when to execute
-	action: () => void  // The action to execute
-}
-
-// Queue of pending delayed actions
-const delayedActionQueue: DelayedAction[] = []
-
-/**
- * Schedule an action to execute after a delay
- */
-function scheduleDelayedAction(delayMs: number, action: () => void) {
-	const executeAt = Date.now() + delayMs
-	delayedActionQueue.push({ executeAt, action })
-	console.log(`[scheduleDelayedAction] Scheduled action to execute at ${executeAt} (in ${delayMs}ms)`)
-}
-
-/**
- * Process delayed actions that are ready to execute
- * Called by the game system every frame
- */
-export function processDelayedActions() {
-	const now = Date.now()
-	let i = 0
-	while (i < delayedActionQueue.length) {
-		const delayed = delayedActionQueue[i]
-		if (now >= delayed.executeAt) {
-			console.log(`[processDelayedActions] Executing delayed action`)
-			delayed.action()
-			delayedActionQueue.splice(i, 1)
-		} else {
-			i++
-		}
-	}
-}
-
-/**
- * Process the next deflection from the queue for a given fireball
- * Called when a deflection is executed or when first deflection is queued
- */
-function processNextDeflectionFromQueue(eid: number) {
-	const queue = deflectionQueues.get(eid)
-	if (!queue || queue.length === 0) {
-		return
-	}
-
-	const currentTime = Date.now()
-	const nextDeflection = queue.shift()!
-
-	// Calculate when this deflection should execute
-	// It should execute delayMs after it was scheduled
-	const executeAt = nextDeflection.scheduledAt + nextDeflection.delayMs
-
-	FireballStats.pendingDeflection[eid] = nextDeflection.angle
-	FireballStats.deflectAtTime[eid] = executeAt
-
-	console.log(`[processNextDeflection] Scheduled deflection ${nextDeflection.angle}° for fireball ${eid} at ${executeAt} (in ${executeAt - currentTime}ms), remaining in queue: ${queue.length}`)
-}
-
-/**
- * Called by fireball system when a deflection is executed
- * Processes the next deflection from queue if any
- */
-export function onDeflectionExecuted(eid: number) {
-	// Clear current deflection
-	FireballStats.pendingDeflection[eid] = 0
-
-	// Process next deflection from queue
-	processNextDeflectionFromQueue(eid)
-
-	// Clean up queue if empty
-	const queue = deflectionQueues.get(eid)
-	if (queue && queue.length === 0) {
-		deflectionQueues.delete(eid)
-	}
-}
-
 export function setGameRuntimeContext(
 	evaluator: Evaluator,
 	world: GameWorld,
@@ -156,46 +68,18 @@ export function getGameFunctions(): FunctionSpec[] {
 				}
 
 				const targetEid = entityId === 'player' ? world.resources.playerEid : casterEid
-
-				// Check if there's accumulated delay from Sequence
-				const delay = evaluator.sequenceDelay
-
-				if (delay > 0) {
-					// Schedule delayed teleport
-					console.log(`[teleportRelative] Scheduling teleport with ${delay}ms delay`)
-					scheduleDelayedAction(delay, () => {
-						const body = world.resources.bodies.get(targetEid)
-						if (!body) {
-							console.error('[teleportRelative] Sprite not found at execution time')
-							return
-						}
-						const x = body.x + offset.x
-						const y = body.y + offset.y
-						Velocity.x[targetEid] = 0
-						Velocity.y[targetEid] = 0
-						body.setVelocity(0, 0)
-						body.setPosition(x, y)
-						console.log(`[teleportRelative] Teleported to (${x.toFixed(0)}, ${y.toFixed(0)})`)
-					})
-					return {
-						type: 'async',
-						waitUntil: Date.now() + delay
-					} as Value
-				} else {
-					// Execute immediately
-					const body = world.resources.bodies.get(targetEid)
-					if (!body) {
-						throw new Error('Sprite not found')
-					}
-					const x = body.x + offset.x
-					const y = body.y + offset.y
-					Velocity.x[targetEid] = 0
-					Velocity.y[targetEid] = 0
-					body.setVelocity(0, 0)
-					body.setPosition(x, y)
-					console.log(`[teleportRelative] Teleported immediately to (${x.toFixed(0)}, ${y.toFixed(0)})`)
-					return [x, y] as Value
+				const body = world.resources.bodies.get(targetEid)
+				if (!body) {
+					throw new Error('Sprite not found')
 				}
+
+				const x = body.x + offset.x
+				const y = body.y + offset.y
+				Velocity.x[targetEid] = 0
+				Velocity.y[targetEid] = 0
+				body.setVelocity(0, 0)
+				body.setPosition(x, y)
+				return [x, y] as Value
 			}
 		},
 		ui: { displayName: '🚀 teleportRelative' },
@@ -209,14 +93,11 @@ export function getGameFunctions(): FunctionSpec[] {
 	{
 		fullName: 'game::deflectAfterTime',
 		params: { angle: 'number', delayMs: 'number' },
-		returns: 'value',
+		returns: 'boolean',
 		getFn: (evaluator) => {
 			const ctx = getRuntimeContext(evaluator)
 			if (!ctx) {
-				return (_angle: Value, delayMs: Value) => {
-					if (typeof delayMs !== 'number') return true
-					return { type: 'async', waitUntil: Date.now() + delayMs } as Value
-				}
+				return () => true
 			}
 			const { world, casterEid } = ctx
 			return (angle: Value, delayMs: Value) => {
@@ -241,34 +122,15 @@ export function getGameFunctions(): FunctionSpec[] {
 					throw new Error('No fireball found to deflect')
 				}
 
-				// Add deflection to queue
-				const currentTime = Date.now()
-
-				// Get or create queue for this fireball
-				if (!deflectionQueues.has(mostRecentEid)) {
-					deflectionQueues.set(mostRecentEid, [])
-				}
-				const queue = deflectionQueues.get(mostRecentEid)!
-
-				// Add to queue
-				queue.push({
-					angle,
-					delayMs,
-					scheduledAt: currentTime
-				})
-
-				console.log(`[deflectAfterTime] Queued deflection ${angle}° with delay ${delayMs}ms for fireball ${mostRecentEid} (queue size: ${queue.length})`)
-
-				// If no deflection is currently pending, schedule the first one from queue
-				if (FireballStats.pendingDeflection[mostRecentEid] === 0) {
-					processNextDeflectionFromQueue(mostRecentEid)
+				// 防止重复设置偏转：如果已经有 pending deflection，则跳过
+				if (FireballStats.pendingDeflection[mostRecentEid] !== 0) {
+					return false // 已有偏转等待执行，不重复设置
 				}
 
-				// Return AsyncOperation to indicate when this operation will complete
-				return {
-					type: 'async',
-					waitUntil: currentTime + delayMs
-				} as Value
+				FireballStats.pendingDeflection[mostRecentEid] = angle
+				FireballStats.deflectAtTime[mostRecentEid] = Date.now() + delayMs
+				console.log(`[deflectAfterTime] Set deflection ${angle}° after ${delayMs}ms for fireball ${mostRecentEid}`)
+				return true
 			}
 		},
 		ui: { displayName: '↩️ deflectAfterTime' },
@@ -387,7 +249,7 @@ export function getGameFunctions(): FunctionSpec[] {
 	{
 		fullName: 'game::teleportToPosition',
 		params: { entityId: 'string', position: 'vector2d' },
-		returns: 'value',
+		returns: 'boolean',
 		getFn: (evaluator) => {
 			const ctx = getRuntimeContext(evaluator)
 			if (!ctx) {
@@ -403,42 +265,16 @@ export function getGameFunctions(): FunctionSpec[] {
 				}
 
 				const targetEid = entityId === 'player' ? world.resources.playerEid : casterEid
-
-				// Check if there's accumulated delay from Sequence
-				const delay = evaluator.sequenceDelay
-
-				if (delay > 0) {
-					// Schedule delayed teleport
-					console.log(`[teleportToPosition] Scheduling teleport with ${delay}ms delay`)
-					scheduleDelayedAction(delay, () => {
-						const body = world.resources.bodies.get(targetEid)
-						if (!body) {
-							console.error('[teleportToPosition] Sprite not found at execution time')
-							return
-						}
-						Velocity.x[targetEid] = 0
-						Velocity.y[targetEid] = 0
-						body.setVelocity(0, 0)
-						body.setPosition(position.x, position.y)
-						console.log(`[teleportToPosition] Teleported to (${position.x.toFixed(0)}, ${position.y.toFixed(0)})`)
-					})
-					return {
-						type: 'async',
-						waitUntil: Date.now() + delay
-					} as Value
-				} else {
-					// Execute immediately
-					const body = world.resources.bodies.get(targetEid)
-					if (!body) {
-						throw new Error('Sprite not found')
-					}
-					Velocity.x[targetEid] = 0
-					Velocity.y[targetEid] = 0
-					body.setVelocity(0, 0)
-					body.setPosition(position.x, position.y)
-					console.log(`[teleportToPosition] Teleported immediately to (${position.x.toFixed(0)}, ${position.y.toFixed(0)})`)
-					return true
+				const body = world.resources.bodies.get(targetEid)
+				if (!body) {
+					throw new Error('Sprite not found')
 				}
+
+				Velocity.x[targetEid] = 0
+				Velocity.y[targetEid] = 0
+				body.setVelocity(0, 0)
+				body.setPosition(position.x, position.y)
+				return true
 			}
 		},
 		ui: { displayName: '🎯 teleportToPosition' },
