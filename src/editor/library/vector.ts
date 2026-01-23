@@ -1,199 +1,181 @@
-import type { Value, Vector2D } from '../ast/ast'
-import { isVector2D } from '../ast/ast'
-import type { FunctionSpec } from './types'
+import type { Evaluator } from '../ast/evaluator';
+import type { Value, FunctionValue } from '../ast/ast';
 
-export const vectorFunctions: FunctionSpec[] = [
-	{
+/**
+ * Vector2D implemented as Church encoding (closures)
+ * 
+ * A vector is a function: (selector) => selector(x, y)
+ * Access: vector('x') returns x, vector('y') returns y
+ * 
+ * This is a pure functional implementation without custom Value types
+ */
+
+export function registerVectorFunctions(evaluator: Evaluator) {
+	
+	// vec::create(x: number, y: number) -> Vector2D
+	evaluator.registerFunction({
 		fullName: 'vec::create',
-		params: { x: 'number', y: 'number' },
-		returns: 'vector2d',
-		fn: (x: Value, y: Value) => {
-			if (typeof x !== 'number' || typeof y !== 'number') {
-				throw new Error(`vec::create requires two numbers, got ${typeof x} and ${typeof y}`)
+		params: ['x', 'y'],
+		fn: (xVal: Value, yVal: Value): Value => {
+			if (typeof xVal !== 'number' || typeof yVal !== 'number') {
+				throw new Error('vec::create requires two numbers');
 			}
-			return { type: 'vector2d', x: x as number, y: y as number } as Vector2D
+			
+			// Return a closure that captures x and y
+			const vectorFunc: FunctionValue = {
+				type: 'function',
+				definition: {
+					name: '<vector>',
+					params: ['selector'],
+					body: { type: 'Literal', value: 0 }, // Placeholder body
+					__native: (selector: Value) => {
+						if (selector === 'x') return xVal;
+						if (selector === 'y') return yVal;
+						throw new Error(`Invalid vector selector: ${selector}`);
+					}
+				}
+			};
+			
+			return vectorFunc;
 		},
-		ui: { displayName: '📐 create vector' },
-	},
-	{
-		fullName: 'vec::getX',
-		params: { v: 'vector2d' },
-		returns: 'number',
-		fn: (v: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error(`vec::getX requires a vector, got ${typeof v}`)
+		ui: { displayName: '📐 create' }
+	});
+
+	// vec::x(v: Vector2D) -> number
+	evaluator.registerFunction({
+		fullName: 'vec::x',
+		params: ['v'],
+		fn: (v: Value): Value => {
+			if (typeof v !== 'object' || !v || v.type !== 'function') {
+				throw new Error('vec::x requires a Vector2D');
 			}
-			return (v as Vector2D).x
+			return evaluator.callFunctionValue(v as FunctionValue, 'x');
 		},
-		ui: { displayName: '📍 get X' },
-	},
-	{
-		fullName: 'vec::getY',
-		params: { v: 'vector2d' },
-		returns: 'number',
-		fn: (v: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error(`vec::getY requires a vector, got ${typeof v}`)
+		ui: { displayName: '📐 x' }
+	});
+
+	// vec::y(v: Vector2D) -> number
+	evaluator.registerFunction({
+		fullName: 'vec::y',
+		params: ['v'],
+		fn: (v: Value): Value => {
+			if (typeof v !== 'object' || !v || v.type !== 'function') {
+				throw new Error('vec::y requires a Vector2D');
 			}
-			return (v as Vector2D).y
+			return evaluator.callFunctionValue(v as FunctionValue, 'y');
 		},
-		ui: { displayName: '📍 get Y' },
-	},
-	{
+		ui: { displayName: '📐 y' }
+	});
+
+	// vec::add(v1: Vector2D, v2: Vector2D) -> Vector2D
+	evaluator.registerFunction({
 		fullName: 'vec::add',
-		params: { v1: 'vector2d', v2: 'vector2d' },
-		returns: 'vector2d',
-		fn: (v1: Value, v2: Value) => {
-			if (!isVector2D(v1) || !isVector2D(v2)) {
-				throw new Error('vec::add requires two vectors')
-			}
-			const a = v1 as Vector2D
-			const b = v2 as Vector2D
-			return { type: 'vector2d', x: a.x + b.x, y: a.y + b.y } as Vector2D
+		params: ['v1', 'v2'],
+		fn: (v1: Value, v2: Value): Value => {
+			const x1 = evaluator.callFunctionValue(v1 as FunctionValue, 'x') as number;
+			const y1 = evaluator.callFunctionValue(v1 as FunctionValue, 'y') as number;
+			const x2 = evaluator.callFunctionValue(v2 as FunctionValue, 'x') as number;
+			const y2 = evaluator.callFunctionValue(v2 as FunctionValue, 'y') as number;
+			
+			return evaluator.callFunction('vec::create', x1 + x2, y1 + y2);
 		},
-		ui: { displayName: '➕ add vectors' },
-	},
-	{
+		ui: { displayName: '📐 add' }
+	});
+
+	// vec::subtract(v1: Vector2D, v2: Vector2D) -> Vector2D
+	evaluator.registerFunction({
 		fullName: 'vec::subtract',
-		params: { v1: 'vector2d', v2: 'vector2d' },
-		returns: 'vector2d',
-		fn: (v1: Value, v2: Value) => {
-			if (!isVector2D(v1) || !isVector2D(v2)) {
-				throw new Error('vec::subtract requires two vectors')
-			}
-			const a = v1 as Vector2D
-			const b = v2 as Vector2D
-			return { type: 'vector2d', x: a.x - b.x, y: a.y - b.y } as Vector2D
+		params: ['v1', 'v2'],
+		fn: (v1: Value, v2: Value): Value => {
+			const x1 = evaluator.callFunctionValue(v1 as FunctionValue, 'x') as number;
+			const y1 = evaluator.callFunctionValue(v1 as FunctionValue, 'y') as number;
+			const x2 = evaluator.callFunctionValue(v2 as FunctionValue, 'x') as number;
+			const y2 = evaluator.callFunctionValue(v2 as FunctionValue, 'y') as number;
+			
+			return evaluator.callFunction('vec::create', x1 - x2, y1 - y2);
 		},
-		ui: { displayName: '➖ subtract vectors' },
-	},
-	{
-		fullName: 'vec::multiply',
-		params: { v: 'vector2d', scalar: 'number' },
-		returns: 'vector2d',
-		fn: (v: Value, scalar: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error('vec::multiply first argument must be a vector')
+		ui: { displayName: '📐 subtract' }
+	});
+
+	// vec::scale(v: Vector2D, s: number) -> Vector2D
+	evaluator.registerFunction({
+		fullName: 'vec::scale',
+		params: ['v', 's'],
+		fn: (v: Value, s: Value): Value => {
+			if (typeof s !== 'number') {
+				throw new Error('vec::scale scalar must be a number');
 			}
-			if (typeof scalar !== 'number') {
-				throw new Error('vec::multiply second argument must be a number')
-			}
-			const a = v as Vector2D
-			return { type: 'vector2d', x: a.x * (scalar as number), y: a.y * (scalar as number) } as Vector2D
+			
+			const x = evaluator.callFunctionValue(v as FunctionValue, 'x') as number;
+			const y = evaluator.callFunctionValue(v as FunctionValue, 'y') as number;
+			
+			return evaluator.callFunction('vec::create', x * s, y * s);
 		},
-		ui: { displayName: '✖️ multiply by scalar' },
-	},
-	{
-		fullName: 'vec::divide',
-		params: { v: 'vector2d', scalar: 'number' },
-		returns: 'vector2d',
-		fn: (v: Value, scalar: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error('vec::divide first argument must be a vector')
-			}
-			if (typeof scalar !== 'number') {
-				throw new Error('vec::divide second argument must be a number')
-			}
-			if ((scalar as number) === 0) {
-				throw new Error('vec::divide: division by zero')
-			}
-			const a = v as Vector2D
-			return { type: 'vector2d', x: a.x / (scalar as number), y: a.y / (scalar as number) } as Vector2D
-		},
-		ui: { displayName: '➗ divide by scalar' },
-	},
-	{
-		fullName: 'vec::length',
-		params: { v: 'vector2d' },
-		returns: 'number',
-		fn: (v: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error('vec::length requires a vector')
-			}
-			const a = v as Vector2D
-			return Math.sqrt(a.x * a.x + a.y * a.y)
-		},
-		ui: { displayName: '📏 vector length' },
-	},
-	{
-		fullName: 'vec::normalize',
-		params: { v: 'vector2d' },
-		returns: 'vector2d',
-		fn: (v: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error('vec::normalize requires a vector')
-			}
-			const a = v as Vector2D
-			const len = Math.sqrt(a.x * a.x + a.y * a.y)
-			if (len === 0) {
-				throw new Error('vec::normalize: cannot normalize zero vector')
-			}
-			return { type: 'vector2d', x: a.x / len, y: a.y / len } as Vector2D
-		},
-		ui: { displayName: '🧭 normalize' },
-	},
-	{
+		ui: { displayName: '📐 scale' }
+	});
+
+	// vec::dot(v1: Vector2D, v2: Vector2D) -> number
+	evaluator.registerFunction({
 		fullName: 'vec::dot',
-		params: { v1: 'vector2d', v2: 'vector2d' },
-		returns: 'number',
-		fn: (v1: Value, v2: Value) => {
-			if (!isVector2D(v1) || !isVector2D(v2)) {
-				throw new Error('vec::dot requires two vectors')
-			}
-			const a = v1 as Vector2D
-			const b = v2 as Vector2D
-			return a.x * b.x + a.y * b.y
+		params: ['v1', 'v2'],
+		fn: (v1: Value, v2: Value): Value => {
+			const x1 = evaluator.callFunctionValue(v1 as FunctionValue, 'x') as number;
+			const y1 = evaluator.callFunctionValue(v1 as FunctionValue, 'y') as number;
+			const x2 = evaluator.callFunctionValue(v2 as FunctionValue, 'x') as number;
+			const y2 = evaluator.callFunctionValue(v2 as FunctionValue, 'y') as number;
+			
+			return x1 * x2 + y1 * y2;
 		},
-		ui: { displayName: '🧮 dot' },
-	},
-	{
+		ui: { displayName: '📐 dot' }
+	});
+
+	// vec::length(v: Vector2D) -> number
+	evaluator.registerFunction({
+		fullName: 'vec::length',
+		params: ['v'],
+		fn: (v: Value): Value => {
+			const x = evaluator.callFunctionValue(v as FunctionValue, 'x') as number;
+			const y = evaluator.callFunctionValue(v as FunctionValue, 'y') as number;
+			
+			return Math.sqrt(x * x + y * y);
+		},
+		ui: { displayName: '📐 length' }
+	});
+
+	// vec::normalize(v: Vector2D) -> Vector2D
+	evaluator.registerFunction({
+		fullName: 'vec::normalize',
+		params: ['v'],
+		fn: (v: Value): Value => {
+			const x = evaluator.callFunctionValue(v as FunctionValue, 'x') as number;
+			const y = evaluator.callFunctionValue(v as FunctionValue, 'y') as number;
+			
+			const length = Math.sqrt(x * x + y * y);
+			
+			if (length === 0) {
+				return evaluator.callFunction('vec::create', 0, 0);
+			}
+			
+			return evaluator.callFunction('vec::create', x / length, y / length);
+		},
+		ui: { displayName: '📐 normalize' }
+	});
+
+	// vec::distance(v1: Vector2D, v2: Vector2D) -> number
+	evaluator.registerFunction({
 		fullName: 'vec::distance',
-		params: { v1: 'vector2d', v2: 'vector2d' },
-		returns: 'number',
-		fn: (v1: Value, v2: Value) => {
-			if (!isVector2D(v1) || !isVector2D(v2)) {
-				throw new Error('vec::distance requires two vectors')
-			}
-			const a = v1 as Vector2D
-			const b = v2 as Vector2D
-			const dx = b.x - a.x
-			const dy = b.y - a.y
-			return Math.sqrt(dx * dx + dy * dy)
+		params: ['v1', 'v2'],
+		fn: (v1: Value, v2: Value): Value => {
+			const x1 = evaluator.callFunctionValue(v1 as FunctionValue, 'x') as number;
+			const y1 = evaluator.callFunctionValue(v1 as FunctionValue, 'y') as number;
+			const x2 = evaluator.callFunctionValue(v2 as FunctionValue, 'x') as number;
+			const y2 = evaluator.callFunctionValue(v2 as FunctionValue, 'y') as number;
+			
+			const dx = x2 - x1;
+			const dy = y2 - y1;
+			
+			return Math.sqrt(dx * dx + dy * dy);
 		},
-		ui: { displayName: '📏 distance between' },
-	},
-	{
-		fullName: 'vec::angle',
-		params: { v: 'vector2d' },
-		returns: 'number',
-		fn: (v: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error('vec::angle requires a vector')
-			}
-			const a = v as Vector2D
-			return Math.atan2(a.y, a.x)
-		},
-		ui: { displayName: '📐 vector angle' },
-	},
-	{
-		fullName: 'vec::rotate',
-		params: { v: 'vector2d', angle: 'number' },
-		returns: 'vector2d',
-		fn: (v: Value, angle: Value) => {
-			if (!isVector2D(v)) {
-				throw new Error('vec::rotate first argument must be a vector')
-			}
-			if (typeof angle !== 'number') {
-				throw new Error('vec::rotate second argument must be a number (angle in radians)')
-			}
-			const a = v as Vector2D
-			const ang = angle as number
-			const cos = Math.cos(ang)
-			const sin = Math.sin(ang)
-			return { type: 'vector2d', x: a.x * cos - a.y * sin, y: a.x * sin + a.y * cos } as Vector2D
-		},
-		ui: { displayName: '🔄 rotate' },
-	},
-]
-
-
+		ui: { displayName: '📐 distance' }
+	});
+}

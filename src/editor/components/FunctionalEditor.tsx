@@ -43,8 +43,7 @@ import { GameEvents } from '../../game/events'
 import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'
-import { registerFunctionSpecs } from '../library/types'
-import { getGameFunctions } from '../library/game'
+import { registerGameFunctions } from '../library/game'
 
 // Define node types
 const nodeTypes = {
@@ -619,16 +618,16 @@ function EditorContent(props: FunctionalEditorProps) {
 			setCurrentAST(ast);
 			setCurrentFunctions(functions);
 
-			// Evaluate IR
-			const evaluator = new Evaluator();
+		// Evaluate IR
+		const evaluator = new Evaluator();
 
-			// Register game functions for preview
-			registerFunctionSpecs(evaluator, getGameFunctions())
+		// Register game functions for preview
+		registerGameFunctions(evaluator)
 
-			// Register user-defined functions
-			functions.forEach(fn => {
-				evaluator.registerFunction(fn);
-			});
+		// Register user-defined functions
+		functions.forEach(fn => {
+			evaluator.registerFunction(fn);
+		});
 
 			const result = evaluator.evaluate(ast, new Map());
 			console.log('[Evaluate] Result:', result)
@@ -673,12 +672,12 @@ function EditorContent(props: FunctionalEditorProps) {
 				game.events.emit(GameEvents.registerSpell, { ast, dependencies: functions })
 				setEvaluationResult({ cast: true })
 			} else {
-				// Evaluate first, then register
-				const evaluator = new Evaluator()
-				registerFunctionSpecs(evaluator, getGameFunctions())
-				functions.forEach(fn => {
-					evaluator.registerFunction(fn)
-				})
+			// Evaluate first, then register
+			const evaluator = new Evaluator()
+			registerGameFunctions(evaluator)
+			functions.forEach(fn => {
+				evaluator.registerFunction(fn)
+			})
 
 				const result = evaluator.evaluate(ast, new Map())
 				console.log('[RegisterSpell] Evaluation result:', result)

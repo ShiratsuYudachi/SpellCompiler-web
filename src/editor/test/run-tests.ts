@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // =============================================
 // Test Runner
-//  - 
 // =============================================
 
 import { runner } from './framework';
@@ -10,10 +9,9 @@ import { runner } from './framework';
 import './flowToIR.test';
 import './astToMermaid.test';
 import './flowToIR.tap.test';
-
-// You can add more test files here:
-// import './evaluator.test';
-// import './ast.test';
+import './vector.test';
+import './list.test';
+import './gameWorld.test';
 
 // Run all tests
 runner.run();

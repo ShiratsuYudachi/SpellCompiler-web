@@ -1,233 +1,222 @@
-import type { Value } from '../ast/ast'
-import type { FunctionSpec } from './types'
+import type { Evaluator } from '../ast/evaluator';
+import type { Value, FunctionValue } from '../ast/ast';
 
-const listImpl = (...args: Value[]) => args
+/**
+ * List implemented as Church encoding (cons cells)
+ * 
+ * Empty list: () => null
+ * Cons cell: (selector) => selector(head, tail)
+ * 
+ * This is a pure functional linked list implementation
+ */
 
-const consImpl = (head: Value, tail: Value) => {
-	if (!Array.isArray(tail)) {
-		throw new Error(`cons requires second argument to be a list, got ${typeof tail}`)
-	}
-	return [head, ...(tail as Value[])]
-}
-
-const emptyImpl = () => []
-
-const appendImpl = (list: Value, element: Value) => {
-	if (!Array.isArray(list)) {
-		throw new Error('First argument to append must be a list')
-	}
-	return [...(list as Value[]), element]
-}
-
-const rangeImpl = (start: Value, end: Value) => {
-	if (typeof start !== 'number' || typeof end !== 'number') {
-		throw new Error('range requires numbers')
-	}
-	const result: Value[] = []
-	const s = start as number
-	const e = end as number
-	for (let i = s; i <= e; i++) {
-		result.push(i)
-	}
-	return result
-}
-
-const lengthImpl = (list: Value) => {
-	if (!Array.isArray(list)) {
-		throw new Error('length requires a list')
-	}
-	return (list as Value[]).length
-}
-
-const nthImpl = (list: Value, index: Value) => {
-	if (!Array.isArray(list)) {
-		throw new Error('First argument to nth must be a list')
-	}
-	if (typeof index !== 'number') {
-		throw new Error('Second argument to nth must be a number')
-	}
-	const idx = index as number
-	const arr = list as Value[]
-	if (idx < 0 || idx >= arr.length) {
-		throw new Error(`Index ${idx} out of bounds for list of length ${arr.length}`)
-	}
-	return arr[idx]
-}
-
-const concatImpl = (list1: Value, list2: Value) => {
-	if (!Array.isArray(list1) || !Array.isArray(list2)) {
-		throw new Error('concat requires two lists')
-	}
-	return [...(list1 as Value[]), ...(list2 as Value[])]
-}
-
-const headImpl = (list: Value) => {
-	if (!Array.isArray(list)) {
-		throw new Error('head requires a list')
-	}
-	const arr = list as Value[]
-	if (arr.length === 0) {
-		throw new Error('head called on empty list')
-	}
-	return arr[0]
-}
-
-const tailImpl = (list: Value) => {
-	if (!Array.isArray(list)) {
-		throw new Error('tail requires a list')
-	}
-	const arr = list as Value[]
-	if (arr.length === 0) {
-		throw new Error('tail called on empty list')
-	}
-	return arr.slice(1)
-}
-
-const sortImpl = (list: Value) => {
-	if (!Array.isArray(list)) {
-		throw new Error('sort requires a list')
-	}
-	const arr = list as Value[]
-	// Create a copy and sort it
-	const sorted = [...arr].sort((a, b) => {
-		if (typeof a === 'number' && typeof b === 'number') {
-			return a - b
-		}
-		// For non-numbers, convert to string and compare
-		return String(a).localeCompare(String(b))
-	})
-	return sorted
-}
-
-export const listFunctions: FunctionSpec[] = [
-	{
-		fullName: 'std::list::list',
-		params: {},
-		returns: 'list',
-		fn: listImpl,
-		ui: { displayName: '📚 create list' },
-	},
-	{
-		fullName: 'std::list::cons',
-		params: { head: 'value', tail: 'list' },
-		returns: 'list',
-		fn: consImpl,
-		ui: { displayName: '➕ prepend (cons)' },
-	},
-	{
-		fullName: 'std::list::empty',
-		params: {},
-		returns: 'list',
-		fn: emptyImpl,
-		ui: { displayName: '🗑️ empty list' },
-	},
-	{
-		fullName: 'std::list::append',
-		params: { list: 'list', element: 'value' },
-		returns: 'list',
-		fn: appendImpl,
-		ui: { displayName: '➕ append to list' },
-	},
-	{
-		fullName: 'std::list::range',
-		params: { start: 'number', end: 'number' },
-		returns: 'list',
-		fn: rangeImpl,
-		ui: { displayName: '📈 number range' },
-	},
-	{
-		fullName: 'std::list::map',
-		params: { fnName: 'string', list: 'list' },
-		returns: 'list',
-		getFn: (evaluator) => (fnName: Value, list: Value) => {
-			if (typeof fnName !== 'string') {
-				throw new Error('First argument to map must be function name (string)')
-			}
-			if (!Array.isArray(list)) {
-				throw new Error('Second argument to map must be a list')
-			}
-			return (list as Value[]).map((item) => evaluator.callFunction(fnName as string, item))
-		},
-		ui: { displayName: '🗺️ map' },
-	},
-	{
-		fullName: 'std::list::filter',
-		params: { fnName: 'string', list: 'list' },
-		returns: 'list',
-		getFn: (evaluator) => (fnName: Value, list: Value) => {
-			if (typeof fnName !== 'string') {
-				throw new Error('First argument to filter must be function name (string)')
-			}
-			if (!Array.isArray(list)) {
-				throw new Error('Second argument to filter must be a list')
-			}
-			return (list as Value[]).filter((item) => {
-				const result = evaluator.callFunction(fnName as string, item)
-				if (typeof result !== 'boolean') {
-					throw new Error('Filter function must return boolean')
+export function registerListFunctions(evaluator: Evaluator) {
+	
+	// list::empty() -> List
+	evaluator.registerFunction({
+		fullName: 'list::empty',
+		params: [],
+		fn: (): Value => {
+			const emptyList: FunctionValue = {
+				type: 'function',
+				definition: {
+					name: '<empty-list>',
+					params: [],
+					body: { type: 'Literal', value: 0 },
+					__native: () => 0  // Return 0 as empty marker
 				}
-				return result
-			})
+			};
+			return emptyList;
 		},
-		ui: { displayName: '🧹 filter' },
-	},
-	{
-		fullName: 'std::list::reduce',
-		params: { fnName: 'string', init: 'value', list: 'list' },
-		returns: 'value',
-		getFn: (evaluator) => (fnName: Value, init: Value, list: Value) => {
-			if (typeof fnName !== 'string') {
-				throw new Error('First argument to reduce must be function name (string)')
-			}
-			if (!Array.isArray(list)) {
-				throw new Error('Third argument to reduce must be a list')
-			}
-			return (list as Value[]).reduce((acc, item) => evaluator.callFunction(fnName as string, acc, item), init)
+		ui: { displayName: '📋 empty' }
+	});
+
+	// list::cons(head: Value, tail: List) -> List
+	evaluator.registerFunction({
+		fullName: 'list::cons',
+		params: ['head', 'tail'],
+		fn: (head: Value, tail: Value): Value => {
+			const consList: FunctionValue = {
+				type: 'function',
+				definition: {
+					name: '<cons>',
+					params: ['selector'],
+					body: { type: 'Literal', value: 0 },
+					__native: (selector: Value) => {
+						if (selector === 'head') return head;
+						if (selector === 'tail') return tail;
+						if (selector === 'isEmpty') return false;
+						throw new Error(`Invalid list selector: ${selector}`);
+					}
+				}
+			};
+			return consList;
 		},
-		ui: { displayName: '🧮 reduce' },
-	},
-	{
-		fullName: 'std::list::length',
-		params: { list: 'list' },
-		returns: 'number',
-		fn: lengthImpl,
-		ui: { displayName: '📏 list length' },
-	},
-	{
-		fullName: 'std::list::nth',
-		params: { list: 'list', index: 'number' },
-		returns: 'value',
-		fn: nthImpl,
-		ui: { displayName: '🔢 get element (nth)' },
-	},
-	{
-		fullName: 'std::list::concat',
-		params: { list1: 'list', list2: 'list' },
-		returns: 'list',
-		fn: concatImpl,
-		ui: { displayName: '🔗 concat lists' },
-	},
-	{
-		fullName: 'std::list::head',
-		params: { list: 'list' },
-		returns: 'value',
-		fn: headImpl,
-		ui: { displayName: '🧠 first element (head)' },
-	},
-	{
-		fullName: 'std::list::tail',
-		params: { list: 'list' },
-		returns: 'list',
-		fn: tailImpl,
-		ui: { displayName: '🐾 rest of list (tail)' },
-	},
-	{
-		fullName: 'std::list::sort',
-		params: { list: 'list' },
-		returns: 'list',
-		fn: sortImpl,
-		ui: { displayName: '🔢 sort list' },
-	},
-]
+		ui: { displayName: '📋 cons' }
+	});
 
+	// list::head(l: List) -> Value
+	evaluator.registerFunction({
+		fullName: 'list::head',
+		params: ['l'],
+		fn: (l: Value): Value => {
+			const funcVal = l as FunctionValue;
+			// Check if it's the empty list (0 params)
+			if (funcVal.definition.params.length === 0) {
+				throw new Error('Cannot get head of empty list');
+			}
+			return evaluator.callFunctionValue(funcVal, 'head');
+		},
+		ui: { displayName: '📋 head' }
+	});
 
+	// list::tail(l: List) -> List
+	evaluator.registerFunction({
+		fullName: 'list::tail',
+		params: ['l'],
+		fn: (l: Value): Value => {
+			const funcVal = l as FunctionValue;
+			// Check if it's the empty list (0 params)
+			if (funcVal.definition.params.length === 0) {
+				throw new Error('Cannot get tail of empty list');
+			}
+			return evaluator.callFunctionValue(funcVal, 'tail');
+		},
+		ui: { displayName: '📋 tail' }
+	});
+
+	// list::isEmpty(l: List) -> boolean
+	evaluator.registerFunction({
+		fullName: 'list::isEmpty',
+		params: ['l'],
+		fn: (l: Value): Value => {
+			const funcVal = l as FunctionValue;
+			// Empty list has 0 params, cons cell has 1 param (selector)
+			return funcVal.definition.params.length === 0;
+		},
+		ui: { displayName: '📋 isEmpty' }
+	});
+
+	// list::length(l: List) -> number
+	evaluator.registerFunction({
+		fullName: 'list::length',
+		params: ['l'],
+		fn: (l: Value): Value => {
+			let count = 0;
+			let current = l;
+			
+			while (true) {
+				const funcVal = current as FunctionValue;
+				// Check if empty (0 params)
+				if (funcVal.definition.params.length === 0) break;
+				
+				count++;
+				current = evaluator.callFunctionValue(funcVal, 'tail');
+			}
+			
+			return count;
+		},
+		ui: { displayName: '📋 length' }
+	});
+
+	// list::map(l: List, f: Function) -> List
+	evaluator.registerFunction({
+		fullName: 'list::map',
+		params: ['l', 'f'],
+		fn: (l: Value, f: Value): Value => {
+			const funcVal = l as FunctionValue;
+			// Check if empty
+			if (funcVal.definition.params.length === 0) {
+				return evaluator.callFunction('list::empty');
+			}
+			
+			// Apply function to head
+			const head = evaluator.callFunctionValue(funcVal, 'head');
+			const newHead = evaluator.callFunctionValue(f as FunctionValue, head);
+			
+			// Recursively map tail
+			const tail = evaluator.callFunctionValue(funcVal, 'tail');
+			const newTail = evaluator.callFunction('list::map', tail, f);
+			
+			return evaluator.callFunction('list::cons', newHead, newTail);
+		},
+		ui: { displayName: '📋 map' }
+	});
+
+	// list::filter(l: List, pred: Function) -> List
+	evaluator.registerFunction({
+		fullName: 'list::filter',
+		params: ['l', 'pred'],
+		fn: (l: Value, pred: Value): Value => {
+			const funcVal = l as FunctionValue;
+			// Check if empty
+			if (funcVal.definition.params.length === 0) {
+				return evaluator.callFunction('list::empty');
+			}
+			
+			const head = evaluator.callFunctionValue(funcVal, 'head');
+			const tail = evaluator.callFunctionValue(funcVal, 'tail');
+			
+			// Check if head passes predicate
+			const passes = evaluator.callFunctionValue(pred as FunctionValue, head);
+			
+			// Recursively filter tail
+			const filteredTail = evaluator.callFunction('list::filter', tail, pred);
+			
+			if (passes === true) {
+				return evaluator.callFunction('list::cons', head, filteredTail);
+			} else {
+				return filteredTail;
+			}
+		},
+		ui: { displayName: '📋 filter' }
+	});
+
+	// list::fold(l: List, init: Value, f: Function) -> Value
+	evaluator.registerFunction({
+		fullName: 'list::fold',
+		params: ['l', 'init', 'f'],
+		fn: (l: Value, init: Value, f: Value): Value => {
+			let accumulator = init;
+			let current = l;
+			
+			while (true) {
+				const funcVal = current as FunctionValue;
+				// Check if empty
+				if (funcVal.definition.params.length === 0) break;
+				
+				const head = evaluator.callFunctionValue(funcVal, 'head');
+				accumulator = evaluator.callFunctionValue(f as FunctionValue, accumulator, head);
+				
+				current = evaluator.callFunctionValue(funcVal, 'tail');
+			}
+			
+			return accumulator;
+		},
+		ui: { displayName: '📋 fold' }
+	});
+
+	// list::fromArray(arr: any) -> List (internal helper)
+	// Note: This is a helper for converting JS arrays to lists (for testing/interop)
+	evaluator.registerFunction({
+		fullName: 'list::fromArray',
+		params: ['arr'],
+		fn: (arr: Value): Value => {
+			// This is a hack for backwards compatibility
+			// In pure functional system, we shouldn't have arrays
+			if (!Array.isArray(arr)) {
+				throw new Error('list::fromArray requires an array');
+			}
+			
+			let result = evaluator.callFunction('list::empty');
+			
+			// Build list from right to left
+			for (let i = arr.length - 1; i >= 0; i--) {
+				result = evaluator.callFunction('list::cons', arr[i], result);
+			}
+			
+			return result;
+		},
+		ui: { displayName: '📋 fromArray' }
+	});
+}

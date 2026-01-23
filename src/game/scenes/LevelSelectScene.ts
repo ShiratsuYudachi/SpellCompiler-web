@@ -150,7 +150,7 @@ export class LevelSelectScene extends Phaser.Scene {
 
 		backBtn.on('pointerover', () => backBtn.setFillStyle(0xab6523))
 		backBtn.on('pointerout', () => backBtn.setFillStyle(0x8b4513))
-		backBtn.on('pointerdown', () => this.scene.start('MainScene'))
+		backBtn.on('pointerdown', () => this.scene.start('MainInterface'))
 
 		// Unlock hint (dev mode)
 		this.add

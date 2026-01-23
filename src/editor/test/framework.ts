@@ -248,6 +248,37 @@ class Assertion<T> {
 			}
 		}
 	}
+
+	toHaveProperty(key: string, value?: any): void {
+		if (typeof this.actual !== 'object' || this.actual === null) {
+			throw new Error('toHaveProperty can only be used with objects');
+		}
+
+		if (!(key in this.actual)) {
+			throw new Error(`Expected object to have property "${key}"`);
+		}
+
+		if (value !== undefined) {
+			const actualValue = (this.actual as any)[key];
+			if (actualValue !== value) {
+				throw new Error(`Expected property "${key}" to be ${JSON.stringify(value)}, but got ${JSON.stringify(actualValue)}`);
+			}
+		}
+	}
+
+	toBeCloseTo(expected: number, precision: number = 2): void {
+		if (typeof this.actual !== 'number') {
+			throw new Error('toBeCloseTo can only be used with numbers');
+		}
+		
+		const factor = Math.pow(10, precision);
+		const actualRounded = Math.round(this.actual * factor) / factor;
+		const expectedRounded = Math.round(expected * factor) / factor;
+		
+		if (actualRounded !== expectedRounded) {
+			throw new Error(`Expected ${expected} (±${1 / factor}), but got ${this.actual}`);
+		}
+	}
 }
 
 // Export singleton runner

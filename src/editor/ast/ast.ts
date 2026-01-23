@@ -15,15 +15,15 @@ export type ASTNode =
 	| Lambda;
 
 
-// Primitive value type ()
-// Value  FunctionValue
-export type PrimitiveValue = Exclude<Value, FunctionValue>;
+// Primitive value type
+// Excludes FunctionValue and GameState from Value
+export type PrimitiveValue = Exclude<Value, FunctionValue | GameState>;
 
-// Literal (：)
-// （ Lambda ）
+// Literal - primitive values only
+// Functions are represented by Lambda nodes, not literals
 export interface Literal extends BaseASTNode {
 	type: 'Literal';
-	value: PrimitiveValue;  // ， FunctionValue
+	value: PrimitiveValue;
 }
 
 // 、
@@ -64,13 +64,26 @@ export interface Lambda extends BaseASTNode {
 
 
 
-// Function Definition ()
-export interface FunctionDefinition {
-	name: string;           // 
-	params: string[];       // 
-	body: ASTNode;          // （AST ）
+// GameState - Token/handle for game world context
+// This is just a reference, not the actual state
+export interface GameState {
+	type: 'gamestate';
+	__runtimeRef: symbol;  // Opaque reference to runtime context
 }
 
+// Function Definition
+export interface FunctionDefinition {
+	name: string;
+	params: string[];
+	body: ASTNode;
+	
+	// Type annotations (for documentation and future type checking)
+	paramTypes?: string[];   // e.g., ['GameState', 'Vector2D', 'number']
+	returnType?: string;     // e.g., 'GameState' or 'Entity' or 'number'
+	
+	// Internal: native implementation
+	__native?: (...args: Value[]) => Value;
+}
 
 // Function as a value
 export interface FunctionValue {
@@ -79,25 +92,12 @@ export interface FunctionValue {
 	capturedEnv?: Map<string, Value>;  // Captured environment for closures
 }
 
-// Vector2D Type - 2D Vector for positions, directions, etc.
-export interface Vector2D {
-	type: 'vector2d';
-	x: number;
-	y: number;
-}
-
-// Type guard for Vector2D
-export function isVector2D(value: any): value is Vector2D {
-	return value && typeof value === 'object' && value.type === 'vector2d' &&
-		typeof value.x === 'number' && typeof value.y === 'number';
-}
-
-// Value Type ()
-// （）
+// Simplified Value Type
+// Vector2D and List are now implemented as FunctionValues
+// Arrays removed - List is implemented functionally
 export type Value =
 	| number
 	| string
 	| boolean
-	| Value[]
 	| FunctionValue
-	| Vector2D;
+	| GameState;

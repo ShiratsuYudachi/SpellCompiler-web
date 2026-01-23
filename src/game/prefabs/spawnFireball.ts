@@ -28,6 +28,7 @@ export function spawnFireball(
 	dirX: number,
 	dirY: number,
 ) {
+	console.log('spawnFireball', x, y, dirX, dirY)
 	const key = ensureFireballTexture(scene)
 	const body = scene.physics.add.image(x, y, key)
 	body.setDepth(20)

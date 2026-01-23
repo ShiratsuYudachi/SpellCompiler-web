@@ -4,7 +4,7 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Vector2D, Lambda } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Lambda } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
@@ -160,18 +160,18 @@ function convertNode(
 			} as Literal;
 		}
 
-		case 'vector': {
-			const data = node.data as VectorNodeData;
-			const vectorValue: Vector2D = {
-				type: 'vector2d',
-				x: data.x,
-				y: data.y
-			};
-			return {
-				type: 'Literal',
-				value: vectorValue
-			} as Literal;
-		}
+	case 'vector': {
+		const data = node.data as VectorNodeData;
+		// Convert vector to vec::create function call
+		return {
+			type: 'FunctionCall',
+			function: 'vec::create',
+			args: [
+				{ type: 'Literal', value: data.x } as Literal,
+				{ type: 'Literal', value: data.y } as Literal
+			]
+		} as FunctionCall;
+	}
 
 		case 'identifier': {
 			const data = node.data as IdentifierNodeData;
