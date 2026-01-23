@@ -75,6 +75,13 @@ export interface VectorNodeData extends BaseNodeData {
 }
 
 /**
+ * Spell Input Node - Marks spell input parameters
+ */
+export interface SpellInputNodeData extends BaseNodeData {
+	paramName?: string; // e.g., 'state' for GameState
+}
+
+/**
  * All node types
  */
 export type FlowNodeType =
@@ -88,7 +95,8 @@ export type FlowNodeType =
 	| 'lambdaDef'
 	| 'functionOut'
 	| 'output'
-	| 'vector';
+	| 'vector'
+	| 'spellInput';
 
 /**
  * Dynamic Function Node Data
@@ -132,7 +140,8 @@ export type FlowNode =
 	| Node<LambdaDefNodeData, 'lambdaDef'>
 	| Node<FunctionOutNodeData, 'functionOut'>
 	| Node<OutputNodeData, 'output'>
-	| Node<VectorNodeData, 'vector'>;
+	| Node<VectorNodeData, 'vector'>
+	| Node<SpellInputNodeData, 'spellInput'>;
 
 /**
  * Edge labels for better clarity

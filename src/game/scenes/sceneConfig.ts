@@ -1267,13 +1267,24 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 		initialSpellWorkflow: {
 			nodes: [
 				// Output node
-				{ id: 'output-1', type: 'output', position: { x: 700, y: 300 }, data: { label: 'Output' } },
+				{ id: 'output-1', type: 'output', position: { x: 600, y: 300 }, data: { label: 'Output' } },
+				
+				// SpellInput - provides initial GameState
+				{
+					id: 'spell-input',
+					type: 'spellInput',
+					position: { x: 50, y: 250 },
+					data: {
+						label: 'Spell Input',
+						paramName: 'state',
+					},
+				},
 				
 				// teleportRelative function
 				{
 					id: 'func-teleport',
 					type: 'dynamicFunction',
-					position: { x: 500, y: 300 },
+					position: { x: 400, y: 300 },
 					data: {
 						functionName: 'game::teleportRelative',
 						displayName: 'teleportRelative',
@@ -1281,23 +1292,11 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 					},
 				},
 				
-				// GameState initialization (for teleportRelative)
-				{
-					id: 'init-state-1',
-					type: 'dynamicFunction',
-					position: { x: 100, y: 250 },
-					data: {
-						functionName: 'game::initState',
-						displayName: 'initState',
-						params: [],
-					},
-				},
-				
 				// Get player entity
 				{
 					id: 'func-getPlayer',
 					type: 'dynamicFunction',
-					position: { x: 300, y: 300 },
+					position: { x: 200, y: 300 },
 					data: {
 						functionName: 'game::getPlayer',
 						displayName: 'getPlayer',
@@ -1305,43 +1304,31 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 					},
 				},
 				
-				// GameState for getPlayer
-				{
-					id: 'init-state-2',
-					type: 'dynamicFunction',
-					position: { x: 100, y: 300 },
-					data: {
-						functionName: 'game::initState',
-						displayName: 'initState',
-						params: [],
-					},
-				},
-				
 				// Offset vector: vec::create(100, 0) - teleport 100 pixels right
 				{
 					id: 'vec-offset',
 					type: 'dynamicFunction',
-					position: { x: 300, y: 350 },
+					position: { x: 200, y: 370 },
 					data: {
 						functionName: 'vec::create',
 						displayName: 'create',
 						params: ['x', 'y'],
 					},
 				},
-				{ id: 'lit-offset-x', type: 'literal', position: { x: 100, y: 330 }, data: { value: 100 } },
-				{ id: 'lit-offset-y', type: 'literal', position: { x: 100, y: 370 }, data: { value: 0 } },
+				{ id: 'lit-offset-x', type: 'literal', position: { x: 50, y: 350 }, data: { value: 100 } },
+				{ id: 'lit-offset-y', type: 'literal', position: { x: 50, y: 390 }, data: { value: 0 } },
 			],
 			edges: [
 				// Output connection
 				{ id: 'e-output', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
 				
 				// teleportRelative parameters
-				{ id: 'e-teleport-state', source: 'init-state-1', target: 'func-teleport', targetHandle: 'arg0' },
+				{ id: 'e-teleport-state', source: 'spell-input', target: 'func-teleport', targetHandle: 'arg0' },
 				{ id: 'e-teleport-entity', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
 				{ id: 'e-teleport-offset', source: 'vec-offset', target: 'func-teleport', targetHandle: 'arg2' },
 				
 				// getPlayer parameters
-				{ id: 'e-getPlayer-state', source: 'init-state-2', target: 'func-getPlayer', targetHandle: 'arg0' },
+				{ id: 'e-getPlayer-state', source: 'spell-input', target: 'func-getPlayer', targetHandle: 'arg0' },
 				
 				// Offset vector connections
 				{ id: 'e-offset-x', source: 'lit-offset-x', target: 'vec-offset', targetHandle: 'arg0' },

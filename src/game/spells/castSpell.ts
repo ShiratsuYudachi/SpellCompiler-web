@@ -4,6 +4,7 @@ import type { GameWorld } from '../gameWorld'
 import { GameStateManager } from '../state/GameStateManager'
 import { registerGameFunctions } from '../../editor/library/game'
 import { setGameStateManager } from '../../editor/library/game'
+import type { GameState } from '../../editor/ast/ast'
 
 export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSpell) {
 	console.log('[castSpell] Starting spell cast')
@@ -26,8 +27,19 @@ export function castSpell(world: GameWorld, casterEid: number, spell: CompiledSp
 		evaluator.registerFunction(fn)
 	}
 
+	// Create initial GameState to inject
+	const initialState: GameState = {
+		type: 'gamestate',
+		__runtimeRef: Symbol('GameState')
+	}
+
 	try {
-		const result = evaluator.run(spell.ast)
+		// Create environment with injected GameState
+		const env = new Map<string, any>()
+		env.set('state', initialState)
+		
+		// Run spell with injected environment
+		const result = evaluator.run(spell.ast, env)
 		console.log('[castSpell] Spell result:', result)
 		return result
 	} catch (err) {

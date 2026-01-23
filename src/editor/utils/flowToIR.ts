@@ -160,18 +160,29 @@ function convertNode(
 			} as Literal;
 		}
 
-	case 'vector': {
-		const data = node.data as VectorNodeData;
-		// Convert vector to vec::create function call
-		return {
-			type: 'FunctionCall',
-			function: 'vec::create',
-			args: [
-				{ type: 'Literal', value: data.x } as Literal,
-				{ type: 'Literal', value: data.y } as Literal
-			]
-		} as FunctionCall;
-	}
+		case 'vector': {
+			const data = node.data as VectorNodeData;
+			// Convert vector to vec::create function call
+			return {
+				type: 'FunctionCall',
+				function: 'vec::create',
+				args: [
+					{ type: 'Literal', value: data.x } as Literal,
+					{ type: 'Literal', value: data.y } as Literal
+				]
+			} as FunctionCall;
+		}
+
+		case 'spellInput': {
+			// SpellInput represents a parameter that will be injected by the evaluator
+			// It's converted to an Identifier that will be resolved from the environment
+			const data = node.data as import('../types/flowTypes').SpellInputNodeData;
+			const paramName = data.paramName || 'state';
+			return {
+				type: 'Identifier',
+				name: paramName
+			} as Identifier;
+		}
 
 		case 'identifier': {
 			const data = node.data as IdentifierNodeData;

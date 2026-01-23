@@ -385,8 +385,8 @@ export class Evaluator {
 	/**
 	 * Run a single expression
 	 */
-	run(ast: ASTNode): Value {
-		return this.evaluate(ast, new Map());
+	run(ast: ASTNode, env?: Map<string, Value>): Value {
+		return this.evaluate(ast, env || new Map());
 	}
 
 	/**

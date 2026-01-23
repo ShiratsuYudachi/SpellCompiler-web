@@ -44,6 +44,7 @@ import { getGameInstance, getEditorContext, subscribeEditorContext } from '../..
 import { getSceneConfig } from '../../game/scenes/sceneConfig'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
+import { SpellInputNode } from './nodes/SpellInputNode'
 
 // Define node types
 const nodeTypes = {
@@ -57,6 +58,7 @@ const nodeTypes = {
 	lambdaDef: LambdaDefNode,
 	functionOut: FunctionOutNode,
 	vector: VectorNode,
+	spellInput: SpellInputNode,
 };
 
 type FlowSnapshot = { nodes: Node[]; edges: Edge[] }

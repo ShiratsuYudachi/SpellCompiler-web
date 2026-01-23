@@ -2,6 +2,7 @@
  * Game World Spell Tests
  * 
  * Tests spells by executing them in real game worlds and verifying results.
+ * Uses SpellInput nodes to inject GameState at runtime.
  */
 
 import { runner, expect } from './framework'
@@ -20,16 +21,16 @@ runner.suite('Game World - Teleport Spell', (suite) => {
 			expect(initialPos.x).toBe(100)
 			expect(initialPos.y).toBe(100)
 
-			// Build spell AST directly: teleportRelative(initState(), getPlayer(initState()), vec::create(100, 0))
+			// Build spell AST: teleportRelative(state, getPlayer(state), vec::create(100, 0))
+			// Note: 'state' is an Identifier that will be resolved from injected environment
 			const ast: ASTNode = {
 				type: 'FunctionCall',
 				function: 'game::teleportRelative',
 				args: [
-					// State
+					// State - comes from environment
 					{
-						type: 'FunctionCall',
-						function: 'game::initState',
-						args: []
+						type: 'Identifier',
+						name: 'state'
 					},
 					// Player entity
 					{
@@ -37,9 +38,8 @@ runner.suite('Game World - Teleport Spell', (suite) => {
 						function: 'game::getPlayer',
 						args: [
 							{
-								type: 'FunctionCall',
-								function: 'game::initState',
-								args: []
+								type: 'Identifier',
+								name: 'state'
 							}
 						]
 					},
@@ -60,7 +60,7 @@ runner.suite('Game World - Teleport Spell', (suite) => {
 				dependencies: []
 			}
 
-			// Cast spell
+			// Cast spell (GameState will be injected by castSpell)
 			testWorld.castSpell(spell)
 
 			// Verify position changed
@@ -86,18 +86,16 @@ runner.suite('Game World - Teleport Spell', (suite) => {
 				function: 'game::teleportRelative',
 				args: [
 					{
-						type: 'FunctionCall',
-						function: 'game::initState',
-						args: []
+						type: 'Identifier',
+						name: 'state'
 					},
 					{
 						type: 'FunctionCall',
 						function: 'game::getPlayer',
 						args: [
 							{
-								type: 'FunctionCall',
-								function: 'game::initState',
-								args: []
+								type: 'Identifier',
+								name: 'state'
 							}
 						]
 					},
@@ -133,18 +131,16 @@ runner.suite('Game World - Teleport Spell', (suite) => {
 				function: 'game::teleportRelative',
 				args: [
 					{
-						type: 'FunctionCall',
-						function: 'game::initState',
-						args: []
+						type: 'Identifier',
+						name: 'state'
 					},
 					{
 						type: 'FunctionCall',
 						function: 'game::getPlayer',
 						args: [
 							{
-								type: 'FunctionCall',
-								function: 'game::initState',
-								args: []
+								type: 'Identifier',
+								name: 'state'
 							}
 						]
 					},
@@ -165,6 +161,46 @@ runner.suite('Game World - Teleport Spell', (suite) => {
 			const finalPos = testWorld.getPlayerPosition()
 			expect(finalPos.x).toBe(150) // 200 - 50
 			expect(finalPos.y).toBe(170) // 200 - 30
+		} finally {
+			testWorld.destroy()
+		}
+	})
+
+	suite.test('state can be reused for multiple query operations', () => {
+		const testWorld = createTestWorld({ playerX: 120, playerY: 140 })
+
+		try {
+			// This spell demonstrates that the same state identifier can be used
+			// multiple times for query operations (getPlayer, getEntityPosition)
+			
+			// For now, just test that we can get player position
+			const ast: ASTNode = {
+				type: 'FunctionCall',
+				function: 'game::getEntityPosition',
+				args: [
+					{
+						type: 'Identifier',
+						name: 'state'
+					},
+					{
+						type: 'FunctionCall',
+						function: 'game::getPlayer',
+						args: [
+							{
+								type: 'Identifier',
+								name: 'state'
+							}
+						]
+					}
+				]
+			}
+
+			const spell: CompiledSpell = { ast, dependencies: [] }
+			const result = testWorld.castSpell(spell)
+
+			// Result should be a Vector2D function
+			expect(typeof result).toBe('object')
+			expect((result as any).type).toBe('function')
 		} finally {
 			testWorld.destroy()
 		}

@@ -48,25 +48,6 @@ function assertGameState(value: Value): asserts value is GameState {
 export function registerGameFunctions(evaluator: Evaluator) {
 	
 	// ===================================
-	// GameState Creation
-	// ===================================
-	
-	// game::initState() -> GameState
-	// Creates the initial GameState token for the spell
-	evaluator.registerFunction({
-		fullName: 'game::initState',
-		params: [],
-		fn: (): Value => {
-			const gameState: GameState = {
-				type: 'gamestate',
-				__runtimeRef: Symbol('GameState')
-			};
-			return gameState;
-		},
-		ui: { displayName: '🎮 initState' }
-	});
-	
-	// ===================================
 	// Query Spells - Read from GameState
 	// ===================================
 
