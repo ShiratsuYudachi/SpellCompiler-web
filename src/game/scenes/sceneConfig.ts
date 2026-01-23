@@ -1254,20 +1254,21 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 			'🎯 Test Scene - Stage 1 Architecture Demo',
 			'Press 1 to cast the example spell',
 			'The spell demonstrates:',
-			'• game::initState() - Creates GameState token',
+			'• SpellInput - Runtime-injected GameState',
 			'• game::getPlayer(state) - Query player entity',
-			'• game::teleportRelative(state, entity, offset) - Mutation',
+			'• game::getEntityPosition(state, entity) - Query position',
+			'• game::spawnFireball(state, position, direction) - Mutation',
 			'• vec::create(x, y) - Functional Vector2D',
 			'',
 			'Try modifying the spell to:',
-			'• Change teleport distance',
-			'• Teleport in different directions',
-			'• Use getEntityPosition to get current position',
+			'• Change fireball direction',
+			'• Spawn multiple fireballs',
+			'• Use different spawn positions',
 		],
 		initialSpellWorkflow: {
 			nodes: [
 				// Output node
-				{ id: 'output-1', type: 'output', position: { x: 600, y: 300 }, data: { label: 'Output' } },
+				{ id: 'output-1', type: 'output', position: { x: 750, y: 300 }, data: { label: 'Output' } },
 				
 				// SpellInput - provides initial GameState
 				{
@@ -1280,15 +1281,15 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 					},
 				},
 				
-				// teleportRelative function
+				// spawnFireball function
 				{
-					id: 'func-teleport',
+					id: 'func-spawnFireball',
 					type: 'dynamicFunction',
-					position: { x: 400, y: 300 },
+					position: { x: 550, y: 300 },
 					data: {
-						functionName: 'game::teleportRelative',
-						displayName: 'teleportRelative',
-						params: ['state', 'entity', 'offset'],
+						functionName: 'game::spawnFireball',
+						displayName: 'spawnFireball',
+						params: ['state', 'position', 'direction'],
 					},
 				},
 				
@@ -1296,7 +1297,7 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				{
 					id: 'func-getPlayer',
 					type: 'dynamicFunction',
-					position: { x: 200, y: 300 },
+					position: { x: 200, y: 250 },
 					data: {
 						functionName: 'game::getPlayer',
 						displayName: 'getPlayer',
@@ -1304,35 +1305,51 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 					},
 				},
 				
-				// Offset vector: vec::create(100, 0) - teleport 100 pixels right
+				// Get player position
 				{
-					id: 'vec-offset',
+					id: 'func-getEntityPosition',
 					type: 'dynamicFunction',
-					position: { x: 200, y: 370 },
+					position: { x: 350, y: 280 },
+					data: {
+						functionName: 'game::getEntityPosition',
+						displayName: 'getEntityPosition',
+						params: ['state', 'entity'],
+					},
+				},
+				
+				// Direction vector: vec::create(1, 0) - fireball flies right
+				{
+					id: 'vec-direction',
+					type: 'dynamicFunction',
+					position: { x: 350, y: 370 },
 					data: {
 						functionName: 'vec::create',
 						displayName: 'create',
 						params: ['x', 'y'],
 					},
 				},
-				{ id: 'lit-offset-x', type: 'literal', position: { x: 50, y: 350 }, data: { value: 100 } },
-				{ id: 'lit-offset-y', type: 'literal', position: { x: 50, y: 390 }, data: { value: 0 } },
+				{ id: 'lit-dir-x', type: 'literal', position: { x: 200, y: 350 }, data: { value: 1 } },
+				{ id: 'lit-dir-y', type: 'literal', position: { x: 200, y: 390 }, data: { value: 0 } },
 			],
 			edges: [
 				// Output connection
-				{ id: 'e-output', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+				{ id: 'e-output', source: 'func-spawnFireball', target: 'output-1', targetHandle: 'value' },
 				
-				// teleportRelative parameters
-				{ id: 'e-teleport-state', source: 'spell-input', target: 'func-teleport', targetHandle: 'arg0' },
-				{ id: 'e-teleport-entity', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
-				{ id: 'e-teleport-offset', source: 'vec-offset', target: 'func-teleport', targetHandle: 'arg2' },
+				// spawnFireball parameters
+				{ id: 'e-spawnFireball-state', source: 'spell-input', target: 'func-spawnFireball', targetHandle: 'arg0' },
+				{ id: 'e-spawnFireball-position', source: 'func-getEntityPosition', target: 'func-spawnFireball', targetHandle: 'arg1' },
+				{ id: 'e-spawnFireball-direction', source: 'vec-direction', target: 'func-spawnFireball', targetHandle: 'arg2' },
 				
 				// getPlayer parameters
 				{ id: 'e-getPlayer-state', source: 'spell-input', target: 'func-getPlayer', targetHandle: 'arg0' },
 				
-				// Offset vector connections
-				{ id: 'e-offset-x', source: 'lit-offset-x', target: 'vec-offset', targetHandle: 'arg0' },
-				{ id: 'e-offset-y', source: 'lit-offset-y', target: 'vec-offset', targetHandle: 'arg1' },
+				// getEntityPosition parameters
+				{ id: 'e-getEntityPosition-state', source: 'spell-input', target: 'func-getEntityPosition', targetHandle: 'arg0' },
+				{ id: 'e-getEntityPosition-entity', source: 'func-getPlayer', target: 'func-getEntityPosition', targetHandle: 'arg1' },
+				
+				// Direction vector connections
+				{ id: 'e-direction-x', source: 'lit-dir-x', target: 'vec-direction', targetHandle: 'arg0' },
+				{ id: 'e-direction-y', source: 'lit-dir-y', target: 'vec-direction', targetHandle: 'arg1' },
 			],
 		},
 	},

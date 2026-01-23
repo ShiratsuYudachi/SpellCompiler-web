@@ -2,24 +2,7 @@ import type { Evaluator } from '../ast/evaluator';
 import type { Value, FunctionValue, GameState } from '../ast/ast';
 import { GameStateManager } from '../../game/state/GameStateManager';
 import { Health } from '../../game/components';
-
-// Lazy import to avoid circular dependencies
-let spawnFireballFn: typeof import('../../game/prefabs/spawnFireball').spawnFireball | undefined;
-
-function getSpawnFireball() {
-	if (!spawnFireballFn) {
-		// Dynamic import - will be available in game runtime, mocked in tests
-		try {
-			spawnFireballFn = require('../../game/prefabs/spawnFireball').spawnFireball;
-		} catch {
-			// In test environment, use a no-op function that matches the signature
-			spawnFireballFn = ((_world: any, _scene: any, _bodies: any, _ownerEid: any, _x: any, _y: any, _dirX: any, _dirY: any) => {
-				return 0; // Return dummy entity ID
-			}) as any;
-		}
-	}
-	return spawnFireballFn;
-}
+import { spawnFireball } from '../../game/prefabs/spawnFireball';
 
 // Global state manager reference
 let globalStateManager: GameStateManager | null = null;
@@ -144,19 +127,16 @@ export function registerGameFunctions(evaluator: Evaluator) {
 			const dirY = evaluator.callFunctionValue(direction as FunctionValue, 'y') as number;
 			
 			// Spawn fireball (mutates world)
-			const spawnFireball = getSpawnFireball();
-			if (spawnFireball) {
-				spawnFireball(
-					manager.world,
-					manager.world.resources.scene,
-					manager.world.resources.bodies,
-					manager.casterEid,
-					posX,
-					posY,
-					dirX,
-					dirY
-				);
-			}
+			spawnFireball(
+				manager.world,
+				manager.world.resources.scene,
+				manager.world.resources.bodies,
+				manager.casterEid,
+				posX,
+				posY,
+				dirX,
+				dirY
+			);
 			
 			// Return same state (mutations already applied)
 			return state;

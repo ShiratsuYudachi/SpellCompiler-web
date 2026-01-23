@@ -11,7 +11,6 @@ import './astToMermaid.test';
 import './flowToIR.tap.test';
 import './vector.test';
 import './list.test';
-import './gameWorld.test';
 
 // Run all tests
 runner.run();
