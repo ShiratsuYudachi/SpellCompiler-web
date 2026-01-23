@@ -18,7 +18,7 @@ import ReactFlow, {
 	type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Alert, Button, Group, Paper, Text, TextInput } from '@mantine/core';
+import { Alert, Button, Group, Paper, Text, TextInput, Modal } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { TriggerTypeNode } from './nodes/TriggerTypeNode';
@@ -45,6 +45,7 @@ import { getSceneConfig } from '../../game/scenes/sceneConfig'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
 import { SpellInputNode } from './nodes/SpellInputNode'
+import { EventBindingPanel } from './EventBindingPanel'
 
 // Define node types
 const nodeTypes = {
@@ -132,6 +133,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		sourceNodeId?: string;
 		sourceHandleId?: string;
 	} | null>(null);
+	const [eventBindingModalOpen, setEventBindingModalOpen] = useState(false);
 	const [contextMenu, setContextMenu] = useState<{
 		show: boolean;
 		position: { x: number; y: number };
@@ -833,6 +835,9 @@ function EditorContent(props: FunctionalEditorProps) {
 					<Button size="sm" variant="outline" color="gray" onClick={handleExport}>
 						📤 Export
 					</Button>
+					<Button size="sm" variant="outline" color="violet" onClick={() => setEventBindingModalOpen(true)}>
+						📡 Events
+					</Button>
 					<Button size="sm" color="indigo" onClick={handleEvaluate}>
 						▶️ Evaluate
 					</Button>
@@ -998,7 +1003,17 @@ function EditorContent(props: FunctionalEditorProps) {
 			/>
 		)}
 	</div>
-		</EditorProvider>
+	
+	{/* Event Binding Modal */}
+	<Modal
+		opened={eventBindingModalOpen}
+		onClose={() => setEventBindingModalOpen(false)}
+		title="Event Bindings"
+		size="lg"
+	>
+		<EventBindingPanel />
+	</Modal>
+	</EditorProvider>
 	);
 }
 

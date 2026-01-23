@@ -8,6 +8,8 @@ import { TerrainRenderer } from './TerrainRenderer'
 import { Health, Enemy } from '../../components'
 import { LevelProgress } from './LevelProgress'
 import { setEditorContext } from '../../gameInstance'
+import { setupInputEventListeners, cleanupInputEventListeners, emitTickEvent } from '../../systems/inputEventSystem'
+import { eventProcessSystem, processHoldEvents } from '../../systems/eventProcessSystem'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
@@ -99,11 +101,23 @@ export abstract class BaseScene extends Phaser.Scene {
 		// 编辑器与法术事件
 		this.bindGlobalEvents()
 
+		// Set up event system input listeners
+		setupInputEventListeners(this)
+		this.events.once('shutdown', () => {
+			cleanupInputEventListeners(this)
+		})
+
 		this.onLevelCreate()
 	}
 
 	update() {
 		updateGameWorld(this.world, this.game.loop.delta / 1000)
+		
+		// Process event system
+		emitTickEvent()
+		eventProcessSystem(this.world)
+		processHoldEvents(this.world)
+		
 		this.updatePlayerHUD()
 		this.updateMinimap()
 		this.updateHazards()

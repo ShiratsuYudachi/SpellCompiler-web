@@ -200,16 +200,41 @@ export function registerGameFunctions(evaluator: Evaluator) {
 	});
 
 	// ====================================
+	// Event System
+	// ====================================
+
+	// game::emitEvent(state: GameState, eventName: string, ...args: any) -> GameState
+	// Emits a custom event that can be handled by registered spells
+	evaluator.registerFunction({
+		fullName: 'game::emitEvent',
+		params: ['state', 'eventName'],
+		fn: (state: Value, eventName: Value, ...extraArgs: Value[]): Value => {
+			assertGameState(state);
+			
+			if (typeof eventName !== 'string') {
+				throw new Error('Event name must be a string');
+			}
+			
+			// Import eventQueue lazily to avoid circular dependency
+			const { eventQueue } = require('../../game/events/EventQueue');
+			eventQueue.emit(eventName, state, ...extraArgs);
+			
+			return state;
+		},
+		ui: { displayName: '📡 emitEvent' }
+	});
+
+	// ====================================
 	// Deprecated / NotImplemented
 	// ====================================
 
-	// game::onTrigger - Placeholder for Stage 2 (Event system)
+	// game::onTrigger - Deprecated, use Event system instead
 	evaluator.registerFunction({
 		fullName: 'game::onTrigger',
 		params: ['triggerType', 'condition', 'action'],
 		fn: (_triggerType: Value, _condition: Value, _action: Value): Value => {
-			console.warn('[game::onTrigger] This function is deprecated and will be reimplemented in Stage 2 with Event system');
-			return 0; // Return dummy trigger ID
+			console.warn('[game::onTrigger] This function is deprecated. Use the Event system with emitEvent instead.');
+			return 0;
 		},
 		ui: { displayName: '⚠️ onTrigger (deprecated)' }
 	});
