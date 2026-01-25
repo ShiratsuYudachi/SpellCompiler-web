@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Badge, Button, Group, Paper, Stack, Text, TextInput, Modal } from '@mantine/core'
 import { deleteSpell, listSpells, type SpellMeta } from '../utils/spellStorage'
-import { EventBindingPanel } from './EventBindingPanel'
+import { AddEventPanel } from './AddEventPanel'
 
 export function SpellManager(props: {
 	onNew: (name: string) => void
@@ -117,10 +117,10 @@ export function SpellManager(props: {
 			<Modal
 				opened={bindingModalOpen}
 				onClose={() => setBindingModalOpen(false)}
-				title="Event Bindings"
+				title="Add Event Binding"
 				size="lg"
 			>
-				<EventBindingPanel initialSpellId={selectedSpellId} />
+				<AddEventPanel initialSpellId={selectedSpellId} onClose={() => setBindingModalOpen(false)} />
 			</Modal>
 		</div>
 	)

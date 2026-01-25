@@ -1,5 +1,5 @@
 /**
- * EventBindingPanel - UI for managing event bindings
+ * AddEventPanel - UI for adding new event bindings
  * 
  * Features:
  * - Quick key bindings (select spell + key + trigger mode)
@@ -16,15 +16,10 @@ import {
 	Stack, 
 	Text, 
 	Card, 
-	Badge, 
-	ActionIcon, 
 	Tabs, 
-	Divider, 
-	ScrollArea,
-	Paper,
 	Title,
-	Accordion,
-	Code
+    Accordion,
+    Code
 } from '@mantine/core'
 import { eventQueue, type EventBinding, BUILT_IN_EVENTS } from '../../game/events/EventQueue'
 import { listSpells } from '../utils/spellStorage'
@@ -34,8 +29,7 @@ interface SpellOption {
 	label: string
 }
 
-export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string | null }) {
-	const [bindings, setBindings] = useState<EventBinding[]>([])
+export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: string | null, onClose?: () => void }) {
 	const [spells, setSpells] = useState<SpellOption[]>([])
 	
 	// New binding form state
@@ -47,21 +41,21 @@ export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string 
 	
 	// Custom event form state
 	const [customEventName, setCustomEventName] = useState('')
-	const [customSpell, setCustomSpell] = useState<string | null>(null)
+	const [customSpell, setCustomSpell] = useState<string | null>(initialSpellId || null)
 	
-	// Load spells and bindings on mount
+	// Load spells on mount
 	useEffect(() => {
 		const savedSpells = listSpells()
 		// Only show spells that have successfully compiled AST
 		const compiledSpells = savedSpells.filter(s => s.hasCompiledAST)
 		setSpells(compiledSpells.map(s => ({ value: s.id, label: s.name })))
-		setBindings(eventQueue.getBindings())
 	}, [])
 
 	// Update selected spell when initialSpellId changes
 	useEffect(() => {
 		if (initialSpellId) {
 			setSelectedSpell(initialSpellId)
+            setCustomSpell(initialSpellId)
 		}
 	}, [initialSpellId])
 	
@@ -85,10 +79,6 @@ export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string 
 		}
 	}, [isCapturingKey])
 	
-	const refreshBindings = () => {
-		setBindings(eventQueue.getBindings())
-	}
-	
 	// Add quick key binding
 	const addKeyBinding = () => {
 		if (!selectedSpell || !selectedKey) return
@@ -106,11 +96,11 @@ export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string 
 		}
 		
 		eventQueue.addBinding(binding)
-		refreshBindings()
 		
 		// Reset form
 		setSelectedSpell(null)
 		setSelectedKey('')
+        if (onClose) onClose()
 	}
 	
 	// Add custom event binding
@@ -124,31 +114,16 @@ export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string 
 		}
 		
 		eventQueue.addBinding(binding)
-		refreshBindings()
 		
 		// Reset form
 		setCustomSpell(null)
 		setCustomEventName('')
-	}
-	
-	// Remove binding
-	const removeBinding = (bindingId: string) => {
-		eventQueue.removeBinding(bindingId)
-		refreshBindings()
-	}
-	
-	// Get spell name by ID
-	const getSpellName = (spellId: string): string => {
-		const spell = spells.find(s => s.value === spellId)
-		return spell?.label || spellId
+        if (onClose) onClose()
 	}
 	
 	return (
 		<Stack h="100%" gap="md" p="md">
-			<Group justify="space-between" align="center">
-				<Title order={4}>Event Manager</Title>
-				<Badge size="lg" variant="light" color="blue">{bindings.length} Active</Badge>
-			</Group>
+			<Title order={4}>Add Event Binding</Title>
 			
 			<Card withBorder shadow="sm" radius="md" p={0}>
 				<Tabs defaultValue="key" variant="pills" radius="md" p="xs">
@@ -265,82 +240,8 @@ export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string 
 					</Tabs.Panel>
 				</Tabs>
 			</Card>
-			
-			<Divider label="Active Bindings" labelPosition="center" />
-			
-			<ScrollArea style={{ flex: 1, minHeight: 200 }} offsetScrollbars>
-				<Stack gap="xs">
-					{bindings.length === 0 ? (
-						<Paper p="xl" withBorder style={{ borderStyle: 'dashed', textAlign: 'center', backgroundColor: 'transparent' }}>
-							<Text c="dimmed" size="sm">No active bindings</Text>
-							<Text c="dimmed" size="xs" mt={4}>Add a binding above to get started</Text>
-						</Paper>
-					) : (
-						bindings.map((binding) => (
-							<Paper 
-								key={binding.id} 
-								shadow="xs" 
-								p="sm" 
-								radius="md" 
-								withBorder
-								style={{ 
-									display: 'flex', 
-									alignItems: 'center', 
-									justifyContent: 'space-between',
-									transition: 'transform 0.2s, box-shadow 0.2s',
-								}}
-							>
-								<Stack gap={4} style={{ flex: 1 }}>
-									<Group gap="xs" wrap="nowrap">
-										<Badge 
-											color={binding.keyOrButton !== undefined ? 'blue' : 'violet'} 
-											variant="light"
-											size="sm"
-										>
-											{binding.eventName}
-										</Badge>
-										{binding.keyOrButton !== undefined && (
-											<Code fz="xs" fw={700} c="blue">{String(binding.keyOrButton)}</Code>
-										)}
-									</Group>
-									
-									<Group gap={6} align="center">
-										<Text size="xs" c="dimmed">triggers</Text>
-										<Text size="sm" fw={600} c="dark">{getSpellName(binding.spellId)}</Text>
-									</Group>
-
-									{(binding.triggerMode || binding.holdInterval) && (
-										<Group gap={6}>
-											{binding.triggerMode && (
-												<Badge variant="outline" color="gray" size="xs" style={{ textTransform: 'none' }}>
-													mode: {binding.triggerMode}
-												</Badge>
-											)}
-											{binding.holdInterval && (
-												<Badge variant="outline" color="orange" size="xs" style={{ textTransform: 'none' }}>
-													{binding.holdInterval}ms
-												</Badge>
-											)}
-										</Group>
-									)}
-								</Stack>
-
-								<ActionIcon 
-									color="red" 
-									variant="light" 
-									size="lg"
-									onClick={() => removeBinding(binding.id)}
-									aria-label="Remove binding"
-								>
-									✕
-								</ActionIcon>
-							</Paper>
-						))
-					)}
-				</Stack>
-			</ScrollArea>
-			
-			<Accordion variant="contained" radius="md">
+            
+            <Accordion variant="contained" radius="md">
 				<Accordion.Item value="builtin">
 					<Accordion.Control icon="ℹ️">
 						<Text size="sm">Built-in Events Reference</Text>

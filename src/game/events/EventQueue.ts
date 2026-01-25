@@ -64,6 +64,19 @@ class EventQueueManager {
 	// Input state tracking for 'hold' mode
 	private heldKeys: Map<string, number> = new Map()  // key → lastTriggerTime
 	private heldMouseButtons: Map<number, number> = new Map()  // button → lastTriggerTime
+	private listeners: Set<() => void> = new Set()
+
+	/**
+	 * Subscribe to binding changes
+	 */
+	subscribe(listener: () => void): () => void {
+		this.listeners.add(listener)
+		return () => this.listeners.delete(listener)
+	}
+
+	private notifyListeners() {
+		this.listeners.forEach(l => l())
+	}
 	
 	/**
 	 * Initialize event queue - load bindings from save file
@@ -90,6 +103,7 @@ class EventQueueManager {
 		}
 		
 		console.log(`[EventQueue] Loaded ${saveData.eventBindings.length} event bindings from save`)
+		this.notifyListeners()
 	}
 	
 	/**
@@ -143,6 +157,7 @@ class EventQueueManager {
 		this.bindings.set(binding.id, binding)
 		this.registerHandler(binding.eventName, binding.spellId)
 		this.saveBindingsToSave()
+		this.notifyListeners()
 	}
 	
 	/**
@@ -154,6 +169,7 @@ class EventQueueManager {
 			this.unregisterHandler(binding.eventName, binding.spellId)
 			this.bindings.delete(bindingId)
 			this.saveBindingsToSave()
+			this.notifyListeners()
 		}
 	}
 	
