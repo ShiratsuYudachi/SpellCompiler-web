@@ -18,7 +18,7 @@ import ReactFlow, {
 	type Node,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Alert, Button, Group, Paper, Text, TextInput, Modal } from '@mantine/core';
+import { Alert, Button, Group, Paper, Text, TextInput, Modal, Badge } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
@@ -139,6 +139,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	} | null>(null);
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
+	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'failed' | null>(null);
 
 	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
@@ -643,61 +644,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		}
 	};
 
-	const handleRegisterSpell = () => {
-		try {
-			setError(null)
-			console.log('[RegisterSpell] Starting registration...')
-		console.log('[RegisterSpell] Nodes:', nodes)
-		console.log('[RegisterSpell] Edges:', edges)
-
-		const spell = flowToIR(nodes, edges)
-		console.log('[RegisterSpell] Generated Spell:', JSON.stringify(spell, null, 2))
-		setCurrentAST(spell.body)
-		setCurrentFunctions(spell.dependencies)
-
-		// Check if any game functions are used
-		const hasGameFunctions = spell.dependencies.some(fn => fn.name.startsWith('game::')) ||
-			JSON.stringify(spell.body).includes('game::')
-		console.log('[RegisterSpell] Has game functions:', hasGameFunctions)
-
-		if (hasGameFunctions) {
-			// Skip evaluation, directly register to game
-			const game = getGameInstance()
-			console.log('[RegisterSpell] Game instance:', game ? 'found' : 'not found')
-			if (!game) {
-				throw new Error('Game is not running')
-			}
-
-			console.log('[RegisterSpell] Emitting registerSpell event with spell:', spell)
-			game.events.emit(GameEvents.registerSpell, spell)
-			setEvaluationResult({ cast: true })
-		} else {
-		// Evaluate first, then register
-		const evaluator = new Evaluator()
-		registerGameFunctions(evaluator)
-		spell.dependencies.forEach(fn => {
-			evaluator.registerFunction(fn)
-		})
-
-			const result = evaluator.evaluate(spell.body, new Map())
-			console.log('[RegisterSpell] Evaluation result:', result)
-			setEvaluationResult(result)
-
-			const game = getGameInstance()
-			if (game) {
-				console.log('[RegisterSpell] Emitting registerSpell event')
-				game.events.emit(GameEvents.registerSpell, spell)
-			}
-		}
-			console.log('[RegisterSpell] Registration complete')
-		} catch (err) {
-			console.error('[RegisterSpell] Error:', err)
-			setError(err instanceof Error ? err.message : String(err))
-			setEvaluationResult(null)
-		}
-	}
-
-	const handleSaveToLibrary = () => {
+	const handleCompileAndSave = () => {
 		try {
 			setError(null)
 			const name = spellName.trim() || 'New Spell'
@@ -717,7 +664,19 @@ function EditorContent(props: FunctionalEditorProps) {
 
 			setSpellId(nextId)
 			setSpellName(name)
-			setEvaluationResult({ saved: true, id: nextId })
+			
+			// Try to compile
+			try {
+				flowToIR(nodes, edges)
+				setCompilationStatus('compiled')
+				setEvaluationResult({ saved: true, id: nextId, compiled: true })
+			} catch (compileErr) {
+				console.error('[Editor] Compilation failed during save:', compileErr)
+				setCompilationStatus('failed')
+				setError(compileErr instanceof Error ? compileErr.message : String(compileErr))
+				setEvaluationResult({ saved: true, id: nextId, compiled: false })
+			}
+
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err))
 		}
@@ -822,9 +781,11 @@ function EditorContent(props: FunctionalEditorProps) {
 						placeholder="Spell name"
 						size="sm"
 					/>
-					<Button size="sm" color="blue" onClick={handleSaveToLibrary}>
-						Save to Library
-					</Button>
+					{compilationStatus && (
+						<Badge color={compilationStatus === 'compiled' ? 'green' : 'red'} variant="light">
+							{compilationStatus === 'compiled' ? 'Compiled' : 'Compilation Failed'}
+						</Badge>
+					)}
 				</Group>
 				<div className="flex gap-2">
 					<Button size="sm" variant="outline" color="gray" onClick={handleImport}>
@@ -836,11 +797,8 @@ function EditorContent(props: FunctionalEditorProps) {
 					<Button size="sm" variant="outline" color="violet" onClick={() => setEventBindingModalOpen(true)}>
 						📡 Events
 					</Button>
-					<Button size="sm" color="indigo" onClick={handleEvaluate}>
-						▶️ Evaluate
-					</Button>
-					<Button size="sm" color="teal" onClick={handleRegisterSpell}>
-						✨ Compile & Register
+					<Button size="sm" color="blue" onClick={handleCompileAndSave}>
+						Compile & Save
 					</Button>
 				</div>
 			</div>
