@@ -11,12 +11,13 @@ import { getSceneConfig } from '../../../game/scenes/sceneConfig';
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
 	onSelectFunction: (funcInfo: FunctionInfo) => void;
-	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => void;
+	onSelectBasicNode: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'spellInput') => void;
 	onClose: () => void;
 	editorContext?: { sceneKey?: string } | null;
 }
 
 const BASIC_NODES = [
+	{ type: 'spellInput' as const, label: 'Spell Input', icon: '🎯', description: 'Spell input parameters (state, etc.)' },
 	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value (number)' },
 	{ type: 'vector' as const, label: 'Vector2D', icon: '📐', description: '2D Vector (x, y)' },
 	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },

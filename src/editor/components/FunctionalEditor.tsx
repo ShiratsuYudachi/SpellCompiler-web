@@ -501,7 +501,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'spellInput') => {
 		if (!menuState) return;
 		
 		// Check if node type is allowed
@@ -528,6 +528,8 @@ function EditorContent(props: FunctionalEditorProps) {
 				return { functionName: 'myFunc', paramCount: 1 };
 			case 'applyFunc':
 				return { paramCount: 1 };
+			case 'spellInput':
+				return { label: 'Spell Input', params: ['state'] };
 			default:
 				return {};
 		}

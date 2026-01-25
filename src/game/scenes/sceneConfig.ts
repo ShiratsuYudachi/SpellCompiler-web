@@ -12,7 +12,7 @@ export type SceneConfig = {
 		edges: any[]
 	}
 	editorRestrictions?: RegExp
-	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction'>
+	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction' | 'spellInput'>
 	hints?: string[]
 	logicReference?: Record<string, { gridX: number; gridY: number; action: string }>
 }
