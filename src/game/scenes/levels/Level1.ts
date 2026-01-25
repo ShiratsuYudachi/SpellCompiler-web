@@ -2,7 +2,7 @@ import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity, despawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite } from '../../components'
-import { createRectBody } from '../../prefabs/createRectBody'
+import { createCircleBody } from '../../prefabs/createCircleBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 
 export const Level1Meta: LevelMeta = {
@@ -13,15 +13,21 @@ export const Level1Meta: LevelMeta = {
 	allowedNodeTypes: ['output', 'literal', 'vector', 'dynamicFunction'],
 	objectives: [
 		{
-			id: 'defeat-boss',
-			description: 'Use teleportRelative to approach and defeat Boss',
-			type: 'defeat',
+			id: 'reach-target-1',
+			description: 'Move RIGHT to the first target circle',
+			type: 'reach',
 		},
 		{
-			id: 'collect-markers',
-			description: 'Collect 3 markers (0/3)',
-			type: 'collect',
-			prerequisite: 'defeat-boss',
+			id: 'reach-target-2',
+			description: 'Move UP to the second target circle',
+			type: 'reach',
+			prerequisite: 'reach-target-1',
+		},
+		{
+			id: 'reach-target-3',
+			description: 'Move DOWN-LEFT to the final target circle',
+			type: 'reach',
+			prerequisite: 'reach-target-2',
 		},
 	],
 
@@ -41,20 +47,20 @@ export const Level1Meta: LevelMeta = {
 					functionName: 'game::teleportRelative',
 					displayName: 'teleportRelative',
 					namespace: 'game',
-					params: ['entityId', 'offset'],
+					params: ['state', 'entity', 'offset'],
 					parameterModes: {
 						offset: {
-							current: 'literal-xy',
+							current: 'vector',
 							options: [
-								{
-									mode: 'literal-xy',
-									label: 'Literal (dx, dy)',
-									params: ['dx', 'dy'],
-								},
 								{
 									mode: 'vector',
 									label: 'Vector',
 									params: ['offset'],
+								},
+								{
+									mode: 'literal-xy',
+									label: 'Literal (dx, dy)',
+									params: ['dx', 'dy'],
 								},
 							],
 						},
@@ -69,17 +75,23 @@ export const Level1Meta: LevelMeta = {
 					functionName: 'game::getPlayer',
 					displayName: 'getPlayer',
 					namespace: 'game',
-					params: [],
+					params: ['state'],
 				},
 			},
-			{ id: 'lit-dx', type: 'literal', position: { x: 140, y: 240 }, data: { value: 0 } },
-			{ id: 'lit-dy', type: 'literal', position: { x: 140, y: 320 }, data: { value: 0 } },
+			{ id: 'spell-input', type: 'spellInput', position: { x: -100, y: 150 }, data: { label: 'Game State', params: ['state'] } },
+			{
+				id: 'func-vector',
+				type: 'vector',
+				position: { x: 140, y: 240 },
+				data: { x: 0, y: 0 },
+			},
 		],
 		edges: [
 			{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
+			{ id: 'e2', source: 'spell-input', target: 'func-teleport', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'func-vector', target: 'func-teleport', targetHandle: 'arg2' },
+			{ id: 'e5', source: 'spell-input', target: 'func-getPlayer', targetHandle: 'arg0' },
 		],
 	},
 }
@@ -87,21 +99,15 @@ export const Level1Meta: LevelMeta = {
 levelRegistry.register(Level1Meta)
 
 export class Level1 extends BaseScene {
-	private bossEid: number | null = null
-	private bossDefeated = false
-	private bossCoordText!: Phaser.GameObjects.Text
-	private bossHealthBarBg!: Phaser.GameObjects.Graphics
-	private bossHealthBarFill!: Phaser.GameObjects.Graphics
-	private bossHealthText!: Phaser.GameObjects.Text
-	private teleportTargets: Array<{
+	private targets: Array<{
+		id: string
 		x: number
 		y: number
+		radius: number
+		body: Phaser.Physics.Arcade.Image
 		marker: Phaser.GameObjects.Arc
-		coordText?: Phaser.GameObjects.Text
-		collected: boolean
-		collector: Phaser.Physics.Arcade.Image
+		active: boolean
 	}> = []
-	private minimapMarkerDots: Phaser.GameObjects.Arc[] = []
 
 	constructor() {
 		super({ key: 'Level1' })
@@ -109,14 +115,25 @@ export class Level1 extends BaseScene {
 
 	protected onLevelCreate(): void {
 		// Tutorial hint
-		this.showInstruction('【Logic Gate】\nNormal movement is disabled. Press TAB to open the code editor and move by modifying coordinates.')
+		this.showInstruction(
+			'【Level 1: Code-Driven Movement】\n\n' +
+			'Welcome to the Spell Compiler!\n' +
+			'Here, you cannot move with WASD. You must write code to move.\n\n' +
+			'• Press TAB to open the Spell Editor.\n' +
+			'• You will see a "teleportRelative" function.\n' +
+			'• Change the X and Y values to move your character.\n' +
+			'• Connect the function to "Output" to make it work.\n\n' +
+			'Goal: Teleport into the blue target circles one by one.'
+		)
 
-		// Create Boss
-		this.createBoss()
-
-		// Create teleport targets (initially hidden)
-		this.createTeleportTargets()
-		this.setTeleportTargetsVisible(false)
+		// Define target locations
+		// 1. Right: (+200, 0) relative to start (120, 270) -> (320, 270)
+		// 2. Up: (0, -150) relative to target 1 -> (320, 120)
+		// 3. Left-Down: (-150, +250) relative to target 2 -> (170, 370)
+		
+		this.createTarget('reach-target-1', 320, 270, 40)
+		this.createTarget('reach-target-2', 320, 120, 40)
+		this.createTarget('reach-target-3', 170, 370, 40)
 
 		// Camera settings
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
@@ -125,333 +142,83 @@ export class Level1 extends BaseScene {
 		}
 	}
 
+	private createTarget(id: string, x: number, y: number, radius: number) {
+		// Create visual marker (hollow circle)
+		const marker = this.add.circle(x, y, radius, 0x00ffff, 0.1)
+		marker.setStrokeStyle(2, 0x00ffff)
+		marker.setVisible(false) // Initially hidden
+		
+		// Create physics body for overlap detection
+		// We use a transparent image with a circular body
+		const body = createCircleBody(this, 'target-zone', 0x00ffff, radius, x, y, 0)
+		body.setVisible(false)
+
+		this.targets.push({
+			id,
+			x,
+			y,
+			radius,
+			body,
+			marker,
+			active: true // All exist physically, but we only check the current objective
+		})
+	}
+
 	protected onLevelUpdate(): void {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
-
-		// Logic lock: disable manual velocity before completing all tasks
-		if (!this.bossDefeated || this.getCollectedCount() < 3) {
-			if (playerBody) playerBody.setVelocity(0, 0)
-			Velocity.x[playerEid] = 0
-			Velocity.y[playerEid] = 0
-		}
-
-		// Boss logic
-		if (this.bossEid !== null && !this.bossDefeated) {
-			this.updateBossCoordinates()
-			this.updateBossHealthUI()
-			if (Health.current[this.bossEid] <= 0) {
-				this.onBossDefeated()
-			}
-		}
-
-		// Update teleport target coordinates (only if boss is defeated)
-		if (this.bossDefeated) {
-			this.updateTeleportTargetCoordinates()
-			// Update minimap with teleport targets (only after boss is defeated)
-			this.updateMinimapWithTargets()
-		}
-	}
-
-	private createBoss() {
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)!
-		const bossX = playerBody.x + 400
-		const bossY = playerBody.y
-
-		const bossBody = createRectBody(this, 'boss', 0xff0000, 64, 64, bossX, bossY, 5)
-		bossBody.setImmovable(true)
-
-		this.bossEid = spawnEntity(this.world)
-		this.world.resources.bodies.set(this.bossEid, bossBody)
-		addComponent(this.world, this.bossEid, Sprite)
-		addComponent(this.world, this.bossEid, Health)
-		Health.current[this.bossEid] = 100
-		Health.max[this.bossEid] = 100
-
-		// Create Boss coordinate text
-		this.bossCoordText = this.add
-			.text(bossX, bossY + 50, '', { fontSize: '14px', color: '#ff0000' })
-			.setOrigin(0.5)
-
-		// Create Boss health bar UI
-		this.bossHealthBarBg = this.add.graphics()
-		this.bossHealthBarFill = this.add.graphics()
-		this.bossHealthText = this.add.text(bossX, bossY - 50, '', {
-			fontSize: '16px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 4,
-		})
-		this.bossHealthText.setOrigin(0.5)
-	}
-
-	private onBossDefeated() {
-		this.bossDefeated = true
 		
-		// Destroy Boss coordinate text
-		this.bossCoordText.destroy()
-
-		// Destroy Boss health bar UI
-		if (this.bossHealthBarBg) this.bossHealthBarBg.destroy()
-		if (this.bossHealthBarFill) this.bossHealthBarFill.destroy()
-		if (this.bossHealthText) this.bossHealthText.destroy()
-
-		// Remove Boss entity from world
-		if (this.bossEid !== null) {
-			despawnEntity(this.world, this.bossEid)
-			this.bossEid = null
-		}
-
-		// Complete objective 1: Defeat Boss
-		this.completeObjectiveById('defeat-boss')
-
-		// Show teleport targets
-		this.setTeleportTargetsVisible(true)
-	}
-
-	private createTeleportTargets() {
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)!
-		// Create 3 teleport targets at reasonable distances from player spawn
-		// Spread them out in different directions, but keep them within world bounds (960x540)
-		// Player spawn is at (120, 270), so ensure all positions are within bounds
-		const worldWidth = (this as any).worldWidth || 960
-		const worldHeight = (this as any).worldHeight || 540
-		
-		// Calculate positions relative to player, ensuring they stay within bounds
-		// Position 1: Right and up
-		// Position 2: Right and down
-		// Position 3: Left and down (but not too far down to stay in bounds)
-		const locs = [
-			{ 
-				x: Math.min(playerBody.x + 350, worldWidth - 50), 
-				y: Math.max(playerBody.y - 200, 50) 
-			},
-			{ 
-				x: Math.min(playerBody.x + 500, worldWidth - 50), 
-				y: Math.min(playerBody.y + 150, worldHeight - 50) 
-			},
-			{ 
-				x: Math.max(playerBody.x - 150, 50), 
-				y: Math.min(playerBody.y + 200, worldHeight - 50) 
-			},
-		]
-
-		locs.forEach((loc) => {
-			const marker = this.add.circle(loc.x, loc.y, 30, 0x00ffff, 0.4).setStrokeStyle(2, 0x00ffff)
-			const collector = this.physics.add.image(loc.x, loc.y, '').setVisible(false).setSize(60, 60)
-			
-			// Create coordinate text for each marker (initially hidden)
-			const coordText = this.add.text(loc.x, loc.y + 50, '', {
-				fontSize: '12px',
-				color: '#00ffff',
-				stroke: '#000000',
-				strokeThickness: 2,
-			}).setOrigin(0.5).setVisible(false)
-
-			this.physics.add.overlap(
-				this.world.resources.bodies.get(this.world.resources.playerEid)!,
-				collector,
-				() => {
-					const target = this.teleportTargets.find((t) => t.collector === collector)
-					if (target && !target.collected) {
-						target.collected = true
-						
-						// Remove marker and collector
-						target.marker.destroy()
-						target.collector.destroy()
-						if (target.coordText) {
-							target.coordText.destroy()
-							target.coordText = undefined
-						}
-
-						// Update progress
-						const count = this.getCollectedCount()
-						this.updateObjectiveDescription('collect-markers', `Collect 3 markers (${count}/3)`)
-
-						// Check if all collected
-						if (count === 3) {
-							this.completeObjectiveById('collect-markers')
-							// Check if all objectives are complete to unlock next level
-							this.checkLevelCompletion()
-						}
-					}
-				}
-			)
-
-			this.teleportTargets.push({ ...loc, marker, collector, coordText, collected: false })
-		})
-	}
-
-	private getCollectedCount() {
-		return this.teleportTargets.filter((t) => t.collected).length
-	}
-
-	private setTeleportTargetsVisible(v: boolean) {
-		this.teleportTargets.forEach((t) => {
-			// Only update marker if it exists, is active, and belongs to this scene
-			if (t.marker && t.marker.active && t.marker.scene === this) {
-				try {
-					t.marker.setVisible(v)
-				} catch (error) {
-					console.warn('Failed to set marker visibility, object may be destroyed:', error)
-				}
-			}
-			// Only update coordText if it exists, is active, and belongs to this scene
-			if (t.coordText && t.coordText.active && t.coordText.scene === this) {
-				try {
-					t.coordText.setVisible(v)
-				} catch (error) {
-					console.warn('Failed to set coordText visibility, clearing reference:', error)
-					t.coordText = undefined
-				}
-			}
-		})
-	}
-
-	private updateBossCoordinates() {
-		const player = this.world.resources.bodies.get(this.world.resources.playerEid)!
-		const boss = this.world.resources.bodies.get(this.bossEid!)!
-		const dx = Math.round(boss.x - player.x)
-		const dy = Math.round(boss.y - player.y)
-		this.bossCoordText.setText(`Boss dx: ${dx} dy: ${dy}`).setPosition(boss.x, boss.y + 60)
-	}
-
-	private updateBossHealthUI() {
-		if (this.bossEid === null || this.bossDefeated) return
-
-		const boss = this.world.resources.bodies.get(this.bossEid)
-		if (!boss) return
-
-		const currentHealth = Health.current[this.bossEid] || 0
-		const maxHealth = Health.max[this.bossEid] || 100
-		const healthPercent = Math.max(0, Math.min(1, currentHealth / maxHealth))
-
-		// Update health bar position
-		const barX = boss.x - 60
-		const barY = boss.y - 80
-		const barWidth = 120
-		const barHeight = 12
-
-		// Clear and redraw health bar background
-		this.bossHealthBarBg.clear()
-		this.bossHealthBarBg.fillStyle(0x000000, 0.5)
-		this.bossHealthBarBg.fillRect(barX, barY, barWidth, barHeight)
-
-		// Clear and redraw health bar fill
-		this.bossHealthBarFill.clear()
-		const color = healthPercent > 0.5 ? 0x00ff00 : healthPercent > 0.25 ? 0xffff00 : 0xff0000
-		this.bossHealthBarFill.fillStyle(color, 1)
-		this.bossHealthBarFill.fillRect(barX, barY, barWidth * healthPercent, barHeight)
-
-		// Update health text
-		this.bossHealthText.setPosition(boss.x, boss.y - 100)
-		this.bossHealthText.setText(`${Math.ceil(currentHealth)} / ${maxHealth}`)
-	}
-
-	private updateTeleportTargetCoordinates() {
-		const player = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (!player) return
-
-		this.teleportTargets.forEach((target) => {
-			// Only update if target is not collected, coordText exists, is active, and scene matches
-			if (!target.collected && target.coordText && target.coordText.active && target.coordText.scene === this) {
-				try {
-					const dx = Math.round(target.x - player.x)
-					const dy = Math.round(target.y - player.y)
-					target.coordText.setText(`dx: ${dx} dy: ${dy}`)
-					target.coordText.setPosition(target.x, target.y + 50)
-				} catch (error) {
-					// If update fails, the object may have been destroyed, clear the reference
-					console.warn('Failed to update coordText, clearing reference:', error)
-					target.coordText = undefined
-				}
-			}
-		})
-	}
-
-	private updateMinimapWithTargets() {
-		// Only show teleport targets on minimap after boss is defeated
-		if (!this.bossDefeated) {
-			// Clear any existing dots
-			this.minimapMarkerDots.forEach((dot) => dot.destroy())
-			this.minimapMarkerDots = []
-			return
-		}
-
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (!playerBody) return
 
-		const size = 150
-		
-		// Calculate bounds that include player and all uncollected teleport targets
-		const uncollectedTargets = this.teleportTargets.filter(t => !t.collected)
-		
-		// Find min/max coordinates including player position
-		const allPoints = [
-			{ x: playerBody.x, y: playerBody.y },
-			...uncollectedTargets.map(t => ({ x: t.x, y: t.y }))
-		]
-		
-		if (allPoints.length === 0) {
-			// Clear dots if all collected
-			this.minimapMarkerDots.forEach((dot) => dot.destroy())
-			this.minimapMarkerDots = []
-			return
-		}
+		// Force stop player movement (disable physics velocity)
+		// Movement should only happen via teleport
+		playerBody.setVelocity(0, 0)
+		Velocity.x[playerEid] = 0
+		Velocity.y[playerEid] = 0
 
-		let minX = Math.min(...allPoints.map(p => p.x))
-		let maxX = Math.max(...allPoints.map(p => p.x))
-		let minY = Math.min(...allPoints.map(p => p.y))
-		let maxY = Math.max(...allPoints.map(p => p.y))
+		// Check current objective
+		const currentObjective = this.allObjectives.find(obj => !obj.completed && obj.visible)
+		if (!currentObjective) return
 
-		// Add padding to ensure all points are visible with some margin
-		const padding = 150
-		minX -= padding
-		maxX += padding
-		minY -= padding
-		maxY += padding
+		const target = this.targets.find(t => t.id === currentObjective.id)
+		if (!target) return
 
-		// Calculate world dimensions for minimap
-		const worldWidth = maxX - minX
-		const worldHeight = maxY - minY
-		const scaleX = size / worldWidth
-		const scaleY = size / worldHeight
+		// Highlight current target and ensure it is visible
+		this.targets.forEach(t => {
+			if (t.id === target.id) {
+				t.marker.setVisible(true)
+				t.marker.setStrokeStyle(4, 0x00ff00)
+				t.marker.setFillStyle(0x00ff00, 0.2)
+			} else {
+				// Hide other targets
+				t.marker.setVisible(false)
+			}
+		})
 
-		// Clear previous marker dots
-		this.minimapMarkerDots.forEach((dot) => dot.destroy())
-		this.minimapMarkerDots = []
-
-		// Add dots for uncollected teleport targets
-		const minimapContainer = (this as any).minimapContainer
-		if (minimapContainer) {
-			uncollectedTargets.forEach((target) => {
-				// Convert world coordinates to minimap coordinates
-				const minimapX = (target.x - minX) * scaleX
-				const minimapY = (target.y - minY) * scaleY
-				
-				// Ensure coordinates are within minimap bounds
-				if (minimapX >= 0 && minimapX <= size && minimapY >= 0 && minimapY <= size) {
-					const dot = this.add.circle(
-						minimapX,
-						minimapY,
-						4,
-						0x00ffff,
-						0.9
-					)
-					dot.setScrollFactor(0).setDepth(1001)
-					minimapContainer.add(dot)
-					this.minimapMarkerDots.push(dot)
+		// Check overlap
+		const distance = Phaser.Math.Distance.Between(playerBody.x, playerBody.y, target.x, target.y)
+		// Allow some margin error (player radius is approx 16)
+		if (distance < target.radius) {
+			this.completeObjectiveById(target.id)
+			
+			// Visual feedback
+			this.tweens.add({
+				targets: target.marker,
+				scale: 1.5,
+				alpha: 0,
+				duration: 500,
+				onComplete: () => {
+					target.marker.destroy()
+					target.body.destroy()
 				}
 			})
-		}
-	}
 
-	private checkLevelCompletion() {
-		// Check if all objectives are completed
-		const allObjectives = (this as any).allObjectives
-		if (allObjectives && allObjectives.every((obj: any) => obj.completed)) {
-			// Call parent method to complete level and unlock next
-			this.onAllObjectivesComplete()
+			// Show hint for next step
+			if (target.id === 'reach-target-1') {
+				this.showInstruction('Great! Now modify the code to move UP (negative Y).')
+			} else if (target.id === 'reach-target-2') {
+				this.showInstruction('Excellent! Now combine X and Y to move diagonally (Left and Down).')
+			}
 		}
 	}
 }
