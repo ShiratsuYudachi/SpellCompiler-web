@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Group, Paper, Stack, Text, TextInput } from '@mantine/core'
+import { Alert, Badge, Button, Group, Paper, Stack, Text, TextInput } from '@mantine/core'
 import { deleteSpell, listSpells, type SpellMeta } from '../utils/spellStorage'
 
 export function SpellManager(props: {
@@ -56,53 +56,61 @@ export function SpellManager(props: {
 						</Paper>
 					) : null}
 
-					{spells.map((s) => (
-						<Paper key={s.id} p="md" withBorder>
-							<Group justify="space-between" align="center">
-								<div>
+				{spells.map((s) => (
+					<Paper key={s.id} p="md" withBorder>
+						<Group justify="space-between" align="center">
+							<div>
+								<Group gap="xs">
 									<Text fw={700}>{s.name}</Text>
-									<Text size="sm" c="dimmed">
-										{new Date(s.savedAt).toLocaleString()}
-									</Text>
-								</div>
-								<Group>
-									<Button
-										variant="light"
-										onClick={() => {
-											setError(null)
-											try {
-												props.onBind(s.id)
-											} catch (err) {
-												setError(err instanceof Error ? err.message : String(err))
-											}
-										}}
-									>
-										Bind
-									</Button>
-									<Button
-										variant="outline"
-										onClick={() => {
-											setError(null)
-											props.onEdit(s.id)
-										}}
-									>
-										Edit
-									</Button>
-									<Button
-										color="red"
-										variant="outline"
-										onClick={() => {
-											setError(null)
-											deleteSpell(s.id)
-											refresh()
-										}}
-									>
-										Delete
-									</Button>
+									{s.hasCompiledAST ? (
+										<Badge color="green" size="sm">AST</Badge>
+									) : (
+										<Badge color="red" size="sm" variant="light">No AST</Badge>
+									)}
 								</Group>
+								<Text size="sm" c="dimmed">
+									{new Date(s.savedAt).toLocaleString()}
+								</Text>
+							</div>
+							<Group>
+								<Button
+									variant="light"
+									onClick={() => {
+										setError(null)
+										try {
+											props.onBind(s.id)
+										} catch (err) {
+											setError(err instanceof Error ? err.message : String(err))
+										}
+									}}
+									disabled={!s.hasCompiledAST}
+								>
+									Bind
+								</Button>
+								<Button
+									variant="outline"
+									onClick={() => {
+										setError(null)
+										props.onEdit(s.id)
+									}}
+								>
+									Edit
+								</Button>
+								<Button
+									color="red"
+									variant="outline"
+									onClick={() => {
+										setError(null)
+										deleteSpell(s.id)
+										refresh()
+									}}
+								>
+									Delete
+								</Button>
 							</Group>
-						</Paper>
-					))}
+						</Group>
+					</Paper>
+				))}
 				</Stack>
 			</div>
 		</div>

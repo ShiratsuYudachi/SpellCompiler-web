@@ -9,38 +9,31 @@
 import type { GameWorld } from '../gameWorld'
 import { eventQueue } from '../events/EventQueue'
 import { castSpell } from '../spells/castSpell'
-import { loadSpell } from '../../editor/utils/spellStorage'
-import { flowToIR } from '../../editor/utils/flowToIR'
+import { getCompiledSpell } from '../../editor/utils/spellStorage'
 import type { Spell } from '../../editor/ast/ast'
 
-// Cache compiled spells to avoid recompiling every event
+// Cache compiled spells to avoid reloading from storage every frame
 const spellCache = new Map<string, Spell>()
 
 /**
- * Compile a spell from storage
+ * Get compiled spell from cache or storage
  */
-function getCompiledSpell(spellId: string): Spell | null {
+function getSpell(spellId: string): Spell | null {
 	// Check cache first
 	if (spellCache.has(spellId)) {
 		return spellCache.get(spellId)!
 	}
 	
-	// Load and compile
-	const savedSpell = loadSpell(spellId)
-	if (!savedSpell || !savedSpell.flow) {
-		console.warn(`[EventProcess] Spell ${spellId} not found`)
+	// Load from storage (pre-compiled)
+	const compiled = getCompiledSpell(spellId)
+	if (!compiled) {
+		console.warn(`[EventProcess] Spell ${spellId} not found or not compiled`)
 		return null
 	}
 	
-	try {
-		const flow = savedSpell.flow as { nodes: any[], edges: any[] }
-		const compiled = flowToIR(flow.nodes, flow.edges)
-		spellCache.set(spellId, compiled)
-		return compiled
-	} catch (err) {
-		console.error(`[EventProcess] Failed to compile spell ${spellId}:`, err)
-		return null
-	}
+	// Cache it
+	spellCache.set(spellId, compiled)
+	return compiled
 }
 
 /**
@@ -78,7 +71,7 @@ export function eventProcessSystem(world: GameWorld): void {
 			// Skip hold mode bindings - they're processed separately
 			if (binding.triggerMode === 'hold') continue
 			
-			const spell = getCompiledSpell(binding.spellId)
+			const spell = getSpell(binding.spellId)
 			if (!spell) continue
 			
 			try {
@@ -118,7 +111,7 @@ export function processHoldEvents(world: GameWorld): void {
 			if (now - lastTrigger >= interval) {
 				eventQueue.updateHoldTriggerTime(key, now)
 				
-				const spell = getCompiledSpell(binding.spellId)
+				const spell = getSpell(binding.spellId)
 				if (spell) {
 					try {
 						castSpell(world, playerEid, spell, [key])
@@ -140,7 +133,7 @@ export function processHoldEvents(world: GameWorld): void {
 		
 		for (const binding of holdBindings) {
 			// Similar logic for mouse buttons - interval handled by eventQueue
-			const spell = getCompiledSpell(binding.spellId)
+			const spell = getSpell(binding.spellId)
 			if (spell) {
 				try {
 					castSpell(world, playerEid, spell, [button])

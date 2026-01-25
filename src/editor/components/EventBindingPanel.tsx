@@ -34,7 +34,9 @@ export function EventBindingPanel() {
 	// Load spells and bindings on mount
 	useEffect(() => {
 		const savedSpells = listSpells()
-		setSpells(savedSpells.map(s => ({ value: s.id, label: s.name })))
+		// Only show spells that have successfully compiled AST
+		const compiledSpells = savedSpells.filter(s => s.hasCompiledAST)
+		setSpells(compiledSpells.map(s => ({ value: s.id, label: s.name })))
 		setBindings(eventQueue.getBindings())
 	}, [])
 	

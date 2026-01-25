@@ -1,11 +1,15 @@
+import type { Spell } from '../ast/ast'
+
 export type SpellMeta = {
 	id: string
 	name: string
 	savedAt: number
+	hasCompiledAST: boolean  // Indicates if the spell has successfully compiled AST
 }
 
 export type StoredSpell = SpellMeta & {
 	flow: unknown
+	compiledSpell?: Spell  // Optional: only present if compilation succeeded
 }
 
 const INDEX_KEY = 'spellcompiler:spells:index'
@@ -54,7 +58,34 @@ export function deleteSpell(id: string) {
 export function upsertSpell(params: { id?: string | null; name: string; flow: unknown }): string {
 	const now = Date.now()
 	const id = params.id || `spell-${now}`
-	const spell: StoredSpell = { id, name: params.name, savedAt: now, flow: params.flow }
+	
+	// Try to compile the flow to AST
+	let compiledAST: Spell | undefined = undefined
+	let hasCompiledAST = false
+	
+	try {
+		// Import flowToIR dynamically to avoid circular dependency
+		const { flowToIR } = require('./flowToIR')
+		const flow = params.flow as { nodes: any[], edges: any[] }
+		
+		if (flow && flow.nodes && flow.edges) {
+			compiledAST = flowToIR(flow.nodes, flow.edges)
+			hasCompiledAST = true
+			console.log(`[spellStorage] Successfully compiled spell ${id}`)
+		}
+	} catch (err) {
+		console.warn(`[spellStorage] Failed to compile spell ${id}:`, err)
+		// Continue saving without compiled AST
+	}
+	
+	const spell: StoredSpell = { 
+		id, 
+		name: params.name, 
+		savedAt: now, 
+		hasCompiledAST,
+		flow: params.flow,
+		compiledSpell: compiledAST
+	}
 
 	writeJson(`${SPELL_KEY_PREFIX}${id}`, spell)
 
@@ -63,11 +94,12 @@ export function upsertSpell(params: { id?: string | null; name: string; flow: un
 	if (existing) {
 		existing.name = spell.name
 		existing.savedAt = spell.savedAt
+		existing.hasCompiledAST = hasCompiledAST
 		writeIndex(index)
 		return id
 	}
 
-	writeIndex([{ id: spell.id, name: spell.name, savedAt: spell.savedAt }, ...index])
+	writeIndex([{ id: spell.id, name: spell.name, savedAt: spell.savedAt, hasCompiledAST }, ...index])
 	return id
 }
 
@@ -94,6 +126,25 @@ export function loadUIState(spellId: string): UIState | null {
 export function deleteUIState(spellId: string) {
 	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
 	localStorage.removeItem(key)
+}
+
+/**
+ * Get compiled spell AST if available
+ * Returns null if spell doesn't exist or compilation failed
+ */
+export function getCompiledSpell(spellId: string): Spell | null {
+	const spell = loadSpell(spellId)
+	if (!spell) {
+		return null
+	}
+	
+	// Return pre-compiled AST if available
+	if (spell.compiledSpell) {
+		return spell.compiledSpell
+	}
+	
+	// No compiled AST available
+	return null
 }
 
 
