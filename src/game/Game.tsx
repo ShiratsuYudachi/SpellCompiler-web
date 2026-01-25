@@ -16,16 +16,6 @@ import { Level6 } from './scenes/levels/Level6'
 import { Level7 } from './scenes/levels/Level7'
 import { Level8 } from './scenes/levels/Level8'
 import { Level9 } from './scenes/levels/Level9'
-
-import {
-	Level5,
-	Level10,
-	Level16,
-	Level17,
-	Level18,
-	Level19,
-	Level20,
-} from './scenes/levels/LevelEmpty'
 import { Level11 } from './scenes/levels/Level11'
 import { Level12 } from './scenes/levels/Level12'
 import { Level13 } from './scenes/levels/Level13'
@@ -65,22 +55,15 @@ export function Game() {
 				Level2,
 				Level3,
 				Level4,
-				Level5,
 				Level6,
 				Level7,
 				Level8,
 				Level9,
-				Level10,
 				Level11,
 				Level12,
 				Level13,
 				Level14,
 				Level15,
-				Level16,
-				Level17,
-				Level18,
-				Level19,
-				Level20,
 			],
 			physics: {
 				default: 'arcade',

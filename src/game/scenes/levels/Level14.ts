@@ -1,21 +1,49 @@
-/**
- * Level 14 - 精密验证（AND 复合条件）
- *
- * 编程概念：复合条件 (AND Logic) —— 多个条件必须同时满足
- *
- * 关卡目标：学习使用 AND 节点组合多个条件
- *
- * Task 1: 红色压力板 AND 传感器开启 -> 偏转 45°
- * Task 2: 黄色压力板 AND 传感器关闭 -> 偏转 -45°
- * Task 3: 组合逻辑 + 时间控制
- */
-
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { castSpell } from '../../spells/castSpell'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level14Meta: LevelMeta = {
+	key: 'Level14',
+	playerSpawnX: 150,
+	playerSpawnY: 288,
+	tileSize: 64,
+	mapData: [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	],
+	objectives: [
+		{
+			id: 'task1-red-sensor',
+			description: 'Task 1: RED plate AND sensor ON -> deflect 45°',
+			type: 'defeat',
+		},
+		{
+			id: 'task2-yellow-sensor',
+			description: 'Task 2: YELLOW plate AND sensor OFF -> deflect -45°',
+			type: 'defeat',
+			prerequisite: 'task1-red-sensor',
+		},
+		{
+			id: 'task3-complex',
+			description: 'Task 3: Combined logic with timing',
+			type: 'defeat',
+			prerequisite: 'task2-yellow-sensor',
+		},
+	],
+}
+
+levelRegistry.register(Level14Meta)
 
 interface TargetInfo {
 	eid: number

@@ -1,6 +1,15 @@
 import { BaseScene } from '../base/BaseScene'
 import { Boss } from '../../boss/entities/Boss'
 import { defaultBossConfig } from '../../boss/configs/BossConfig'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level2Meta: LevelMeta = {
+	key: 'Level2',
+	playerSpawnX: 480,
+	playerSpawnY: 400,
+}
+
+levelRegistry.register(Level2Meta)
 
 export class Level2 extends BaseScene {
     private boss!: Boss

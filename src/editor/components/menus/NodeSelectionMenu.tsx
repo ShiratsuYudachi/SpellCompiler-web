@@ -6,7 +6,7 @@
 import { Menu, Text, Divider } from '@mantine/core';
 import { type ReactNode } from 'react';
 import { getFunctionTreeForMenu, type FunctionInfo, type FunctionTreeNode } from '../../utils/getFunctionRegistry';
-import { getSceneConfig } from '../../../game/scenes/sceneConfig';
+import { levelRegistry } from '../../../game/levels/LevelRegistry';
 
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
@@ -34,7 +34,7 @@ export function NodeSelectionMenu({
 	onClose,
 	editorContext
 }: NodeSelectionMenuProps) {
-	const sceneConfig = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey) : undefined
+	const sceneConfig = editorContext?.sceneKey ? levelRegistry.get(editorContext.sceneKey) : undefined
 	const restrictions = sceneConfig?.editorRestrictions
 	const allowedNodeTypes = sceneConfig?.allowedNodeTypes
 	const tree = getFunctionTreeForMenu(restrictions)

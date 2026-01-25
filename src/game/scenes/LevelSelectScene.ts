@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { LevelProgress } from './base/LevelProgress'
+import { levelRegistry } from '../levels/LevelRegistry'
 
 /**
  * LevelSelectScene - Level selection interface
@@ -40,8 +41,9 @@ export class LevelSelectScene extends Phaser.Scene {
 			{ num: 3, sceneKey: 'Level3', name: 'Combat' },
 		]
 
-		// Generate 20 levels (4 columns, 5 rows)
-		const totalLevels = 20
+		// Get all registered levels
+		const levels = levelRegistry.getAll()
+		const totalLevels = levels.length
 		const cols = 4
 		const rows = Math.ceil(totalLevels / cols)
 		const startX = 180
@@ -50,14 +52,15 @@ export class LevelSelectScene extends Phaser.Scene {
 		const spacingY = 130
 
 		for (let i = 0; i < totalLevels; i++) {
-			const levelNum = i + 1
+			const meta = levels[i]
+			const levelNum = parseInt(meta.key.replace('Level', '')) || (i + 1)
 			const col = i % cols
 			const row = Math.floor(i / cols)
 			const x = startX + col * spacingX
 			const y = startY + row * spacingY
 
 			const mapped = levelMapping.find((m) => m.num === levelNum)
-			const sceneKey = mapped ? mapped.sceneKey : `Level${levelNum}`
+			const sceneKey = meta.key
 			const levelName = mapped ? mapped.name : 'Empty'
 			const isUnlocked = LevelProgress.isLevelUnlocked(levelNum)
 			const isCompleted = LevelProgress.isLevelCompleted(levelNum)

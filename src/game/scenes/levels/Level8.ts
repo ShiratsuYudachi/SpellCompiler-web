@@ -18,8 +18,48 @@ import { spawnEntity } from '../../gameWorld'
 import { Sprite } from '../../components'
 import { createCircleBody } from '../../prefabs/createCircleBody'
 import { castSpell } from '../../spells/castSpell'
-import { updateSceneConfig } from '../sceneConfig'
 import { forceRefreshEditor } from '../../gameInstance'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+
+export const Level8Meta: LevelMeta = {
+	key: 'Level8',
+	playerSpawnX: 200,
+	playerSpawnY: 300,
+	mapData: createRoom(15, 9),
+	tileSize: 64,
+	// Allow only storage functions, measureWeight, comparison operators, and logic
+	editorRestrictions: /^(game::measureWeight|game::setSlot|game::getSlot|game::clearSlots|std::cmp::.*|std::logic::.*)$/,
+	// Allow necessary node types including 'if' for decision making
+	allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
+	objectives: [
+		{
+			id: 'complete-sort',
+			description: 'Sort all 4 balls by weight and throw them to gates in ascending order (lightest to heaviest)',
+			type: 'defeat',
+		},
+	],
+	// Simple initial spell: measureWeight -> output (will be blocked by anti-cheat)
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
+			{
+				id: 'func-measureWeight',
+				type: 'dynamicFunction',
+				position: { x: 200, y: 200 },
+				data: {
+					functionName: 'game::measureWeight',
+					displayName: 'measureWeight',
+					namespace: 'game',
+					params: [],
+				},
+			},
+		],
+		edges: [],
+	},
+}
+
+levelRegistry.register(Level8Meta)
 
 interface Ball {
 	eid: number
@@ -77,10 +117,13 @@ export class Level8 extends BaseScene {
 		this.tutorialCurrentPage = 0
 
 		// Reset scene config to Level 8 settings (in case coming from another level)
-		updateSceneConfig('Level8', {
-			editorRestrictions: /^(game::measureWeight|game::setSlot|game::getSlot|game::clearSlots|std::cmp::.*|std::logic::.*)$/,
-			allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
-		})
+		const config = levelRegistry.get('Level8')
+		if (config) {
+			Object.assign(config, {
+				editorRestrictions: /^(game::measureWeight|game::setSlot|game::getSlot|game::clearSlots|std::cmp::.*|std::logic::.*)$/,
+				allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
+			})
+		}
 
 		// Clear any old workflow and restore Level 8 default workflow
 		const storageKey = `spell-workflow-Level8`

@@ -1,30 +1,81 @@
-/**
- * Level 12 - 安全分流（If-Else 条件分支）
- *
- * 编程概念：条件判断 (If-Else) —— 根据压力板状态分流子弹轨迹
- *
- * 地形：走廊中央有红色压力板，正前方悬浮一面无法击穿的磁能盾
- *
- * Task 1: 左侧绕后
- *   - 踩红板时触发，延迟0.5s后偏转-35°绕过盾牌击中左后方目标
- *   - IF (Plate == RED) { angle = -35 } ELSE { angle = 0 }
- *
- * Task 2: 右侧绕后
- *   - 同样踩红板，但偏转+35°击中右后方目标
- *   - 修改角度参数即可
- *
- * Task 3: 走位分流测试
- *   - 左右各一敌人，只能释放一次代码
- *   - 第一发：踩红板 -> 偏转击中一侧
- *   - 第二发：不踩板 -> 直行击中另一侧（通过盾牌缺口）
- */
-
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { castSpell } from '../../spells/castSpell'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level12Meta: LevelMeta = {
+	key: 'Level12',
+	playerSpawnX: 96,
+	playerSpawnY: 288,
+	tileSize: 64,
+	mapData: [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	],
+	objectives: [
+		{
+			id: 'task1-left',
+			description: 'Task 1: Stand on RED, deflect -35° to hit LEFT target',
+			type: 'defeat',
+		},
+		{
+			id: 'task2-right',
+			description: 'Task 2: Stand on RED, deflect 35° to hit RIGHT target',
+			type: 'defeat',
+			prerequisite: 'task1-left',
+		},
+		{
+			id: 'task3-split',
+			description: 'Task 3: Split test - one code, hit BOTH targets',
+			type: 'defeat',
+			prerequisite: 'task2-right',
+		},
+	],
+	initialSpellWorkflow: {
+		nodes: [
+			{
+				id: 'output-1',
+				type: 'output',
+				position: { x: 600, y: 250 },
+				data: { label: 'Output' },
+			},
+			{
+				id: 'func-conditional',
+				type: 'dynamicFunction',
+				position: { x: 300, y: 230 },
+				data: {
+					functionName: 'game::conditionalDeflectOnPlate',
+					displayName: 'conditionalDeflectOnPlate',
+					namespace: 'game',
+					params: ['plateColor', 'trueAngle', 'falseAngle', 'delayMs'],
+				},
+			},
+			{ id: 'lit-red', type: 'literal', position: { x: 50, y: 150 }, data: { value: 'RED' } },
+			{ id: 'lit-angle-deflect', type: 'literal', position: { x: 50, y: 220 }, data: { value: -35 } },
+			{ id: 'lit-angle-straight', type: 'literal', position: { x: 50, y: 290 }, data: { value: 0 } },
+			{ id: 'lit-delay', type: 'literal', position: { x: 50, y: 360 }, data: { value: 500 } },
+		],
+		edges: [
+			{ id: 'e1', source: 'func-conditional', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'lit-red', target: 'func-conditional', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-angle-deflect', target: 'func-conditional', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'lit-angle-straight', target: 'func-conditional', targetHandle: 'arg2' },
+			{ id: 'e5', source: 'lit-delay', target: 'func-conditional', targetHandle: 'arg3' },
+		],
+	},
+}
+
+levelRegistry.register(Level12Meta)
 
 interface TargetInfo {
 	eid: number

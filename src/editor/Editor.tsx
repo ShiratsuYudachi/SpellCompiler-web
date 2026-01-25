@@ -6,7 +6,7 @@ import { loadSpell, loadUIState } from './utils/spellStorage'
 import { flowToIR } from './utils/flowToIR'
 import { getGameInstance, getEditorContext, setEditorContext } from '../game/gameInstance'
 import { GameEvents } from '../game/events'
-import { getSceneConfig } from '../game/scenes/sceneConfig'
+import { levelRegistry } from '../game/levels/LevelRegistry'
 
 export function Editor() {
 	// Check if we're in game mode (editor context has a scene key)
@@ -152,7 +152,7 @@ export function Editor() {
 
 		// Fallback to scene config defaults if no saved workflow
 		if (!initialSceneFlow) {
-			const sceneConfig = getSceneConfig(sceneKey)
+			const sceneConfig = levelRegistry.get(sceneKey)
 			initialSceneFlow = sceneConfig?.initialSpellWorkflow
 			console.log('[Editor] Using default workflow for scene:', sceneKey)
 		}

@@ -5,6 +5,65 @@ import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballSt
 import { createRectBody } from '../../prefabs/createRectBody'
 import { castSpell } from '../../spells/castSpell'
 import type Phaser from 'phaser'
+import { createRoom } from '../../utils/levelUtils'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level4Meta: LevelMeta = {
+	key: 'Level4',
+	playerSpawnX: 120,
+	playerSpawnY: 400,
+	tileSize: 64,
+	mapData: createRoom(15, 9),
+	objectives: [
+		{
+			id: 'task1-combined',
+			description: 'Task 1: Use combined conditions (age>300ms AND distance>200px) to deflect',
+			type: 'defeat',
+		},
+		{
+			id: 'task2-lshape',
+			description: 'Task 2: Hit L-shape target with double deflection (90° twice)',
+			type: 'defeat',
+			prerequisite: 'task1-combined',
+		},
+		{
+			id: 'task3-boomerang',
+			description: 'Task 3: Create boomerang effect with 180° deflection',
+			type: 'defeat',
+			prerequisite: 'task2-lshape',
+		},
+	],
+	initialSpellWorkflow: {
+		nodes: [
+			{
+				id: 'output-1',
+				type: 'output',
+				position: { x: 600, y: 250 },
+				data: { label: 'Output' },
+			},
+			{
+				id: 'func-deflect',
+				type: 'dynamicFunction',
+				position: { x: 340, y: 230 },
+				data: {
+					functionName: 'game::deflectAfterTime',
+					displayName: 'deflectAfterTime',
+					namespace: 'game',
+					params: ['angle', 'delayMs'],
+				},
+			},
+			{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 90 } },
+			{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 2000 } },
+		],
+		edges: [
+			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+		],
+	},
+}
+
+levelRegistry.register(Level4Meta)
 
 export class Level4 extends BaseScene {
 	private targets: Array<{

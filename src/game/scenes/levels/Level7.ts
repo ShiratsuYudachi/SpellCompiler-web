@@ -19,8 +19,57 @@ import { spawnEntity } from '../../gameWorld'
 import { Sprite } from '../../components'
 import { createCircleBody } from '../../prefabs/createCircleBody'
 import { castSpell } from '../../spells/castSpell'
-import { updateSceneConfig } from '../sceneConfig'
 import { forceRefreshEditor } from '../../gameInstance'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+
+export const Level7Meta: LevelMeta = {
+	key: 'Level7',
+	playerSpawnX: 200,
+	playerSpawnY: 300,
+	mapData: createRoom(15, 9),
+	tileSize: 64,
+	// Task 1: Allow only getWeight function and output node
+	editorRestrictions: /^(game::getWeight)$/,
+	// Task 2 (dynamically updated): measureWeight, getThreshold, comparison operators (std::cmp::*)
+	// Only allow necessary node types for Task 1
+	allowedNodeTypes: ['output', 'dynamicFunction'],
+	objectives: [
+		{
+			id: 'task1-heaviest',
+			description: 'Task 1: Find the heaviest ball and throw it to the gate',
+			type: 'defeat',
+		},
+		{
+			id: 'task2-classify',
+			description: 'Task 2: Classify all balls by weight comparison',
+			type: 'defeat',
+			prerequisite: 'task1-heaviest',
+		},
+	],
+	// Pre-made spell: getWeight + output
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
+			{
+				id: 'func-getWeight',
+				type: 'dynamicFunction',
+				position: { x: 200, y: 200 },
+				data: {
+					functionName: 'game::getWeight',
+					displayName: 'getWeight',
+					namespace: 'game',
+					params: [],
+				},
+			},
+		],
+		edges: [
+			{ id: 'e1', source: 'func-getWeight', target: 'output-1', targetHandle: 'value' },
+		],
+	},
+}
+
+levelRegistry.register(Level7Meta)
 
 interface Ball {
 	eid: number
@@ -81,10 +130,13 @@ export class Level7 extends BaseScene {
 		this.tutorialCurrentPage = 0
 		
 		// Reset scene config to Task 1 settings
-		updateSceneConfig('Level7', {
-			editorRestrictions: /^(game::getWeight)$/,
-			allowedNodeTypes: ['output', 'dynamicFunction'],
-		})
+		const config = levelRegistry.get('Level7')
+		if (config) {
+			Object.assign(config, {
+				editorRestrictions: /^(game::getWeight)$/,
+				allowedNodeTypes: ['output', 'dynamicFunction'],
+			})
+		}
 		
 		// Clear Task 2 workflow and restore Task 1 default workflow
 		const storageKey = `spell-workflow-Level7`
@@ -1147,10 +1199,13 @@ export class Level7 extends BaseScene {
 		
 		// Update editor restrictions for Task 2
 		// Allow measureWeight and comparison operators (no getThreshold - threshold is shown in UI)
-		updateSceneConfig('Level7', {
-			editorRestrictions: /^(game::measureWeight|std::cmp::gt|std::cmp::lt|std::cmp::gte|std::cmp::lte|std::cmp::eq|std::cmp::neq|logic::if)$/,
-			allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
-		})
+		const config = levelRegistry.get('Level7')
+		if (config) {
+			Object.assign(config, {
+				editorRestrictions: /^(game::measureWeight|std::cmp::gt|std::cmp::lt|std::cmp::gte|std::cmp::lte|std::cmp::eq|std::cmp::neq|logic::if)$/,
+				allowedNodeTypes: ['output', 'dynamicFunction', 'literal', 'if'],
+			})
+		}
 		
 		// Force editor to reload with new restrictions and cleared workflow
 		// Use delay to ensure localStorage update is complete

@@ -2,7 +2,7 @@ import Phaser from 'phaser'
 import { GameEvents } from '../../events'
 import type { Spell } from '../../../editor/ast/ast'
 import { createGameWorld, updateGameWorld, type GameWorld } from '../../gameWorld'
-import { getPlayerSpawnPosition, getSceneConfig } from '../sceneConfig'
+import { levelRegistry } from '../../levels/LevelRegistry'
 import { TerrainType, type ObjectiveConfig } from './TerrainTypes'
 import { TerrainRenderer } from './TerrainRenderer'
 import { Health, Enemy } from '../../components'
@@ -45,7 +45,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	create() {
-		const config = getSceneConfig(this.scene.key)
+		const config = levelRegistry.get(this.scene.key)
 
 		// 重置关卡的 spell workflow 到初始状态
 		// 这确保每次进入关卡时，编辑器显示的是关卡的默认法术
@@ -64,8 +64,8 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight)
 		this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight)
 
-		const spawnX = this.data.get('playerSpawnX') ?? getPlayerSpawnPosition(this.scene.key).x
-		const spawnY = this.data.get('playerSpawnY') ?? getPlayerSpawnPosition(this.scene.key).y
+		const spawnX = this.data.get('playerSpawnX') ?? config?.playerSpawnX ?? 200
+		const spawnY = this.data.get('playerSpawnY') ?? config?.playerSpawnY ?? 270
 
 		this.world = createGameWorld(this, spawnX, spawnY, false)
 		this.platforms = this.physics.add.staticGroup()

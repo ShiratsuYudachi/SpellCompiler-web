@@ -1,23 +1,79 @@
-/**
- * Level 11 - 折射初探（基础赋值与时空预判）
- *
- * 编程概念：变量赋值 (Variable Assignment) —— 学习设置 Angle(角度) 与 Delay(延迟)
- *
- * 关卡目标：学习使用 deflectAfterTime(angle, delayMs) 控制火球偏转
- *
- * 地形：封闭实验室，三道高墙将目标分隔开
- *
- * Task 1: 侧翼切入 - 穿过第一道墙的过道，击中右侧目标 (30°, 400ms)
- * Task 2: 镜像深处 - 向下偏转穿过第二道墙的过道 (-30°, 800ms)
- * Task 3: 掩体打击 - 小角度偏转击中最远的目标 (15°, 600ms)
- */
-
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { castSpell } from '../../spells/castSpell'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level11Meta: LevelMeta = {
+	key: 'Level11',
+	playerSpawnX: 96,
+	playerSpawnY: 288,
+	tileSize: 64,
+	mapData: [
+		// 15列 x 9行 = 960x576
+		// 设计：玩家区(3列) | 第一墙(1列+过道) | 区域1 | 第二墙 | 区域2 | 第三墙 | 区域3
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // 墙上方有过道
+		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1], // 第一墙有缺口(过道)
+		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // 玩家水平线
+		[1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], // 第二墙有缺口
+		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
+		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // 墙下方有过道
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	],
+	objectives: [
+		{
+			id: 'task1-corridor',
+			description: 'Task 1: Deflect 30° up through corridor (delay=400ms)',
+			type: 'defeat',
+		},
+		{
+			id: 'task2-deep',
+			description: 'Task 2: Deflect -30° down to deep target (delay=800ms)',
+			type: 'defeat',
+			prerequisite: 'task1-corridor',
+		},
+		{
+			id: 'task3-cover',
+			description: 'Task 3: Deflect 15° to hit shielded target (delay=600ms)',
+			type: 'defeat',
+			prerequisite: 'task2-deep',
+		},
+	],
+	initialSpellWorkflow: {
+		nodes: [
+			{
+				id: 'output-1',
+				type: 'output',
+				position: { x: 600, y: 250 },
+				data: { label: 'Output' },
+			},
+			{
+				id: 'func-deflect',
+				type: 'dynamicFunction',
+				position: { x: 340, y: 230 },
+				data: {
+					functionName: 'game::deflectAfterTime',
+					displayName: 'deflectAfterTime',
+					namespace: 'game',
+					params: ['angle', 'delayMs'],
+				},
+			},
+			{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 30 } },
+			{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 400 } },
+		],
+		edges: [
+			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+		],
+	},
+}
+
+levelRegistry.register(Level11Meta)
 
 interface TargetInfo {
 	eid: number

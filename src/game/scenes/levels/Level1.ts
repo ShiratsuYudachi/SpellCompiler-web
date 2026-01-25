@@ -3,6 +3,88 @@ import { BaseScene } from '../base/BaseScene'
 import { spawnEntity, despawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level1Meta: LevelMeta = {
+	key: 'Level1',
+	playerSpawnX: 120,
+	playerSpawnY: 270,
+	editorRestrictions: /^(game::teleportRelative|game::getPlayer)$/,
+	allowedNodeTypes: ['output', 'literal', 'vector', 'dynamicFunction'],
+	objectives: [
+		{
+			id: 'defeat-boss',
+			description: 'Use teleportRelative to approach and defeat Boss',
+			type: 'defeat',
+		},
+		{
+			id: 'collect-markers',
+			description: 'Collect 3 markers (0/3)',
+			type: 'collect',
+			prerequisite: 'defeat-boss',
+		},
+	],
+
+	initialSpellWorkflow: {
+		nodes: [
+			{
+				id: 'output-1',
+				type: 'output',
+				position: { x: 700, y: 220 },
+				data: { label: 'Output' },
+			},
+			{
+				id: 'func-teleport',
+				type: 'dynamicFunction',
+				position: { x: 420, y: 200 },
+				data: {
+					functionName: 'game::teleportRelative',
+					displayName: 'teleportRelative',
+					namespace: 'game',
+					params: ['entityId', 'offset'],
+					parameterModes: {
+						offset: {
+							current: 'literal-xy',
+							options: [
+								{
+									mode: 'literal-xy',
+									label: 'Literal (dx, dy)',
+									params: ['dx', 'dy'],
+								},
+								{
+									mode: 'vector',
+									label: 'Vector',
+									params: ['offset'],
+								},
+							],
+						},
+					},
+				},
+			},
+			{
+				id: 'func-getPlayer',
+				type: 'dynamicFunction',
+				position: { x: 140, y: 120 },
+				data: {
+					functionName: 'game::getPlayer',
+					displayName: 'getPlayer',
+					namespace: 'game',
+					params: [],
+				},
+			},
+			{ id: 'lit-dx', type: 'literal', position: { x: 140, y: 240 }, data: { value: 0 } },
+			{ id: 'lit-dy', type: 'literal', position: { x: 140, y: 320 }, data: { value: 0 } },
+		],
+		edges: [
+			{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
+		],
+	},
+}
+
+levelRegistry.register(Level1Meta)
 
 export class Level1 extends BaseScene {
 	private bossEid: number | null = null

@@ -1,5 +1,32 @@
 import { BaseScene } from '../base/BaseScene'
 import { Health } from '../../components'
+import { createRoom } from '../../utils/levelUtils'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level6Meta: LevelMeta = {
+	key: 'Level6',
+	playerSpawnX: 200,
+	playerSpawnY: 270,
+	mapData: createRoom(15, 9),
+	tileSize: 64,
+	editorRestrictions: /^(game::detectTreasure)$/,
+	allowedNodeTypes: ['output', 'literal', 'dynamicFunction', 'if'],
+	objectives: [
+		{
+			id: 'find-treasure',
+			description: 'Use detectTreasure to find the chest containing treasure and avoid bombs',
+			type: 'reach',
+		},
+	],
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+		],
+		edges: [],
+	},
+}
+
+levelRegistry.register(Level6Meta)
 
 interface Chest {
 	sprite: Phaser.GameObjects.Image

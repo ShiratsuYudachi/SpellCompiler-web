@@ -40,7 +40,7 @@ import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
 import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
-import { getSceneConfig } from '../../game/scenes/sceneConfig'
+import { levelRegistry } from '../../game/levels/LevelRegistry'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
 import { SpellInputNode } from './nodes/SpellInputNode'
@@ -508,7 +508,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (!menuState) return;
 		
 		// Check if node type is allowed
-		const sceneConfig = editorContext?.sceneKey ? getSceneConfig(editorContext.sceneKey) : undefined
+		const sceneConfig = editorContext?.sceneKey ? levelRegistry.get(editorContext.sceneKey) : undefined
 		const allowedNodeTypes = sceneConfig?.allowedNodeTypes
 		if (allowedNodeTypes && !allowedNodeTypes.includes(type)) {
 			setError(`Node type "${type}" is not allowed in this level.`)

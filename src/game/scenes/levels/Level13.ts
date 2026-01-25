@@ -1,23 +1,49 @@
-/**
- * Level 13 - 多重制导（Else-If 多分支）
- *
- * 编程概念：多分支条件 (Else-If) —— 根据火球经过的压力板颜色进行链式判断
- *
- * 火球路径设计：
- * - T1: 火球经过 RED 压力板时触发偏转 → 向上飞 → 击中 T1
- * - T2: RED 不触发 → 斜墙引导向右下飞 → YELLOW 不触发 → 直行击中 T2
- * - T3: RED 不触发 → 斜墙引导向右下飞 → YELLOW 触发偏转 → 向右上飞(V字形) → 击中 T3
- *
- * 使用 getFireballPlateColor() 检测火球当前位置的压力板
- * 使用嵌套 If 实现 Else-If 逻辑
- */
-
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { castSpell } from '../../spells/castSpell'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level13Meta: LevelMeta = {
+	key: 'Level13',
+	playerSpawnX: 96,
+	playerSpawnY: 192,
+	tileSize: 64,
+	mapData: [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1],
+		[1, 0, 0, 0, 5, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1],
+		[1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 6, 0, 0, 1, 1, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	],
+	objectives: [
+		{
+			id: 'task1-red-up',
+			description: 'Task 1: IF fireball on RED -> deflect UP (-45°)',
+			type: 'defeat',
+		},
+		{
+			id: 'task2-straight',
+			description: 'Task 2: ELSE IF fireball on YELLOW -> do nothing, hit T2',
+			type: 'defeat',
+			prerequisite: 'task1-red-up',
+		},
+		{
+			id: 'task3-yellow-vshape',
+			description: 'Task 3: ELSE IF fireball on YELLOW -> deflect UP (-60°) for V-shape',
+			type: 'defeat',
+			prerequisite: 'task2-straight',
+		},
+	],
+}
+
+levelRegistry.register(Level13Meta)
 
 interface TargetInfo {
 	eid: number

@@ -1,6 +1,128 @@
 import { BaseScene } from '../base/BaseScene'
 import { Health } from '../../components'
 import { Velocity } from '../../components'
+import { createRoom } from '../../utils/levelUtils'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level9Meta: LevelMeta = {
+	key: 'Level9',
+	playerSpawnX: 96,
+	playerSpawnY: 288,
+	mapData: createRoom(15, 9),
+	tileSize: 64,
+	editorRestrictions: /^(game::getLightColor|game::teleportRelative|game::getPlayer)$/,
+	allowedNodeTypes: ['output', 'literal', 'vector', 'dynamicFunction', 'if'],
+	objectives: [
+		{
+			id: 'reach-goal',
+			description: 'Reach the goal point',
+			type: 'reach',
+		},
+	],
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'output-1', type: 'output', position: { x: 600, y: 250 }, data: { label: 'Output' } },
+			{
+				id: 'if-check',
+				type: 'if',
+				position: { x: 400, y: 250 },
+				data: {},
+			},
+			{
+				id: 'func-eq',
+				type: 'dynamicFunction',
+				position: { x: 200, y: 200 },
+				data: {
+					functionName: 'std::cmp::eq',
+					displayName: '== equals',
+					namespace: 'std',
+					params: ['a', 'b'],
+				},
+			},
+			{
+				id: 'func-getLightColor1',
+				type: 'dynamicFunction',
+				position: { x: 50, y: 150 },
+				data: {
+					functionName: 'game::getLightColor',
+					displayName: 'getLightColor',
+					namespace: 'game',
+					params: ['id'],
+				},
+			},
+			{
+				id: 'func-getLightColor2',
+				type: 'dynamicFunction',
+				position: { x: 50, y: 250 },
+				data: {
+					functionName: 'game::getLightColor',
+					displayName: 'getLightColor',
+					namespace: 'game',
+					params: ['id'],
+				},
+			},
+			{ id: 'lit-id1', type: 'literal', position: { x: -100, y: 150 }, data: { value: 1 } },
+			{ id: 'lit-id2', type: 'literal', position: { x: -100, y: 250 }, data: { value: 2 } },
+			{
+				id: 'func-teleport',
+				type: 'dynamicFunction',
+				position: { x: 200, y: 350 },
+				data: {
+					functionName: 'game::teleportRelative',
+					displayName: 'teleportRelative',
+					namespace: 'game',
+					params: ['entityId', 'offset'],
+					parameterModes: {
+						offset: {
+							current: 'literal-xy',
+							options: [
+								{
+									mode: 'literal-xy',
+									label: 'Literal (dx, dy)',
+									params: ['dx', 'dy'],
+								},
+								{
+									mode: 'vector',
+									label: 'Vector',
+									params: ['offset'],
+								},
+							],
+						},
+					},
+				},
+			},
+			{
+				id: 'func-getPlayer',
+				type: 'dynamicFunction',
+				position: { x: 50, y: 400 },
+				data: {
+					functionName: 'game::getPlayer',
+					displayName: 'getPlayer',
+					namespace: 'game',
+					params: [],
+				},
+			},
+			{ id: 'lit-dx', type: 'literal', position: { x: 50, y: 480 }, data: { value: 50 } },
+			{ id: 'lit-dy', type: 'literal', position: { x: 50, y: 550 }, data: { value: 0 } },
+			{ id: 'lit-else', type: 'literal', position: { x: 200, y: 150 }, data: { value: 0 } },
+		],
+		edges: [
+			{ id: 'e1', source: 'if-check', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'func-eq', target: 'if-check', targetHandle: 'condition' },
+			{ id: 'e3', source: 'func-getLightColor1', target: 'func-eq', targetHandle: 'arg0' },
+			{ id: 'e4', source: 'func-getLightColor2', target: 'func-eq', targetHandle: 'arg1' },
+			{ id: 'e5', source: 'lit-id1', target: 'func-getLightColor1', targetHandle: 'arg0' },
+			{ id: 'e6', source: 'lit-id2', target: 'func-getLightColor2', targetHandle: 'arg0' },
+			{ id: 'e7', source: 'func-teleport', target: 'if-check', targetHandle: 'then' },
+			{ id: 'e8', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg0' },
+			{ id: 'e9', source: 'lit-dx', target: 'func-teleport', targetHandle: 'arg1' },
+			{ id: 'e10', source: 'lit-dy', target: 'func-teleport', targetHandle: 'arg2' },
+			{ id: 'e11', source: 'lit-else', target: 'if-check', targetHandle: 'else' },
+		],
+	},
+}
+
+levelRegistry.register(Level9Meta)
 
 interface Light {
 	sprite: Phaser.GameObjects.Image

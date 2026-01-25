@@ -1,19 +1,54 @@
-/**
- * Level 15 - 闪电回廊 (状态机挑战)
- *
- * 编程概念：多重条件分支 (Else-If Chains) —— 根据不同条件执行不同操作
- *
- * 关卡目标：学习使用 if-else if 结构处理多个压力板的触发条件
- *
- * 任务分阶段：玩家需要通过多次经过红/黄压力板并根据顺序改变行为（状态机挑战）
- */
-
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { castSpell } from '../../spells/castSpell'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level15Meta: LevelMeta = {
+	key: 'Level15',
+	playerSpawnX: 96,
+	playerSpawnY: 96,
+	tileSize: 64,
+	mapData: [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 0, 0, 0, 0, 0, 5, 1, 6, 0, 0, 0, 0, 0, 1],
+		[1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+		[1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+		[1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+		[1, 1, 6, 0, 0, 0, 0, 0, 5, 0, 1, 1, 1, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	],
+	objectives: [
+		{
+			id: 'T1',
+			description: 'Task 1: Angled Rebound — Use the first RED plate to perform an angled rebound and land on the yellow plate in the diagonal corridor.',
+			type: 'defeat',
+		},
+		{
+			id: 'T2',
+			description: 'Task 2: Vertical Ascent — Use the second RED plate to flatten then immediately ascend through the narrow vertical channel.',
+			type: 'defeat',
+			prerequisite: 'T1',
+		},
+		{
+			id: 'T3',
+			description: 'Task 3: Final Strike — Use the final YELLOW plate to complete the turn and destroy the target at the end of the corridor.',
+			type: 'defeat',
+			prerequisite: 'T2',
+		},
+	],
+	hints: [
+		"Core challenge: you will pass RED and YELLOW plates twice; you must distinguish the trigger order.",
+		"Programming tip: use a variable `stage = 1`. After each plate hit, increment `stage`.",
+		"Logic example: if (color === 'RED' && stage === 1) { ... } else if (color === 'RED' && stage === 3) { ... }",
+	],
+}
+
+levelRegistry.register(Level15Meta)
 
 interface TargetInfo {
 	eid: number

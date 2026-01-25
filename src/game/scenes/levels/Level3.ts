@@ -1,11 +1,29 @@
 import { BaseScene } from '../base/BaseScene'
 import { MinionSpawner } from '../../MinionSpawner'
 import { getCombatConfig } from '../../configs/CombatConfig'
+import { createRoom } from '../../utils/levelUtils'
+import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+
+export const Level3Meta: LevelMeta = {
+	key: 'Level3',
+	playerSpawnX: 480,
+	playerSpawnY: 270,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: { label: 'Output' } },
+		],
+		edges: [],
+	},
+}
+
+levelRegistry.register(Level3Meta)
 
 export class Level3 extends BaseScene {
     private minionSpawner?: MinionSpawner
     private killCount: number = 0
-
+    
     constructor() { super({ key: 'Level3' }) }
 
     protected onLevelCreate(): void {
