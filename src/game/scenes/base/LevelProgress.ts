@@ -1,9 +1,9 @@
 /**
- * LevelProgress - 关卡进度管理
- * 使用localStorage持久化
+ * LevelProgress - Level progression management
+ * Now integrated with SaveManager for persistence
  */
 
-const STORAGE_KEY = 'spell_compiler_progress'
+import { SaveManager } from '../../../storage/SaveManager'
 
 export interface LevelProgressData {
 	unlockedLevels: number[]
@@ -13,65 +13,46 @@ export interface LevelProgressData {
 
 export class LevelProgress {
 	private static data: LevelProgressData = {
-		unlockedLevels: [1], // 默认解锁第1关
+		unlockedLevels: [1],
 		completedLevels: [],
 		currentLevel: 1,
 	}
 
 	/**
-	 * 初始化（从localStorage加载）
+	 * Initialize (load from save file)
 	 */
 	static init() {
-		const saved = localStorage.getItem(STORAGE_KEY)
-		if (saved) {
-			try {
-				const parsed = JSON.parse(saved)
-				// Ensure at least level 1 is unlocked
-				if (parsed && Array.isArray(parsed.unlockedLevels)) {
-					this.data = parsed
-					// Ensure level 1 is always unlocked
-					if (!this.data.unlockedLevels.includes(1)) {
-						this.data.unlockedLevels.push(1)
-						this.save()
-					}
-				} else {
-					// Invalid data, use defaults
-					this.save()
-				}
-			} catch (e) {
-				console.error('Failed to parse progress:', e)
-				// Use defaults on parse error
-				this.save()
-			}
-		} else {
-			// No saved data, save defaults
-			this.save()
+		// Load from current save file
+		const saveData = SaveManager.getCurrentSaveData()
+		if (saveData) {
+			this.data = saveData.levelProgress
+			console.log('[LevelProgress] Loaded from save file')
 		}
 	}
 
 	/**
-	 * 保存到localStorage
+	 * Save to save file
 	 */
 	static save() {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data))
+		SaveManager.updateCurrentSaveData({ levelProgress: this.data })
 	}
 
 	/**
-	 * 检查关卡是否解锁
+	 * Check if level is unlocked
 	 */
 	static isLevelUnlocked(level: number): boolean {
 		return this.data.unlockedLevels.includes(level)
 	}
 
 	/**
-	 * 检查关卡是否完成
+	 * Check if level is completed
 	 */
 	static isLevelCompleted(level: number): boolean {
 		return this.data.completedLevels.includes(level)
 	}
 
 	/**
-	 * 解锁关卡
+	 * Unlock level
 	 */
 	static unlockLevel(level: number) {
 		if (!this.data.unlockedLevels.includes(level)) {
@@ -81,14 +62,14 @@ export class LevelProgress {
 	}
 
 	/**
-	 * 完成关卡（自动解锁下一关）
+	 * Complete level (auto-unlock next level)
 	 */
 	static completeLevel(level: number) {
 		if (!this.data.completedLevels.includes(level)) {
 			this.data.completedLevels.push(level)
 		}
 
-		// 解锁下一关
+		// Unlock next level
 		const nextLevel = level + 1
 		if (nextLevel <= 20) {
 			this.unlockLevel(nextLevel)
@@ -98,21 +79,21 @@ export class LevelProgress {
 	}
 
 	/**
-	 * 获取已解锁关卡列表
+	 * Get unlocked levels list
 	 */
 	static getUnlockedLevels(): number[] {
 		return [...this.data.unlockedLevels]
 	}
 
 	/**
-	 * 获取已完成关卡列表
+	 * Get completed levels list
 	 */
 	static getCompletedLevels(): number[] {
 		return [...this.data.completedLevels]
 	}
 
 	/**
-	 * 重置进度（开发用）
+	 * Reset progress (for development)
 	 */
 	static reset() {
 		this.data = {
@@ -124,7 +105,7 @@ export class LevelProgress {
 	}
 
 	/**
-	 * 解锁所有关卡（开发用）
+	 * Unlock all levels (for development)
 	 */
 	static unlockAll() {
 		this.data.unlockedLevels = Array.from({ length: 20 }, (_, i) => i + 1)
@@ -132,5 +113,5 @@ export class LevelProgress {
 	}
 }
 
-// 自动初始化
+// Auto-initialize
 LevelProgress.init()

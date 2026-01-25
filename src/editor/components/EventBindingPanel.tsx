@@ -34,12 +34,12 @@ interface SpellOption {
 	label: string
 }
 
-export function EventBindingPanel() {
+export function EventBindingPanel({ initialSpellId }: { initialSpellId?: string | null }) {
 	const [bindings, setBindings] = useState<EventBinding[]>([])
 	const [spells, setSpells] = useState<SpellOption[]>([])
 	
 	// New binding form state
-	const [selectedSpell, setSelectedSpell] = useState<string | null>(null)
+	const [selectedSpell, setSelectedSpell] = useState<string | null>(initialSpellId || null)
 	const [selectedKey, setSelectedKey] = useState('')
 	const [isCapturingKey, setIsCapturingKey] = useState(false)
 	const [triggerMode, setTriggerMode] = useState<'press' | 'release' | 'hold'>('press')
@@ -57,6 +57,13 @@ export function EventBindingPanel() {
 		setSpells(compiledSpells.map(s => ({ value: s.id, label: s.name })))
 		setBindings(eventQueue.getBindings())
 	}, [])
+
+	// Update selected spell when initialSpellId changes
+	useEffect(() => {
+		if (initialSpellId) {
+			setSelectedSpell(initialSpellId)
+		}
+	}, [initialSpellId])
 	
 	// Key capture handler
 	useEffect(() => {

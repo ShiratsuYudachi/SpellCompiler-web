@@ -47,12 +47,28 @@ export class MainInterface extends Phaser.Scene {
 			this.scene.start('LevelSelectInterface')
 		})
 
+	// Save Files button
+	const saveBtn = this.add.rectangle(480, 395, 300, 50, 0x48bb78)
+	saveBtn.setStrokeStyle(2, 0x68d391)
+	saveBtn.setInteractive({ useHandCursor: true })
+
+	this.add.text(480, 395, 'SAVE FILES', {
+		fontSize: '22px',
+		color: '#ffffff',
+	}).setOrigin(0.5)
+
+	saveBtn.on('pointerover', () => saveBtn.setFillStyle(0x68d391))
+	saveBtn.on('pointerout', () => saveBtn.setFillStyle(0x48bb78))
+	saveBtn.on('pointerdown', () => {
+		this.scene.start('SaveSelectScene')
+	})
+
 	// Settings button
-	const settingsBtn = this.add.rectangle(480, 400, 300, 50, 0x2d3748)
+	const settingsBtn = this.add.rectangle(480, 455, 300, 50, 0x2d3748)
 	settingsBtn.setStrokeStyle(2, 0x4a90e2)
 	settingsBtn.setInteractive({ useHandCursor: true })
 
-	this.add.text(480, 400, 'SETTINGS', {
+	this.add.text(480, 455, 'SETTINGS', {
 		fontSize: '22px',
 		color: '#ffffff',
 	}).setOrigin(0.5)
@@ -61,38 +77,6 @@ export class MainInterface extends Phaser.Scene {
 	settingsBtn.on('pointerout', () => settingsBtn.setFillStyle(0x2d3748))
 	settingsBtn.on('pointerdown', () => {
 		this.scene.start('SettingsInterface')
-	})
-
-	// Test Scene button (NEW!)
-	const testBtn = this.add.rectangle(480, 465, 300, 50, 0xe2904a)
-	testBtn.setStrokeStyle(2, 0xf2aa5a)
-	testBtn.setInteractive({ useHandCursor: true })
-
-	this.add.text(480, 465, 'TEST SCENE', {
-		fontSize: '22px',
-		color: '#ffffff',
-		fontStyle: 'bold',
-	}).setOrigin(0.5)
-
-	// Badge: NEW
-	this.add.text(640, 450, 'NEW', {
-		fontSize: '12px',
-		color: '#ffff00',
-		fontStyle: 'bold',
-		backgroundColor: '#ff4400',
-		padding: { x: 5, y: 2 },
-	}).setOrigin(0.5)
-
-	testBtn.on('pointerover', () => {
-		testBtn.setFillStyle(0xf2aa5a)
-		testBtn.setScale(1.02)
-	})
-	testBtn.on('pointerout', () => {
-		testBtn.setFillStyle(0xe2904a)
-		testBtn.setScale(1)
-	})
-	testBtn.on('pointerdown', () => {
-		this.scene.start('TestScene')
 	})
 
 	// Instruction text

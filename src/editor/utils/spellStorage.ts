@@ -1,5 +1,6 @@
 import type { Spell } from '../ast/ast'
 import { flowToIR } from './flowToIR'
+import { SaveManager } from '../../storage/SaveManager'
 
 export type SpellMeta = {
 	id: string
@@ -12,9 +13,6 @@ export type StoredSpell = SpellMeta & {
 	flow: unknown
 	compiledSpell?: Spell  // Optional: only present if compilation succeeded
 }
-
-const INDEX_KEY = 'spellcompiler:spells:index'
-const SPELL_KEY_PREFIX = 'spellcompiler:spells:'
 
 function readJson<T>(raw: string | null): T | null {
 	if (!raw) return null
@@ -29,31 +27,35 @@ function writeJson(key: string, value: unknown) {
 	localStorage.setItem(key, JSON.stringify(value))
 }
 
-function readIndex(): SpellMeta[] {
-	const data = readJson<SpellMeta[]>(localStorage.getItem(INDEX_KEY))
-	if (!data || !Array.isArray(data)) return []
-	return data
-}
-
-function writeIndex(index: SpellMeta[]) {
-	writeJson(INDEX_KEY, index)
-}
-
 export function listSpells(): SpellMeta[] {
-	return readIndex().slice().sort((a, b) => b.savedAt - a.savedAt)
+	// Load spells from current save file
+	const saveData = SaveManager.getCurrentSaveData()
+	if (!saveData) return []
+	
+	return saveData.spells.map(s => ({
+		id: s.id,
+		name: s.name,
+		savedAt: s.savedAt,
+		hasCompiledAST: s.hasCompiledAST
+	})).sort((a, b) => b.savedAt - a.savedAt)
 }
 
 export function loadSpell(id: string): StoredSpell | null {
-	const key = `${SPELL_KEY_PREFIX}${id}`
-	const data = readJson<StoredSpell>(localStorage.getItem(key))
-	if (!data || data.id !== id) return null
-	return data
+	// Load spell from current save file
+	const saveData = SaveManager.getCurrentSaveData()
+	if (!saveData) return null
+	
+	const spell = saveData.spells.find(s => s.id === id)
+	return spell || null
 }
 
 export function deleteSpell(id: string) {
-	localStorage.removeItem(`${SPELL_KEY_PREFIX}${id}`)
-	const nextIndex = readIndex().filter((m) => m.id !== id)
-	writeIndex(nextIndex)
+	// Delete from current save file
+	const saveData = SaveManager.getCurrentSaveData()
+	if (!saveData) return
+	
+	const newSpells = saveData.spells.filter(s => s.id !== id)
+	SaveManager.updateCurrentSaveData({ spells: newSpells })
 }
 
 export function upsertSpell(params: { id?: string | null; name: string; flow: unknown }): string {
@@ -86,19 +88,17 @@ export function upsertSpell(params: { id?: string | null; name: string; flow: un
 		compiledSpell: compiledAST
 	}
 
-	writeJson(`${SPELL_KEY_PREFIX}${id}`, spell)
-
-	const index = readIndex()
-	const existing = index.find((m) => m.id === id)
-	if (existing) {
-		existing.name = spell.name
-		existing.savedAt = spell.savedAt
-		existing.hasCompiledAST = hasCompiledAST
-		writeIndex(index)
+	// Save to current save file
+	const saveData = SaveManager.getCurrentSaveData()
+	if (!saveData) {
+		console.error('[spellStorage] No current save data')
 		return id
 	}
-
-	writeIndex([{ id: spell.id, name: spell.name, savedAt: spell.savedAt, hasCompiledAST }, ...index])
+	
+	const spells = saveData.spells.filter(s => s.id !== id)
+	spells.push(spell)
+	SaveManager.updateCurrentSaveData({ spells })
+	
 	return id
 }
 

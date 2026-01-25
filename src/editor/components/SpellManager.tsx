@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Alert, Badge, Button, Group, Paper, Stack, Text, TextInput } from '@mantine/core'
+import { Alert, Badge, Button, Group, Paper, Stack, Text, TextInput, Modal } from '@mantine/core'
 import { deleteSpell, listSpells, type SpellMeta } from '../utils/spellStorage'
+import { EventBindingPanel } from './EventBindingPanel'
 
 export function SpellManager(props: {
 	onNew: (name: string) => void
@@ -10,6 +11,8 @@ export function SpellManager(props: {
 	const [spells, setSpells] = useState<SpellMeta[]>([])
 	const [name, setName] = useState('New Spell')
 	const [error, setError] = useState<string | null>(null)
+	const [bindingModalOpen, setBindingModalOpen] = useState(false)
+	const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null)
 
 	const refresh = () => setSpells(listSpells())
 
@@ -63,9 +66,9 @@ export function SpellManager(props: {
 								<Group gap="xs">
 									<Text fw={700}>{s.name}</Text>
 									{s.hasCompiledAST ? (
-										<Badge color="green" size="sm">AST</Badge>
+										<Badge color="green" size="sm">Compiled</Badge>
 									) : (
-										<Badge color="red" size="sm" variant="light">No AST</Badge>
+										<Badge color="red" size="sm" variant="light">Compilation Failed</Badge>
 									)}
 								</Group>
 								<Text size="sm" c="dimmed">
@@ -77,11 +80,8 @@ export function SpellManager(props: {
 									variant="light"
 									onClick={() => {
 										setError(null)
-										try {
-											props.onBind(s.id)
-										} catch (err) {
-											setError(err instanceof Error ? err.message : String(err))
-										}
+										setSelectedSpellId(s.id)
+										setBindingModalOpen(true)
 									}}
 									disabled={!s.hasCompiledAST}
 								>
@@ -113,10 +113,17 @@ export function SpellManager(props: {
 				))}
 				</Stack>
 			</div>
+
+			<Modal
+				opened={bindingModalOpen}
+				onClose={() => setBindingModalOpen(false)}
+				title="Event Bindings"
+				size="lg"
+			>
+				<EventBindingPanel initialSpellId={selectedSpellId} />
+			</Modal>
 		</div>
 	)
 }
 
 export default SpellManager
-
-

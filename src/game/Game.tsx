@@ -7,6 +7,7 @@ import { LevelSelectInterface } from './interface/LevelSelectInterface'
 import { SettingsInterface } from './interface/SettingsInterface'
 import { PauseInterface } from './interface/PauseInterface'
 import { VictoryInterface } from './interface/VictoryInterface'
+import { SaveSelectScene } from './scenes/SaveSelectScene'
 import { Level1 } from './scenes/levels/Level1'
 import { Level2 } from './scenes/levels/Level2'
 import { Level3 } from './scenes/levels/Level3'
@@ -57,6 +58,7 @@ export function Game() {
 			width: 960,
 			height: 540,
 			scene: [
+				SaveSelectScene,
 				MainInterface,
 				LevelSelectInterface,
 				SettingsInterface,

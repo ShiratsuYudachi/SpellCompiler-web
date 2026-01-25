@@ -3,9 +3,12 @@
  * 
  * Design: Decoupled from spell execution to avoid circular dependencies.
  * Events are queued and processed by a separate game system.
+ * 
+ * Now integrated with SaveManager for persistence.
  */
 
 import type { Value } from '../../editor/ast/ast'
+import { SaveManager } from '../../storage/SaveManager'
 
 // Event that's been queued for processing
 export interface QueuedEvent {
@@ -63,6 +66,41 @@ class EventQueueManager {
 	private heldMouseButtons: Map<number, number> = new Map()  // button → lastTriggerTime
 	
 	/**
+	 * Initialize event queue - load bindings from save file
+	 */
+	init(): void {
+		this.loadBindingsFromSave()
+	}
+	
+	/**
+	 * Load event bindings from current save file
+	 */
+	private loadBindingsFromSave(): void {
+		const saveData = SaveManager.getCurrentSaveData()
+		if (!saveData) return
+		
+		// Clear existing bindings
+		this.bindings.clear()
+		this.handlers.clear()
+		
+		// Load bindings from save
+		for (const binding of saveData.eventBindings) {
+			this.bindings.set(binding.id, binding)
+			this.registerHandler(binding.eventName, binding.spellId)
+		}
+		
+		console.log(`[EventQueue] Loaded ${saveData.eventBindings.length} event bindings from save`)
+	}
+	
+	/**
+	 * Save current bindings to save file
+	 */
+	private saveBindingsToSave(): void {
+		const bindings = Array.from(this.bindings.values())
+		SaveManager.updateCurrentSaveData({ eventBindings: bindings })
+	}
+	
+	/**
 	 * Emit an event to the queue
 	 * Does NOT execute handlers - that's done by eventProcessSystem
 	 */
@@ -104,6 +142,7 @@ class EventQueueManager {
 	addBinding(binding: EventBinding): void {
 		this.bindings.set(binding.id, binding)
 		this.registerHandler(binding.eventName, binding.spellId)
+		this.saveBindingsToSave()
 	}
 	
 	/**
@@ -114,6 +153,7 @@ class EventQueueManager {
 		if (binding) {
 			this.unregisterHandler(binding.eventName, binding.spellId)
 			this.bindings.delete(bindingId)
+			this.saveBindingsToSave()
 		}
 	}
 	
@@ -212,3 +252,6 @@ class EventQueueManager {
 
 // Global singleton
 export const eventQueue = new EventQueueManager()
+
+// Auto-initialize after SaveManager is ready
+eventQueue.init()
