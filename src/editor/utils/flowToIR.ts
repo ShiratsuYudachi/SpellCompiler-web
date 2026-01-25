@@ -4,11 +4,10 @@
 // =============================================
 
 import type { Node, Edge } from 'reactflow';
-import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Lambda, Spell } from '../ast/ast';
+import type { ASTNode, Literal, Identifier, FunctionCall, IfExpression, FunctionDefinition, Spell } from '../ast/ast';
 import type {
 	FlowNode,
 	LiteralNodeData,
-	TriggerTypeNodeData,
 	IdentifierNodeData,
 	DynamicFunctionNodeData,
 	CustomFunctionNodeData,
@@ -158,15 +157,6 @@ function convertNode(
 			return {
 				type: 'Literal',
 				value: data.value
-			} as Literal;
-		}
-
-		case 'triggerType': {
-			const data = node.data as TriggerTypeNodeData;
-			// Return the trigger type as a string literal
-			return {
-				type: 'Literal',
-				value: data.triggerType
 			} as Literal;
 		}
 
@@ -328,51 +318,28 @@ function convertNode(
 							}
 						}
 					} else {
-						// No parameter mode: regular parameter
-						const edge = sortedEdges[edgeIndex];
-						if (edge) {
-							const sourceNode = allNodes.find(n => n.id === edge.source);
-							if (!sourceNode) {
-								throw new Error(`Source node ${edge.source} not found`);
-							}
-							
-							// Special handling for onTrigger's action parameter
-							// If the source is a function call (dynamicFunction), wrap it in a Lambda
-							if (functionName === 'game::onTrigger' && paramName === 'action') {
-								const actionAST = convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
-								// Wrap the action in a Lambda with no parameters
-								args.push({
-									type: 'Lambda',
-									params: [],
-									body: actionAST
-								} as Lambda);
-							} else {
+							// No parameter mode: regular parameter
+							const edge = sortedEdges[edgeIndex];
+							if (edge) {
+								const sourceNode = allNodes.find(n => n.id === edge.source);
+								if (!sourceNode) {
+									throw new Error(`Source node ${edge.source} not found`);
+								}
+								
 								args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+								edgeIndex++;
 							}
-							edgeIndex++;
-						}
 					}
 				});
 			} else {
 				// No parameter modes: use old behavior
-				sortedEdges.forEach((edge, index) => {
+				sortedEdges.forEach((edge) => {
 					const sourceNode = allNodes.find(n => n.id === edge.source);
 					if (!sourceNode) {
 						throw new Error(`Source node ${edge.source} not found`);
 					}
 					
-					// Special handling for onTrigger's action parameter (third parameter, index 2)
-					if (functionName === 'game::onTrigger' && index === 2) {
-						const actionAST = convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined);
-						// Wrap the action in a Lambda with no parameters
-						args.push({
-							type: 'Lambda',
-							params: [],
-							body: actionAST
-						} as Lambda);
-					} else {
-						args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
-					}
+					args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
 				});
 			}
 

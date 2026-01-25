@@ -12,7 +12,7 @@ export type SceneConfig = {
 		edges: any[]
 	}
 	editorRestrictions?: RegExp
-	allowedNodeTypes?: Array<'literal' | 'triggerType' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction'>
+	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction'>
 	hints?: string[]
 	logicReference?: Record<string, { gridX: number; gridY: number; action: string }>
 }
@@ -652,10 +652,13 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				id: 'task3-yellow-vshape',
 				description: 'Task 3: ELSE IF fireball on YELLOW -> deflect UP (-60°) for V-shape',
 				type: 'defeat',
-				prerequisite: 'task2-straight',
-			},
-		],
-		initialSpellWorkflow: {
+			prerequisite: 'task2-straight',
+		},
+	],
+	// DEPRECATED: Level7 uses old trigger system (game::onTrigger)
+	// TODO: Migrate to Event System with event bindings
+	/* COMMENTED OUT - Old trigger-based workflow
+	initialSpellWorkflow: {
 			nodes: [
 				// === 主输出 ===
 				{ id: 'output-1', type: 'output', position: { x: 1100, y: 300 }, data: { label: 'Output' } },
@@ -837,14 +840,15 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				{ id: 'e-eq-yellow-a', source: 'func-getPlate-inner', target: 'func-eq-yellow', targetHandle: 'arg0' },
 				{ id: 'e-eq-yellow-b', source: 'lit-yellow', target: 'func-eq-yellow', targetHandle: 'arg1' },
 
-				// === deflectOnPlate("YELLOW", -60) 参数 ===
-				{ id: 'e-deflect-yellow-color', source: 'lit-yellow-deflect', target: 'func-deflect-yellow', targetHandle: 'arg0' },
-				{ id: 'e-deflect-yellow-angle', source: 'lit-angle-vshape', target: 'func-deflect-yellow', targetHandle: 'arg1' },
-			],
-		},
+			// === deflectOnPlate("YELLOW", -60) 参数 ===
+			{ id: 'e-deflect-yellow-color', source: 'lit-yellow-deflect', target: 'func-deflect-yellow', targetHandle: 'arg0' },
+			{ id: 'e-deflect-yellow-angle', source: 'lit-angle-vshape', target: 'func-deflect-yellow', targetHandle: 'arg1' },
+		],
 	},
+	*/
+},
 
-	// Level 14 - 精密验证（AND 复合条件）
+// Level 14 - 精密验证（AND 复合条件）
 	Level14: {
 		key: 'Level14',
 		playerSpawnX: 150,
@@ -880,10 +884,13 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				id: 'task3-complex',
 				description: 'Task 3: Combined logic with timing',
 				type: 'defeat',
-				prerequisite: 'task2-yellow-sensor',
-			},
-		],
-		initialSpellWorkflow: {
+			prerequisite: 'task2-yellow-sensor',
+		},
+	],
+	// DEPRECATED: Level14 uses old trigger system (game::onTrigger)
+	// TODO: Migrate to Event System with event bindings
+	/* COMMENTED OUT - Old trigger-based workflow
+	initialSpellWorkflow: {
 			nodes: [
 				// === 主输出 ===
 				{ id: 'output-1', type: 'output', position: { x: 1100, y: 300 }, data: { label: 'Output' } },
@@ -999,11 +1006,12 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				// === deflectAfterTime(-45, 0) 参数 ===
 				{ id: 'e-deflect-angle', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
 				{ id: 'e-deflect-delay', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
-			],
-		},
+		],
 	},
+	*/
+},
 
-	// Level 15 - 多重制导挑战（Else-If 多分支进阶）
+// Level 15 - 多重制导挑战（Else-If 多分支进阶）
 	// 地形与 Level13 类似，但任务目标不同
 	// T1: 红板触发 → 向上偏转 → 击中 T1 (4,1)
 	// T2: 黄板触发 → 向右偏转 → 击中 T2 (10,7)
@@ -1048,6 +1056,9 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 			"Programming tip: use a variable `stage = 1`. After each plate hit, increment `stage`.",
 			"Logic example: if (color === 'RED' && stage === 1) { ... } else if (color === 'RED' && stage === 3) { ... }",
 		],
+		// DEPRECATED: Level15 uses old trigger system (game::onTrigger)
+		// TODO: Migrate to Event System with event bindings
+		/* COMMENTED OUT - Old trigger-based workflow
 		logicReference: {
 			redPlate1: { gridX: 6, gridY: 1, action: 'Deflect down-left (225°)' },
 			yellowPlate1: { gridX: 2, gridY: 5, action: 'Deflect right (0°)' },
@@ -1349,12 +1360,13 @@ export const SCENE_CONFIGS: Record<string, SceneConfig> = {
 				
 				// Direction vector connections
 				{ id: 'e-direction-x', source: 'lit-dir-x', target: 'vec-direction', targetHandle: 'arg0' },
-				{ id: 'e-direction-y', source: 'lit-dir-y', target: 'vec-direction', targetHandle: 'arg1' },
-			],
-		},
+			{ id: 'e-direction-y', source: 'lit-dir-y', target: 'vec-direction', targetHandle: 'arg1' },
+		],
 	},
+	*/
+},
 
-	// 批量生成 Level 16-20 (占位)
+// 批量生成 Level 16-20 (占位)
 	...Object.fromEntries(
 		Array.from({ length: 5 }, (_, i) => [
 			`Level${i + 16}`,

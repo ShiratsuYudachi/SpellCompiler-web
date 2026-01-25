@@ -222,19 +222,4 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		},
 		ui: { displayName: '📡 emitEvent' }
 	});
-
-	// ====================================
-	// Deprecated / NotImplemented
-	// ====================================
-
-	// game::onTrigger - Deprecated, use Event system instead
-	evaluator.registerFunction({
-		fullName: 'game::onTrigger',
-		params: ['triggerType', 'condition', 'action'],
-		fn: (_triggerType: Value, _condition: Value, _action: Value): Value => {
-			console.warn('[game::onTrigger] This function is deprecated. Use the Event system with emitEvent instead.');
-			return 0;
-		},
-		ui: { displayName: '⚠️ onTrigger (deprecated)' }
-	});
 }

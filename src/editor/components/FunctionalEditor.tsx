@@ -21,7 +21,6 @@ import 'reactflow/dist/style.css';
 import { Alert, Button, Group, Paper, Text, TextInput, Modal } from '@mantine/core';
 
 import { LiteralNode } from './nodes/LiteralNode';
-import { TriggerTypeNode } from './nodes/TriggerTypeNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
 import { CustomFunctionNode } from './nodes/CustomFunctionNode';
 import { ApplyFuncNode } from './nodes/ApplyFuncNode';
@@ -50,7 +49,6 @@ import { EventBindingPanel } from './EventBindingPanel'
 // Define node types
 const nodeTypes = {
 	literal: LiteralNode,
-	triggerType: TriggerTypeNode,
 	dynamicFunction: DynamicFunctionNode,
 	customFunction: CustomFunctionNode,
 	applyFunc: ApplyFuncNode,
@@ -503,7 +501,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	};
 
 	// Add basic node from menu and connect
-	const addBasicNodeFromMenu = (type: 'literal' | 'triggerType' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
+	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector') => {
 		if (!menuState) return;
 		
 		// Check if node type is allowed
@@ -519,22 +517,20 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		// Determine default data for the node
 		const getDefaultData = () => {
-			switch (type) {
-				case 'literal':
-					return { value: 0 };
-				case 'triggerType':
-					return { triggerType: 'onEnemyNearby' };
-				case 'vector':
-					return { x: 0, y: 0 };
-				case 'lambdaDef':
-					return { functionName: 'lambda', paramCount: 1, params: ['arg0'] };
-				case 'customFunction':
-					return { functionName: 'myFunc', paramCount: 1 };
-				case 'applyFunc':
-					return { paramCount: 1 };
-				default:
-					return {};
-			}
+		switch (type) {
+			case 'literal':
+				return { value: 0 };
+			case 'vector':
+				return { x: 0, y: 0 };
+			case 'lambdaDef':
+				return { functionName: 'lambda', paramCount: 1, params: ['arg0'] };
+			case 'customFunction':
+				return { functionName: 'myFunc', paramCount: 1 };
+			case 'applyFunc':
+				return { paramCount: 1 };
+			default:
+				return {};
+		}
 		};
 
 		// If from handle click, position relative to source node

@@ -20,13 +20,6 @@ export interface LiteralNodeData extends BaseNodeData {
 }
 
 /**
- * Trigger Type Node - 触发器类型选择节点
- */
-export interface TriggerTypeNodeData extends BaseNodeData {
-	triggerType: 'onEnemyNearby' | 'onTimeInterval' | 'onPlayerHurt' | 'onEnemyKilled' | 'onPlayerLowHealth' | 'onFireballFlying';
-}
-
-/**
  * Identifier Node - （）
  */
 export interface IdentifierNodeData extends BaseNodeData {
@@ -86,7 +79,6 @@ export interface SpellInputNodeData extends BaseNodeData {
  */
 export type FlowNodeType =
 	| 'literal'
-	| 'triggerType'
 	| 'identifier'
 	| 'dynamicFunction'
 	| 'customFunction'
@@ -131,7 +123,6 @@ export interface ApplyFuncNodeData extends BaseNodeData {
  */
 export type FlowNode =
 	| Node<LiteralNodeData, 'literal'>
-	| Node<TriggerTypeNodeData, 'triggerType'>
 	| Node<IdentifierNodeData, 'identifier'>
 	| Node<DynamicFunctionNodeData, 'dynamicFunction'>
 	| Node<CustomFunctionNodeData, 'customFunction'>

@@ -1,17 +1,15 @@
 import { addEntity, createWorld, removeEntity, type World } from 'bitecs'
 import Phaser from 'phaser'
-import type { GameResources, InputState } from './resources'
+import type { GameResources } from './resources'
 import type { Spell } from '../editor/ast/ast'
 import { createPlayer } from './prefabs/createPlayer'
 import { createEnemy } from './prefabs/createEnemy'
 import { createHud } from './prefabs/createHud'
-import { playerInputSystem } from './systems/playerInputSystem'
 import { enemyAISystem } from './systems/enemyAISystem'
 import { fireballSystem } from './systems/fireballSystem'
 import { velocitySystem } from './systems/velocitySystem'
 import { deathSystem } from './systems/deathSystem'
 import { hudSystem } from './systems/hudSystem'
-import { triggerSystem } from './systems/triggerSystem'
 
 export type GameWorld = World & {
 	resources: GameResources
@@ -25,11 +23,9 @@ export function createGameWorld(
 ) {
 	const world = createWorld() as GameWorld
 
-	const input = createInput(scene)
 	const bodies = new Map<number, Phaser.Physics.Arcade.Image>()
 	const spellByEid = new Map<number, Spell>()
 	const spellMessageByEid = new Map<number, string>()
-	const triggers = new Map<number, import('./resources').TriggerConfig>()
 
 	const playerEid = createPlayer(world, scene, bodies, playerX, playerY)
 	
@@ -47,9 +43,9 @@ export function createGameWorld(
 		hudText,
 		spellByEid,
 		spellMessageByEid,
-		input,
-		triggers,
-		triggerIdCounter: 0,
+		// REMOVED: input - no longer needed, using Event System
+		// REMOVED: triggers - migrated to Event System
+		// REMOVED: triggerIdCounter
 		// 压力板和感应器状态
 		currentPlateColor: 'NONE',
 		sensorState: true,
@@ -65,12 +61,12 @@ export function createGameWorld(
 }
 
 export function updateGameWorld(world: GameWorld, dt: number) {
-	playerInputSystem(world)
+	// REMOVED: playerInputSystem - all player actions now handled by Event System + spells
+	// REMOVED: triggerSystem - all triggers migrated to Event System
 	enemyAISystem(world)
 	fireballSystem(world, dt)
 	velocitySystem(world)
 	deathSystem(world)
-	triggerSystem(world) // 检查并执行触发器
 	hudSystem(world)
 }
 
@@ -89,18 +85,7 @@ export function spawnEntity(world: GameWorld) {
 	return addEntity(world)
 }
 
-function createInput(scene: Phaser.Scene): InputState {
-	const cursors = scene.input.keyboard!.createCursorKeys()
-	const keys = scene.input.keyboard!.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>
-	const meleeKey = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
-	const spellKey1 = scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE)
-
-	return {
-		cursors,
-		keys,
-		meleeKey,
-		spellKey1,
-	}
-}
+// REMOVED: createInput() function
+// Input handling now done through inputEventSystem.ts (Event emissions only)
 
 

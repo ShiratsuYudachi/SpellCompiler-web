@@ -6,11 +6,9 @@
 import { Handle, Position } from 'reactflow';
 import { memo, useState, useEffect } from 'react';
 import type { NodeProps } from 'reactflow';
-import { useStore } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
 import type { ParameterMode, ParameterModeOption } from '../../utils/getFunctionRegistry';
 import { getFunctionInfo } from '../../utils/getFunctionRegistry';
-import type { TriggerTypeNodeData } from '../../types/flowTypes';
 
 export interface DynamicFunctionNodeData {
 	functionName: string;      //  (e.g., 'std::math::add')
@@ -31,49 +29,6 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 		isVariadic = false,
 		functionName
 	} = nodeData;
-
-	// Check if this is onTrigger function
-	const isOnTrigger = functionName === 'game::onTrigger';
-
-	// Subscribe to both edges and the specific triggerType node's data for immediate updates
-	// Return a primitive value (string) to ensure useStore properly detects changes
-	const triggerType = useStore((store) => {
-		if (!isOnTrigger) return null;
-		
-		// Find the connected triggerType edge
-		const triggerTypeEdge = store.edges.find(e => e.target === id && e.targetHandle === 'arg0');
-		if (!triggerTypeEdge) return null;
-
-		// Get the connected triggerType node
-		const triggerTypeNode = store.nodeInternals.get(triggerTypeEdge.source);
-		if (!triggerTypeNode || triggerTypeNode.type !== 'triggerType') return null;
-
-		// Return the triggerType value as a string - primitive values ensure proper change detection
-		const triggerData = triggerTypeNode.data as TriggerTypeNodeData;
-		return triggerData?.triggerType || null;
-	});
-
-	// Condition hints based on trigger type
-	const getConditionHint = (triggerType: string | null): string | null => {
-		if (!triggerType) return null;
-		
-		switch (triggerType) {
-			case 'onEnemyNearby':
-				return 'Distance in pixels (e.g., 200 = trigger when enemy within 200px)';
-			case 'onTimeInterval':
-				return 'Interval in milliseconds (e.g., 2000 = trigger every 2 seconds)';
-			case 'onPlayerHurt':
-				return 'No condition needed - triggers automatically when player takes damage';
-			case 'onEnemyKilled':
-				return 'No condition needed - triggers automatically when any enemy is killed';
-			case 'onPlayerLowHealth':
-				return 'Health threshold (0.0-1.0, e.g., 0.5 = trigger when health < 50%)';
-			default:
-				return null;
-		}
-	};
-
-	const conditionHint = getConditionHint(triggerType);
 
 	// Initialize parameter modes from function registry
 	const [paramModes, setParamModes] = useState<Record<string, ParameterMode>>(() => {
@@ -251,37 +206,6 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 
 						return (
 							<div key={groupIndex} className="space-y-1">
-								{/* Special hint for onTrigger triggerType parameter */}
-								{isOnTrigger && group.originalParam === 'triggerType' && (
-									<div className={`text-xs ${colors.text} opacity-60 mb-1 px-1`}>
-										💡 Connect a <strong>Trigger Type</strong> node<br/>
-										(Right-click → Basic Nodes → Trigger Type)
-									</div>
-								)}
-
-								{/* Special hint for onTrigger condition parameter */}
-								{isOnTrigger && group.originalParam === 'condition' && (
-									<div className={`text-xs ${colors.text} opacity-70 mb-1 px-1 py-1 rounded`} style={{ backgroundColor: `${colors.text}15` }}>
-										{conditionHint ? (
-											<>
-												📋 <strong>Condition:</strong> {conditionHint}
-											</>
-										) : (
-											<>
-												📋 <strong>Condition:</strong> Connect a Trigger Type node first to see condition requirements
-											</>
-										)}
-									</div>
-								)}
-
-								{/* Special hint for onTrigger action parameter */}
-								{isOnTrigger && group.originalParam === 'action' && (
-									<div className={`text-xs ${colors.text} opacity-70 mb-1 px-1 py-1 rounded`} style={{ backgroundColor: `${colors.text}15` }}>
-										⚡ <strong>Action:</strong> Connect an action function (e.g., teleportRelative) or a Lambda node<br/>
-										This action will be executed when the trigger fires.
-									</div>
-								)}
-
 								{/* Mode selector if available */}
 								{modeOptions && modeOptions.length > 1 && (
 									<select

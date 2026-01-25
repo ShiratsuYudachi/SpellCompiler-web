@@ -1,3 +1,16 @@
+/**
+ * ⚠️ LEGACY SYSTEM - DO NOT USE ⚠️
+ * 
+ * This file is kept for reference only.
+ * Player input is now handled by the Event System.
+ * 
+ * See: LEGACY_SYSTEMS_MIGRATION_GUIDE.md
+ * Migration: All player actions (movement, attacks, spells) are now
+ * implemented as spells bound to events via EventBindingPanel.
+ * 
+ * Date removed: 2026-01-25
+ */
+
 import Phaser from 'phaser'
 import { query } from 'bitecs'
 import { Health, Player, PlayerControl, Sprite, Velocity } from '../components'
