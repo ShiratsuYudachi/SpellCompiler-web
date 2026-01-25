@@ -80,7 +80,8 @@ export class SaveSelectScene extends Phaser.Scene {
 		})
 
 		// Save name
-		const nameText = this.add.text(-280, -25, save.name, {
+		const shortId = save.id.slice(-4)
+		const nameText = this.add.text(-280, -25, `Save #${shortId}`, {
 			fontSize: '24px',
 			color: '#ffffff',
 			fontStyle: 'bold',
@@ -88,8 +89,8 @@ export class SaveSelectScene extends Phaser.Scene {
 		container.add(nameText)
 
 		// Save info
-		const lastSaved = new Date(save.lastSaved).toLocaleString()
-		const infoText = this.add.text(-280, 5, `Level ${save.currentLevel} • Last saved: ${lastSaved}`, {
+		const timeAgo = this.getTimeAgo(save.lastSaved)
+		const infoText = this.add.text(-280, 5, `Level ${save.currentLevel} • Last saved: ${timeAgo}`, {
 			fontSize: '14px',
 			color: '#888888',
 		})
@@ -146,6 +147,32 @@ export class SaveSelectScene extends Phaser.Scene {
 		})
 
 		return container
+	}
+
+	private getTimeAgo(timestamp: number): string {
+		const seconds = Math.floor((Date.now() - timestamp) / 1000)
+		
+		let interval = Math.floor(seconds / 31536000)
+		if (interval > 1) return interval + " years ago"
+		if (interval === 1) return interval + " year ago"
+		
+		interval = Math.floor(seconds / 2592000)
+		if (interval > 1) return interval + " months ago"
+		if (interval === 1) return interval + " month ago"
+		
+		interval = Math.floor(seconds / 86400)
+		if (interval > 1) return interval + " days ago"
+		if (interval === 1) return interval + " day ago"
+		
+		interval = Math.floor(seconds / 3600)
+		if (interval > 1) return interval + " hours ago"
+		if (interval === 1) return interval + " hour ago"
+		
+		interval = Math.floor(seconds / 60)
+		if (interval > 1) return interval + " minutes ago"
+		if (interval === 1) return interval + " minute ago"
+		
+		return Math.floor(seconds) + " seconds ago"
 	}
 
 	private createNewSaveButton() {
