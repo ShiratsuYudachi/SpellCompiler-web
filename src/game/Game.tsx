@@ -16,7 +16,6 @@ import { Level6 } from './scenes/levels/Level6'
 import { Level7 } from './scenes/levels/Level7'
 import { Level8 } from './scenes/levels/Level8'
 import { Level9 } from './scenes/levels/Level9'
-import { TestScene } from './scenes/levels/TestScene'
 
 import {
 	Level5,
@@ -62,7 +61,6 @@ export function Game() {
 				MainInterface,
 				LevelSelectInterface,
 				SettingsInterface,
-				TestScene,
 				Level1,
 				Level2,
 				Level3,
