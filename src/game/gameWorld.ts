@@ -1,7 +1,7 @@
 import { addEntity, createWorld, removeEntity, type World } from 'bitecs'
 import Phaser from 'phaser'
 import type { GameResources, InputState } from './resources'
-import type { CompiledSpell } from './spells/types'
+import type { Spell } from '../editor/ast/ast'
 import { createPlayer } from './prefabs/createPlayer'
 import { createEnemy } from './prefabs/createEnemy'
 import { createHud } from './prefabs/createHud'
@@ -27,7 +27,7 @@ export function createGameWorld(
 
 	const input = createInput(scene)
 	const bodies = new Map<number, Phaser.Physics.Arcade.Image>()
-	const spellByEid = new Map<number, CompiledSpell>()
+	const spellByEid = new Map<number, Spell>()
 	const spellMessageByEid = new Map<number, string>()
 	const triggers = new Map<number, import('./resources').TriggerConfig>()
 

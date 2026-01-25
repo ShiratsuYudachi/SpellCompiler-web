@@ -1,5 +1,5 @@
 import type Phaser from 'phaser'
-import type { CompiledSpell } from './spells/types'
+import type { Spell } from '../editor/ast/ast'
 
 export type InputState = {
 	cursors: Phaser.Types.Input.Keyboard.CursorKeys
@@ -26,7 +26,7 @@ export interface TriggerConfig {
 	id: number
 	type: TriggerType
 	casterEid: number
-	spell: CompiledSpell
+	spell: Spell
 	// 条件参数
 	params: {
 		distance?: number        // onEnemyNearby: 触发距离（像素）
@@ -73,7 +73,7 @@ export type GameResources = {
 	bodies: Map<number, Phaser.Physics.Arcade.Image>
 	playerEid: number
 	hudText: Phaser.GameObjects.Text
-	spellByEid: Map<number, CompiledSpell>
+	spellByEid: Map<number, Spell>
 	spellMessageByEid: Map<number, string>
 	input: InputState
 	triggers: Map<number, TriggerConfig> // 触发器存储

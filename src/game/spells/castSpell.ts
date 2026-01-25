@@ -1,10 +1,9 @@
 import { Evaluator } from '../../editor/ast/evaluator'
-import type { CompiledSpell } from './types'
+import type { Spell, Value, GameState } from '../../editor/ast/ast'
 import type { GameWorld } from '../gameWorld'
 import { GameStateManager } from '../state/GameStateManager'
 import { registerGameFunctions } from '../../editor/library/game'
 import { setGameStateManager } from '../../editor/library/game'
-import type { GameState, Value } from '../../editor/ast/ast'
 
 /**
  * Cast a spell with given arguments
@@ -16,7 +15,7 @@ import type { GameState, Value } from '../../editor/ast/ast'
 export function castSpell(
 	world: GameWorld, 
 	casterEid: number, 
-	spell: CompiledSpell,
+	spell: Spell,
 	args?: Value[]
 ) {
 	console.log('[castSpell] Starting spell cast')

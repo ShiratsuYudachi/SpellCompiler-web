@@ -11,15 +11,15 @@ import { eventQueue } from '../events/EventQueue'
 import { castSpell } from '../spells/castSpell'
 import { loadSpell } from '../../editor/utils/spellStorage'
 import { flowToIR } from '../../editor/utils/flowToIR'
-import type { CompiledSpell } from '../spells/types'
+import type { Spell } from '../../editor/ast/ast'
 
 // Cache compiled spells to avoid recompiling every event
-const spellCache = new Map<string, CompiledSpell>()
+const spellCache = new Map<string, Spell>()
 
 /**
  * Compile a spell from storage
  */
-function getCompiledSpell(spellId: string): CompiledSpell | null {
+function getCompiledSpell(spellId: string): Spell | null {
 	// Check cache first
 	if (spellCache.has(spellId)) {
 		return spellCache.get(spellId)!

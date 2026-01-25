@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { GameEvents } from '../../events'
-import type { CompiledSpell } from '../../spells/types'
+import type { Spell } from '../../../editor/ast/ast'
 import { createGameWorld, updateGameWorld, type GameWorld } from '../../gameWorld'
 import { getPlayerSpawnPosition, getSceneConfig } from '../sceneConfig'
 import { TerrainType, type ObjectiveConfig } from './TerrainTypes'
@@ -634,7 +634,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
 
-		const reg = (p: CompiledSpell) => this.world.resources.spellByEid.set(this.world.resources.playerEid, p)
+		const reg = (p: Spell) => this.world.resources.spellByEid.set(this.world.resources.playerEid, p)
 		this.game.events.on(GameEvents.registerSpell, reg)
 		this.events.once('shutdown', () => {
 			this.game.events.off(GameEvents.registerSpell, reg)
