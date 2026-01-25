@@ -634,10 +634,8 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.game.events.emit(GameEvents.toggleEditor)
 		})
 
-		const reg = (p: Spell) => this.world.resources.spellByEid.set(this.world.resources.playerEid, p)
-		this.game.events.on(GameEvents.registerSpell, reg)
 		this.events.once('shutdown', () => {
-			this.game.events.off(GameEvents.registerSpell, reg)
+			// Cleanup if needed
 		})
 	}
 

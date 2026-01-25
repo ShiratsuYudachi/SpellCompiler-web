@@ -24,7 +24,6 @@ export function createGameWorld(
 	const world = createWorld() as GameWorld
 
 	const bodies = new Map<number, Phaser.Physics.Arcade.Image>()
-	const spellByEid = new Map<number, Spell>()
 	const spellMessageByEid = new Map<number, string>()
 
 	const playerEid = createPlayer(world, scene, bodies, playerX, playerY)
@@ -41,8 +40,8 @@ export function createGameWorld(
 		bodies,
 		playerEid,
 		hudText,
-		spellByEid,
 		spellMessageByEid,
+		// REMOVED: spellByEid - spells are now managed by Event System via spellId
 		// REMOVED: input - no longer needed, using Event System
 		// REMOVED: triggers - migrated to Event System
 		// REMOVED: triggerIdCounter
@@ -76,7 +75,6 @@ export function despawnEntity(world: GameWorld, eid: number) {
 		body.destroy()
 		world.resources.bodies.delete(eid)
 	}
-	world.resources.spellByEid.delete(eid)
 	world.resources.spellMessageByEid.delete(eid)
 	removeEntity(world, eid)
 }

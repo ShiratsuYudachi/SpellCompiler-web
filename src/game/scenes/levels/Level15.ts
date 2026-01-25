@@ -206,17 +206,8 @@ export class Level15 extends BaseScene {
 
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		const spell = this.world.resources.spellByEid.get(playerEid)
-		if (spell) {
-			try {
-				castSpell(this.world, playerEid, spell)
-				console.log('[Level15] Spell cast successfully')
-			} catch (err) {
-				console.error('[Level15] Spell error:', err)
-			}
-		} else {
-			console.warn('[Level15] No spell equipped. Use TAB to create a spell.')
-		}
+		// 提示绑定
+        console.log('[Level15] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 
 	private spawnFireball(x: number, y: number, dirX: number, dirY: number) {

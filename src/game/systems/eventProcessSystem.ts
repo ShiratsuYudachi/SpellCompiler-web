@@ -16,6 +16,14 @@ import type { Spell } from '../../editor/ast/ast'
 const spellCache = new Map<string, Spell>()
 
 /**
+ * Update a spell in the cache
+ */
+export function updateSpellInCache(spellId: string, spell: Spell): void {
+    spellCache.set(spellId, spell)
+    console.log(`[EventProcess] Updated spell ${spellId} in cache`)
+}
+
+/**
  * Get compiled spell from cache or storage
  */
 function getSpell(spellId: string): Spell | null {

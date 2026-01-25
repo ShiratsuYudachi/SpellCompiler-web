@@ -60,7 +60,7 @@ export function AddEventPanel({ initialSpellId, binding, onClose }: { initialSpe
             if (binding.keyOrButton) {
                 setActiveTab('key')
                 setSelectedSpell(binding.spellId)
-                setSelectedKey(binding.keyOrButton)
+                setSelectedKey(String(binding.keyOrButton))
                 setTriggerMode(binding.triggerMode || 'press')
                 setHoldInterval(binding.holdInterval || 100)
             } else {

@@ -38,8 +38,8 @@ export type GameResources = {
 	bodies: Map<number, Phaser.Physics.Arcade.Image>
 	playerEid: number
 	hudText: Phaser.GameObjects.Text
-	spellByEid: Map<number, Spell>
 	spellMessageByEid: Map<number, string>
+	// REMOVED: spellByEid - spells are now managed by Event System via spellId
 	// REMOVED: input - use Event System instead
 	// REMOVED: triggers - use Event System instead
 	// REMOVED: triggerIdCounter

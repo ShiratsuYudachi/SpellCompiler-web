@@ -308,18 +308,8 @@ export class Level13 extends BaseScene {
 		// 发射火球（向右）
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 施放法术
-		const spell = this.world.resources.spellByEid.get(playerEid)
-		if (spell) {
-			try {
-				castSpell(this.world, playerEid, spell)
-				console.log('[Level13] Spell cast successfully')
-			} catch (err) {
-				console.error('[Level13] Spell error:', err)
-			}
-		} else {
-			console.warn('[Level13] No spell equipped. Use TAB to create a spell.')
-		}
+		// 提示绑定
+        console.log('[Level13] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 
 	private spawnFireball(x: number, y: number, dirX: number, dirY: number): number {

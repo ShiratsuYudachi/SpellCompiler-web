@@ -144,18 +144,45 @@ export class Level4 extends BaseScene {
 		// 1. Spawn fireball (fixed direction: right)
 		this.spawnLevel4Fireball(playerBody.x, playerBody.y, 1, 0) // dirX=1 (right), dirY=0
 
-		// 2. Cast spell immediately
-		const spell = this.world.resources.spellByEid.get(playerEid)
-		if (spell) {
-			try {
-				castSpell(this.world, playerEid, spell)
-				console.log('[Level4] Spell cast successfully')
-			} catch (err) {
-				console.error('[Level4] Spell error:', err)
-			}
-		} else {
-			console.warn('[Level4] No spell equipped. Use TAB to create a spell.')
-		}
+		// 2. Cast spell immediately (using event system logic if possible, or direct cast if needed for this specific level)
+		// For Level 4, we might want to trigger a specific event instead of direct cast
+        // BUT, since we removed spellByEid, we need to use the Event System to trigger spells.
+        // Let's emit a custom event that the player can bind to.
+        // Or, if this is a legacy level behavior, we might need to rethink how it works.
+        // For now, let's assume the player has bound 'onKeyPressed' to a spell.
+        // If we want to force a cast, we can emit an event.
+        
+        // Emulating old behavior: trigger 'onKeyPressed' for key '1'
+        // This relies on the player having bound a spell to '1' via the Event System.
+        // If they haven't, nothing happens (which is correct for the new system).
+        // Alternatively, we can emit a custom event 'level4_shoot' and ask player to bind to it.
+        
+        // Since we removed spellByEid, we can't get the spell directly.
+        // We rely on the Event System to handle the key press '1'.
+        // The input system should already handle this if we set it up correctly.
+        // However, this method `shootAndCastSpell` is called by a manual key listener in `onLevelCreate`.
+        
+        // If we want to maintain the "press 1 to shoot AND cast" behavior without binding:
+        // We can't. The philosophy has changed.
+        // The player MUST bind a spell to an event.
+        
+        // So, we should probably remove this manual key listener and let the Event System handle '1'.
+        // BUT, Level 4 has specific logic to spawn a fireball THEN cast.
+        
+        // Temporary fix: Emit a custom event that the player *could* bind to, 
+        // or just rely on standard input events.
+        
+        // Actually, the instruction says "Press 1 to shoot fireball and cast spell".
+        // This implies a hardcoded behavior in the level.
+        // If we want to keep this hardcoded behavior, we need a way to get the "equipped" spell.
+        // But "equipped spell" concept is gone.
+        
+        // Solution: The level should probably just spawn the fireball on '1', 
+        // and let the player bind a spell to 'onKeyPressed: 1' if they want magic.
+        // OR, we emit a 'onFireballSpawned' event?
+        
+        // Let's just log for now, as we can't cast a specific spell without an ID.
+		console.log('[Level4] Fireball spawned. Bind a spell to "onKeyPressed: 1" to add magic!')
 	}
 
 	private spawnLevel4Fireball(x: number, y: number, dirX: number, dirY: number) {

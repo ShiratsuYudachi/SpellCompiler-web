@@ -107,22 +107,7 @@ export function Editor() {
 					setScreen('editor')
 				}}
 				onBind={(id) => {
-					const spell = loadSpell(id)
-					if (!spell) {
-						throw new Error('Spell not found')
-					}
-					const flow = spell.flow as any
-					if (!flow || !Array.isArray(flow.nodes) || !Array.isArray(flow.edges)) {
-						throw new Error('Invalid spell data')
-					}
-
-					const game = getGameInstance()
-					if (!game) {
-						throw new Error('Game is not running')
-					}
-
-				const compiledSpell = flowToIR(flow.nodes, flow.edges)
-				game.events.emit(GameEvents.registerSpell, compiledSpell)
+					// deprecated
 				}}
 			/>
 		)

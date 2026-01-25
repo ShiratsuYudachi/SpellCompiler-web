@@ -41,6 +41,7 @@ import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
 import { eventQueue, type EventBinding } from '../../game/events/EventQueue'
 import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
+import { updateSpellInCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
@@ -196,7 +197,7 @@ function EditorContent(props: FunctionalEditorProps) {
 				} else {
 					console.log('[Editor] Game mode: no saved workflow, loading defaults')
 					// No saved workflow, load from scene config
-					const config = newSceneKey ? getSceneConfig(newSceneKey) : null;
+					const config = newSceneKey ? levelRegistry.get(newSceneKey) : null;
 					const templateNodes = config?.initialSpellWorkflow?.nodes || [];
 					const templateEdges = config?.initialSpellWorkflow?.edges || [];
 
@@ -671,9 +672,12 @@ function EditorContent(props: FunctionalEditorProps) {
 			
 			// Try to compile
 			try {
-				flowToIR(nodes, edges)
+				const compiledAST = flowToIR(nodes, edges)
 				setCompilationStatus('compiled')
 				setEvaluationResult({ saved: true, id: nextId, compiled: true })
+
+                // Update the spell in the game's event system cache
+                updateSpellInCache(nextId, compiledAST)
 			} catch (compileErr) {
 				console.error('[Editor] Compilation failed during save:', compileErr)
 				setCompilationStatus('failed')

@@ -280,59 +280,14 @@ export class Level8 extends BaseScene {
 
 	private castSpell() {
 		const playerEid = this.world.resources.playerEid
-		const spell = this.world.resources.spellByEid.get(playerEid)
-		if (spell) {
-			try {
-				// Anti-cheat detection: check if measureWeight() is directly connected to output
-				const isDirectMeasureWeight = this.isDirectMeasureWeightConnection(spell.body)
-				if (isDirectMeasureWeight) {
-					this.instructionText.setText('ERROR: measureWeight() cannot be directly connected to Output! You must use comparison or storage.')
-					this.instructionText.setColor('#ff0000')
-					this.time.delayedCall(3000, () => {
-						this.instructionText.setText('Use measureWeight() with setSlot() or comparison operators!')
-						this.instructionText.setColor('#ffff00')
-					})
-					return
-				}
-
-				// Clear spell message before casting to prevent it from showing
-				this.world.resources.spellMessageByEid.set(playerEid, '')
-				const result = castSpell(this.world, playerEid, spell)
-				console.log('[Level8] Spell cast successfully, result:', result)
-
-				// Don't show spell result - players should not see it
-				// Clear any spell message to prevent it from showing in HUD
-				// Clear immediately and also in next frame to ensure it's cleared
-				this.world.resources.spellMessageByEid.set(playerEid, '')
-				this.time.delayedCall(0, () => {
-					this.world.resources.spellMessageByEid.set(playerEid, '')
-				})
-				// Don't show comparison results, slot values, or any outputs
-				// Just show a generic message without revealing any result
-				this.instructionText.setText(`Spell cast. Press SPACE to throw ball to test your sorting logic.`)
-				this.instructionText.setColor('#ffff00')
-
-				this.time.delayedCall(2000, () => {
-					if (this.currentBall) {
-						this.instructionText.setText('Press SPACE to throw ball to nearest gate.')
-					} else {
-						this.instructionText.setText('Collect a ball and continue sorting!')
-					}
-					this.instructionText.setColor('#ffff00')
-				})
-			} catch (err) {
-				console.error('[Level8] Spell error:', err)
-				this.instructionText.setText(`Error: ${err instanceof Error ? err.message : String(err)}`)
-				this.instructionText.setColor('#ff0000')
-				this.time.delayedCall(2000, () => {
-					this.instructionText.setColor('#ffff00')
-				})
-			}
-		} else {
-			console.warn('[Level8] No spell equipped. Use TAB to create a spell.')
-			this.instructionText.setText('No spell equipped! Press TAB to create one.')
-			this.instructionText.setColor('#ffaa00')
-		}
+        // We can't access spellByEid anymore.
+        // We rely on the Event System to trigger spells bound to keys.
+        // This method was manually called by '1' key press.
+        // We should just let the Event System handle it.
+        
+        console.log('[Level8] Key 1 pressed. Ensure you have bound a spell to this key!')
+        this.instructionText.setText('Key 1 pressed. If bound, spell will execute.')
+        this.instructionText.setColor('#ffff00')
 	}
 
 	/**
