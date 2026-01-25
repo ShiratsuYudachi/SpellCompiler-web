@@ -127,6 +127,26 @@ export function deleteUIState(spellId: string) {
 	localStorage.removeItem(key)
 }
 
+export function duplicateSpell(id: string, newName?: string): string | null {
+	const spell = loadSpell(id)
+	if (!spell) return null
+
+	const name = newName || `Copy of ${spell.name}`
+	// upsertSpell will generate a new ID and handle compilation
+	const newId = upsertSpell({
+		name: name,
+		flow: spell.flow
+	})
+
+	// Also duplicate UI state if it exists
+	const uiState = loadUIState(id)
+	if (uiState) {
+		saveUIState(newId, uiState)
+	}
+
+	return newId
+}
+
 /**
  * Get compiled spell AST if available
  * Returns null if spell doesn't exist or compilation failed

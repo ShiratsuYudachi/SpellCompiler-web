@@ -29,7 +29,7 @@ interface SpellOption {
 	label: string
 }
 
-export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: string | null, onClose?: () => void }) {
+export function AddEventPanel({ initialSpellId, binding, onClose }: { initialSpellId?: string | null, binding?: EventBinding | null, onClose?: () => void }) {
 	const [spells, setSpells] = useState<SpellOption[]>([])
 	
 	// New binding form state
@@ -42,7 +42,10 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 	// Custom event form state
 	const [customEventName, setCustomEventName] = useState('')
 	const [customSpell, setCustomSpell] = useState<string | null>(initialSpellId || null)
-	
+    
+    // Tab state
+    const [activeTab, setActiveTab] = useState<string | null>('key')
+
 	// Load spells on mount
 	useEffect(() => {
 		const savedSpells = listSpells()
@@ -51,13 +54,26 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 		setSpells(compiledSpells.map(s => ({ value: s.id, label: s.name })))
 	}, [])
 
-	// Update selected spell when initialSpellId changes
-	useEffect(() => {
-		if (initialSpellId) {
+    // Initialize from binding if provided
+    useEffect(() => {
+        if (binding) {
+            if (binding.keyOrButton) {
+                setActiveTab('key')
+                setSelectedSpell(binding.spellId)
+                setSelectedKey(binding.keyOrButton)
+                setTriggerMode(binding.triggerMode || 'press')
+                setHoldInterval(binding.holdInterval || 100)
+            } else {
+                setActiveTab('custom')
+                setCustomSpell(binding.spellId)
+                setCustomEventName(binding.eventName)
+            }
+        } else if (initialSpellId) {
 			setSelectedSpell(initialSpellId)
             setCustomSpell(initialSpellId)
 		}
-	}, [initialSpellId])
+    }, [binding, initialSpellId])
+
 	
 	// Key capture handler
 	useEffect(() => {
@@ -83,11 +99,16 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 	const addKeyBinding = () => {
 		if (!selectedSpell || !selectedKey) return
 		
+        // If editing, remove old binding first
+        if (binding) {
+            eventQueue.removeBinding(binding.id)
+        }
+
 		const eventName = triggerMode === 'hold' ? 'whileKeyHeld' : 
 		                  triggerMode === 'release' ? 'onKeyReleased' : 'onKeyPressed'
 		
-		const binding: EventBinding = {
-			id: `key-${selectedKey}-${Date.now()}`,
+		const newBinding: EventBinding = {
+			id: binding ? binding.id : `key-${selectedKey}-${Date.now()}`, // Keep ID if editing
 			eventName,
 			spellId: selectedSpell,
 			triggerMode,
@@ -95,7 +116,7 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 			keyOrButton: selectedKey  // Store the specific key
 		}
 		
-		eventQueue.addBinding(binding)
+		eventQueue.addBinding(newBinding)
 		
 		// Reset form
 		setSelectedSpell(null)
@@ -107,13 +128,18 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 	const addCustomBinding = () => {
 		if (!customSpell || !customEventName.trim()) return
 		
-		const binding: EventBinding = {
-			id: `custom-${customEventName}-${Date.now()}`,
+        // If editing, remove old binding first
+        if (binding) {
+            eventQueue.removeBinding(binding.id)
+        }
+
+		const newBinding: EventBinding = {
+			id: binding ? binding.id : `custom-${customEventName}-${Date.now()}`, // Keep ID if editing
 			eventName: customEventName.trim(),
 			spellId: customSpell
 		}
 		
-		eventQueue.addBinding(binding)
+		eventQueue.addBinding(newBinding)
 		
 		// Reset form
 		setCustomSpell(null)
@@ -123,10 +149,10 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 	
 	return (
 		<Stack h="100%" gap="md" p="md">
-			<Title order={4}>Add Event Binding</Title>
+			<Title order={4}>{binding ? 'Edit Event Binding' : 'Add Event Binding'}</Title>
 			
 			<Card withBorder shadow="sm" radius="md" p={0}>
-				<Tabs defaultValue="key" variant="pills" radius="md" p="xs">
+				<Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md" p="xs">
 					<Tabs.List grow mb="xs">
 						<Tabs.Tab value="key">Key Binding</Tabs.Tab>
 						<Tabs.Tab value="custom">Custom Event</Tabs.Tab>
@@ -203,7 +229,7 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 								variant="filled"
 								color="blue"
 							>
-								Add Key Binding
+								{binding ? 'Update Key Binding' : 'Add Key Binding'}
 							</Button>
 						</Stack>
 					</Tabs.Panel>
@@ -234,7 +260,7 @@ export function AddEventPanel({ initialSpellId, onClose }: { initialSpellId?: st
 								variant="filled"
 								color="violet"
 							>
-								Add Custom Binding
+								{binding ? 'Update Custom Binding' : 'Add Custom Binding'}
 							</Button>
 						</Stack>
 					</Tabs.Panel>

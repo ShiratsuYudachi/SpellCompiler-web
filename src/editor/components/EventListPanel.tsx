@@ -12,7 +12,7 @@ interface SpellOption {
 	label: string
 }
 
-export function EventListPanel({ onAdd }: { onAdd?: () => void }) {
+export function EventListPanel({ onAdd, onEdit }: { onAdd?: () => void, onEdit?: (binding: EventBinding) => void }) {
 	const [bindings, setBindings] = useState<EventBinding[]>([])
 	const [spells, setSpells] = useState<SpellOption[]>([])
 	
@@ -111,15 +111,28 @@ export function EventListPanel({ onAdd }: { onAdd?: () => void }) {
 									)}
 								</Stack>
 
-								<ActionIcon 
-									color="red" 
-									variant="light" 
-									size="lg"
-									onClick={() => removeBinding(binding.id)}
-									aria-label="Remove binding"
-								>
-									✕
-								</ActionIcon>
+								<Group gap={4}>
+									{onEdit && (
+										<ActionIcon 
+											color="blue" 
+											variant="light" 
+											size="lg"
+											onClick={() => onEdit(binding)}
+											aria-label="Edit binding"
+										>
+											✎
+										</ActionIcon>
+									)}
+									<ActionIcon 
+										color="red" 
+										variant="light" 
+										size="lg"
+										onClick={() => removeBinding(binding.id)}
+										aria-label="Remove binding"
+									>
+										✕
+									</ActionIcon>
+								</Group>
 							</Paper>
 						))
 					)}

@@ -39,6 +39,7 @@ import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import { GameEvents } from '../../game/events'
+import { eventQueue, type EventBinding } from '../../game/events/EventQueue'
 import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'
@@ -134,6 +135,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	} | null>(null);
 	const [addEventModalOpen, setAddEventModalOpen] = useState(false);
 	const [eventListModalOpen, setEventListModalOpen] = useState(false);
+    const [editingBinding, setEditingBinding] = useState<EventBinding | null>(null);
 	const [contextMenu, setContextMenu] = useState<{
 		show: boolean;
 		position: { x: number; y: number };
@@ -959,16 +961,6 @@ function EditorContent(props: FunctionalEditorProps) {
 		)}
 	</div>
 	
-		{/* Add Event Modal */}
-	<Modal
-		opened={addEventModalOpen}
-		onClose={() => setAddEventModalOpen(false)}
-		title="Add Event Binding"
-		size="lg"
-	>
-		<AddEventPanel onClose={() => setAddEventModalOpen(false)} />
-	</Modal>
-
 	{/* Event List Modal */}
 	<Modal
 		opened={eventListModalOpen}
@@ -976,7 +968,37 @@ function EditorContent(props: FunctionalEditorProps) {
 		title="Active Bindings"
 		size="lg"
 	>
-		<EventListPanel onAdd={() => setAddEventModalOpen(true)} />
+		<EventListPanel 
+            onAdd={() => {
+                setEditingBinding(null)
+                setAddEventModalOpen(true)
+            }}
+            onEdit={(binding) => {
+                setEditingBinding(binding)
+                setAddEventModalOpen(true)
+            }}
+        />
+	</Modal>
+
+	{/* Add Event Modal */}
+	<Modal
+		opened={addEventModalOpen}
+		onClose={() => {
+            setAddEventModalOpen(false)
+            setEditingBinding(null)
+        }}
+		title={editingBinding ? "Edit Event Binding" : "Add Event Binding"}
+		size="lg"
+        zIndex={300}
+	>
+		<AddEventPanel 
+            initialSpellId={spellId} 
+            binding={editingBinding}
+            onClose={() => {
+                setAddEventModalOpen(false)
+                setEditingBinding(null)
+            }} 
+        />
 	</Modal>
 	</EditorProvider>
 	);

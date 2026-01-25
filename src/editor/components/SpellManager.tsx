@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Badge, Button, Group, Paper, Stack, Text, TextInput, Modal } from '@mantine/core'
-import { deleteSpell, listSpells, type SpellMeta } from '../utils/spellStorage'
+import { deleteSpell, duplicateSpell, listSpells, loadSpell, type SpellMeta } from '../utils/spellStorage'
 import { AddEventPanel } from './AddEventPanel'
 
 export function SpellManager(props: {
@@ -13,12 +13,36 @@ export function SpellManager(props: {
 	const [error, setError] = useState<string | null>(null)
 	const [bindingModalOpen, setBindingModalOpen] = useState(false)
 	const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null)
+    
+    // Duplicate modal state
+    const [duplicateModalOpen, setDuplicateModalOpen] = useState(false)
+    const [spellToDuplicate, setSpellToDuplicate] = useState<string | null>(null)
+    const [duplicateName, setDuplicateName] = useState('')
 
 	const refresh = () => setSpells(listSpells())
 
 	useEffect(() => {
 		refresh()
 	}, [])
+
+    const handleDuplicateClick = (id: string) => {
+        const spell = loadSpell(id)
+        if (spell) {
+            setSpellToDuplicate(id)
+            setDuplicateName(`Copy of ${spell.name}`)
+            setDuplicateModalOpen(true)
+        }
+    }
+
+    const confirmDuplicate = () => {
+        if (spellToDuplicate && duplicateName.trim()) {
+            duplicateSpell(spellToDuplicate, duplicateName.trim())
+            setDuplicateModalOpen(false)
+            setSpellToDuplicate(null)
+            setDuplicateName('')
+            refresh()
+        }
+    }
 
 	return (
 		<div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -97,6 +121,16 @@ export function SpellManager(props: {
 									Edit
 								</Button>
 								<Button
+									variant="outline"
+									color="cyan"
+									onClick={() => {
+										setError(null)
+                                        handleDuplicateClick(s.id)
+									}}
+								>
+									Duplicate
+								</Button>
+								<Button
 									color="red"
 									variant="outline"
 									onClick={() => {
@@ -122,6 +156,26 @@ export function SpellManager(props: {
 			>
 				<AddEventPanel initialSpellId={selectedSpellId} onClose={() => setBindingModalOpen(false)} />
 			</Modal>
+
+            <Modal
+                opened={duplicateModalOpen}
+                onClose={() => setDuplicateModalOpen(false)}
+                title="Duplicate Spell"
+            >
+                <Stack>
+                    <TextInput
+                        label="New Spell Name"
+                        value={duplicateName}
+                        onChange={(e) => setDuplicateName(e.currentTarget.value)}
+                        placeholder="Enter new name"
+                        data-autofocus
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={() => setDuplicateModalOpen(false)}>Cancel</Button>
+                        <Button onClick={confirmDuplicate}>Duplicate</Button>
+                    </Group>
+                </Stack>
+            </Modal>
 		</div>
 	)
 }
