@@ -3,6 +3,7 @@ import type { Value, FunctionValue, GameState } from '../ast/ast';
 import { GameStateManager } from '../../game/state/GameStateManager';
 import { Health } from '../../game/components';
 import { spawnFireball } from '../../game/prefabs/spawnFireball';
+import { eventQueue } from '../../game/events/EventQueue';
 
 // Global state manager reference
 let globalStateManager: GameStateManager | null = null;
@@ -215,8 +216,6 @@ export function registerGameFunctions(evaluator: Evaluator) {
 				throw new Error('Event name must be a string');
 			}
 			
-			// Import eventQueue lazily to avoid circular dependency
-			const { eventQueue } = require('../../game/events/EventQueue');
 			eventQueue.emit(eventName, state, ...extraArgs);
 			
 			return state;

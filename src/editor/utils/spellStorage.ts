@@ -1,4 +1,5 @@
 import type { Spell } from '../ast/ast'
+import { flowToIR } from './flowToIR'
 
 export type SpellMeta = {
 	id: string
@@ -64,8 +65,6 @@ export function upsertSpell(params: { id?: string | null; name: string; flow: un
 	let hasCompiledAST = false
 	
 	try {
-		// Import flowToIR dynamically to avoid circular dependency
-		const { flowToIR } = require('./flowToIR')
 		const flow = params.flow as { nodes: any[], edges: any[] }
 		
 		if (flow && flow.nodes && flow.edges) {
