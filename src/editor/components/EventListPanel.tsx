@@ -3,17 +3,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { 
-	Group, 
-	Stack, 
-	Text, 
-	Badge, 
-	ActionIcon, 
-	ScrollArea,
-	Paper,
-	Title,
-	Code
-} from '@mantine/core'
+import { Button, Group, Stack, Text, Badge, ActionIcon, ScrollArea, Paper, Title, Code } from '@mantine/core'
 import { eventQueue, type EventBinding } from '../../game/events/EventQueue'
 import { listSpells } from '../utils/spellStorage'
 
@@ -22,7 +12,7 @@ interface SpellOption {
 	label: string
 }
 
-export function EventListPanel() {
+export function EventListPanel({ onAdd }: { onAdd?: () => void }) {
 	const [bindings, setBindings] = useState<EventBinding[]>([])
 	const [spells, setSpells] = useState<SpellOption[]>([])
 	
@@ -53,8 +43,15 @@ export function EventListPanel() {
 	return (
 		<Stack h="100%" gap="md" p="md">
 			<Group justify="space-between" align="center">
-				<Title order={4}>Active Bindings</Title>
-				<Badge size="lg" variant="light" color="blue">{bindings.length} Active</Badge>
+				<Group gap="xs">
+					<Title order={4}>Active Bindings</Title>
+					<Badge size="lg" variant="light" color="blue">{bindings.length} Active</Badge>
+				</Group>
+				{onAdd && (
+					<Button size="xs" variant="light" onClick={onAdd}>
+						+ Add Binding
+					</Button>
+				)}
 			</Group>
 			
 			<ScrollArea style={{ flex: 1, minHeight: 200 }} offsetScrollbars>

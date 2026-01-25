@@ -767,9 +767,6 @@ function EditorContent(props: FunctionalEditorProps) {
 		{/* Header - Row 1 */}
 		<Paper shadow="sm" p="md" className="border-b">
 			<div className="flex items-center justify-between">
-				<Text size="xl" fw={700}>
-					⚡ Functional Workflow Editor
-				</Text>
 				<Group gap="sm">
 					{props.onExit ? (
 						<Button size="sm" variant="outline" color="gray" onClick={props.onExit}>
@@ -796,11 +793,8 @@ function EditorContent(props: FunctionalEditorProps) {
 					<Button size="sm" variant="outline" color="gray" onClick={handleExport}>
 						📤 Export
 					</Button>
-					<Button size="sm" variant="outline" color="violet" onClick={() => setAddEventModalOpen(true)}>
-						➕ Add Event
-					</Button>
-					<Button size="sm" variant="outline" color="indigo" onClick={() => setEventListModalOpen(true)}>
-						📋 Bindings
+					<Button size="sm" variant="outline" color="violet" onClick={() => setEventListModalOpen(true)}>
+						📡 Event Bindings
 					</Button>
 					<Button size="sm" color="blue" onClick={handleCompileAndSave}>
 						Compile & Save
@@ -982,7 +976,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		title="Active Bindings"
 		size="lg"
 	>
-		<EventListPanel />
+		<EventListPanel onAdd={() => setAddEventModalOpen(true)} />
 	</Modal>
 	</EditorProvider>
 	);
