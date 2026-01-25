@@ -7,7 +7,25 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Button, Select, TextInput, NumberInput, Group, Stack, Text, Card, Badge, ActionIcon } from '@mantine/core'
+import { 
+	Button, 
+	Select, 
+	TextInput, 
+	NumberInput, 
+	Group, 
+	Stack, 
+	Text, 
+	Card, 
+	Badge, 
+	ActionIcon, 
+	Tabs, 
+	Divider, 
+	ScrollArea,
+	Paper,
+	Title,
+	Accordion,
+	Code
+} from '@mantine/core'
 import { eventQueue, type EventBinding, BUILT_IN_EVENTS } from '../../game/events/EventQueue'
 import { listSpells } from '../utils/spellStorage'
 
@@ -119,144 +137,219 @@ export function EventBindingPanel() {
 	}
 	
 	return (
-		<Stack gap="md" p="md">
-			<Text size="lg" fw={700}>Event Bindings</Text>
+		<Stack h="100%" gap="md" p="md">
+			<Group justify="space-between" align="center">
+				<Title order={4}>Event Manager</Title>
+				<Badge size="lg" variant="light" color="blue">{bindings.length} Active</Badge>
+			</Group>
 			
-			{/* Quick Key Binding */}
-			<Card withBorder p="sm">
-				<Text size="sm" fw={600} mb="xs">Quick Key Binding</Text>
-				<Stack gap="xs">
-					<Select
-						label="Spell"
-						placeholder="Select a spell"
-						data={spells}
-						value={selectedSpell}
-						onChange={setSelectedSpell}
-						searchable
-					/>
-					<div>
-						<Text size="sm" fw={500} mb={4}>Key</Text>
-						<Button
-							variant={isCapturingKey ? 'filled' : 'light'}
-							color={isCapturingKey ? 'orange' : 'blue'}
-							fullWidth
-							onClick={() => setIsCapturingKey(true)}
-						>
-							{isCapturingKey ? '⌨️ Press any key...' : (selectedKey || 'Click to capture key')}
-						</Button>
-						{selectedKey && !isCapturingKey && (
-							<Button
-								size="xs"
-								variant="subtle"
-								color="gray"
-								fullWidth
-								mt={4}
-								onClick={() => setSelectedKey('')}
+			<Card withBorder shadow="sm" radius="md" p={0}>
+				<Tabs defaultValue="key" variant="pills" radius="md" p="xs">
+					<Tabs.List grow mb="xs">
+						<Tabs.Tab value="key">Key Binding</Tabs.Tab>
+						<Tabs.Tab value="custom">Custom Event</Tabs.Tab>
+					</Tabs.List>
+
+					<Tabs.Panel value="key">
+						<Stack gap="xs" p="xs">
+							<Select
+								label="Spell"
+								placeholder="Select a spell to trigger"
+								data={spells}
+								value={selectedSpell}
+								onChange={setSelectedSpell}
+								searchable
+								checkIconPosition="right"
+							/>
+							
+							<Group grow align="flex-end">
+								<Stack gap={4} style={{ flex: 1 }}>
+									<Text size="sm" fw={500}>Trigger Key</Text>
+									<Button
+										variant={isCapturingKey ? 'filled' : 'light'}
+										color={isCapturingKey ? 'red' : 'gray'}
+										onClick={() => setIsCapturingKey(true)}
+										style={{ 
+											transition: 'all 0.2s',
+											border: isCapturingKey ? '2px solid var(--mantine-color-red-6)' : undefined
+										}}
+									>
+										{isCapturingKey ? 'Press any key...' : (selectedKey ? `Key: ${selectedKey}` : 'Click to Capture')}
+									</Button>
+								</Stack>
+								
+								{selectedKey && !isCapturingKey && (
+									<Button 
+										variant="subtle" 
+										color="gray" 
+										onClick={() => setSelectedKey('')}
+										style={{ flex: 0, paddingLeft: 8, paddingRight: 8 }}
+									>
+										✕
+									</Button>
+								)}
+							</Group>
+
+							<Group grow>
+								<Select
+									label="Mode"
+									data={[
+										{ value: 'press', label: 'On Press' },
+										{ value: 'release', label: 'On Release' },
+										{ value: 'hold', label: 'While Holding' }
+									]}
+									value={triggerMode}
+									onChange={(v) => setTriggerMode(v as 'press' | 'release' | 'hold')}
+								/>
+								{triggerMode === 'hold' && (
+									<NumberInput
+										label="Interval (ms)"
+										value={holdInterval}
+										onChange={(v) => setHoldInterval(typeof v === 'number' ? v : 100)}
+										min={16}
+										max={5000}
+										step={10}
+									/>
+								)}
+							</Group>
+
+							<Button 
+								fullWidth 
+								mt="xs" 
+								onClick={addKeyBinding} 
+								disabled={!selectedSpell || !selectedKey}
+								variant="filled"
+								color="blue"
 							>
-								Clear
+								Add Key Binding
 							</Button>
-						)}
-					</div>
-					<Select
-						label="Trigger Mode"
-						data={[
-							{ value: 'press', label: 'On Press' },
-							{ value: 'release', label: 'On Release' },
-							{ value: 'hold', label: 'While Holding' }
-						]}
-						value={triggerMode}
-						onChange={(v) => setTriggerMode(v as 'press' | 'release' | 'hold')}
-					/>
-					{triggerMode === 'hold' && (
-						<NumberInput
-							label="Interval (ms)"
-							value={holdInterval}
-							onChange={(v) => setHoldInterval(typeof v === 'number' ? v : 100)}
-							min={16}
-							max={5000}
-						/>
-					)}
-					<Button onClick={addKeyBinding} disabled={!selectedSpell || !selectedKey}>
-						Add Key Binding
-					</Button>
-				</Stack>
+						</Stack>
+					</Tabs.Panel>
+
+					<Tabs.Panel value="custom">
+						<Stack gap="xs" p="xs">
+							<TextInput
+								label="Event Name"
+								placeholder="e.g., onBulletNear"
+								description="Name of the event to listen for"
+								value={customEventName}
+								onChange={(e) => setCustomEventName(e.currentTarget.value)}
+							/>
+							<Select
+								label="Handler Spell"
+								placeholder="Select a spell"
+								data={spells}
+								value={customSpell}
+								onChange={setCustomSpell}
+								searchable
+								checkIconPosition="right"
+							/>
+							<Button 
+								fullWidth 
+								mt="xs" 
+								onClick={addCustomBinding} 
+								disabled={!customSpell || !customEventName.trim()}
+								variant="filled"
+								color="violet"
+							>
+								Add Custom Binding
+							</Button>
+						</Stack>
+					</Tabs.Panel>
+				</Tabs>
 			</Card>
 			
-			{/* Custom Event Binding */}
-			<Card withBorder p="sm">
-				<Text size="sm" fw={600} mb="xs">Custom Event Binding</Text>
-				<Stack gap="xs">
-					<TextInput
-						label="Event Name"
-						placeholder="e.g., onBulletNear"
-						value={customEventName}
-						onChange={(e) => setCustomEventName(e.currentTarget.value)}
-					/>
-					<Select
-						label="Handler Spell"
-						placeholder="Select a spell"
-						data={spells}
-						value={customSpell}
-						onChange={setCustomSpell}
-						searchable
-					/>
-					<Button onClick={addCustomBinding} disabled={!customSpell || !customEventName.trim()}>
-						Add Custom Binding
-					</Button>
-				</Stack>
-			</Card>
+			<Divider label="Active Bindings" labelPosition="center" />
 			
-			{/* Active Bindings */}
-			<Card withBorder p="sm">
-				<Text size="sm" fw={600} mb="xs">Active Bindings ({bindings.length})</Text>
+			<ScrollArea style={{ flex: 1, minHeight: 200 }} offsetScrollbars>
 				<Stack gap="xs">
 					{bindings.length === 0 ? (
-						<Text size="sm" c="dimmed">No bindings yet</Text>
+						<Paper p="xl" withBorder style={{ borderStyle: 'dashed', textAlign: 'center', backgroundColor: 'transparent' }}>
+							<Text c="dimmed" size="sm">No active bindings</Text>
+							<Text c="dimmed" size="xs" mt={4}>Add a binding above to get started</Text>
+						</Paper>
 					) : (
 						bindings.map((binding) => (
-							<Group key={binding.id} justify="space-between" p="xs" style={{ background: '#f8f9fa', borderRadius: 4 }}>
-								<Group gap="xs">
-									<Badge color="blue" size="sm">{binding.eventName}</Badge>
-									{binding.keyOrButton !== undefined && (
-										<Badge color="cyan" size="sm" variant="light">
-											Key: {String(binding.keyOrButton)}
+							<Paper 
+								key={binding.id} 
+								shadow="xs" 
+								p="sm" 
+								radius="md" 
+								withBorder
+								style={{ 
+									display: 'flex', 
+									alignItems: 'center', 
+									justifyContent: 'space-between',
+									transition: 'transform 0.2s, box-shadow 0.2s',
+								}}
+							>
+								<Stack gap={4} style={{ flex: 1 }}>
+									<Group gap="xs" wrap="nowrap">
+										<Badge 
+											color={binding.keyOrButton !== undefined ? 'blue' : 'violet'} 
+											variant="light"
+											size="sm"
+										>
+											{binding.eventName}
 										</Badge>
+										{binding.keyOrButton !== undefined && (
+											<Code fz="xs" fw={700} c="blue">{String(binding.keyOrButton)}</Code>
+										)}
+									</Group>
+									
+									<Group gap={6} align="center">
+										<Text size="xs" c="dimmed">triggers</Text>
+										<Text size="sm" fw={600} c="dark">{getSpellName(binding.spellId)}</Text>
+									</Group>
+
+									{(binding.triggerMode || binding.holdInterval) && (
+										<Group gap={6}>
+											{binding.triggerMode && (
+												<Badge variant="outline" color="gray" size="xs" style={{ textTransform: 'none' }}>
+													mode: {binding.triggerMode}
+												</Badge>
+											)}
+											{binding.holdInterval && (
+												<Badge variant="outline" color="orange" size="xs" style={{ textTransform: 'none' }}>
+													{binding.holdInterval}ms
+												</Badge>
+											)}
+										</Group>
 									)}
-									<Text size="sm">→</Text>
-									<Text size="sm" fw={500}>{getSpellName(binding.spellId)}</Text>
-									{binding.triggerMode && (
-										<Badge color="gray" size="xs">{binding.triggerMode}</Badge>
-									)}
-									{binding.holdInterval && (
-										<Badge color="orange" size="xs">{binding.holdInterval}ms</Badge>
-									)}
-								</Group>
+								</Stack>
+
 								<ActionIcon 
 									color="red" 
-									variant="subtle" 
-									size="sm"
+									variant="light" 
+									size="lg"
 									onClick={() => removeBinding(binding.id)}
+									aria-label="Remove binding"
 								>
 									✕
 								</ActionIcon>
-							</Group>
+							</Paper>
 						))
 					)}
 				</Stack>
-			</Card>
+			</ScrollArea>
 			
-			{/* Built-in Events Reference */}
-			<Card withBorder p="sm">
-				<Text size="sm" fw={600} mb="xs">Built-in Events</Text>
-				<Stack gap={4}>
-					{Object.entries(BUILT_IN_EVENTS).map(([name, info]) => (
-						<Group key={name} gap="xs">
-							<Badge color="violet" size="xs">{name}</Badge>
-							<Text size="xs" c="dimmed">({info.params.join(', ')})</Text>
-						</Group>
-					))}
-				</Stack>
-			</Card>
+			<Accordion variant="contained" radius="md">
+				<Accordion.Item value="builtin">
+					<Accordion.Control icon="ℹ️">
+						<Text size="sm">Built-in Events Reference</Text>
+					</Accordion.Control>
+					<Accordion.Panel>
+						<Stack gap="xs">
+							{Object.entries(BUILT_IN_EVENTS).map(([name, info]) => (
+								<Group key={name} justify="space-between" wrap="nowrap">
+									<Text size="xs" fw={500} style={{ flex: 1 }}>{name}</Text>
+									<Code fz="xs" c="dimmed">{info.params.join(', ') || 'no params'}</Code>
+								</Group>
+							))}
+						</Stack>
+					</Accordion.Panel>
+				</Accordion.Item>
+			</Accordion>
 		</Stack>
 	)
 }
