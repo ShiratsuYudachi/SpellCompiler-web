@@ -89,7 +89,7 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 			}
 		}
 
-		// Time-based deflection system: check if projectile should deflect
+		// Time-based deflection system (legacy single deflection)
 		const deflectAngle = FireballStats.pendingDeflection[eid]
 		if (deflectAngle !== 0) {
 			const deflectTime = FireballStats.deflectAtTime[eid]
@@ -99,6 +99,17 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 				applyDeflection(world, eid, deflectAngle)
 				// Clear deflection flag
 				FireballStats.pendingDeflection[eid] = 0
+			}
+		}
+
+		// Deflection queue system: process multiple sequential deflections
+		const queue = FireballStats.deflectionQueue[eid]
+		if (queue && queue.length > 0) {
+			const now = Date.now()
+			// Check if the first item in queue should trigger
+			while (queue.length > 0 && now >= queue[0].triggerTime) {
+				const item = queue.shift()!
+				applyDeflection(world, eid, item.angle)
 			}
 		}
 
