@@ -2,6 +2,13 @@ import type { Spell } from '../ast/ast'
 import { flowToIR } from './flowToIR'
 import { SaveManager } from '../../storage/SaveManager'
 
+export type UIState = {
+	nodes: any[]
+	edges: any[]
+	viewport?: { x: number; y: number; zoom: number }
+	timestamp: number
+}
+
 export type SpellMeta = {
 	id: string
 	name: string
@@ -12,19 +19,7 @@ export type SpellMeta = {
 export type StoredSpell = SpellMeta & {
 	flow: unknown
 	compiledSpell?: Spell  // Optional: only present if compilation succeeded
-}
-
-function readJson<T>(raw: string | null): T | null {
-	if (!raw) return null
-	try {
-		return JSON.parse(raw) as T
-	} catch {
-		return null
-	}
-}
-
-function writeJson(key: string, value: unknown) {
-	localStorage.setItem(key, JSON.stringify(value))
+	uiState?: UIState  // Optional: editor UI state (viewport, positions, etc.)
 }
 
 export function listSpells(): SpellMeta[] {
@@ -58,7 +53,12 @@ export function deleteSpell(id: string) {
 	SaveManager.updateCurrentSaveData({ spells: newSpells })
 }
 
-export function upsertSpell(params: { id?: string | null; name: string; flow: unknown }): string {
+export function upsertSpell(params: { 
+	id?: string | null
+	name: string
+	flow: unknown
+	uiState?: UIState 
+}): string {
 	const now = Date.now()
 	const id = params.id || `spell-${now}`
 	
@@ -85,7 +85,8 @@ export function upsertSpell(params: { id?: string | null; name: string; flow: un
 		savedAt: now, 
 		hasCompiledAST,
 		flow: params.flow,
-		compiledSpell: compiledAST
+		compiledSpell: compiledAST,
+		uiState: params.uiState
 	}
 
 	// Save to current save file
@@ -102,29 +103,33 @@ export function upsertSpell(params: { id?: string | null; name: string; flow: un
 	return id
 }
 
-// UI State storage for library mode (preserves node positions, zoom, etc.)
-const UI_STATE_KEY_PREFIX = 'spellcompiler:ui-state:'
-
-export type UIState = {
-	nodes: any[]
-	edges: any[]
-	viewport?: { x: number; y: number; zoom: number }
-	timestamp: number
-}
-
+// UI State now stored in spell data (no separate localStorage keys needed)
 export function saveUIState(spellId: string, state: UIState) {
-	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
-	writeJson(key, state)
+	// Load existing spell
+	const spell = loadSpell(spellId)
+	if (!spell) {
+		console.warn(`[spellStorage] Cannot save UI state: spell ${spellId} not found`)
+		return
+	}
+	
+	// Update spell with new UI state
+	upsertSpell({
+		id: spellId,
+		name: spell.name,
+		flow: spell.flow,
+		uiState: state
+	})
 }
 
 export function loadUIState(spellId: string): UIState | null {
-	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
-	return readJson<UIState>(localStorage.getItem(key))
+	const spell = loadSpell(spellId)
+	return spell?.uiState || null
 }
 
 export function deleteUIState(spellId: string) {
-	const key = `${UI_STATE_KEY_PREFIX}${spellId}`
-	localStorage.removeItem(key)
+	// UI state is part of spell data, deleted automatically when spell is deleted
+	// This function kept for compatibility but does nothing
+	console.log(`[spellStorage] deleteUIState called for ${spellId} - UI state deleted with spell`)
 }
 
 export function duplicateSpell(id: string, newName?: string): string | null {
@@ -133,16 +138,12 @@ export function duplicateSpell(id: string, newName?: string): string | null {
 
 	const name = newName || `Copy of ${spell.name}`
 	// upsertSpell will generate a new ID and handle compilation
+	// UI state is automatically included in the spell data
 	const newId = upsertSpell({
 		name: name,
-		flow: spell.flow
+		flow: spell.flow,
+		uiState: spell.uiState
 	})
-
-	// Also duplicate UI state if it exists
-	const uiState = loadUIState(id)
-	if (uiState) {
-		saveUIState(newId, uiState)
-	}
 
 	return newId
 }

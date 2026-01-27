@@ -42,7 +42,7 @@ import type { EventBinding } from '../../game/events/EventQueue'
 import { getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { updateSpellInCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
-import { upsertSpell, saveUIState } from '../utils/spellStorage'
+import { upsertSpell } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
 import { SpellInputNode } from './nodes/SpellInputNode'
 import { AddEventPanel } from './AddEventPanel'
@@ -222,28 +222,26 @@ function EditorContent(props: FunctionalEditorProps) {
 				return // Only save if we have a spell ID
 			}
 
-			const timeoutId = setTimeout(() => {
-				try {
-					console.log('[Editor] Auto-saving spell data for:', spellId, 'name:', spellName)
+		const timeoutId = setTimeout(() => {
+			try {
+				console.log('[Editor] Auto-saving spell data for:', spellId, 'name:', spellName)
 
-					// Save both the spell data AND UI state
-					upsertSpell({
-						id: spellId,
-						name: spellName,
-						flow: { nodes, edges }
-					})
-					console.log('[Editor] Spell data auto-saved successfully')
-
-					saveUIState(spellId, {
+				// Save spell data with UI state
+				upsertSpell({
+					id: spellId,
+					name: spellName,
+					flow: { nodes, edges },
+					uiState: {
 						nodes,
 						edges,
 						timestamp: Date.now()
-					})
-					console.log('[Editor] UI state auto-saved successfully')
-				} catch (err) {
-					console.error('[Editor] Failed to auto-save:', err)
-				}
-			}, 1000) // 1 second debounce
+					}
+				})
+				console.log('[Editor] Spell data and UI state auto-saved successfully')
+			} catch (err) {
+				console.error('[Editor] Failed to auto-save:', err)
+			}
+		}, 1000) // 1 second debounce
 
 			return () => clearTimeout(timeoutId)
 		}
@@ -278,26 +276,24 @@ function EditorContent(props: FunctionalEditorProps) {
 				console.log('[Editor] Force save: No spellId in library mode')
 				return
 			}
-			try {
-				console.log('[Editor] Force saving spell data for:', spellId, 'name:', spellName)
+		try {
+			console.log('[Editor] Force saving spell data for:', spellId, 'name:', spellName)
 
-				// Save both the spell data AND UI state
-				upsertSpell({
-					id: spellId,
-					name: spellName,
-					flow: { nodes, edges }
-				})
-				console.log('[Editor] Spell data saved successfully')
-
-				saveUIState(spellId, {
+			// Save spell data with UI state
+			upsertSpell({
+				id: spellId,
+				name: spellName,
+				flow: { nodes, edges },
+				uiState: {
 					nodes,
 					edges,
 					timestamp: Date.now()
-				})
-				console.log('[Editor] UI state saved successfully')
-			} catch (err) {
-				console.error('[Editor] Force save failed:', err)
-			}
+				}
+			})
+			console.log('[Editor] Spell data and UI state saved successfully')
+		} catch (err) {
+			console.error('[Editor] Force save failed:', err)
+		}
 		} else {
 			// Game mode: No force save needed
 			// Workflow is intentionally temporary and resets on level entry
@@ -610,17 +606,18 @@ function EditorContent(props: FunctionalEditorProps) {
 			const name = spellName.trim() || 'New Spell'
 			const flow = toObject()
 
-			// Save spell data
-			const nextId = upsertSpell({ id: spellId, name, flow })
-			console.log('[Editor] Saved to library:', nextId, 'name:', name)
-
-			// Save UI state (preserves node positions, zoom, etc.)
-			saveUIState(nextId, {
+		// Save spell data with UI state
+		const nextId = upsertSpell({ 
+			id: spellId, 
+			name, 
+			flow,
+			uiState: {
 				nodes,
 				edges,
 				timestamp: Date.now()
-			})
-			console.log('[Editor] UI state saved for:', nextId)
+			}
+		})
+		console.log('[Editor] Saved to library with UI state:', nextId, 'name:', name)
 
 			setSpellId(nextId)
 			setSpellName(name)
