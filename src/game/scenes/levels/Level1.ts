@@ -1,7 +1,5 @@
-import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
-import { spawnEntity, despawnEntity } from '../../gameWorld'
-import { Velocity, Health, Sprite } from '../../components'
+import { Velocity } from '../../components'
 import { createCircleBody } from '../../prefabs/createCircleBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 

@@ -3,7 +3,6 @@ import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
-import { castSpell } from '../../spells/castSpell'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 
 export const Level11Meta: LevelMeta = {

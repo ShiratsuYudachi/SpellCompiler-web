@@ -15,7 +15,6 @@ export class LaserWall {
 	constructor(scene: Phaser.Scene, x: number, y: number, width: number, height: number) {
 		this.scene = scene
 		this.x = x
-		this.y = y
 		this.width = width
 		this.height = height
 
