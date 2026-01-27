@@ -32,9 +32,10 @@ export class LevelSelectInterface extends Phaser.Scene {
 
 		// Level mapping configuration
 		const levelMapping = [
-			{ num: 1, sceneKey: 'Level1', name: 'Puzzle' },
-			{ num: 2, sceneKey: 'Level2', name: 'Boss Battle' },
+			{ num: 1, sceneKey: 'Level1', name: 'Move' },
+			{ num: 2, sceneKey: 'Level2', name: 'Attack' },
 			{ num: 3, sceneKey: 'Level3', name: 'Combat' },
+			{ num: 16, sceneKey: 'Level16', name: 'Boss Battle' },
 		]
 
 		// Generate 20 levels (4 columns, 5 rows)

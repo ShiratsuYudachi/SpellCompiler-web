@@ -116,7 +116,7 @@ export class Level1 extends BaseScene {
 	protected onLevelCreate(): void {
 		// Tutorial hint
 		this.showInstruction(
-			'【Level 1: Code-Driven Movement】\n\n' +
+			'【Level 1: Move】\n\n' +
 			'Welcome to the Spell Compiler!\n' +
 			'Here, you cannot move with WASD. You must write code to move.\n\n' +
 			'• Press TAB to open the Spell Editor.\n' +

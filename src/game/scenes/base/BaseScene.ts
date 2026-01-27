@@ -558,15 +558,15 @@ export abstract class BaseScene extends Phaser.Scene {
 
 	private initControlsPanel() {
 		const x = 20
-		const y = 540 - 160
+		const y = 540 - 110
 
 		this.controlsPanel = this.add.container(x, y).setScrollFactor(0).setDepth(1000)
 
 		const bg = this.add.graphics()
 		bg.fillStyle(0x1a1f2e, 0.85)
-		bg.fillRoundedRect(0, 0, 250, 140, 8)
+		bg.fillRoundedRect(0, 0, 250, 90, 8)
 		bg.lineStyle(2, 0x4a90e2, 0.6)
-		bg.strokeRoundedRect(0, 0, 250, 140, 8)
+		bg.strokeRoundedRect(0, 0, 250, 90, 8)
 
 		const title = this.add.graphics()
 		title.fillStyle(0x2d3748, 0.9)
@@ -581,9 +581,6 @@ export abstract class BaseScene extends Phaser.Scene {
 			.setOrigin(0.5)
 
 		const controls = [
-			'WASD / Arrows  →  Move',
-			'Space  →  Melee (1s CD)',
-			'Left Click  →  Fireball (0.3s CD)',
 			'1  →  Cast Spell',
 			'Tab  →  Toggle Editor',
 			'ESC  →  Pause Menu',
