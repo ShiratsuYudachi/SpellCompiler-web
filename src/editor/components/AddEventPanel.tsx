@@ -238,7 +238,7 @@ export function AddEventPanel({ initialSpellId, binding, onClose }: { initialSpe
 						<Stack gap="xs" p="xs">
 							<TextInput
 								label="Event Name"
-								placeholder="e.g., onBulletNear"
+								placeholder="e.g., onTick"
 								description="Name of the event to listen for"
 								value={customEventName}
 								onChange={(e) => setCustomEventName(e.currentTarget.value)}

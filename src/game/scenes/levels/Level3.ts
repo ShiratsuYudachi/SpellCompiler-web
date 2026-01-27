@@ -417,7 +417,7 @@ export class Level3 extends BaseScene {
 			)
 
 			// Emit event when bullet is near (within 150 pixels)
-			if (distance < 150) {
+			if (distance < 50) {
 				const initialState = { type: 'gamestate' as const, __runtimeRef: Symbol('GameState') }
 				eventQueue.emit('onBulletNear', initialState, bullet.eid)
 			}
