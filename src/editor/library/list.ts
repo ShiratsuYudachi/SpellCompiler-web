@@ -196,6 +196,32 @@ export function registerListFunctions(evaluator: Evaluator) {
 		ui: { displayName: '📋 fold' }
 	});
 
+	// list::forEach(l: List, f: Function) -> Value
+	// Execute a function for each element in the list (for side effects)
+	// Returns the last result or 0 if list is empty
+	evaluator.registerFunction({
+		fullName: 'list::forEach',
+		params: ['l', 'f'],
+		fn: (l: Value, f: Value): Value => {
+			let current = l;
+			let lastResult: Value = 0;
+			
+			while (true) {
+				const funcVal = current as FunctionValue;
+				// Check if empty
+				if (funcVal.definition.params.length === 0) break;
+				
+				const head = evaluator.callFunctionValue(funcVal, 'head');
+				lastResult = evaluator.callFunctionValue(f as FunctionValue, head);
+				
+				current = evaluator.callFunctionValue(funcVal, 'tail');
+			}
+			
+			return lastResult;
+		},
+		ui: { displayName: '📋 forEach' }
+	});
+
 	// list::fromArray(arr: any) -> List (internal helper)
 	// Note: This is a helper for converting JS arrays to lists (for testing/interop)
 	evaluator.registerFunction({

@@ -109,6 +109,79 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		ui: { displayName: '👾 getNearbyEnemies' }
 	});
 
+	// game::getAllBullets(state: GameState) -> List<Entity>
+	// Returns all bullet entities in the game
+	evaluator.registerFunction({
+		fullName: 'game::getAllBullets',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			
+			// Collect all bullet entities
+			// Bullets are entities that are not the player and not enemies
+			// In Level 3/4, bullets are spawned by the scene, not by player
+			const bullets: number[] = [];
+			const bodies = manager.world.resources.bodies;
+			const playerEid = manager.world.resources.playerEid;
+			
+			for (const [eid, _body] of bodies.entries()) {
+				// Skip player
+				if (eid === playerEid) continue;
+				
+				// Check if entity is a bullet (has Sprite and Velocity but no Health)
+				// This is a simple heuristic - bullets don't have health
+				const hasHealth = Health.current[eid] !== undefined;
+				if (!hasHealth) {
+					bullets.push(eid);
+				}
+			}
+			
+			// Convert to functional list
+			return evaluator.callFunction('list::fromArray', bullets as any);
+		},
+		ui: { displayName: '🔴 getAllBullets' }
+	});
+
+	// game::isBulletNear(state: GameState, bulletEid: number) -> boolean
+	// Returns true if bullet is within 50 units of the player, false otherwise
+	evaluator.registerFunction({
+		fullName: 'game::isBulletNear',
+		params: ['state', 'bulletEid'],
+		fn: (state: Value, bulletEid: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			
+			if (typeof bulletEid !== 'number') {
+				throw new Error('bulletEid must be a number');
+			}
+			
+			const playerEid = manager.world.resources.playerEid;
+			const bodies = manager.world.resources.bodies;
+			
+			// Get player body
+			const playerBody = bodies.get(playerEid);
+			if (!playerBody) {
+				return false;
+			}
+			
+			// Get bullet body
+			const bulletBody = bodies.get(bulletEid);
+			if (!bulletBody) {
+				return false;
+			}
+			
+			// Calculate distance
+			const dx = bulletBody.x - playerBody.x;
+			const dy = bulletBody.y - playerBody.y;
+			const distance = Math.sqrt(dx * dx + dy * dy);
+			
+			// Return true if within 50 units
+			return distance < 100;
+		},
+		ui: { displayName: '🎯 isBulletNear' }
+	});
+
 	// ====================================
 	// Mutation Spells - Modify GameState
 	// ====================================
@@ -204,19 +277,21 @@ export function registerGameFunctions(evaluator: Evaluator) {
 	// Event System
 	// ====================================
 
-	// game::emitEvent(state: GameState, eventName: string, ...args: any) -> GameState
+	// game::emitEvent(state: GameState, eventName: string, payload: any) -> GameState
 	// Emits a custom event that can be handled by registered spells
+	// payload: any data to pass along with the event (e.g., bullet entity, damage amount, etc.)
 	evaluator.registerFunction({
 		fullName: 'game::emitEvent',
-		params: ['state', 'eventName'],
-		fn: (state: Value, eventName: Value, ...extraArgs: Value[]): Value => {
+		params: ['state', 'eventName', 'payload'],
+		fn: (state: Value, eventName: Value, payload: Value): Value => {
 			assertGameState(state);
 			
 			if (typeof eventName !== 'string') {
 				throw new Error('Event name must be a string');
 			}
 			
-			eventQueue.emit(eventName, state, ...extraArgs);
+			// Emit event with payload
+			eventQueue.emit(eventName, state, payload);
 			
 			return state;
 		},

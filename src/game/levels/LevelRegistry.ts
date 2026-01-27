@@ -12,7 +12,7 @@ export type LevelMeta = {
 		edges: any[]
 	}
 	editorRestrictions?: RegExp
-	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'output' | 'dynamicFunction' | 'spellInput'>
+	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'functionOut' | 'output' | 'dynamicFunction' | 'spellInput'>
 	hints?: string[]
 	logicReference?: Record<string, { gridX: number; gridY: number; action: string }>
 }

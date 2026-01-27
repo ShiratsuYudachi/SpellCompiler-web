@@ -11,8 +11,8 @@ export const Level4Meta: LevelMeta = {
 	playerSpawnY: 480, // Spawn outside battle zone (below it)
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	editorRestrictions: /^(game::teleportRelative|game::getPlayer|game::getEntityPosition|game::emitEvent|vec::create)$/,
-	allowedNodeTypes: ['output', 'literal', 'vector', 'dynamicFunction'],
+	editorRestrictions: /^(game::getAllBullets|game::isBulletNear|game::emitEvent|list::filter|list::isEmpty|list::head)$/,
+	allowedNodeTypes: ['output', 'literal', 'dynamicFunction', 'spellInput', 'if'],
 	objectives: [
 		{
 			id: 'survive-10-seconds',
@@ -23,48 +23,134 @@ export const Level4Meta: LevelMeta = {
 
 	initialSpellWorkflow: {
 		nodes: [
+			// ===== Main Flow =====
+			// Output node
 			{
 				id: 'output-1',
 				type: 'output',
-				position: { x: 700, y: 220 },
+				position: { x: 1200, y: 300 },
 				data: { label: 'Output' },
 			},
+			// SpellInput node (state parameter)
 			{
-				id: 'func-teleport',
-				type: 'dynamicFunction',
-				position: { x: 420, y: 200 },
-				data: {
-					functionName: 'game::teleportRelative',
-					displayName: 'teleportRelative',
-					namespace: 'game',
-					params: ['state', 'entity', 'offset'],
-				},
+				id: 'spell-input',
+				type: 'spellInput',
+				position: { x: 50, y: 300 },
+				data: { label: 'Game State', params: ['state'] },
 			},
+			// getAllBullets - gets all bullets in the game
 			{
-				id: 'func-getPlayer',
+				id: 'func-getAllBullets',
 				type: 'dynamicFunction',
-				position: { x: 140, y: 120 },
+				position: { x: 250, y: 200 },
 				data: {
-					functionName: 'game::getPlayer',
-					displayName: 'getPlayer',
+					functionName: 'game::getAllBullets',
+					displayName: 'getAllBullets',
 					namespace: 'game',
 					params: ['state'],
 				},
 			},
-			{ id: 'spell-input', type: 'spellInput', position: { x: -100, y: 150 }, data: { label: 'Game State', params: ['state'] } },
+			// isBulletNear - predicate function to check if bullet is near player
 			{
-				id: 'func-vector',
-				type: 'vector',
-				position: { x: 140, y: 240 },
-				data: { x: 0, y: 0 },
+				id: 'func-isBulletNear',
+				type: 'dynamicFunction',
+				position: { x: 250, y: 350 },
+				data: {
+					functionName: 'game::isBulletNear',
+					displayName: 'isBulletNear',
+					namespace: 'game',
+					params: ['state', 'bulletEid'],
+				},
+			},
+			// filter - filters bullets by distance using isBulletNear
+			{
+				id: 'func-filter',
+				type: 'dynamicFunction',
+				position: { x: 500, y: 250 },
+				data: {
+					functionName: 'list::filter',
+					displayName: 'filter',
+					namespace: 'list',
+					params: ['l', 'pred'],
+				},
+			},
+			// isEmpty - checks if filtered list is empty
+			{
+				id: 'func-isEmpty',
+				type: 'dynamicFunction',
+				position: { x: 700, y: 300 },
+				data: {
+					functionName: 'list::isEmpty',
+					displayName: 'isEmpty',
+					namespace: 'list',
+					params: ['l'],
+				},
+			},
+			// if - branch based on isEmpty result
+			{
+				id: 'if-expression',
+				type: 'if',
+				position: { x: 900, y: 300 },
+				data: { label: 'If' },
+			},
+			// emitEvent - emit onBulletNear event with bullet as payload
+			{
+				id: 'func-emitEvent',
+				type: 'dynamicFunction',
+				position: { x: 650, y: 450 },
+				data: {
+					functionName: 'game::emitEvent',
+					displayName: 'emitEvent',
+					namespace: 'game',
+					params: ['state', 'eventName', 'payload'],
+				},
+			},
+			// Event name literal: "onBulletNear"
+			{
+				id: 'literal-eventName',
+				type: 'literal',
+				position: { x: 400, y: 500 },
+				data: { value: 'onBulletNear' },
+			},
+			// list::head - get first bullet from filtered list (as payload)
+			{
+				id: 'func-head',
+				type: 'dynamicFunction',
+				position: { x: 400, y: 400 },
+				data: {
+					functionName: 'list::head',
+					displayName: 'head',
+					namespace: 'list',
+					params: ['l'],
+				},
 			},
 		],
 		edges: [
-			{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'spell-input', target: 'func-teleport', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'func-vector', target: 'func-teleport', targetHandle: 'arg2' },
-			{ id: 'e5', source: 'spell-input', target: 'func-getPlayer', targetHandle: 'arg0' },
+			// Main flow edges
+			{ id: 'e1', source: 'spell-input', target: 'func-getAllBullets', targetHandle: 'arg0' },
+			{ id: 'e2', source: 'func-getAllBullets', target: 'func-filter', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'func-isBulletNear', target: 'func-filter', targetHandle: 'arg1' },
+			
+			// isBulletNear needs state input (partial application - state is fixed, bulletEid comes from filter)
+			{ id: 'e4', source: 'spell-input', target: 'func-isBulletNear', targetHandle: 'arg0' },
+			
+			{ id: 'e5', source: 'func-filter', target: 'func-isEmpty', targetHandle: 'arg0' },
+			{ id: 'e6', source: 'func-isEmpty', target: 'if-expression', targetHandle: 'condition' },
+			
+			// if branches
+			{ id: 'e7-then', source: 'spell-input', target: 'if-expression', targetHandle: 'then' }, // if isEmpty -> return state
+			{ id: 'e8-else', source: 'func-emitEvent', target: 'if-expression', targetHandle: 'else' }, // if NOT empty -> emit event
+			
+			// emitEvent inputs
+			{ id: 'e9-state', source: 'spell-input', target: 'func-emitEvent', targetHandle: 'arg0' },
+			{ id: 'e10-eventName', source: 'literal-eventName', target: 'func-emitEvent', targetHandle: 'arg1' },
+			{ id: 'e11-payload', source: 'func-head', target: 'func-emitEvent', targetHandle: 'arg2' },
+			
+			// head input (get first bullet from filtered list)
+			{ id: 'e12', source: 'func-filter', target: 'func-head', targetHandle: 'arg0' },
+			
+			// Final output
+			{ id: 'e13', source: 'if-expression', target: 'output-1', targetHandle: 'value' },
 		],
 	},
 }
@@ -112,12 +198,12 @@ export class Level4 extends BaseScene {
 			'Enter the central battle zone to begin!\n\n' +
 			'Fast bullets will attack you.\n' +
 			'Goal: Survive for 10 seconds.\n\n' +
-			'• Press TAB to open Event Bindings panel\n' +
-			'• Create an "onBulletNear" event handler\n' +
-			'• Use game::emitEvent to manually trigger it!\n' +
-			'• Calculate bullet distance yourself and emit when close\n\n' +
-			'Tip: Unlike Level 3, bullets won\'t automatically\n' +
-			'trigger events - YOU control when events fire!'
+			'• Press TAB to open the spell editor\n' +
+			'• The onTick spell detects nearby bullets and emits "onBulletNear"\n' +
+			'• Create a spell to handle "onBulletNear" event\n' +
+			'• Bind it to teleport away from danger!\n\n' +
+			'Tip: Use game::isBulletNear() as filter predicate\n' +
+			'to find bullets within 50 units of you!'
 		)
 
 		// Create central battle zone (surrounded by walls)
