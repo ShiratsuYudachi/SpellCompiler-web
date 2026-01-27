@@ -125,27 +125,6 @@ export class Level8 extends BaseScene {
 			})
 		}
 
-		// Clear any old workflow and restore Level 8 default workflow
-		const storageKey = `spell-workflow-Level8`
-		const defaultWorkflow = {
-			nodes: [
-				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
-				{
-					id: 'func-measureWeight',
-					type: 'dynamicFunction',
-					position: { x: 200, y: 200 },
-					data: {
-						functionName: 'game::measureWeight',
-						displayName: 'measureWeight',
-						namespace: 'game',
-						params: [],
-					},
-				},
-			],
-			edges: [],
-		}
-		localStorage.setItem(storageKey, JSON.stringify(defaultWorkflow))
-
 		// Force editor to refresh with Level 8 settings
 		this.time.delayedCall(50, () => {
 			forceRefreshEditor()

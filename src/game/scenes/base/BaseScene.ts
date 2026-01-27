@@ -46,11 +46,6 @@ export abstract class BaseScene extends Phaser.Scene {
 	create() {
 		const config = levelRegistry.get(this.scene.key)
 
-		// 重置关卡的 spell workflow 到初始状态
-		// 这确保每次进入关卡时，编辑器显示的是关卡的默认法术
-		const storageKey = `spell-workflow-${this.scene.key}`
-		localStorage.removeItem(storageKey)
-
 		// 计算动态世界大小
 		if (config?.mapData) {
 			const tileSize = config.tileSize || 64

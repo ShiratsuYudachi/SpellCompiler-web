@@ -117,29 +117,10 @@ export function Editor() {
 		const editorContext = getEditorContext()
 		const sceneKey = editorContext?.sceneKey || 'Level1'
 
-		// Try to load saved workflow from localStorage first
-		const storageKey = `spell-workflow-${sceneKey}`
-		let initialSceneFlow: { nodes: Node[]; edges: Edge[] } | undefined
-
-		try {
-			const savedFlow = localStorage.getItem(storageKey)
-			if (savedFlow) {
-				const parsed = JSON.parse(savedFlow)
-				if (parsed && Array.isArray(parsed.nodes) && Array.isArray(parsed.edges)) {
-					initialSceneFlow = { nodes: parsed.nodes, edges: parsed.edges }
-					console.log('[Editor] Loaded saved workflow for scene:', sceneKey, 'nodes:', parsed.nodes.length)
-				}
-			}
-		} catch (err) {
-			console.error('[Editor] Failed to load saved workflow:', err)
-		}
-
-		// Fallback to scene config defaults if no saved workflow
-		if (!initialSceneFlow) {
-			const sceneConfig = levelRegistry.get(sceneKey)
-			initialSceneFlow = sceneConfig?.initialSpellWorkflow
-			console.log('[Editor] Using default workflow for scene:', sceneKey)
-		}
+		// Always load from scene config default
+		const sceneConfig = levelRegistry.get(sceneKey)
+		const initialSceneFlow = sceneConfig?.initialSpellWorkflow
+		console.log('[Editor] Using default workflow for scene:', sceneKey)
 
 		const handleExit = () => {
 			if (isGameMode) {

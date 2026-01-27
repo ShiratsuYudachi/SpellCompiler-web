@@ -138,29 +138,6 @@ export class Level7 extends BaseScene {
 			})
 		}
 		
-		// Clear Task 2 workflow and restore Task 1 default workflow
-		const storageKey = `spell-workflow-Level7`
-		const task1Workflow = {
-			nodes: [
-				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } },
-				{
-					id: 'func-getWeight',
-					type: 'dynamicFunction',
-					position: { x: 200, y: 200 },
-					data: {
-						functionName: 'game::getWeight',
-						displayName: 'getWeight',
-						namespace: 'game',
-						params: [],
-					},
-				},
-			],
-			edges: [
-				{ id: 'e1', source: 'func-getWeight', target: 'output-1', targetHandle: 'value' },
-			],
-		}
-		localStorage.setItem(storageKey, JSON.stringify(task1Workflow))
-		
 		// Force editor to refresh with Task 1 settings
 		this.time.delayedCall(50, () => {
 			forceRefreshEditor()
@@ -1158,16 +1135,6 @@ export class Level7 extends BaseScene {
 			this.world.resources.levelData = {}
 		}
 		this.world.resources.levelData.currentTask = 'task2'
-		
-		// Clear existing spell workflow to remove Task 1 nodes
-		const storageKey = `spell-workflow-Level7`
-		const emptyWorkflow = {
-			nodes: [
-				{ id: 'output-1', type: 'output', position: { x: 400, y: 250 }, data: { label: 'Output' } }
-			],
-			edges: []
-		}
-		localStorage.setItem(storageKey, JSON.stringify(emptyWorkflow))
 		
 		// Update editor restrictions for Task 2
 		// Allow measureWeight and comparison operators (no getThreshold - threshold is shown in UI)

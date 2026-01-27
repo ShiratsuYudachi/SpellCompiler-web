@@ -168,41 +168,29 @@ function EditorContent(props: FunctionalEditorProps) {
 
 			setEditorContext(context);
 
-			// Load workflow from localStorage or use default
-			const storageKey = `spell-workflow-${newSceneKey || 'default'}`;
-			console.log('[Editor] Game mode: loading workflow for sceneKey:', newSceneKey, 'storageKey:', storageKey)
+			// Load workflow from scene config default
+			console.log('[Editor] Game mode: loading workflow for sceneKey:', newSceneKey)
 
 			try {
-				const saved = localStorage.getItem(storageKey);
-				if (saved) {
-					const flow = JSON.parse(saved);
-					if (flow.nodes && Array.isArray(flow.nodes)) {
-						console.log('[Editor] Game mode: loaded saved workflow, nodes:', flow.nodes.length)
-						setNodes(flow.nodes);
-						// Update nodeIdCounter to avoid conflicts
-						let maxId = nodeIdCounter;
-						flow.nodes.forEach((node: Node) => {
-							const match = node.id.match(/-(\d+)$/);
-							if (match) {
-								const num = parseInt(match[1], 10);
-								if (num >= maxId) maxId = num + 1;
-							}
-						});
-						nodeIdCounter = maxId;
-					}
-					if (flow.edges && Array.isArray(flow.edges)) {
-						setEdges(flow.edges);
-					}
-				} else {
-					console.log('[Editor] Game mode: no saved workflow, loading defaults')
-					// No saved workflow, load from scene config
-					const config = newSceneKey ? levelRegistry.get(newSceneKey) : null;
-					const templateNodes = config?.initialSpellWorkflow?.nodes || [];
-					const templateEdges = config?.initialSpellWorkflow?.edges || [];
+				// Always load from scene config
+				const config = newSceneKey ? levelRegistry.get(newSceneKey) : null;
+				const templateNodes = config?.initialSpellWorkflow?.nodes || [];
+				const templateEdges = config?.initialSpellWorkflow?.edges || [];
 
-					setNodes(templateNodes);
-					setEdges(templateEdges);
-				}
+				console.log('[Editor] Game mode: loading default workflow, nodes:', templateNodes.length)
+				setNodes(templateNodes);
+				setEdges(templateEdges);
+				
+				// Update nodeIdCounter to avoid conflicts
+				let maxId = nodeIdCounter;
+				templateNodes.forEach((node: Node) => {
+					const match = node.id.match(/-(\d+)$/);
+					if (match) {
+						const num = parseInt(match[1], 10);
+						if (num >= maxId) maxId = num + 1;
+					}
+				});
+				nodeIdCounter = maxId;
 			} catch (err) {
 				console.error('[Editor] Failed to load workflow:', err);
 				// Fallback to empty workflow
@@ -260,37 +248,21 @@ function EditorContent(props: FunctionalEditorProps) {
 			return () => clearTimeout(timeoutId)
 		}
 
-		// Game mode: save to scene-specific storage
+		// Game mode: No auto-save needed (workflow resets on level entry)
+		// Spells are saved in save system, not localStorage
 		if (!workflowLoaded) {
-			console.log('[Editor] Game mode: Workflow not loaded yet, skipping save')
 			return
 		}
 
 		if (!editorContext?.sceneKey) {
-			console.log('[Editor] Game mode: No sceneKey, skipping save')
 			return
 		}
 
-		// Debounce save to avoid excessive writes
-		const timeoutId = setTimeout(() => {
-			const sceneKey = editorContext.sceneKey;
-			const storageKey = `spell-workflow-${sceneKey || 'default'}`;
+		// No-op: workflow is intentionally temporary in game mode
+		// Each level loads fresh from initialSpellWorkflow
+		console.log('[Editor] Game mode: workflow changes are temporary (not auto-saved)')
 
-			try {
-				const flow = {
-					nodes,
-					edges,
-					timestamp: Date.now()
-				};
-				console.log('[Editor] Saving workflow for scene:', sceneKey, 'to key:', storageKey)
-				localStorage.setItem(storageKey, JSON.stringify(flow));
-				console.log('[Editor] Workflow saved successfully')
-			} catch (err) {
-				console.error('[Editor] Failed to auto-save workflow:', err);
-			}
-		}, 1000); // 1 second debounce
-
-		return () => clearTimeout(timeoutId);
+		return () => {};
 	}, [nodes, edges, editorContext, workflowLoaded, isLibraryMode, spellId, spellName]);
 	useEffect(() => {
 		if (!startingFlow) return
@@ -327,25 +299,9 @@ function EditorContent(props: FunctionalEditorProps) {
 				console.error('[Editor] Force save failed:', err)
 			}
 		} else {
-			// Game mode
-			if (!editorContext?.sceneKey) {
-				console.log('[Editor] Force save: No sceneKey in game mode')
-				return
-			}
-			const sceneKey = editorContext.sceneKey
-			const storageKey = `spell-workflow-${sceneKey || 'default'}`
-			try {
-				const flow = {
-					nodes,
-					edges,
-					timestamp: Date.now()
-				}
-				console.log('[Editor] Force saving workflow for scene:', sceneKey, 'to key:', storageKey)
-				localStorage.setItem(storageKey, JSON.stringify(flow))
-				console.log('[Editor] Force save workflow successful')
-			} catch (err) {
-				console.error('[Editor] Force save workflow failed:', err)
-			}
+			// Game mode: No force save needed
+			// Workflow is intentionally temporary and resets on level entry
+			console.log('[Editor] Game mode: workflow is temporary (not saved)')
 		}
 	}, [isLibraryMode, spellId, spellName, nodes, edges, editorContext])
 
