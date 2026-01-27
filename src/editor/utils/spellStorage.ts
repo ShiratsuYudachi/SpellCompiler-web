@@ -2,13 +2,6 @@ import type { Spell } from '../ast/ast'
 import { flowToIR } from './flowToIR'
 import { SaveManager } from '../../storage/SaveManager'
 
-export type UIState = {
-	nodes: any[]
-	edges: any[]
-	viewport?: { x: number; y: number; zoom: number }
-	timestamp: number
-}
-
 export type SpellMeta = {
 	id: string
 	name: string
@@ -19,7 +12,7 @@ export type SpellMeta = {
 export type StoredSpell = SpellMeta & {
 	flow: unknown
 	compiledSpell?: Spell  // Optional: only present if compilation succeeded
-	uiState?: UIState  // Optional: editor UI state (viewport, positions, etc.)
+	viewport?: { x: number; y: number; zoom: number }  // Optional: editor viewport (camera position/zoom)
 }
 
 export function listSpells(): SpellMeta[] {
@@ -57,7 +50,7 @@ export function upsertSpell(params: {
 	id?: string | null
 	name: string
 	flow: unknown
-	uiState?: UIState 
+	viewport?: { x: number; y: number; zoom: number }
 }): string {
 	const now = Date.now()
 	const id = params.id || `spell-${now}`
@@ -86,7 +79,7 @@ export function upsertSpell(params: {
 		hasCompiledAST,
 		flow: params.flow,
 		compiledSpell: compiledAST,
-		uiState: params.uiState
+		viewport: params.viewport
 	}
 
 	// Save to current save file
@@ -103,33 +96,26 @@ export function upsertSpell(params: {
 	return id
 }
 
-// UI State now stored in spell data (no separate localStorage keys needed)
-export function saveUIState(spellId: string, state: UIState) {
-	// Load existing spell
+// Viewport state (camera position/zoom) is now stored directly in spell data
+export function saveViewport(spellId: string, viewport: { x: number; y: number; zoom: number }) {
 	const spell = loadSpell(spellId)
 	if (!spell) {
-		console.warn(`[spellStorage] Cannot save UI state: spell ${spellId} not found`)
+		console.warn(`[spellStorage] Cannot save viewport: spell ${spellId} not found`)
 		return
 	}
 	
-	// Update spell with new UI state
+	// Update spell with new viewport
 	upsertSpell({
 		id: spellId,
 		name: spell.name,
 		flow: spell.flow,
-		uiState: state
+		viewport: viewport
 	})
 }
 
-export function loadUIState(spellId: string): UIState | null {
+export function loadViewport(spellId: string): { x: number; y: number; zoom: number } | null {
 	const spell = loadSpell(spellId)
-	return spell?.uiState || null
-}
-
-export function deleteUIState(spellId: string) {
-	// UI state is part of spell data, deleted automatically when spell is deleted
-	// This function kept for compatibility but does nothing
-	console.log(`[spellStorage] deleteUIState called for ${spellId} - UI state deleted with spell`)
+	return spell?.viewport || null
 }
 
 export function duplicateSpell(id: string, newName?: string): string | null {
@@ -138,11 +124,11 @@ export function duplicateSpell(id: string, newName?: string): string | null {
 
 	const name = newName || `Copy of ${spell.name}`
 	// upsertSpell will generate a new ID and handle compilation
-	// UI state is automatically included in the spell data
+	// Viewport is automatically included in the spell data
 	const newId = upsertSpell({
 		name: name,
 		flow: spell.flow,
-		uiState: spell.uiState
+		viewport: spell.viewport
 	})
 
 	return newId

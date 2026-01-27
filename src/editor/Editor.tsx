@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react'
 import type { Node, Edge } from 'reactflow'
 import { FunctionalEditor } from './components/FunctionalEditor'
 import { SpellManager } from './components/SpellManager'
-import { loadSpell, loadUIState } from './utils/spellStorage'
+import { loadSpell } from './utils/spellStorage'
 import { getGameInstance, getEditorContext, setEditorContext } from '../game/gameInstance'
 import { GameEvents } from '../game/events'
 import { levelRegistry } from '../game/levels/LevelRegistry'
@@ -72,38 +72,25 @@ export function Editor() {
 					// Clear game mode context when entering library mode
 					setEditorContext({ sceneKey: undefined })
 					console.log('[Editor] Edit spell:', id)
-					const spell = loadSpell(id)
-					if (!spell) {
-						console.log('[Editor] Spell not found:', id)
-						return
-					}
+				const spell = loadSpell(id)
+				if (!spell) {
+					console.log('[Editor] Spell not found:', id)
+					return
+				}
 
-					console.log('[Editor] Spell loaded:', spell.name)
+			console.log('[Editor] Spell loaded:', spell.name)
 
-					// Try to load saved UI state first (preserves node positions)
-					const uiState = loadUIState(id)
-					console.log('[Editor] UI state:', uiState ? 'found' : 'not found')
-					if (uiState && Array.isArray(uiState.nodes) && Array.isArray(uiState.edges)) {
-						console.log('[Editor] Loading from UI state, nodes:', uiState.nodes.length, 'edges:', uiState.edges.length)
-						setEditingId(id)
-						setEditingName(spell.name)
-						setInitialFlow({ nodes: uiState.nodes, edges: uiState.edges })
-						setScreen('editor')
-						return
-					}
-
-					// Fallback to flow data from spell
-					const flow = spell.flow as any
-					if (!flow || !Array.isArray(flow.nodes) || !Array.isArray(flow.edges)) {
-						console.log('[Editor] Invalid flow data in spell')
-						return
-					}
-
-					console.log('[Editor] Loading from spell flow, nodes:', flow.nodes.length, 'edges:', flow.edges.length)
-					setEditingId(id)
-					setEditingName(spell.name)
-					setInitialFlow({ nodes: flow.nodes, edges: flow.edges })
-					setScreen('editor')
+			// Load flow directly from spell (already contains node positions)
+			const flow = spell.flow as { nodes: Node[]; edges: Edge[] }
+			if (flow && Array.isArray(flow.nodes) && Array.isArray(flow.edges)) {
+				console.log('[Editor] Loading from spell flow, nodes:', flow.nodes.length, 'edges:', flow.edges.length)
+				setEditingId(id)
+				setEditingName(spell.name)
+				setInitialFlow({ nodes: flow.nodes, edges: flow.edges })
+				setScreen('editor')
+			} else {
+				console.log('[Editor] Invalid flow data in spell')
+			}
 				}}
 				onBind={() => {
 					// deprecated

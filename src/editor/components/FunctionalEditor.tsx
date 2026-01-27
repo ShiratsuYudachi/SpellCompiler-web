@@ -226,18 +226,15 @@ function EditorContent(props: FunctionalEditorProps) {
 			try {
 				console.log('[Editor] Auto-saving spell data for:', spellId, 'name:', spellName)
 
-				// Save spell data with UI state
+				// Save spell data (flow already contains nodes with positions)
+				// Only need to save viewport separately
 				upsertSpell({
 					id: spellId,
 					name: spellName,
-					flow: { nodes, edges },
-					uiState: {
-						nodes,
-						edges,
-						timestamp: Date.now()
-					}
+					flow: { nodes, edges }
+					// Note: viewport would be saved separately if we track it
 				})
-				console.log('[Editor] Spell data and UI state auto-saved successfully')
+				console.log('[Editor] Spell data auto-saved successfully')
 			} catch (err) {
 				console.error('[Editor] Failed to auto-save:', err)
 			}
@@ -279,18 +276,13 @@ function EditorContent(props: FunctionalEditorProps) {
 		try {
 			console.log('[Editor] Force saving spell data for:', spellId, 'name:', spellName)
 
-			// Save spell data with UI state
+			// Save spell data (flow already contains nodes with positions)
 			upsertSpell({
 				id: spellId,
 				name: spellName,
-				flow: { nodes, edges },
-				uiState: {
-					nodes,
-					edges,
-					timestamp: Date.now()
-				}
+				flow: { nodes, edges }
 			})
-			console.log('[Editor] Spell data and UI state saved successfully')
+			console.log('[Editor] Spell data saved successfully')
 		} catch (err) {
 			console.error('[Editor] Force save failed:', err)
 		}
@@ -606,18 +598,13 @@ function EditorContent(props: FunctionalEditorProps) {
 			const name = spellName.trim() || 'New Spell'
 			const flow = toObject()
 
-		// Save spell data with UI state
+		// Save spell data (flow already contains nodes with positions)
 		const nextId = upsertSpell({ 
 			id: spellId, 
 			name, 
-			flow,
-			uiState: {
-				nodes,
-				edges,
-				timestamp: Date.now()
-			}
+			flow
 		})
-		console.log('[Editor] Saved to library with UI state:', nextId, 'name:', name)
+		console.log('[Editor] Saved to library:', nextId, 'name:', name)
 
 			setSpellId(nextId)
 			setSpellName(name)
