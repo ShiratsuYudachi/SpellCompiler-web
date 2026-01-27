@@ -9,7 +9,6 @@ export class LaserWall {
 	private wall: Phaser.GameObjects.Rectangle
 	private particles: Phaser.GameObjects.Rectangle[] = []
 	private x: number
-	private y: number
 	private width: number
 	private height: number
 

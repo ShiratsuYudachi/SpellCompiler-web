@@ -3,7 +3,6 @@ import type { Node, Edge } from 'reactflow'
 import { FunctionalEditor } from './components/FunctionalEditor'
 import { SpellManager } from './components/SpellManager'
 import { loadSpell, loadUIState } from './utils/spellStorage'
-import { flowToIR } from './utils/flowToIR'
 import { getGameInstance, getEditorContext, setEditorContext } from '../game/gameInstance'
 import { GameEvents } from '../game/events'
 import { levelRegistry } from '../game/levels/LevelRegistry'
@@ -106,7 +105,7 @@ export function Editor() {
 					setInitialFlow({ nodes: flow.nodes, edges: flow.edges })
 					setScreen('editor')
 				}}
-				onBind={(id) => {
+				onBind={() => {
 					// deprecated
 				}}
 			/>

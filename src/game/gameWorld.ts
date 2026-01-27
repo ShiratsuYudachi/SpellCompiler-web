@@ -1,7 +1,6 @@
 import { addEntity, createWorld, removeEntity, type World } from 'bitecs'
 import Phaser from 'phaser'
 import type { GameResources } from './resources'
-import type { Spell } from '../editor/ast/ast'
 import { createPlayer } from './prefabs/createPlayer'
 import { createEnemy } from './prefabs/createEnemy'
 import { createHud } from './prefabs/createHud'

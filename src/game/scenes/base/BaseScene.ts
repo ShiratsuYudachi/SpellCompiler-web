@@ -1,6 +1,5 @@
 import Phaser from 'phaser'
 import { GameEvents } from '../../events'
-import type { Spell } from '../../../editor/ast/ast'
 import { createGameWorld, updateGameWorld, type GameWorld } from '../../gameWorld'
 import { levelRegistry } from '../../levels/LevelRegistry'
 import { TerrainType, type ObjectiveConfig } from './TerrainTypes'

@@ -38,9 +38,8 @@ import type { FunctionInfo } from '../utils/getFunctionRegistry';
 import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
-import { GameEvents } from '../../game/events'
-import { eventQueue, type EventBinding } from '../../game/events/EventQueue'
-import { getGameInstance, getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
+import type { EventBinding } from '../../game/events/EventQueue'
+import { getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { updateSpellInCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
 import { upsertSpell, saveUIState } from '../utils/spellStorage'

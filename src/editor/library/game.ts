@@ -231,7 +231,6 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		params: ['state', 'callback', 'delayMs'],
 		fn: (state: Value, callback: Value, delayMs: Value): Value => {
 			assertGameState(state);
-			const manager = getManager();
 
 			if (typeof delayMs !== 'number') {
 				throw new Error('Delay must be a number');

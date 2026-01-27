@@ -1,5 +1,4 @@
 import type Phaser from 'phaser'
-import type { Spell } from '../editor/ast/ast'
 
 // REMOVED: InputState - no longer needed, using Event System for all input
 // REMOVED: TriggerType, TriggerConfig - migrated to Event System

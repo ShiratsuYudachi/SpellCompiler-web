@@ -86,7 +86,7 @@ export class Level3 extends BaseScene {
 	private readonly BULLET_SPEED = 1200
 	private readonly BULLET_SPAWN_INTERVAL_START = 1200 // Starting spawn interval (ms)
 	private readonly BULLET_SPAWN_INTERVAL_END = 200 // Ending spawn interval (ms)
-	private readonly BULLET_DAMAGE = 10 // Damage per hit
+	private readonly BULLET_DAMAGE = 25 // Damage per hit
 	private readonly HIT_COOLDOWN = 500 // Cooldown between hits from same bullet (ms)
 
 	private spawnTimer = 0
