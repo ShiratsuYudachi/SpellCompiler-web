@@ -100,6 +100,13 @@ export class Level3 extends BaseScene {
 	}
 
 	protected onLevelCreate(): void {
+		// Reset level state on restart
+		this.bullets = []
+		this.startTime = 0
+		this.survivalTime = 0
+		this.spawnTimer = 0
+		this.battleStarted = false
+
 		// Tutorial hint
 		this.showInstruction(
 			'【Level 3: Event System】\n\n' +

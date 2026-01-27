@@ -256,12 +256,11 @@ class EventQueueManager {
 	}
 	
 	/**
-	 * Clear all state (for scene transitions)
+	 * Clear runtime state (for scene transitions)
+	 * Note: bindings and handlers are NOT cleared - they persist from save file
 	 */
 	clear(): void {
 		this.queue = []
-		this.handlers.clear()
-		this.bindings.clear()
 		this.heldKeys.clear()
 		this.heldMouseButtons.clear()
 	}
