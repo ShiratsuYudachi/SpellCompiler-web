@@ -133,16 +133,6 @@ export class Level14 extends BaseScene {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// WASD移动
-		if (playerBody) {
-			const speed = 220
-			playerBody.setVelocity(0)
-			if (this.input.keyboard!.addKey('A').isDown) playerBody.setVelocityX(-speed)
-			if (this.input.keyboard!.addKey('D').isDown) playerBody.setVelocityX(speed)
-			if (this.input.keyboard!.addKey('W').isDown) playerBody.setVelocityY(-speed)
-			if (this.input.keyboard!.addKey('S').isDown) playerBody.setVelocityY(speed)
-		}
-
 		// 锁定玩家位置
 		if (playerBody) {
 			const minX = 80

@@ -3,8 +3,8 @@ import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
 import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
+import { castSpell } from '../../spells/castSpell'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
-import { eventQueue } from '../../events/EventQueue'
 
 export const Level11Meta: LevelMeta = {
 	key: 'Level11',
@@ -45,60 +45,30 @@ export const Level11Meta: LevelMeta = {
 	],
 	initialSpellWorkflow: {
 		nodes: [
-			// Output
 			{
 				id: 'output-1',
 				type: 'output',
-				position: { x: 850, y: 300 },
+				position: { x: 600, y: 250 },
 				data: { label: 'Output' },
 			},
-			// State input
 			{
-				id: 'spell-input',
-				type: 'spellInput',
-				position: { x: 50, y: 250 },
-				data: { paramName: 'state', paramIndex: 0 },
-			},
-			// First deflection: -30° at 800ms
-			{
-				id: 'func-deflect-1',
+				id: 'func-deflect',
 				type: 'dynamicFunction',
-				position: { x: 300, y: 200 },
+				position: { x: 340, y: 230 },
 				data: {
 					functionName: 'game::deflectAfterTime',
 					displayName: 'deflectAfterTime',
 					namespace: 'game',
-					params: ['state', 'angle', 'delayMs'],
+					params: ['angle', 'delayMs'],
 				},
 			},
-			{ id: 'lit-angle-1', type: 'literal', position: { x: 50, y: 300 }, data: { value: -30 } },
-			{ id: 'lit-delay-1', type: 'literal', position: { x: 50, y: 380 }, data: { value: 800 } },
-			// Second deflection: 15° at 1400ms (800+600)
-			{
-				id: 'func-deflect-2',
-				type: 'dynamicFunction',
-				position: { x: 580, y: 280 },
-				data: {
-					functionName: 'game::deflectAfterTime',
-					displayName: 'deflectAfterTime',
-					namespace: 'game',
-					params: ['state', 'angle', 'delayMs'],
-				},
-			},
-			{ id: 'lit-angle-2', type: 'literal', position: { x: 350, y: 380 }, data: { value: 15 } },
-			{ id: 'lit-delay-2', type: 'literal', position: { x: 350, y: 460 }, data: { value: 1400 } },
+			{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 30 } },
+			{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 400 } },
 		],
 		edges: [
-			// First deflection chain: state → deflect1
-			{ id: 'e1', source: 'spell-input', target: 'func-deflect-1', targetHandle: 'arg0' },
-			{ id: 'e2', source: 'lit-angle-1', target: 'func-deflect-1', targetHandle: 'arg1' },
-			{ id: 'e3', source: 'lit-delay-1', target: 'func-deflect-1', targetHandle: 'arg2' },
-			// Second deflection chain: deflect1 → deflect2
-			{ id: 'e4', source: 'func-deflect-1', target: 'func-deflect-2', targetHandle: 'arg0' },
-			{ id: 'e5', source: 'lit-angle-2', target: 'func-deflect-2', targetHandle: 'arg1' },
-			{ id: 'e6', source: 'lit-delay-2', target: 'func-deflect-2', targetHandle: 'arg2' },
-			// Output
-			{ id: 'e7', source: 'func-deflect-2', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
 		],
 	},
 }
@@ -126,12 +96,13 @@ export class Level11 extends BaseScene {
 	protected onLevelCreate(): void {
 		this.showInstruction(
 			'【Level 11: 折射初探】\n\n' +
-			'学习使用 deflectAfterTime(angle, delayMs) 控制火球偏转。\n' +
-			'可串联多个偏转！第一个的输出连到第二个的 state。\n\n' +
-			'操作：TAB编辑 → Compile & Save → Event Bindings\n' +
-			'绑定到 onFireballSpawned → 按 1 发射\n\n' +
-			'示例：先-30°@800ms，再15°@1400ms（串联两个节点）\n' +
-			'火球速度 = 250 px/s'
+			'学习使用 deflectAfterTime(angle, delayMs) 控制火球偏转。\n\n' +
+			'• angle: 偏转角度（正数向上，负数向下）\n' +
+			'• delayMs: 延迟时间（毫秒）\n\n' +
+			'火球速度 = 250 px/s\n' +
+			'火球碰到墙壁会消失！\n\n' +
+			'按 TAB 编辑法术。\n' +
+			'按 1 发射火球并施放法术。'
 		)
 
 		// 锁定玩家位置在左侧区域
@@ -141,34 +112,37 @@ export class Level11 extends BaseScene {
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// Task 1: 第一道墙后的目标 - 通过上方过道
+		// 根据地形布局设置目标位置
+		// 地形：15列x9行，tileSize=64
+		// 玩家在 x=96 (第1-2列)
+		// 第一墙在 x=256 (第4列)，过道在 row=3 (y=224)
+		// 第二墙在 x=512 (第8列)，过道在 row=5 (y=352)
+		// 第三墙在 x=768 (第12列)，过道在 row=3 (y=224)
+
+		// Task 1: 第一道墙后的目标 - 通过上方过道 (row=3, x~384)
+		// 火球需要 30° 向上偏转，延迟 400ms
+		// 位置: 在第一墙和第二墙之间的上方区域
 		this.createTarget(384, 160, 'Task 1: 30°, 400ms', 0x00ff00, 'task1-corridor', true)
 
-		// Task 2: 第二道墙后的目标 - 通过下方过道
+		// Task 2: 第二道墙后的目标 - 通过下方过道 (row=5, x~640)
+		// 火球需要 -30° 向下偏转，延迟 800ms
+		// 位置: 在第二墙和第三墙之间的下方区域
 		this.createTarget(640, 416, 'Task 2: -30°, 800ms', 0xffaa00, 'task2-deep', false)
 
 		// Task 3: 最远的目标 - 需要精确控制
+		// 火球需要 15° 小角度偏转，延迟 600ms
+		// 位置: 在第三墙后的区域
 		this.createTarget(864, 224, 'Task 3: 15°, 600ms', 0xff00ff, 'task3-cover', false)
 
-		// 绑定按键 '1' - 发射火球并触发事件
+		// 绑定按键 '1' 发射火球 + 施放法术
 		this.input.keyboard?.on('keydown-ONE', () => {
-			this.shootAndTriggerSpell()
+			this.shootAndCastSpell()
 		})
 	}
 
 	protected onLevelUpdate(): void {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
-
-		// WASD移动
-		if (playerBody) {
-			const speed = 220
-			playerBody.setVelocity(0)
-			if (this.input.keyboard!.addKey('A').isDown) playerBody.setVelocityX(-speed)
-			if (this.input.keyboard!.addKey('D').isDown) playerBody.setVelocityX(speed)
-			if (this.input.keyboard!.addKey('W').isDown) playerBody.setVelocityY(-speed)
-			if (this.input.keyboard!.addKey('S').isDown) playerBody.setVelocityY(speed)
-		}
 
 		// 锁定玩家在左侧区域（只允许在玩家区域内移动）
 		if (playerBody) {
@@ -251,7 +225,7 @@ export class Level11 extends BaseScene {
 		}
 	}
 
-	private shootAndTriggerSpell() {
+	private shootAndCastSpell() {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 		if (!playerBody) return
@@ -259,10 +233,8 @@ export class Level11 extends BaseScene {
 		// 1. 发射火球（固定向右）
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 2. 触发 onFireballSpawned 事件，让绑定的法术执行
-		// 用户需要在 Event Bindings 中将法术绑定到此事件
-		eventQueue.emit('onFireballSpawned')
-		console.log('[Level11] Fireball spawned, triggered onFireballSpawned event')
+		// 2. 提示绑定
+        console.log('[Level11] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 
 	private spawnFireball(x: number, y: number, dirX: number, dirY: number) {
@@ -305,8 +277,6 @@ export class Level11 extends BaseScene {
 		FireballStats.initialY[eid] = y
 		FireballStats.pendingDeflection[eid] = 0
 		FireballStats.deflectAtTime[eid] = 0
-		// Initialize deflection queue for multiple sequential deflections
-		FireballStats.deflectionQueue[eid] = []
 		// Plate-based deflection (initialized to 0)
 		FireballStats.deflectOnPlateColor[eid] = 0
 		FireballStats.deflectOnPlateAngle[eid] = 0

@@ -1,10 +1,9 @@
 import type { Evaluator } from '../ast/evaluator';
 import type { Value, FunctionValue, GameState } from '../ast/ast';
 import { GameStateManager } from '../../game/state/GameStateManager';
-import { Health, FireballStats, Owner } from '../../game/components';
+import { Health } from '../../game/components';
 import { spawnFireball } from '../../game/prefabs/spawnFireball';
 import { eventQueue } from '../../game/events/EventQueue';
-import type { GameWorld } from '../../game/gameWorld';
 
 // Global state manager reference
 let globalStateManager: GameStateManager | null = null;
@@ -212,75 +211,15 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		params: ['state', 'eventName'],
 		fn: (state: Value, eventName: Value, ...extraArgs: Value[]): Value => {
 			assertGameState(state);
-
+			
 			if (typeof eventName !== 'string') {
 				throw new Error('Event name must be a string');
 			}
-
+			
 			eventQueue.emit(eventName, state, ...extraArgs);
-
+			
 			return state;
 		},
 		ui: { displayName: '📡 emitEvent' }
 	});
-
-	// ====================================
-	// Deflection Spells - Fireball Control
-	// ====================================
-
-	// game::deflectAfterTime(state: GameState, angle: number, delayMs: number) -> GameState
-	// Adds a time-based deflection to the most recently spawned fireball's queue
-	// Multiple calls will queue multiple deflections that execute sequentially
-	evaluator.registerFunction({
-		fullName: 'game::deflectAfterTime',
-		params: ['state', 'angle', 'delayMs'],
-		fn: (state: Value, angle: Value, delayMs: Value): Value => {
-			assertGameState(state);
-			const manager = getManager();
-
-			if (typeof angle !== 'number') {
-				throw new Error('Angle must be a number');
-			}
-			if (typeof delayMs !== 'number') {
-				throw new Error('Delay must be a number');
-			}
-
-			// Find fireballs owned by caster
-			const fireballs = findFireballsByOwner(manager.world, manager.casterEid);
-			if (fireballs.length === 0) {
-				console.warn('[deflectAfterTime] No fireball found');
-				return state;
-			}
-
-			// Apply to the most recent fireball
-			const fireballEid = fireballs[fireballs.length - 1];
-
-			// Initialize queue if not exists
-			if (!FireballStats.deflectionQueue[fireballEid]) {
-				FireballStats.deflectionQueue[fireballEid] = [];
-			}
-
-			// Add to deflection queue
-			FireballStats.deflectionQueue[fireballEid].push({
-				angle: angle,
-				triggerTime: Date.now() + delayMs
-			});
-
-			console.log(`[deflectAfterTime] Queued deflection: ${angle}° after ${delayMs}ms (queue size: ${FireballStats.deflectionQueue[fireballEid].length})`);
-
-			return state;
-		},
-		ui: { displayName: '🔄 deflectAfterTime' }
-	});
-}
-
-// Helper function to find fireballs owned by a specific entity
-function findFireballsByOwner(world: GameWorld, ownerEid: number): number[] {
-	const result: number[] = [];
-	for (const [eid, _body] of world.resources.bodies.entries()) {
-		if (Owner.eid[eid] === ownerEid && FireballStats.speed[eid] !== undefined) {
-			result.push(eid);
-		}
-	}
-	return result;
 }
