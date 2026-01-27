@@ -11,10 +11,13 @@ interface ContextMenuProps {
 	onDeleteSelected?: () => void;
 	onEvaluate: () => void;
 	onClose: () => void;
-	hasSelection?: boolean;
+	onCopy?: () => void;
+	onPaste?: () => void;
+	canPaste?: boolean;
+	hasNodeSelected?: boolean;
 }
 
-export function ContextMenu({ position, onAddNode, onDeleteSelected, onEvaluate, onClose, hasSelection }: ContextMenuProps) {
+export function ContextMenu({position, onAddNode, onDeleteSelected, onEvaluate, onClose, onCopy, onPaste, canPaste, hasNodeSelected }: ContextMenuProps) {
 	return (
 		<Menu
 			opened={true}
@@ -49,7 +52,29 @@ export function ContextMenu({ position, onAddNode, onDeleteSelected, onEvaluate,
 				>
 					Add Node
 				</Menu.Item>
-				{hasSelection && onDeleteSelected && (
+				{hasNodeSelected && onCopy && (
+					<Menu.Item
+						leftSection="📋"
+						onClick={() => {
+							onCopy();
+							onClose();
+						}}
+					>
+						Copy
+					</Menu.Item>
+				)}
+				{canPaste && onPaste && (
+					<Menu.Item
+						leftSection="📄"
+						onClick={() => {
+							onPaste();
+							onClose();
+						}}
+					>
+						Paste
+					</Menu.Item>
+				)}
+				{hasNodeSelected && onDeleteSelected && (
 					<Menu.Item
 						leftSection="🗑️"
 						color="red"

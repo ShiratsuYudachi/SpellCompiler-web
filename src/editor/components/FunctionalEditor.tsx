@@ -142,6 +142,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		position: { x: number; y: number };
 		nodeId?: string;
 	} | null>(null);
+	const [clipboard, setClipboard] = useState<string | null>(null);
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'failed' | null>(null);
@@ -414,23 +415,169 @@ function EditorContent(props: FunctionalEditorProps) {
 		);
 	}, [nodes, setNodes, setEdges]);
 
-	// Keyboard shortcut for delete
+	// Copy selected nodes and edges
+	const handleCopy = useCallback(() => {
+		// Get selected nodes
+		const selectedNodes = nodes.filter((node) => node.selected);
+		
+		if (selectedNodes.length === 0) {
+			return; // Nothing to copy
+		}
+
+		// Get IDs of selected nodes
+		const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
+
+		// Get edges connected to selected nodes (both source and target)
+		const relatedEdges = edges.filter((edge) => 
+			selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
+		);
+
+		// Create copy data
+		const copyData = {
+			nodes: selectedNodes,
+			edges: relatedEdges,
+		};
+
+		// Serialize to JSON
+		const jsonData = JSON.stringify(copyData);
+
+		// Store in clipboard state
+		setClipboard(jsonData);
+
+		// Also try to use Clipboard API if available
+		if (navigator.clipboard && navigator.clipboard.writeText) {
+			navigator.clipboard.writeText(jsonData).catch((err) => {
+				console.warn('[Editor] Failed to write to clipboard:', err);
+				// Fallback to state storage (already done above)
+			});
+		}
+
+		console.log('[Editor] Copied', selectedNodes.length, 'nodes and', relatedEdges.length, 'edges');
+	}, [nodes, edges]);
+
+	// Paste nodes and edges
+	const handlePaste = useCallback(() => {
+		if (!clipboard) {
+			return; // Nothing to paste
+		}
+
+		try {
+			// Parse clipboard data
+			const copyData = JSON.parse(clipboard);
+			
+			if (!copyData.nodes || !Array.isArray(copyData.nodes)) {
+				console.error('[Editor] Invalid clipboard data: missing nodes');
+				return;
+			}
+
+			// Create ID mapping: old ID -> new ID
+			const idMap = new Map<string, string>();
+			const newNodes: Node[] = [];
+			const pasteOffset = { x: 50, y: 50 }; // Offset to avoid overlapping
+
+			// Get paste position: use context menu position if available, otherwise use viewport center
+			let pastePosition: { x: number; y: number };
+			if (contextMenu?.position) {
+				// Use right-click position
+				pastePosition = screenToFlowPosition({ x: contextMenu.position.x, y: contextMenu.position.y });
+			} else {
+				// Use viewport center for keyboard paste
+				const centerX = window.innerWidth / 2;
+				const centerY = window.innerHeight / 2;
+				pastePosition = screenToFlowPosition({ x: centerX, y: centerY });
+			}
+
+			// Calculate bounding box of copied nodes to center them at paste position
+			let minX = Infinity, minY = Infinity;
+			copyData.nodes.forEach((node: Node) => {
+				if (node.position.x < minX) minX = node.position.x;
+				if (node.position.y < minY) minY = node.position.y;
+			});
+
+			// Generate new nodes with new IDs and adjusted positions
+			copyData.nodes.forEach((node: Node) => {
+				const newNodeId = `node-${nodeIdCounter++}`;
+				idMap.set(node.id, newNodeId);
+
+				const newPosition = {
+					x: pastePosition.x + (node.position.x - minX) + pasteOffset.x,
+					y: pastePosition.y + (node.position.y - minY) + pasteOffset.y,
+				};
+
+				newNodes.push({
+					...node,
+					id: newNodeId,
+					position: newPosition,
+					selected: false, // Deselect pasted nodes
+				});
+			});
+
+			// Generate new edges with updated source and target IDs
+			const newEdges: Edge[] = [];
+			if (copyData.edges && Array.isArray(copyData.edges)) {
+				copyData.edges.forEach((edge: Edge) => {
+					const newSourceId = idMap.get(edge.source);
+					const newTargetId = idMap.get(edge.target);
+
+					if (newSourceId && newTargetId) {
+						newEdges.push({
+							...edge,
+							id: `e-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+							source: newSourceId,
+							target: newTargetId,
+							selected: false,
+						});
+					}
+				});
+			}
+
+			// Add new nodes and edges
+			setNodes((nds) => [...nds, ...newNodes]);
+			setEdges((eds) => [...eds, ...newEdges]);
+
+			console.log('[Editor] Pasted', newNodes.length, 'nodes and', newEdges.length, 'edges');
+		} catch (err) {
+			console.error('[Editor] Failed to paste:', err);
+			setError(err instanceof Error ? err.message : 'Failed to paste');
+		}
+	}, [clipboard, contextMenu, screenToFlowPosition, setNodes, setEdges]);
+
+	// Keyboard shortcuts for copy, paste, and delete
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
+			// Check if user is typing in an input field
+			const target = event.target as HTMLElement;
+			if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+				return; // Don't handle shortcuts when typing
+			}
+
+			const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+			const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+
+			// Copy: Cmd+C or Ctrl+C
+			if (modifierKey && event.key === 'c') {
+				event.preventDefault();
+				handleCopy();
+				return;
+			}
+
+			// Paste: Cmd+V or Ctrl+V
+			if (modifierKey && event.key === 'v') {
+				event.preventDefault();
+				handlePaste();
+				return;
+			}
+
 			// Delete or Backspace key
 			if (event.key === 'Delete' || event.key === 'Backspace') {
-				// Check if user is not typing in an input field
-				const target = event.target as HTMLElement;
-				if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
-					event.preventDefault();
-					handleDeleteSelected();
-				}
+				event.preventDefault();
+				handleDeleteSelected();
 			}
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, [handleDeleteSelected]);
+	}, [handleDeleteSelected, handleCopy, handlePaste]);
 
 	// Add function node from menu and connect
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
@@ -850,12 +997,39 @@ function EditorContent(props: FunctionalEditorProps) {
 					className="w-full h-full"
 					onContextMenu={(e) => {
 						e.preventDefault();
+						// Deselect all nodes and edges when right-clicking on canvas
+						setNodes((nds) =>
+							nds.map((n) => ({
+								...n,
+								selected: false
+							}))
+						);
+						setEdges((eds) =>
+							eds.map((e) => ({
+								...e,
+								selected: false
+							}))
+						);
+						// Open context menu
 						setContextMenu({
 							show: true,
 							position: { x: e.clientX, y: e.clientY }
 						});
 					}}
 					onClick={() => {
+						// Deselect all nodes and edges when clicking on canvas
+						setNodes((nds) =>
+							nds.map((n) => ({
+								...n,
+								selected: false
+							}))
+						);
+						setEdges((eds) =>
+							eds.map((e) => ({
+								...e,
+								selected: false
+							}))
+						);
 						// Close all menus when clicking on canvas
 						setMenuState(null);
 						setContextMenu(null);
@@ -866,6 +1040,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						edges={edges}
 						onNodeContextMenu={(event, node) => {
 							event.preventDefault();
+							event.stopPropagation(); // Prevent event bubbling to parent div
 							// Select the right-clicked node
 							setNodes((nds) =>
 								nds.map((n) => ({
@@ -884,11 +1059,12 @@ function EditorContent(props: FunctionalEditorProps) {
 							setContextMenu({
 								show: true,
 								position: { x: event.clientX, y: event.clientY },
-								nodeId: node.id
+								nodeId: node.id // Used to determine if Add Node should be shown
 							});
 						}}
 						onEdgeContextMenu={(event, edge) => {
 							event.preventDefault();
+							event.stopPropagation(); // Prevent event bubbling to parent div
 							// Deselect all nodes
 							setNodes((nds) =>
 								nds.map((n) => ({
@@ -918,8 +1094,8 @@ function EditorContent(props: FunctionalEditorProps) {
 					panOnScroll={true}
 					zoomOnScroll={true}
 					zoomOnPinch={true}
-					panOnDrag={[1, 2]}
-					selectionOnDrag={false}
+					panOnDrag={false}
+					selectionOnDrag={true}
 						// Better UX
 						minZoom={0.1}
 						maxZoom={4}
@@ -946,16 +1122,17 @@ function EditorContent(props: FunctionalEditorProps) {
 		{contextMenu && contextMenu.show && (
 			<ContextMenu
 				position={contextMenu.position}
-				onAddNode={() => {
-					// Open NodeSelectionMenu at context menu position
-					setMenuState({
-						show: true,
-						position: contextMenu.position
-					});
+				onAddNode={contextMenu.nodeId ? () => {
+					// If right-clicked on node, do nothing (shouldn't happen, but safe fallback)
+				} : () => {
+					setMenuState({ show: true, position: contextMenu.position });
 					setContextMenu(null);
 				}}
+				onCopy={nodes.some((node) => node.selected) ? handleCopy : undefined}
+				hasNodeSelected={nodes.some((node) => node.selected)}
+				onPaste={handlePaste}
+				canPaste={clipboard !== null} 
 				onDeleteSelected={handleDeleteSelected}
-				hasSelection={nodes.some((node) => node.selected) || edges.some((edge) => edge.selected)}
 				onEvaluate={() => {
 					handleEvaluate();
 					setContextMenu(null);
