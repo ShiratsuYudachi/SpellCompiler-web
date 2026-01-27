@@ -44,6 +44,7 @@ export const BUILT_IN_EVENTS = {
 	// Game events
 	'onPlayerHurt': { params: ['state', 'damage'] },
 	'onEnemyKilled': { params: ['state', 'enemyEid'] },
+	'onBulletNear': { params: ['state', 'bulletEid'] },
 } as const
 
 export type BuiltInEventName = keyof typeof BUILT_IN_EVENTS

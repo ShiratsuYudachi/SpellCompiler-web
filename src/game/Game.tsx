@@ -22,6 +22,7 @@ import { Level13 } from './scenes/levels/Level13'
 import { Level14 } from './scenes/levels/Level14'
 import { Level15 } from './scenes/levels/Level15'
 import { Level16 } from './scenes/levels/Level16'
+import { Level17 } from './scenes/levels/Level17'
 import { setGameInstance, setEditorContext } from './gameInstance'
 
 export function Game() {
@@ -66,6 +67,7 @@ export function Game() {
 				Level14,
 				Level15,
 				Level16,
+				Level17,
 			],
 			physics: {
 				default: 'arcade',
