@@ -1,64 +1,70 @@
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
-import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
-import { createRectBody } from '../../prefabs/createRectBody'
-import { castSpell } from '../../spells/castSpell'
-import type Phaser from 'phaser'
-import { createRoom } from '../../utils/levelUtils'
+import { Velocity, Health, Sprite } from '../../components'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
 
 export const Level4Meta: LevelMeta = {
 	key: 'Level4',
-	playerSpawnX: 120,
-	playerSpawnY: 400,
-	tileSize: 64,
-	mapData: createRoom(15, 9),
+	playerSpawnX: 480,
+	playerSpawnY: 480, // Spawn outside battle zone (below it)
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	editorRestrictions: /^(game::teleportRelative|game::getPlayer|game::getEntityPosition|game::emitEvent|vec::create)$/,
+	allowedNodeTypes: ['output', 'literal', 'vector', 'dynamicFunction'],
 	objectives: [
 		{
-			id: 'task1-combined',
-			description: 'Task 1: Use combined conditions (age>300ms AND distance>200px) to deflect',
-			type: 'defeat',
-		},
-		{
-			id: 'task2-lshape',
-			description: 'Task 2: Hit L-shape target with double deflection (90° twice)',
-			type: 'defeat',
-			prerequisite: 'task1-combined',
-		},
-		{
-			id: 'task3-boomerang',
-			description: 'Task 3: Create boomerang effect with 180° deflection',
-			type: 'defeat',
-			prerequisite: 'task2-lshape',
+			id: 'survive-10-seconds',
+			description: 'Survive for 10 seconds',
+			type: 'spell',
 		},
 	],
+
 	initialSpellWorkflow: {
 		nodes: [
 			{
 				id: 'output-1',
 				type: 'output',
-				position: { x: 600, y: 250 },
+				position: { x: 700, y: 220 },
 				data: { label: 'Output' },
 			},
 			{
-				id: 'func-deflect',
+				id: 'func-teleport',
 				type: 'dynamicFunction',
-				position: { x: 340, y: 230 },
+				position: { x: 420, y: 200 },
 				data: {
-					functionName: 'game::deflectAfterTime',
-					displayName: 'deflectAfterTime',
+					functionName: 'game::teleportRelative',
+					displayName: 'teleportRelative',
 					namespace: 'game',
-					params: ['angle', 'delayMs'],
+					params: ['state', 'entity', 'offset'],
 				},
 			},
-			{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 90 } },
-			{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 2000 } },
+			{
+				id: 'func-getPlayer',
+				type: 'dynamicFunction',
+				position: { x: 140, y: 120 },
+				data: {
+					functionName: 'game::getPlayer',
+					displayName: 'getPlayer',
+					namespace: 'game',
+					params: ['state'],
+				},
+			},
+			{ id: 'spell-input', type: 'spellInput', position: { x: -100, y: 150 }, data: { label: 'Game State', params: ['state'] } },
+			{
+				id: 'func-vector',
+				type: 'vector',
+				position: { x: 140, y: 240 },
+				data: { x: 0, y: 0 },
+			},
 		],
 		edges: [
-			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
+			{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+			{ id: 'e2', source: 'spell-input', target: 'func-teleport', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'func-vector', target: 'func-teleport', targetHandle: 'arg2' },
+			{ id: 'e5', source: 'spell-input', target: 'func-getPlayer', targetHandle: 'arg0' },
 		],
 	},
 }
@@ -66,204 +72,386 @@ export const Level4Meta: LevelMeta = {
 levelRegistry.register(Level4Meta)
 
 export class Level4 extends BaseScene {
-	private targets: Array<{
+	private bullets: Array<{
 		eid: number
-		marker: Phaser.GameObjects.Arc
-		label: Phaser.GameObjects.Text
-		destroyed: boolean
+		body: Phaser.Physics.Arcade.Image
+		direction: { x: number; y: number }
+		lastHitTime: number
 	}> = []
+
+	private startTime = 0
+	private survivalTime = 0
+	private readonly SURVIVAL_GOAL = 10 // 10 seconds
+	private readonly BULLET_SPEED = 1200
+	private readonly BULLET_SPAWN_INTERVAL_START = 1200 // Starting spawn interval (ms)
+	private readonly BULLET_SPAWN_INTERVAL_END = 200 // Ending spawn interval (ms)
+	private readonly BULLET_DAMAGE = 25 // Damage per hit
+	private readonly HIT_COOLDOWN = 500 // Cooldown between hits from same bullet (ms)
+
+	private spawnTimer = 0
+	private timerText!: Phaser.GameObjects.Text
+	private battleStarted = false
+	private battleZone!: Phaser.GameObjects.Rectangle
+	private battleZoneBounds!: { x: number; y: number; width: number; height: number }
 
 	constructor() {
 		super({ key: 'Level4' })
 	}
 
 	protected onLevelCreate(): void {
+		// Tutorial hint
 		this.showInstruction(
-			'【Deflection Proving Grounds】\n' +
-			'Master projectile deflection magic.\n' +
-			'Press TAB to edit spells.\n' +
-			'Press 1 to shoot fireball and cast spell.'
+			'【Level 4: Custom Event】\n\n' +
+			'Enter the central battle zone to begin!\n\n' +
+			'Fast bullets will attack you.\n' +
+			'Goal: Survive for 10 seconds.\n\n' +
+			'• Press TAB to open Event Bindings panel\n' +
+			'• Create an "onBulletNear" event handler\n' +
+			'• Use game::emitEvent to manually trigger it!\n' +
+			'• Calculate bullet distance yourself and emit when close\n\n' +
+			'Tip: Unlike Level 3, bullets won\'t automatically\n' +
+			'trigger events - YOU control when events fire!'
 		)
 
-		// Create three static target enemies for the three tasks
-		// Player is at (120, 400)
-		this.createTarget(600, 350, 'Task 1: Combined Condition', 0xff6600)
-		this.createTarget(700, 150, 'Task 2: L-Shape Chain', 0xffaa00)
-		this.createTarget(200, 150, 'Task 3: Boomerang', 0xff00ff)
+		// Create central battle zone (surrounded by walls)
+		this.createBattleZone()
 
-		// Lock player movement
+		// Create timer display (initially hidden)
+		this.timerText = this.add
+			.text(480, 40, 'Time: 0.0s / 10.0s', {
+				fontSize: '24px',
+				color: '#ffffff',
+				fontStyle: 'bold',
+				backgroundColor: '#000000',
+				padding: { x: 10, y: 5 },
+			})
+			.setOrigin(0.5)
+			.setScrollFactor(0)
+			.setDepth(1500)
+			.setVisible(false)
+
+		// Camera settings
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
-			playerBody.setPosition(120, 400)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
+	}
 
-		// Bind key '1' to shoot fireball + cast spell
-		this.input.keyboard?.on('keydown-ONE', () => {
-			this.shootAndCastSpell()
+	private createBattleZone() {
+		const roomWidth = 12 * 80
+		const roomHeight = 8 * 80
+		const centerX = roomWidth / 2
+		const centerY = roomHeight / 2
+		
+		// Battle zone dimensions (smaller than room)
+		const zoneWidth = 400
+		const zoneHeight = 300
+		
+		this.battleZoneBounds = {
+			x: centerX - zoneWidth / 2,
+			y: centerY - zoneHeight / 2,
+			width: zoneWidth,
+			height: zoneHeight,
+		}
+
+		// Visual indicator for battle zone (semi-transparent)
+		this.battleZone = this.add.rectangle(
+			centerX,
+			centerY,
+			zoneWidth,
+			zoneHeight,
+			0xff0000,
+			0.1
+		)
+		this.battleZone.setStrokeStyle(3, 0xff0000, 0.8)
+
+		// Add pulsing animation to make it obvious
+		this.tweens.add({
+			targets: this.battleZone,
+			alpha: 0.3,
+			duration: 1000,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.easeInOut',
 		})
+
+		// Create walls around the battle zone with an entrance at the bottom
+		const wallThickness = 20
+		const wallColor = 0x666666
+		const entranceWidth = 80 // Width of the entrance gap
+
+		// Top wall (full)
+		const topWall = this.add.rectangle(
+			centerX,
+			this.battleZoneBounds.y - wallThickness / 2,
+			zoneWidth + wallThickness * 2,
+			wallThickness,
+			wallColor
+		)
+		this.physics.add.existing(topWall, true)
+		this.platforms.add(topWall)
+		this.world.resources.walls.push(topWall)
+
+		// Bottom wall - split into two parts with entrance in the middle
+		const bottomY = this.battleZoneBounds.y + zoneHeight + wallThickness / 2
+		const bottomWallWidth = (zoneWidth - entranceWidth) / 2
+
+		// Bottom-left wall segment
+		const bottomLeftWall = this.add.rectangle(
+			centerX - zoneWidth / 2 + bottomWallWidth / 2,
+			bottomY,
+			bottomWallWidth,
+			wallThickness,
+			wallColor
+		)
+		this.physics.add.existing(bottomLeftWall, true)
+		this.platforms.add(bottomLeftWall)
+		this.world.resources.walls.push(bottomLeftWall)
+
+		// Bottom-right wall segment
+		const bottomRightWall = this.add.rectangle(
+			centerX + zoneWidth / 2 - bottomWallWidth / 2,
+			bottomY,
+			bottomWallWidth,
+			wallThickness,
+			wallColor
+		)
+		this.physics.add.existing(bottomRightWall, true)
+		this.platforms.add(bottomRightWall)
+		this.world.resources.walls.push(bottomRightWall)
+
+		// Left wall (full)
+		const leftWall = this.add.rectangle(
+			this.battleZoneBounds.x - wallThickness / 2,
+			centerY,
+			wallThickness,
+			zoneHeight,
+			wallColor
+		)
+		this.physics.add.existing(leftWall, true)
+		this.platforms.add(leftWall)
+		this.world.resources.walls.push(leftWall)
+
+		// Right wall (full)
+		const rightWall = this.add.rectangle(
+			this.battleZoneBounds.x + zoneWidth + wallThickness / 2,
+			centerY,
+			wallThickness,
+			zoneHeight,
+			wallColor
+		)
+		this.physics.add.existing(rightWall, true)
+		this.platforms.add(rightWall)
+		this.world.resources.walls.push(rightWall)
+
+		// Add entrance indicator arrows
+		const arrowY = bottomY + 40
+		this.add.text(centerX, arrowY, '▲ ENTER ▲', {
+			fontSize: '24px',
+			color: '#00ff00',
+			fontStyle: 'bold',
+			stroke: '#000000',
+			strokeThickness: 4,
+		}).setOrigin(0.5).setDepth(100)
+
+		// Add battle zone text
+		this.add.text(centerX, centerY, 'BATTLE ZONE', {
+			fontSize: '32px',
+			color: '#ff0000',
+			fontStyle: 'bold',
+			stroke: '#000000',
+			strokeThickness: 4,
+		}).setOrigin(0.5).setDepth(100)
+	}
+
+	private spawnBullet() {
+		if (!this.battleStarted) return
+
+		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (!playerBody) return
+
+		// Spawn bullets from edges of the battle zone (not room edges)
+		const edge = Phaser.Math.Between(0, 3) // 0=top, 1=right, 2=bottom, 3=left
+		let spawnX = 0
+		let spawnY = 0
+
+		const margin = 10
+
+		switch (edge) {
+			case 0: // top
+				spawnX = Phaser.Math.Between(
+					this.battleZoneBounds.x + margin,
+					this.battleZoneBounds.x + this.battleZoneBounds.width - margin
+				)
+				spawnY = this.battleZoneBounds.y + margin
+				break
+			case 1: // right
+				spawnX = this.battleZoneBounds.x + this.battleZoneBounds.width - margin
+				spawnY = Phaser.Math.Between(
+					this.battleZoneBounds.y + margin,
+					this.battleZoneBounds.y + this.battleZoneBounds.height - margin
+				)
+				break
+			case 2: // bottom
+				spawnX = Phaser.Math.Between(
+					this.battleZoneBounds.x + margin,
+					this.battleZoneBounds.x + this.battleZoneBounds.width - margin
+				)
+				spawnY = this.battleZoneBounds.y + this.battleZoneBounds.height - margin
+				break
+			case 3: // left
+				spawnX = this.battleZoneBounds.x + margin
+				spawnY = Phaser.Math.Between(
+					this.battleZoneBounds.y + margin,
+					this.battleZoneBounds.y + this.battleZoneBounds.height - margin
+				)
+				break
+		}
+
+		// Create bullet entity
+		const eid = spawnEntity(this.world)
+		addComponent(this.world, eid, Sprite)
+		addComponent(this.world, eid, Velocity)
+
+		// Create visual body (red square) - larger size
+		const bulletSize = 24 // Increased from 16 to 24
+		const body = this.physics.add.image(spawnX, spawnY, '')
+		body.setDisplaySize(bulletSize, bulletSize)
+		body.setTint(0xff0000)
+
+		// Create red square texture if not exists
+		if (!this.textures.exists('bullet-red')) {
+			const graphics = this.add.graphics()
+			graphics.fillStyle(0xff0000, 1)
+			graphics.fillRect(-bulletSize / 2, -bulletSize / 2, bulletSize, bulletSize)
+			graphics.generateTexture('bullet-red', bulletSize, bulletSize)
+			graphics.destroy()
+		}
+
+		body.setTexture('bullet-red')
+		body.setDepth(15)
+
+		this.world.resources.bodies.set(eid, body)
+
+		// Calculate direction towards player
+		const dx = playerBody.x - spawnX
+		const dy = playerBody.y - spawnY
+		const distance = Math.sqrt(dx * dx + dy * dy)
+
+		const direction = {
+			x: distance > 0 ? dx / distance : 0,
+			y: distance > 0 ? dy / distance : 0,
+		}
+
+		// Set velocity
+		Velocity.x[eid] = direction.x * this.BULLET_SPEED
+		Velocity.y[eid] = direction.y * this.BULLET_SPEED
+
+		this.bullets.push({ eid, body, direction, lastHitTime: 0 })
 	}
 
 	protected onLevelUpdate(): void {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// Lock player in place
-		if (playerBody) {
-			playerBody.setVelocity(0, 0)
-		}
+		if (!playerBody) return
+
+		// Disable default movement
+		playerBody.setVelocity(0, 0)
 		Velocity.x[playerEid] = 0
 		Velocity.y[playerEid] = 0
 
-		// Check target destruction
-		this.targets.forEach((target, index) => {
-			if (!target.destroyed && Health.current[target.eid] <= 0) {
-				target.destroyed = true
-				target.marker.destroy()
-				target.label.destroy()
+		// Check if player entered battle zone
+		if (!this.battleStarted) {
+			const inZone =
+				playerBody.x > this.battleZoneBounds.x &&
+				playerBody.x < this.battleZoneBounds.x + this.battleZoneBounds.width &&
+				playerBody.y > this.battleZoneBounds.y &&
+				playerBody.y < this.battleZoneBounds.y + this.battleZoneBounds.height
 
-				// Complete objectives based on which target was destroyed
-				if (index === 0) {
-					this.completeObjectiveById('task1-combined')
-				} else if (index === 1) {
-					this.completeObjectiveById('task2-lshape')
-				} else if (index === 2) {
-					this.completeObjectiveById('task3-boomerang')
-				}
-
-				this.cameras.main.flash(200, 0, 255, 0)
+			if (inZone) {
+				this.battleStarted = true
+				this.startTime = Date.now()
+				this.timerText.setVisible(true)
+				this.showInstruction('Battle started! Survive 10 seconds!')
+			} else {
+				// Player hasn't entered yet, no need to process further
+				return
 			}
-		})
-	}
-
-	private shootAndCastSpell() {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (!playerBody) return
-
-		// 1. Spawn fireball (fixed direction: right)
-		this.spawnLevel4Fireball(playerBody.x, playerBody.y, 1, 0) // dirX=1 (right), dirY=0
-
-		// 2. Cast spell immediately (using event system logic if possible, or direct cast if needed for this specific level)
-		// For Level 4, we might want to trigger a specific event instead of direct cast
-        // BUT, since we removed spellByEid, we need to use the Event System to trigger spells.
-        // Let's emit a custom event that the player can bind to.
-        // Or, if this is a legacy level behavior, we might need to rethink how it works.
-        // For now, let's assume the player has bound 'onKeyPressed' to a spell.
-        // If we want to force a cast, we can emit an event.
-        
-        // Emulating old behavior: trigger 'onKeyPressed' for key '1'
-        // This relies on the player having bound a spell to '1' via the Event System.
-        // If they haven't, nothing happens (which is correct for the new system).
-        // Alternatively, we can emit a custom event 'level4_shoot' and ask player to bind to it.
-        
-        // Since we removed spellByEid, we can't get the spell directly.
-        // We rely on the Event System to handle the key press '1'.
-        // The input system should already handle this if we set it up correctly.
-        // However, this method `shootAndCastSpell` is called by a manual key listener in `onLevelCreate`.
-        
-        // If we want to maintain the "press 1 to shoot AND cast" behavior without binding:
-        // We can't. The philosophy has changed.
-        // The player MUST bind a spell to an event.
-        
-        // So, we should probably remove this manual key listener and let the Event System handle '1'.
-        // BUT, Level 4 has specific logic to spawn a fireball THEN cast.
-        
-        // Temporary fix: Emit a custom event that the player *could* bind to, 
-        // or just rely on standard input events.
-        
-        // Actually, the instruction says "Press 1 to shoot fireball and cast spell".
-        // This implies a hardcoded behavior in the level.
-        // If we want to keep this hardcoded behavior, we need a way to get the "equipped" spell.
-        // But "equipped spell" concept is gone.
-        
-        // Solution: The level should probably just spawn the fireball on '1', 
-        // and let the player bind a spell to 'onKeyPressed: 1' if they want magic.
-        // OR, we emit a 'onFireballSpawned' event?
-        
-        // Let's just log for now, as we can't cast a specific spell without an ID.
-		console.log('[Level4] Fireball spawned. Bind a spell to "onKeyPressed: 1" to add magic!')
-	}
-
-	private spawnLevel4Fireball(x: number, y: number, dirX: number, dirY: number) {
-		// Ensure fireball texture exists
-		const key = 'fireball'
-		if (!this.textures.exists(key)) {
-			const g = this.add.graphics()
-			g.fillStyle(0xffaa33, 1)
-			g.fillCircle(6, 6, 6)
-			g.generateTexture(key, 12, 12)
-			g.destroy()
 		}
 
-		// Create physics body
-		const body = this.physics.add.image(x, y, key)
-		body.setDepth(20)
+		// Update survival timer
+		this.survivalTime = (Date.now() - this.startTime) / 1000
+		this.timerText.setText(`Time: ${this.survivalTime.toFixed(1)}s / ${this.SURVIVAL_GOAL}.0s`)
 
-		// Create ECS entity
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
+		// Check if survived
+		if (this.survivalTime >= this.SURVIVAL_GOAL) {
+			this.completeObjectiveById('survive-10-seconds')
+			this.timerText.setColor('#00ff00')
+			return
+		}
 
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Fireball)
-		addComponent(this.world, eid, Velocity)
-		addComponent(this.world, eid, Owner)
-		addComponent(this.world, eid, Direction)
-		addComponent(this.world, eid, FireballStats)
-		addComponent(this.world, eid, Lifetime)
+		// Calculate current spawn interval based on time (decreases from 1200ms to 200ms over 10 seconds)
+		const progress = Math.min(this.survivalTime / this.SURVIVAL_GOAL, 1) // 0 to 1
+		const currentSpawnInterval = 
+			this.BULLET_SPAWN_INTERVAL_START - 
+			(this.BULLET_SPAWN_INTERVAL_START - this.BULLET_SPAWN_INTERVAL_END) * progress
 
-		const playerEid = this.world.resources.playerEid
-		Owner.eid[eid] = playerEid
+		// Spawn bullets periodically (only after battle started)
+		this.spawnTimer += this.game.loop.delta
+		if (this.spawnTimer >= currentSpawnInterval) {
+			this.spawnTimer = 0
+			this.spawnBullet()
+		}
 
-		Direction.x[eid] = dirX
-		Direction.y[eid] = dirY
+		// Update bullets and check collisions
+		for (let i = this.bullets.length - 1; i >= 0; i--) {
+			const bullet = this.bullets[i]
 
-		FireballStats.speed[eid] = 420
-		FireballStats.damage[eid] = 10
-		FireballStats.hitRadius[eid] = 16
-		FireballStats.initialX[eid] = x
-		FireballStats.initialY[eid] = y
-		FireballStats.pendingDeflection[eid] = 0
-		FireballStats.deflectAtTime[eid] = 0
-		// Plate-based deflection
-		FireballStats.deflectOnPlateColor[eid] = 0
-		FireballStats.deflectOnPlateAngle[eid] = 0
-		FireballStats.plateDeflected[eid] = 0
+			// Check distance to player
+			const distance = Phaser.Math.Distance.Between(
+				bullet.body.x,
+				bullet.body.y,
+				playerBody.x,
+				playerBody.y
+			)
 
-		// Extended lifetime for Level4 (5 seconds)
-		Lifetime.bornAt[eid] = Date.now()
-		Lifetime.lifetimeMs[eid] = 5000
+			// NOTE: In Level 4, we DON'T automatically emit onBulletNear
+			// Players must manually check bullet positions and emit events themselves
+			// This teaches them how to use game::emitEvent
 
-		Velocity.x[eid] = dirX * FireballStats.speed[eid]
-		Velocity.y[eid] = dirY * FireballStats.speed[eid]
+			// Check collision (within 28 pixels = hit) - adjusted for larger bullet size (24px)
+			if (distance < 28) {
+				const currentTime = Date.now()
+				// Only damage if enough time has passed since last hit from this bullet
+				if (currentTime - bullet.lastHitTime > this.HIT_COOLDOWN) {
+					// Damage player
+					Health.current[playerEid] = Math.max(0, Health.current[playerEid] - this.BULLET_DAMAGE)
+					bullet.lastHitTime = currentTime
 
-		return eid
-	}
+					// Check if player died
+					if (Health.current[playerEid] <= 0) {
+						this.showInstruction('You died! Restarting...')
+						this.time.delayedCall(1500, () => {
+							this.scene.restart()
+						})
+						return
+					}
+				}
+			}
 
-	private createTarget(x: number, y: number, labelText: string, color: number) {
-		// Create visual marker
-		const marker = this.add.circle(x, y, 20, color, 0.5).setStrokeStyle(3, color)
-		const label = this.add.text(x, y - 40, labelText, {
-			fontSize: '14px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 3,
-		}).setOrigin(0.5)
-
-		// Create enemy entity
-		const body = createRectBody(this, 'target', color, 40, 40, x, y, 3)
-		body.setImmovable(true)
-
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
-
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Enemy)
-		addComponent(this.world, eid, Health)
-
-		Health.max[eid] = 10
-		Health.current[eid] = 10
-
-		this.targets.push({ eid, marker, label, destroyed: false })
+			// Remove bullets that go out of battle zone bounds (with margin)
+			const margin = 50
+			if (
+				bullet.body.x < this.battleZoneBounds.x - margin ||
+				bullet.body.x > this.battleZoneBounds.x + this.battleZoneBounds.width + margin ||
+				bullet.body.y < this.battleZoneBounds.y - margin ||
+				bullet.body.y > this.battleZoneBounds.y + this.battleZoneBounds.height + margin
+			) {
+				bullet.body.destroy()
+				this.world.resources.bodies.delete(bullet.eid)
+				this.bullets.splice(i, 1)
+			}
+		}
 	}
 }

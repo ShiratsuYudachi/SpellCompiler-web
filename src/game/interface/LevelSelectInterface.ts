@@ -35,8 +35,10 @@ export class LevelSelectInterface extends Phaser.Scene {
 			{ num: 1, sceneKey: 'Level1', name: 'Move' },
 			{ num: 2, sceneKey: 'Level2', name: 'Attack' },
 			{ num: 3, sceneKey: 'Level3', name: 'Event System' },
+			{ num: 4, sceneKey: 'Level4', name: 'Custom Event' },
 			{ num: 16, sceneKey: 'Level16', name: 'Boss Battle' },
 			{ num: 17, sceneKey: 'Level17', name: 'Combat' },
+			{ num: 18, sceneKey: 'Level18', name: 'Deflection Grounds' },
 		]
 
 		// Generate 20 levels (4 columns, 5 rows)
