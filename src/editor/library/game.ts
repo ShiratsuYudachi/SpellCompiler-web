@@ -222,4 +222,52 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		},
 		ui: { displayName: '📡 emitEvent' }
 	});
+
+	// game::setTimeout(state: GameState, callback: Function, delayMs: number) -> GameState
+	// Schedules a spell/function to execute after a delay
+	// The callback will receive a fresh GameState when it executes
+	evaluator.registerFunction({
+		fullName: 'game::setTimeout',
+		params: ['state', 'callback', 'delayMs'],
+		fn: (state: Value, callback: Value, delayMs: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+
+			if (typeof delayMs !== 'number') {
+				throw new Error('Delay must be a number');
+			}
+
+			if (typeof callback !== 'object' || callback === null || !('type' in callback) || callback.type !== 'function') {
+				throw new Error('Callback must be a function');
+			}
+
+			const callbackFn = callback as FunctionValue;
+
+			// Schedule the callback execution
+			setTimeout(() => {
+				try {
+					// Create a fresh GameState for the callback
+					const freshState: GameState = {
+						type: 'gamestate',
+						__runtimeRef: Symbol('GameState')
+					};
+
+					console.log(`[setTimeout] Executing callback after ${delayMs}ms delay`);
+					
+					// Execute the callback with the fresh state
+					evaluator.callFunctionValue(callbackFn, freshState);
+				} catch (error) {
+					console.error('[setTimeout] Error executing delayed callback:', error);
+				}
+			}, delayMs);
+
+			console.log(`[setTimeout] Scheduled callback to execute after ${delayMs}ms`);
+
+			// Return immediately with current state
+			return state;
+		},
+		ui: { displayName: '⏰ setTimeout' }
+	});
 }
+
+
