@@ -3,12 +3,15 @@
 //  -
 // =============================================
 
-import { Handle, Position } from 'reactflow';
-import { memo, useState, useEffect } from 'react';
+import { Handle, Position, useEdges } from 'reactflow';
+import { memo, useState, useEffect, useCallback } from 'react';
 import type { NodeProps } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
 import type { ParameterMode, ParameterModeOption } from '../../utils/getFunctionRegistry';
 import { getFunctionInfo } from '../../utils/getFunctionRegistry';
+import { InlineInput, type InlineInputType } from '../menus/InlineInput';
+import type { InlineValue } from '../../types/flowTypes';
+import { inferParamType, shouldShowInlineInput } from '../../utils/paramTypeInfer';
 
 export interface DynamicFunctionNodeData {
 	functionName: string;      //  (e.g., 'std::math::add')
@@ -17,10 +20,12 @@ export interface DynamicFunctionNodeData {
 	params: string[];          //
 	isVariadic?: boolean;      //
 	parameterModes?: Record<string, { current: ParameterMode; options: ParameterModeOption[] }>;  // Parameter modes
+	inlineValues?: Record<string, InlineValue>;  // Inline input values
 }
 
 export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	const nodeData = data as DynamicFunctionNodeData;
+	const edges = useEdges();
 
 	const {
 		displayName,
@@ -29,6 +34,24 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 		isVariadic = false,
 		functionName
 	} = nodeData;
+
+	// Check if a specific handle has an edge connected
+	const isHandleConnected = useCallback((handleId: string) => {
+		return edges.some(edge => edge.target === id && edge.targetHandle === handleId);
+	}, [edges, id]);
+
+	// Handle inline value changes
+	const handleInlineValueChange = useCallback((paramName: string, value: InlineValue) => {
+		if (!nodeData.inlineValues) {
+			nodeData.inlineValues = {};
+		}
+		nodeData.inlineValues[paramName] = value;
+	}, [nodeData]);
+
+	// Get inline value for a parameter
+	const getInlineValue = useCallback((paramName: string): InlineValue | undefined => {
+		return nodeData.inlineValues?.[paramName];
+	}, [nodeData.inlineValues]);
 
 	// Initialize parameter modes from function registry
 	const [paramModes, setParamModes] = useState<Record<string, ParameterMode>>(() => {
@@ -228,21 +251,50 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 									</select>
 								)}
 
-								{/* Parameter handles */}
-								{group.params.map((param) => (
-									<div key={param.index} className="flex items-center relative h-6">
-										<Handle
-											type="target"
-											position={Position.Left}
-											id={`arg${param.index}`}
-											className={`w-3 h-3 ${colors.handle} absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2`}
-										/>
-										<div className={`ml-3 text-xs ${colors.text} opacity-70`}>
-											{param.name}
-											{isVariadic && <span className="opacity-50">?</span>}
+								{/* Parameter handles with inline inputs */}
+								{group.params.map((param) => {
+									const handleId = `arg${param.index}`;
+									const connected = isHandleConnected(handleId);
+
+									// Infer parameter type to determine inline input behavior
+									const paramType = inferParamType(param.originalParam);
+									const showInline = shouldShowInlineInput(paramType);
+
+									// Map paramType to InlineInputType
+									let inputType: InlineInputType;
+									if (paramType === 'Vector2D') {
+										inputType = 'vector';
+									} else {
+										inputType = 'literal'; // number and string both use literal input
+									}
+
+									return (
+										<div key={param.index} className="flex items-center relative min-h-[24px]">
+											<Handle
+												type="target"
+												position={Position.Left}
+												id={handleId}
+												className={`w-3 h-3 ${colors.handle} absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2`}
+											/>
+											<div className={`ml-3 text-xs ${colors.text} opacity-70 flex items-center gap-1`}>
+												<span>
+													{param.name}
+													{isVariadic && <span className="opacity-50">?</span>}
+												</span>
+												{/* Inline input - only show when not connected and type supports inline */}
+												{!connected && !isVariadic && showInline && (
+													<InlineInput
+														type={inputType}
+														value={getInlineValue(param.originalParam)}
+														onChange={(value) => handleInlineValueChange(param.originalParam, value)}
+														disabled={connected}
+														colors={{ border: colors.border, text: colors.text }}
+													/>
+												)}
+											</div>
 										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						);
 					})}

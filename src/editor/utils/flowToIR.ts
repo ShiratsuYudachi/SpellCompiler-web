@@ -16,6 +16,8 @@ import type {
 	VectorNodeData,
 	SpellInputNodeData
 } from '../types/flowTypes';
+import { inlineValueToAST } from './inlineValueHelper';
+
 
 /**
  * Convert React Flow graph to Spell IR
@@ -305,16 +307,22 @@ function convertNode(
 								const edge = sortedEdges[edgeIndex];
 
 								if (!edge) {
-									throw new Error(`Missing edge for parameter ${paramName}`);
-								}
+									// No edge connected - try to use inline value
+									const inlineValue = data.inlineValues?.[paramName];
+									if (inlineValue !== undefined) {
+										args.push(inlineValueToAST(inlineValue));
+									} else {
+										throw new Error(`Missing edge for parameter ${paramName}`);
+									}
+								} else {
+									const sourceNode = allNodes.find(n => n.id === edge.source);
+									if (!sourceNode) {
+										throw new Error(`Source node ${edge.source} not found`);
+									}
 
-								const sourceNode = allNodes.find(n => n.id === edge.source);
-								if (!sourceNode) {
-									throw new Error(`Source node ${edge.source} not found`);
+									args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+									edgeIndex++;
 								}
-
-								args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
-								edgeIndex++;
 							}
 						}
 					} else {
@@ -325,21 +333,40 @@ function convertNode(
 								if (!sourceNode) {
 									throw new Error(`Source node ${edge.source} not found`);
 								}
-								
+
 								args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
 								edgeIndex++;
+							} else {
+								// No edge connected - try to use inline value
+								const inlineValue = data.inlineValues?.[paramName];
+								if (inlineValue !== undefined) {
+									args.push(inlineValueToAST(inlineValue));
+								}
+								// If no inline value either, skip this parameter (might be optional)
 							}
 					}
 				});
 			} else {
-				// No parameter modes: use old behavior
-				sortedEdges.forEach((edge) => {
-					const sourceNode = allNodes.find(n => n.id === edge.source);
-					if (!sourceNode) {
-						throw new Error(`Source node ${edge.source} not found`);
+				// No parameter modes: iterate through params, check edges then inline values
+				data.params.forEach((paramName: string, index: number) => {
+					const handleId = `arg${index}`;
+					const edge = sortedEdges.find(e => e.targetHandle === handleId);
+
+					if (edge) {
+						// Edge exists for this parameter
+						const sourceNode = allNodes.find(n => n.id === edge.source);
+						if (!sourceNode) {
+							throw new Error(`Source node ${edge.source} not found`);
+						}
+						args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
+					} else {
+						// No edge - try to use inline value
+						const inlineValue = data.inlineValues?.[paramName];
+						if (inlineValue !== undefined) {
+							args.push(inlineValueToAST(inlineValue));
+						}
+						// If no inline value either, skip (might be optional or will error at runtime)
 					}
-					
-					args.push(convertNode(sourceNode as FlowNode, allNodes, incomingEdges, edge.sourceHandle || undefined));
 				});
 			}
 
