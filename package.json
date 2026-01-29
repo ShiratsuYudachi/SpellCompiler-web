@@ -33,6 +33,7 @@
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
 		"reactflow": "^11.11.4",
+		"use-undoable": "^5.0.0",
 		"vite": "^7.1.9"
 	}
 }
