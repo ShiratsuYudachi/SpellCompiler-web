@@ -11,10 +11,31 @@ interface ContextMenuProps {
 	onDeleteSelected?: () => void;
 	onEvaluate: () => void;
 	onClose: () => void;
-	hasSelection?: boolean;
+	onCopy?: () => void;
+	onPaste?: () => void;
+	canPaste?: boolean;
+	hasNodeSelected?: boolean;
+	onUndo?: () => void;
+	onRedo?: () => void;
+	canUndo?: boolean;
+	canRedo?: boolean;
 }
 
-export function ContextMenu({ position, onAddNode, onDeleteSelected, onEvaluate, onClose, hasSelection }: ContextMenuProps) {
+export function ContextMenu({
+	position,
+	onAddNode,
+	onDeleteSelected,
+	onEvaluate,
+	onClose,
+	onCopy,
+	onPaste,
+	canPaste,
+	hasNodeSelected,
+	onUndo,
+	onRedo,
+	canUndo,
+	canRedo,
+}: ContextMenuProps) {
 	return (
 		<Menu
 			opened={true}
@@ -49,7 +70,29 @@ export function ContextMenu({ position, onAddNode, onDeleteSelected, onEvaluate,
 				>
 					Add Node
 				</Menu.Item>
-				{hasSelection && onDeleteSelected && (
+				{hasNodeSelected && onCopy && (
+					<Menu.Item
+						leftSection="📋"
+						onClick={() => {
+							onCopy();
+							onClose();
+						}}
+					>
+						Copy
+					</Menu.Item>
+				)}
+				{canPaste && onPaste && (
+					<Menu.Item
+						leftSection="📄"
+						onClick={() => {
+							onPaste();
+							onClose();
+						}}
+					>
+						Paste
+					</Menu.Item>
+				)}
+				{hasNodeSelected && onDeleteSelected && (
 					<Menu.Item
 						leftSection="🗑️"
 						color="red"
@@ -59,6 +102,28 @@ export function ContextMenu({ position, onAddNode, onDeleteSelected, onEvaluate,
 						}}
 					>
 						Delete Selected
+					</Menu.Item>
+				)}
+				{canUndo && onUndo && (
+					<Menu.Item
+						leftSection="↩️"
+						onClick={() => {
+							onUndo();
+							onClose();
+						}}
+					>
+						Undo
+					</Menu.Item>
+				)}
+				{canRedo && onRedo && (
+					<Menu.Item
+						leftSection="↪️"
+						onClick={() => {
+							onRedo();
+							onClose();
+						}}
+					>
+						Redo
 					</Menu.Item>
 				)}
 				<Menu.Divider />
