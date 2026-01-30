@@ -1082,6 +1082,7 @@ function EditorContent(props: FunctionalEditorProps) {
 				}}
 				onCopy={nodes.some((node) => node.selected) ? handleCopy : undefined}
 				hasNodeSelected={nodes.some((node) => node.selected)}
+				hasEdgeSelected={edges.some((edge) => edge.selected)}
 				onPaste={handlePaste}
 				canPaste={canPaste}
 				onDeleteSelected={handleDeleteSelected}

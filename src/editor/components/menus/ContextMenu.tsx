@@ -15,6 +15,7 @@ interface ContextMenuProps {
 	onPaste?: () => void;
 	canPaste?: boolean;
 	hasNodeSelected?: boolean;
+	hasEdgeSelected?: boolean;
 	onUndo?: () => void;
 	onRedo?: () => void;
 	canUndo?: boolean;
@@ -31,6 +32,7 @@ export function ContextMenu({
 	onPaste,
 	canPaste,
 	hasNodeSelected,
+	hasEdgeSelected,
 	onUndo,
 	onRedo,
 	canUndo,
@@ -92,7 +94,7 @@ export function ContextMenu({
 						Paste
 					</Menu.Item>
 				)}
-				{hasNodeSelected && onDeleteSelected && (
+				{(hasNodeSelected || hasEdgeSelected) && onDeleteSelected && (
 					<Menu.Item
 						leftSection="🗑️"
 						color="red"
