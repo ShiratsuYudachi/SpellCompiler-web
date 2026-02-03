@@ -8,8 +8,8 @@ import type { Node, Edge } from 'reactflow';
 export type ClipboardContextMenuPosition = { x: number; y: number } | undefined;
 
 export interface UseEditorClipboardOptions {
-	nodes: Node[];
-	edges: Edge[];
+	getNodes: () => Node[];
+	getEdges: () => Edge[];
 	setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
 	setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
 	/** When provided, paste applies nodes+edges in one call (single undo step). Otherwise uses setNodes + setEdges. */
@@ -30,8 +30,8 @@ export interface UseEditorClipboardReturn {
 const PASTE_OFFSET = { x: 50, y: 50 };
 
 export function useEditorClipboard({
-	nodes,
-	edges,
+	getNodes,
+	getEdges,
 	setNodes,
 	setEdges,
 	applyPaste,
@@ -43,11 +43,13 @@ export function useEditorClipboard({
 	const [clipboard, setClipboard] = useState<string | null>(null);
 
 	const handleCopy = useCallback(() => {
-		const selectedNodes = nodes.filter((node) => node.selected);
+		const n = getNodes();
+		const e = getEdges();
+		const selectedNodes = n.filter((node) => node.selected);
 		if (selectedNodes.length === 0) return;
 
 		const selectedNodeIds = new Set(selectedNodes.map((node) => node.id));
-		const relatedEdges = edges.filter(
+		const relatedEdges = e.filter(
 			(edge) => selectedNodeIds.has(edge.source) && selectedNodeIds.has(edge.target)
 		);
 
@@ -61,7 +63,7 @@ export function useEditorClipboard({
 				console.warn('[Editor] Failed to write to clipboard:', err);
 			});
 		}
-	}, [nodes, edges]);
+	}, [getNodes, getEdges]);
 
 	const handlePaste = useCallback(() => {
 		if (!clipboard) return;

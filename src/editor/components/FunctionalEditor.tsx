@@ -4,21 +4,16 @@
 // =============================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import useUndoable from 'use-undoable';
 import ReactFlow, {
 	Background,
 	Controls,
 	MiniMap,
 	addEdge,
-	applyNodeChanges,
-	applyEdgeChanges,
 	useReactFlow,
 	ReactFlowProvider,
 	type Connection,
 	type Edge,
 	type Node,
-	type NodeChange,
-	type EdgeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Alert, Button, Group, Paper, Text, TextInput, Modal, Badge } from '@mantine/core';
@@ -114,131 +109,62 @@ function bumpNodeIdCounterFromNodes(nodes: Node[]) {
 
 type FlowState = { nodes: Node[]; edges: Edge[] };
 
+// Uncontrolled mode: React Flow manages nodes/edges internally during drag - no parent re-renders.
+// We only sync to our undo history on explicit actions (drag stop, add, delete, connect).
 function EditorContent(props: FunctionalEditorProps) {
 	const isLibraryMode = props.isLibraryMode ?? Boolean(props.onExit && props.initialSpellId !== null)
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
-	const initialFlowState: FlowState = useMemo(
-		() => ({
-			nodes: startingFlow?.nodes || [],
-			edges: startingFlow?.edges || [],
-		}),
-		[]
-	);
+	const defaultNodes = useMemo(() => startingFlow?.nodes || defaultNewFlow.nodes, [startingFlow]);
+	const defaultEdges = useMemo(() => startingFlow?.edges || defaultNewFlow.edges, [startingFlow]);
 
-	const [flowState, setFlowState, { undo, redo, canUndo, canRedo }] = useUndoable<FlowState>(initialFlowState, {
-		historyLimit: 50,
-		ignoreIdenticalMutations: false,
-		cloneState: true,
-	});
-
-	const nodes = flowState.nodes;
-	const edges = flowState.edges;
-
-	// Keep latest flowState for flushBatch so we can skip pushing selection-only changes (keeps redo stack)
-	const flowStateRef = useRef<FlowState>(flowState);
-	flowStateRef.current = flowState;
-
-	const setNodes = useCallback(
-		(updater: React.SetStateAction<Node[]>) => {
-			setFlowState((prev) => ({
-				...prev,
-				nodes: typeof updater === 'function' ? updater(prev.nodes) : updater,
-			}));
-		},
-		[setFlowState]
-	);
-
-	const setEdges = useCallback(
-		(updater: React.SetStateAction<Edge[]>) => {
-			setFlowState((prev) => ({
-				...prev,
-				edges: typeof updater === 'function' ? updater(prev.edges) : updater,
-			}));
-		},
-		[setFlowState]
-	);
-
-	// Batch node + edge changes so one undo step reverts both (avoids "undo edges then nodes" and multiple Cmd+Z)
-	const BATCH_MS = 50;
-	const pendingNodeChangesRef = useRef<NodeChange[][]>([]);
-	const pendingEdgeChangesRef = useRef<EdgeChange[][]>([]);
-	const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	// Only push to history after user has done an explicit action. Used so initial load/drag doesn't show Undo.
+	// Custom undo/redo - sync with React Flow instance, no state updates during drag
+	const pastRef = useRef<FlowState[]>([]);
+	const futureRef = useRef<FlowState[]>([]);
+	const [undoState, setUndoState] = useState({ canUndo: false, canRedo: false });
 	const historyAllowedRef = useRef(false);
-	// Show Undo/Redo in context menu only after user has acted (avoids "Undo" appearing initially from any stray push).
 	const [hasUserActed, setHasUserActed] = useState(false);
 
-	// Apply pending node/edge changes and return new state (or null if nothing pending). Does not call setFlowState.
-	const applyPendingAndGetState = useCallback((): FlowState | null => {
-		const nodeChanges = pendingNodeChangesRef.current;
-		const edgeChanges = pendingEdgeChangesRef.current;
-		pendingNodeChangesRef.current = [];
-		pendingEdgeChangesRef.current = [];
-		if (nodeChanges.length === 0 && edgeChanges.length === 0) return null;
-		const prev = flowStateRef.current;
-		let nextNodes = prev.nodes;
-		let nextEdges = prev.edges;
-		for (const changes of nodeChanges) {
-			nextNodes = applyNodeChanges(changes, nextNodes);
-		}
-		for (const changes of edgeChanges) {
-			nextEdges = applyEdgeChanges(changes, nextEdges);
-		}
-		return { ...prev, nodes: nextNodes, edges: nextEdges };
-	}, []);
+	const { setNodes, setEdges, getNodes, getEdges, screenToFlowPosition, getNode, toObject } = useReactFlow();
 
-	// Flush batched changes to state. Never pushes to history (action-based undo pushes only at action boundaries).
-	const flushBatch = useCallback(() => {
-		batchTimeoutRef.current = null;
-		const newState = applyPendingAndGetState();
-		if (newState !== null) {
-			setFlowState(newState, undefined, true);
-		}
-	}, [applyPendingAndGetState, setFlowState]);
+	const pushUndo = useCallback(() => {
+		const nodes = getNodes();
+		const edges = getEdges();
+		pastRef.current = pastRef.current.slice(-49).concat([{ nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) }]);
+		futureRef.current = [];
+		setUndoState({ canUndo: true, canRedo: false });
+	}, [getNodes, getEdges]);
 
-	// Push one undo step when a discrete user action ends (e.g. drag end). Call after applying any pending batch.
-	const pushUndoStep = useCallback(
-		(newState: FlowState) => {
-			historyAllowedRef.current = true;
-			setHasUserActed(true);
-			setFlowState(newState, undefined, false);
-		},
-		[setFlowState]
-	);
+	const undo = useCallback(() => {
+		if (pastRef.current.length === 0) return;
+		const prev = pastRef.current.pop()!;
+		futureRef.current = [{ nodes: JSON.parse(JSON.stringify(getNodes())), edges: JSON.parse(JSON.stringify(getEdges())) }, ...futureRef.current];
+		setNodes(prev.nodes);
+		setEdges(prev.edges);
+		setUndoState({ canUndo: pastRef.current.length > 0, canRedo: true });
+	}, [getNodes, getEdges, setNodes, setEdges]);
 
-	// On drag end: apply any pending position changes, then record one undo step (deterministic: one move = one step).
+	const redo = useCallback(() => {
+		if (futureRef.current.length === 0) return;
+		const next = futureRef.current.shift()!;
+		pastRef.current = pastRef.current.concat([{ nodes: JSON.parse(JSON.stringify(getNodes())), edges: JSON.parse(JSON.stringify(getEdges())) }]);
+		setNodes(next.nodes);
+		setEdges(next.edges);
+		setUndoState({ canUndo: true, canRedo: futureRef.current.length > 0 });
+	}, [getNodes, getEdges, setNodes, setEdges]);
+
+	const [saveTrigger, setSaveTrigger] = useState(0);
+	const triggerSave = useCallback(() => setSaveTrigger((s) => s + 1), []);
+
+	// Push state BEFORE drag (at start) - if we push at stop, we'd save state after drag and undo would do nothing
+	const onDragStart = useCallback(() => {
+		historyAllowedRef.current = true;
+		setHasUserActed(true);
+		pushUndo();
+	}, [pushUndo]);
+
 	const onNodeDragStop = useCallback(() => {
-		if (batchTimeoutRef.current !== null) {
-			clearTimeout(batchTimeoutRef.current);
-			batchTimeoutRef.current = null;
-		}
-		const newState = applyPendingAndGetState();
-		if (newState !== null) {
-			pushUndoStep(newState);
-		}
-	}, [applyPendingAndGetState, pushUndoStep]);
-
-	const onNodesChange = useCallback(
-		(changes: NodeChange[]) => {
-			pendingNodeChangesRef.current.push(changes);
-			if (batchTimeoutRef.current !== null) clearTimeout(batchTimeoutRef.current);
-			batchTimeoutRef.current = setTimeout(flushBatch, BATCH_MS);
-		},
-		[flushBatch]
-	);
-
-	const onEdgesChange = useCallback(
-		(changes: EdgeChange[]) => {
-			pendingEdgeChangesRef.current.push(changes);
-			if (batchTimeoutRef.current !== null) clearTimeout(batchTimeoutRef.current);
-			batchTimeoutRef.current = setTimeout(flushBatch, BATCH_MS);
-		},
-		[flushBatch]
-	);
-
-	useEffect(() => () => {
-		if (batchTimeoutRef.current !== null) clearTimeout(batchTimeoutRef.current);
-	}, []);
+		triggerSave();
+	}, [triggerSave]);
 
 	// Always ensure we have a spellId (both Library and Game mode need it for saving)
 	const [spellId, setSpellId] = useState<string | null>(() => {
@@ -271,8 +197,6 @@ function EditorContent(props: FunctionalEditorProps) {
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'failed' | null>(null);
-
-	const { screenToFlowPosition, getNode, toObject } = useReactFlow();
 
 	const generateNodeId = useCallback(() => `node-${nodeIdCounter++}`, []);
 
@@ -322,111 +246,45 @@ function EditorContent(props: FunctionalEditorProps) {
 				nodeIdCounter = maxId;
 			} catch (err) {
 				console.error('[Editor] Failed to load workflow:', err);
-				setFlowState(
-					{
-						...flowStateRef.current,
-						nodes: [{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }],
-						edges: [],
-					},
-					undefined,
-					true
-				);
+				setNodes([{ id: 'output-1', type: 'output', position: { x: 400, y: 200 }, data: {} }]);
+				setEdges([]);
 			}
 
 			setWorkflowLoaded(true);
 		});
 
 		return unsubscribe;
-	}, [editorContext, workflowLoaded, isLibraryMode]);
+	}, [editorContext, workflowLoaded, isLibraryMode, setNodes, setEdges]);
 
-	// Auto-save workflow to localStorage when nodes or edges change
+	// Auto-save: trigger on flow changes (saveTrigger incremented by drag stop, add, delete, connect)
 	useEffect(() => {
-		console.log('[Editor] Auto-save check:', {
-			isLibraryMode,
-			spellId,
-			workflowLoaded,
-			sceneKey: editorContext?.sceneKey,
-			nodeCount: nodes.length,
-			edgeCount: edges.length
-		})
-
-		// Library mode: save spell data AND UI state
-		if (isLibraryMode) {
-			if (!spellId) {
-				console.log('[Editor] Library mode: No spellId, skipping save')
-				return // Only save if we have a spell ID
-			}
-
+		if (!isLibraryMode || !spellId) return
 		const timeoutId = setTimeout(() => {
 			try {
-				console.log('[Editor] Auto-saving spell data for:', spellId, 'name:', spellName)
-
-				// Save spell data (flow already contains nodes with positions)
-				// Only need to save viewport separately
-				upsertSpell({
-					id: spellId,
-					name: spellName,
-					flow: { nodes, edges }
-					// Note: viewport would be saved separately if we track it
-				})
-				console.log('[Editor] Spell data auto-saved successfully')
+				const nodes = getNodes();
+				const edges = getEdges();
+				upsertSpell({ id: spellId, name: spellName, flow: { nodes, edges } });
 			} catch (err) {
-				console.error('[Editor] Failed to auto-save:', err)
+				console.error('[Editor] Failed to auto-save:', err);
 			}
-		}, 1000) // 1 second debounce
-
-			return () => clearTimeout(timeoutId)
-		}
-
-		// Game mode: No auto-save needed (workflow resets on level entry)
-		// Spells are saved in save system, not localStorage
-		if (!workflowLoaded) {
-			return
-		}
-
-		if (!editorContext?.sceneKey) {
-			return
-		}
-
-		// No-op: workflow is intentionally temporary in game mode
-		// Each level loads fresh from initialSpellWorkflow
-		console.log('[Editor] Game mode: workflow changes are temporary (not auto-saved)')
-
-		return () => {};
-	}, [nodes, edges, editorContext, workflowLoaded, isLibraryMode, spellId, spellName]);
+		}, 1000);
+		return () => clearTimeout(timeoutId);
+	}, [saveTrigger, isLibraryMode, spellId, spellName, getNodes, getEdges]);
 	useEffect(() => {
 		if (!startingFlow) return
 		bumpNodeIdCounterFromNodes(startingFlow.nodes)
 	}, [startingFlow])
 
-	// Force save function (no debounce)
 	const forceSave = useCallback(() => {
-		console.log('[Editor] Force save triggered')
-
-		if (isLibraryMode) {
-			if (!spellId) {
-				console.log('[Editor] Force save: No spellId in library mode')
-				return
-			}
+		if (!isLibraryMode || !spellId) return;
 		try {
-			console.log('[Editor] Force saving spell data for:', spellId, 'name:', spellName)
-
-			// Save spell data (flow already contains nodes with positions)
-			upsertSpell({
-				id: spellId,
-				name: spellName,
-				flow: { nodes, edges }
-			})
-			console.log('[Editor] Spell data saved successfully')
+			const nodes = getNodes();
+			const edges = getEdges();
+			upsertSpell({ id: spellId, name: spellName, flow: { nodes, edges } });
 		} catch (err) {
-			console.error('[Editor] Force save failed:', err)
+			console.error('[Editor] Force save failed:', err);
 		}
-		} else {
-			// Game mode: No force save needed
-			// Workflow is intentionally temporary and resets on level entry
-			console.log('[Editor] Game mode: workflow is temporary (not saved)')
-		}
-	}, [isLibraryMode, spellId, spellName, nodes, edges, editorContext])
+	}, [isLibraryMode, spellId, spellName, getNodes, getEdges]);
 
 	// Save on component unmount
 	useEffect(() => {
@@ -448,9 +306,11 @@ function EditorContent(props: FunctionalEditorProps) {
 		(params: Connection) => {
 			historyAllowedRef.current = true;
 			setHasUserActed(true);
+			pushUndo();
 			setEdges((eds) => addEdge(params, eds));
+			triggerSave();
 		},
-		[setEdges]
+		[setEdges, pushUndo, triggerSave]
 	);
 
 	// Handle click on source handle to show menu
@@ -474,40 +334,106 @@ function EditorContent(props: FunctionalEditorProps) {
 		onHandleAddNode: handleHandleAddNode
 	}), [handleHandleAddNode]);
 
-	// Delete selected nodes and edges in one step (one undo)
 	const handleDeleteSelected = useCallback(() => {
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
-		setFlowState((prev) => {
-			const nodesToDelete = new Set(
-				prev.nodes.filter((node) => node.selected).map((node) => node.id)
-			);
-			const nextNodes = prev.nodes.filter((node) => !node.selected);
-			const nextEdges = prev.edges.filter((edge) => {
-				if (edge.selected) return false;
-				if (nodesToDelete.has(edge.source) || nodesToDelete.has(edge.target)) return false;
-				return true;
-			});
-			return { ...prev, nodes: nextNodes, edges: nextEdges };
-		});
-	}, [setFlowState]);
+		pushUndo();
+		const nodes = getNodes();
+		const edges = getEdges();
+		const nodesToDelete = new Set(nodes.filter((n) => n.selected).map((n) => n.id));
+		setNodes(nodes.filter((n) => !n.selected));
+		setEdges(edges.filter((e) => {
+			if (e.selected) return false;
+			if (nodesToDelete.has(e.source) || nodesToDelete.has(e.target)) return false;
+			return true;
+		}));
+		triggerSave();
+	}, [getNodes, getEdges, setNodes, setEdges, pushUndo, triggerSave]);
 
 	const applyPaste = useCallback(
 		(newNodes: Node[], newEdges: Edge[]) => {
 			historyAllowedRef.current = true;
 			setHasUserActed(true);
-			setFlowState((prev) => ({
-				...prev,
-				nodes: [...prev.nodes, ...newNodes],
-				edges: [...prev.edges, ...newEdges],
-			}));
+			pushUndo();
+			setNodes((nds) => [...nds, ...newNodes]);
+			setEdges((eds) => [...eds, ...newEdges]);
+			triggerSave();
 		},
-		[setFlowState]
+		[setNodes, setEdges, pushUndo, triggerSave]
 	);
 
+	// Stable handlers for ReactFlow to avoid re-renders during drag (use ref for latest nodes/edges)
+	const onPaneClick = useCallback(() => {
+		setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+		setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
+		setMenuState(null);
+		setContextMenu(null);
+	}, [setNodes, setEdges]);
+	const onEditorAreaClick = useCallback((e: React.MouseEvent) => {
+		setMenuState(null);
+		setContextMenu(null);
+		(e.currentTarget as HTMLElement).focus();
+	}, []);
+
+	const onEditorAreaContextMenu = useCallback((e: React.MouseEvent) => {
+		e.preventDefault();
+		const selectedNodes = getNodes().filter((n) => n.selected);
+		const selectedCount = selectedNodes.length;
+		if (selectedCount <= 1) {
+			setNodes((n) => n.map((x) => ({ ...x, selected: false })));
+			setEdges((x) => x.map((e) => ({ ...e, selected: false })));
+		} else {
+			const flowClick = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+			const margin = 100;
+			let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+			for (const node of selectedNodes) {
+				const { x, y } = node.position;
+				minX = Math.min(minX, x);
+				minY = Math.min(minY, y);
+				maxX = Math.max(maxX, x);
+				maxY = Math.max(maxY, y);
+			}
+			const pad = 120;
+			const insideOrNear =
+				flowClick.x >= minX - margin - pad &&
+				flowClick.x <= maxX + margin + pad &&
+				flowClick.y >= minY - margin - pad &&
+				flowClick.y <= maxY + margin + pad;
+			if (!insideOrNear) {
+				setNodes((n) => n.map((x) => ({ ...x, selected: false })));
+				setEdges((x) => x.map((e) => ({ ...e, selected: false })));
+			}
+		}
+		setContextMenu({ show: true, position: { x: e.clientX, y: e.clientY } });
+	}, [setNodes, setEdges, screenToFlowPosition, getNodes]);
+	const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+		event.preventDefault();
+		event.stopPropagation();
+		const othersSelected = getNodes().some((n) => n.selected && n.id !== node.id);
+		if (!(node.selected && othersSelected)) {
+			setNodes((n) => n.map((x) => ({ ...x, selected: x.id === node.id })));
+			setEdges((e) => e.map((x) => ({ ...x, selected: false })));
+		}
+		setContextMenu({
+			show: true,
+			position: { x: event.clientX, y: event.clientY },
+			nodeId: node.id
+		});
+	}, [setNodes, setEdges, getNodes]);
+	const onEdgeContextMenu = useCallback((event: React.MouseEvent, edge: Edge) => {
+		event.preventDefault();
+		event.stopPropagation();
+		setNodes((n) => n.map((x) => ({ ...x, selected: false })));
+		setEdges((e) => e.map((x) => ({ ...x, selected: x.id === edge.id })));
+		setContextMenu({
+			show: true,
+			position: { x: event.clientX, y: event.clientY }
+		});
+	}, [setNodes, setEdges]);
+
 	const { canPaste, handleCopy, handlePaste } = useEditorClipboard({
-		nodes,
-		edges,
+		getNodes,
+		getEdges,
 		setNodes,
 		setEdges,
 		applyPaste,
@@ -530,6 +456,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (!menuState) return;
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
+		pushUndo();
 
 		const newNodeId = `node-${nodeIdCounter++}`;
 		const isVariadic = funcInfo.paramCount === 0 && funcInfo.name.includes('list')
@@ -598,6 +525,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			setNodes((nds) => [...nds, newNode]);
 		}
 
+		triggerSave();
 		setMenuState(null);
 	};
 
@@ -606,6 +534,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (!menuState) return;
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
+		pushUndo();
 
 		// Check if node type is allowed
 		const sceneConfig = editorContext?.sceneKey ? levelRegistry.get(editorContext.sceneKey) : undefined
@@ -704,6 +633,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			}
 		}
 
+		triggerSave();
 		setMenuState(null);
 	};
 
@@ -713,11 +643,9 @@ function EditorContent(props: FunctionalEditorProps) {
 			setError(null);
 
 			console.log('[Evaluate] Starting evaluation...')
-			console.log('[Evaluate] Nodes:', nodes)
-		console.log('[Evaluate] Edges:', edges)
 
 		// Convert Flow to Spell IR
-		const spell = flowToIR(nodes, edges);
+		const spell = flowToIR(getNodes(), getEdges());
 		console.log('[Evaluate] Generated Spell:', JSON.stringify(spell, null, 2))
 		setCurrentAST(spell.body);
 		setCurrentFunctions(spell.dependencies);
@@ -765,7 +693,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			
 			// Try to compile
 			try {
-				const compiledAST = flowToIR(nodes, edges)
+				const compiledAST = flowToIR(getNodes(), getEdges())
 				setCompilationStatus('compiled')
 				setEvaluationResult({ saved: true, id: nextId, compiled: true })
 
@@ -822,7 +750,10 @@ function EditorContent(props: FunctionalEditorProps) {
 						const importEdges = flow.edges && Array.isArray(flow.edges) ? flow.edges : [];
 						historyAllowedRef.current = true;
 						setHasUserActed(true);
-						setFlowState((prev) => ({ ...prev, nodes: importNodes, edges: importEdges }));
+						pushUndo();
+						setNodes(importNodes);
+						setEdges(importEdges);
+						triggerSave();
 						let maxId = nodeIdCounter;
 						importNodes.forEach((node: Node) => {
 							const match = node.id.match(/-(\d+)$/);
@@ -863,6 +794,7 @@ function EditorContent(props: FunctionalEditorProps) {
 					) : null}
 					{/* Always show Save button and spell name input (both Library and Game mode) */}
 					<TextInput
+						data-spell-name-input
 						value={spellName}
 						onChange={(e) => setSpellName(e.currentTarget.value)}
 						placeholder="Spell name"
@@ -931,114 +863,20 @@ function EditorContent(props: FunctionalEditorProps) {
 				<div
 					className="w-full h-full outline-none"
 					tabIndex={0}
-					onContextMenu={(e) => {
-						e.preventDefault();
-						const selectedNodes = nodes.filter((n) => n.selected);
-						const selectedCount = selectedNodes.length;
-						if (selectedCount <= 1) {
-							setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
-							setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
-						} else {
-							// Multi-selection: keep it only if right-click is inside or near the selection window
-							const flowClick = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-							const margin = 100; // flow units: "near" = within this distance of the selection box
-							let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-							for (const node of selectedNodes) {
-								const { x, y } = node.position;
-								minX = Math.min(minX, x);
-								minY = Math.min(minY, y);
-								maxX = Math.max(maxX, x);
-								maxY = Math.max(maxY, y);
-							}
-							// Expand box by typical node size so "inside" includes the nodes, then add margin for "near"
-							const pad = 120;
-							const insideOrNear =
-								flowClick.x >= minX - margin - pad &&
-								flowClick.x <= maxX + margin + pad &&
-								flowClick.y >= minY - margin - pad &&
-								flowClick.y <= maxY + margin + pad;
-							if (!insideOrNear) {
-								setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
-								setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
-							}
-						}
-						setContextMenu({
-							show: true,
-							position: { x: e.clientX, y: e.clientY }
-						});
-					}}
-					onClick={(e) => {
-						// Close menus when clicking anywhere in editor area
-						setMenuState(null);
-						setContextMenu(null);
-						// Focus so keyboard shortcuts (copy/paste/undo) work after multi-select
-						(e.currentTarget as HTMLElement).focus();
-					}}
+					onContextMenu={onEditorAreaContextMenu}
+					onClick={onEditorAreaClick}
 				>
 					<ReactFlow
-						nodes={nodes}
-						edges={edges}
-						onPaneClick={() => {
-							// Clear selection only when clicking empty pane (not after drag-select)
-							setNodes((nds) =>
-								nds.map((n) => ({ ...n, selected: false }))
-							);
-							setEdges((eds) =>
-								eds.map((e) => ({ ...e, selected: false }))
-							);
-							setMenuState(null);
-							setContextMenu(null);
-						}}
-						onNodeContextMenu={(event, node) => {
-							event.preventDefault();
-							event.stopPropagation(); // Prevent event bubbling to parent div
-							// Keep multi-selection when right-clicking a node that is already in the selection
-							const othersSelected = nodes.some((n) => n.selected && n.id !== node.id);
-							if (node.selected && othersSelected) {
-								// Keep current selection so context menu Copy/Delete apply to all selected
-							} else {
-								setNodes((nds) =>
-									nds.map((n) => ({
-										...n,
-										selected: n.id === node.id
-									}))
-								);
-								setEdges((eds) =>
-									eds.map((e) => ({ ...e, selected: false }))
-								);
-							}
-							setContextMenu({
-								show: true,
-								position: { x: event.clientX, y: event.clientY },
-								nodeId: node.id
-							});
-						}}
-						onEdgeContextMenu={(event, edge) => {
-							event.preventDefault();
-							event.stopPropagation(); // Prevent event bubbling to parent div
-							// Deselect all nodes
-							setNodes((nds) =>
-								nds.map((n) => ({
-									...n,
-									selected: false
-								}))
-							);
-							// Select the right-clicked edge
-							setEdges((eds) =>
-								eds.map((e) => ({
-									...e,
-									selected: e.id === edge.id
-								}))
-							);
-							// Open context menu
-							setContextMenu({
-								show: true,
-								position: { x: event.clientX, y: event.clientY }
-							});
-						}}
-						onNodesChange={onNodesChange}
-						onEdgesChange={onEdgesChange}
+						key={props.initialSpellId ?? 'new'}
+						defaultNodes={defaultNodes}
+						defaultEdges={defaultEdges}
+						onPaneClick={onPaneClick}
+						onNodeContextMenu={onNodeContextMenu}
+						onEdgeContextMenu={onEdgeContextMenu}
+						onNodeDragStart={onDragStart}
 						onNodeDragStop={onNodeDragStop}
+						onSelectionDragStart={onDragStart}
+						onSelectionDragStop={onNodeDragStop}
 						onConnect={onConnect}
 						nodeTypes={nodeTypes}
 						fitView
@@ -1080,16 +918,16 @@ function EditorContent(props: FunctionalEditorProps) {
 					setMenuState({ show: true, position: contextMenu.position });
 					setContextMenu(null);
 				}}
-				onCopy={nodes.some((node) => node.selected) ? handleCopy : undefined}
-				hasNodeSelected={nodes.some((node) => node.selected)}
-				hasEdgeSelected={edges.some((edge) => edge.selected)}
+				onCopy={getNodes().some((node) => node.selected) ? handleCopy : undefined}
+				hasNodeSelected={getNodes().some((node) => node.selected)}
+				hasEdgeSelected={getEdges().some((edge) => edge.selected)}
 				onPaste={handlePaste}
 				canPaste={canPaste}
 				onDeleteSelected={handleDeleteSelected}
 				onUndo={undo}
 				onRedo={redo}
-				canUndo={hasUserActed && canUndo}
-				canRedo={hasUserActed && canRedo}
+				canUndo={hasUserActed && undoState.canUndo}
+				canRedo={hasUserActed && undoState.canRedo}
 				onEvaluate={() => {
 					handleEvaluate();
 					setContextMenu(null);

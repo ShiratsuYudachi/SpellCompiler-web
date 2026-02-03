@@ -2,7 +2,7 @@
 // Editor keyboard shortcuts: copy, paste, delete, undo, redo
 // =============================================
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export interface UseEditorShortcutOptions {
 	onCopy?: () => void;
@@ -21,6 +21,7 @@ function isTypingTarget(event: KeyboardEvent): boolean {
 	return false;
 }
 
+/** Use refs so the handler always calls the latest callbacks - fixes Cmd+Z/Cmd+Shift+Z only working once due to stale closures. */
 function useEditorShortcut({
 	onCopy,
 	onPaste,
@@ -28,55 +29,74 @@ function useEditorShortcut({
 	onUndo,
 	onRedo,
 }: UseEditorShortcutOptions): void {
+	const onCopyRef = useRef(onCopy);
+	const onPasteRef = useRef(onPaste);
+	const onDeleteRef = useRef(onDelete);
+	const onUndoRef = useRef(onUndo);
+	const onRedoRef = useRef(onRedo);
+	onCopyRef.current = onCopy;
+	onPasteRef.current = onPaste;
+	onDeleteRef.current = onDelete;
+	onUndoRef.current = onUndo;
+	onRedoRef.current = onRedo;
+
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (isTypingTarget(event)) return;
+			const el = event.target as HTMLElement | null;
+			// Use optional chaining - document has no closest(), would cause early return
+			const isSpellNameInput = el?.closest?.('[data-spell-name-input]');
+			const skipUndoRedo = !!isSpellNameInput;
 
 			const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
 			const modifier = isMac ? event.metaKey : event.ctrlKey;
 
-			// Copy: Cmd+C / Ctrl+C
+			// Undo: Cmd/Ctrl+Z (no Shift)
+			const isUndo = modifier && !event.shiftKey && (event.code === 'KeyZ' || event.key === 'z');
+			// Redo: Cmd/Ctrl+Shift+Z, Cmd/Ctrl+Y, or browser "Redo" key
+			const isRedo =
+				(modifier && event.shiftKey && (event.code === 'KeyZ' || event.key === 'z' || event.key === 'Z')) ||
+				(modifier && (event.code === 'KeyY' || event.key === 'y' || event.key === 'Y')) ||
+				event.key === 'Redo';
+
+			if (isUndo) {
+				if (!skipUndoRedo) {
+					event.preventDefault();
+					event.stopImmediatePropagation();
+					onUndoRef.current?.();
+				}
+				return;
+			}
+			if (isRedo) {
+				if (!skipUndoRedo) {
+					event.preventDefault();
+					event.stopImmediatePropagation();
+					onRedoRef.current?.();
+				}
+				return;
+			}
+
+			const isTyping = isTypingTarget(event);
+			if (isTyping) return;
+
 			if (modifier && event.key === 'c') {
 				event.preventDefault();
-				onCopy?.();
+				onCopyRef.current?.();
 				return;
 			}
-
-			// Paste: Cmd+V / Ctrl+V
 			if (modifier && event.key === 'v') {
 				event.preventDefault();
-				onPaste?.();
+				onPasteRef.current?.();
 				return;
 			}
-
-			// Undo: Cmd+Z / Ctrl+Z
-			if (modifier && event.key === 'z' && !event.shiftKey) {
-				event.preventDefault();
-				onUndo?.();
-				return;
-			}
-
-			// Redo: Cmd+Shift+Z / Ctrl+Shift+Z or Cmd+Y / Ctrl+Y
-			if (
-				(modifier && event.key === 'z' && event.shiftKey) ||
-				(modifier && event.key === 'y')
-			) {
-				event.preventDefault();
-				onRedo?.();
-				return;
-			}
-
-			// Delete / Backspace
 			if (event.key === 'Delete' || event.key === 'Backspace') {
 				event.preventDefault();
-				onDelete?.();
+				onDeleteRef.current?.();
 			}
 		};
 
-		// Use capture phase so we handle shortcuts before React Flow or other handlers
 		window.addEventListener('keydown', handleKeyDown, true);
 		return () => window.removeEventListener('keydown', handleKeyDown, true);
-	}, [onCopy, onPaste, onDelete, onUndo, onRedo]);
+	}, []); // Empty deps - handler reads latest from refs; editorContainerRef.current is read at runtime
 }
 
 export { useEditorShortcut };
