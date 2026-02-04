@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+input[type="number"] {
+	-moz-appearance: textfield;
+}
+
+/* Node Selection Menu Styles - Blue-pink theme */
+.node-selection-menu::-webkit-scrollbar {
+	width: 6px;
+}
+
+.node-selection-menu::-webkit-scrollbar-track {
+	background: #faf5f7;
+	border-radius: 3px;
+}
+
+.node-selection-menu::-webkit-scrollbar-thumb {
+	background: #ddd5e0;
+	border-radius: 3px;
+}
+
+.node-selection-menu::-webkit-scrollbar-thumb:hover {
+	background: #c5b8d0;
+}

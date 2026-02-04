@@ -4,6 +4,7 @@ import { GameStateManager } from '../../game/state/GameStateManager';
 import { Health } from '../../game/components';
 import { spawnFireball } from '../../game/prefabs/spawnFireball';
 import { eventQueue } from '../../game/events/EventQueue';
+import { playTeleport, playFireballCast } from '../../game/SpellVisual/SpellVisualManager';
 
 // Global state manager reference
 let globalStateManager: GameStateManager | null = null;
@@ -193,17 +194,21 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		fn: (state: Value, position: Value, direction: Value): Value => {
 			assertGameState(state);
 			const manager = getManager();
-			
+
 			// Extract x, y from Vector2D functions
 			const posX = evaluator.callFunctionValue(position as FunctionValue, 'x') as number;
 			const posY = evaluator.callFunctionValue(position as FunctionValue, 'y') as number;
 			const dirX = evaluator.callFunctionValue(direction as FunctionValue, 'x') as number;
 			const dirY = evaluator.callFunctionValue(direction as FunctionValue, 'y') as number;
-			
+
+			const scene = manager.world.resources.scene;
+			// Play fireball cast visual effect
+			playFireballCast(scene, posX, posY, dirX, dirY);
+
 			// Spawn fireball (mutates world)
 			spawnFireball(
 				manager.world,
-				manager.world.resources.scene,
+				scene,
 				manager.world.resources.bodies,
 				manager.casterEid,
 				posX,
@@ -211,7 +216,7 @@ export function registerGameFunctions(evaluator: Evaluator) {
 				dirX,
 				dirY
 			);
-			
+
 			// Return same state (mutations already applied)
 			return state;
 		},
@@ -252,22 +257,26 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		fn: (state: Value, entity: Value, offset: Value): Value => {
 			assertGameState(state);
 			const manager = getManager();
-			
+
 			if (typeof entity !== 'number') {
 				throw new Error('Entity must be a number');
 			}
-			
+
 			// Extract offset from Vector2D
 			const offsetX = evaluator.callFunctionValue(offset as FunctionValue, 'x') as number;
 			const offsetY = evaluator.callFunctionValue(offset as FunctionValue, 'y') as number;
-			
+
 			// Get entity body and teleport
 			const body = manager.world.resources.bodies.get(entity);
 			if (body) {
+				const scene = manager.world.resources.scene;
+				// Play teleport visual effect at destination
+				playTeleport(scene, body.x + offsetX, body.y + offsetY);
+
 				body.x += offsetX;
 				body.y += offsetY;
 			}
-			
+
 			return state;
 		},
 		ui: { displayName: '🌀 teleportRelative' }

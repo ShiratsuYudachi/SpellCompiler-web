@@ -1,12 +1,15 @@
 // =============================================
-// Node Selection Menu
-//  -  Handle 
+// Node Selection Menu - Blender-style nested submenus
+// Blue-pink theme (March 7th inspired)
 // =============================================
 
-import { Menu, Text, Divider } from '@mantine/core';
-import { type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { getFunctionTreeForMenu, type FunctionInfo, type FunctionTreeNode } from '../../utils/getFunctionRegistry';
 import { levelRegistry } from '../../../game/levels/LevelRegistry';
+import { menuTheme } from './ContextMenu';
+
+// Type for function nodes only (not groups)
+type FunctionNode = Extract<FunctionTreeNode, { type: 'function' }>;
 
 interface NodeSelectionMenuProps {
 	position: { x: number; y: number };
@@ -17,15 +20,132 @@ interface NodeSelectionMenuProps {
 }
 
 const BASIC_NODES = [
-	{ type: 'spellInput' as const, label: 'Spell Input', icon: '🎯', description: 'Spell input parameters (state, etc.)' },
-	{ type: 'literal' as const, label: 'Literal', icon: '🔢', description: 'Constant value (number)' },
-	{ type: 'vector' as const, label: 'Vector2D', icon: '📐', description: '2D Vector (x, y)' },
-	{ type: 'if' as const, label: 'If', icon: '🔀', description: 'Conditional expression' },
-	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞', description: 'Call custom function' },
-	{ type: 'applyFunc' as const, label: 'Apply', icon: '⚡', description: 'Apply function dynamically' },
-	{ type: 'lambdaDef' as const, label: 'Lambda', icon: 'λ', description: 'Define lambda (with return)' },
-	{ type: 'output' as const, label: 'Output', icon: '📤', description: 'Mark final result' },
+	{ type: 'spellInput' as const, label: 'Spell Input', icon: '🎯' },
+	{ type: 'literal' as const, label: 'Literal', icon: '🔢' },
+	{ type: 'vector' as const, label: 'Vector2D', icon: '📐' },
+	{ type: 'if' as const, label: 'If', icon: '🔀' },
+	{ type: 'customFunction' as const, label: 'Call Function', icon: '📞' },
+	{ type: 'applyFunc' as const, label: 'Apply', icon: '⚡' },
+	{ type: 'lambdaDef' as const, label: 'Lambda', icon: 'λ' },
+	{ type: 'output' as const, label: 'Output', icon: '📤' },
 ];
+
+// SubMenu component for nested menus
+interface SubMenuProps {
+	items: FunctionTreeNode[];
+	position: { x: number; y: number };
+	onSelectFunction: (funcInfo: FunctionInfo) => void;
+	onClose: () => void;
+	toFunctionInfo: (fullName: string, params: string[], displayName: string) => FunctionInfo;
+}
+
+function SubMenu({ items, position, onSelectFunction, onClose, toFunctionInfo }: SubMenuProps) {
+	const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+	const [subMenuPosition, setSubMenuPosition] = useState<{ x: number; y: number } | null>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+	const hoverTimeoutRef = useRef<number | null>(null);
+
+	const handleMouseEnter = useCallback((item: FunctionTreeNode, event: React.MouseEvent) => {
+		if (hoverTimeoutRef.current) {
+			clearTimeout(hoverTimeoutRef.current);
+		}
+
+		if (item.type === 'group') {
+			const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+			setHoveredItem(item.path.join('::'));
+			setSubMenuPosition({ x: rect.right - 4, y: rect.top });
+		} else {
+			setHoveredItem(item.fullName);
+			setSubMenuPosition(null);
+		}
+	}, []);
+
+	const handleMouseLeave = useCallback(() => {
+		hoverTimeoutRef.current = window.setTimeout(() => {
+			setHoveredItem(null);
+			setSubMenuPosition(null);
+		}, 150);
+	}, []);
+
+	const handleSubMenuMouseEnter = useCallback(() => {
+		if (hoverTimeoutRef.current) {
+			clearTimeout(hoverTimeoutRef.current);
+		}
+	}, []);
+
+	// Adjust position if menu would overflow viewport
+	const adjustedPosition = { ...position };
+	if (menuRef.current) {
+		const rect = menuRef.current.getBoundingClientRect();
+		if (position.x + rect.width > window.innerWidth) {
+			adjustedPosition.x = position.x - rect.width - 180;
+		}
+		if (position.y + rect.height > window.innerHeight) {
+			adjustedPosition.y = Math.max(10, window.innerHeight - rect.height - 10);
+		}
+	}
+
+	return (
+		<div
+			ref={menuRef}
+			className="node-selection-menu"
+			style={{
+				...menuTheme.container,
+				left: `${adjustedPosition.x}px`,
+				top: `${adjustedPosition.y}px`,
+			}}
+			onMouseEnter={handleSubMenuMouseEnter}
+			onMouseLeave={handleMouseLeave}
+		>
+			{items.map((item) => {
+				if (item.type === 'group') {
+					const isHovered = hoveredItem === item.path.join('::');
+					return (
+						<div key={item.path.join('::')}>
+							<button
+								style={{
+									...menuTheme.menuItem,
+									...(isHovered ? menuTheme.menuItemHover : {}),
+								}}
+								onMouseEnter={(e) => handleMouseEnter(item, e)}
+							>
+								<span>{item.name}</span>
+								<span style={menuTheme.menuItemArrow}>▶</span>
+							</button>
+							{isHovered && subMenuPosition && (
+								<SubMenu
+									items={item.children}
+									position={subMenuPosition}
+									onSelectFunction={onSelectFunction}
+									onClose={onClose}
+									toFunctionInfo={toFunctionInfo}
+								/>
+							)}
+						</div>
+					);
+				}
+
+				const isHovered = hoveredItem === item.fullName;
+				return (
+					<button
+						key={item.fullName}
+						style={{
+							...menuTheme.menuItem,
+							...(isHovered ? menuTheme.menuItemHover : {}),
+						}}
+						onMouseEnter={(e) => handleMouseEnter(item, e)}
+						onClick={() => {
+							onSelectFunction(toFunctionInfo(item.fullName, item.params, item.displayName));
+							onClose();
+						}}
+					>
+						<span>{item.displayName}</span>
+					</button>
+				);
+			})}
+		</div>
+	);
+}
 
 export function NodeSelectionMenu({
 	position,
@@ -34,19 +154,25 @@ export function NodeSelectionMenu({
 	onClose,
 	editorContext
 }: NodeSelectionMenuProps) {
-	const sceneConfig = editorContext?.sceneKey ? levelRegistry.get(editorContext.sceneKey) : undefined
-	const restrictions = sceneConfig?.editorRestrictions
-	const allowedNodeTypes = sceneConfig?.allowedNodeTypes
-	const tree = getFunctionTreeForMenu(restrictions)
-	
-	// Filter basic nodes based on allowedNodeTypes
+	const [searchQuery, setSearchQuery] = useState('');
+	const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+	const [subMenuPosition, setSubMenuPosition] = useState<{ x: number; y: number } | null>(null);
+	const menuRef = useRef<HTMLDivElement>(null);
+	const searchInputRef = useRef<HTMLInputElement>(null);
+	const hoverTimeoutRef = useRef<number | null>(null);
+
+	const sceneConfig = editorContext?.sceneKey ? levelRegistry.get(editorContext.sceneKey) : undefined;
+	const restrictions = sceneConfig?.editorRestrictions;
+	const allowedNodeTypes = sceneConfig?.allowedNodeTypes;
+	const tree = getFunctionTreeForMenu(restrictions);
+
 	const filteredBasicNodes = allowedNodeTypes
 		? BASIC_NODES.filter(node => allowedNodeTypes.includes(node.type))
-		: BASIC_NODES
+		: BASIC_NODES;
 
-	const toFunctionInfo = (fullName: string, params: string[], displayName: string): FunctionInfo => {
-		const parts = fullName.split('::').filter(Boolean)
-		const namespace = parts[0] || 'user'
+	const toFunctionInfo = useCallback((fullName: string, params: string[], displayName: string): FunctionInfo => {
+		const parts = fullName.split('::').filter(Boolean);
+		const namespace = parts[0] || 'user';
 		return {
 			name: fullName,
 			displayName,
@@ -54,96 +180,261 @@ export function NodeSelectionMenu({
 			paramCount: params.length,
 			params,
 			isNative: true,
+		};
+	}, []);
+
+	// Flatten tree for search - only returns function nodes
+	const flattenTree = useCallback((nodes: FunctionTreeNode[]): FunctionNode[] => {
+		const result: FunctionNode[] = [];
+		for (const node of nodes) {
+			if (node.type === 'group') {
+				result.push(...flattenTree(node.children));
+			} else {
+				result.push(node);
+			}
+		}
+		return result;
+	}, []);
+
+	const allFunctions = flattenTree(tree);
+
+	// Filter functions based on search query
+	const filteredFunctions: FunctionNode[] = searchQuery
+		? allFunctions.filter(fn =>
+			fn.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			fn.fullName.toLowerCase().includes(searchQuery.toLowerCase())
+		)
+		: [];
+
+	// Filter basic nodes based on search query
+	const searchFilteredBasicNodes = searchQuery
+		? filteredBasicNodes.filter(node =>
+			node.label.toLowerCase().includes(searchQuery.toLowerCase())
+		)
+		: [];
+
+	// Focus search input on mount
+	useEffect(() => {
+		searchInputRef.current?.focus();
+	}, []);
+
+	const handleCategoryMouseEnter = useCallback((category: string, event: React.MouseEvent) => {
+		if (hoverTimeoutRef.current) {
+			clearTimeout(hoverTimeoutRef.current);
+		}
+
+		const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		setHoveredCategory(category);
+		setSubMenuPosition({ x: rect.right - 4, y: rect.top });
+	}, []);
+
+	const handleCategoryMouseLeave = useCallback(() => {
+		hoverTimeoutRef.current = window.setTimeout(() => {
+			setHoveredCategory(null);
+			setSubMenuPosition(null);
+		}, 150);
+	}, []);
+
+	const handleSubMenuMouseEnter = useCallback(() => {
+		if (hoverTimeoutRef.current) {
+			clearTimeout(hoverTimeoutRef.current);
+		}
+	}, []);
+
+	// Adjust menu position to stay within viewport
+	const adjustedPosition = { ...position };
+	if (menuRef.current) {
+		const rect = menuRef.current.getBoundingClientRect();
+		if (position.x + rect.width > window.innerWidth) {
+			adjustedPosition.x = window.innerWidth - rect.width - 10;
+		}
+		if (position.y + rect.height > window.innerHeight) {
+			adjustedPosition.y = Math.max(10, window.innerHeight - rect.height - 10);
 		}
 	}
 
-	const renderTree = (nodes: FunctionTreeNode[], depth: number): ReactNode[] => {
-		const items: ReactNode[] = []
-		for (const n of nodes) {
-			if (n.type === 'group') {
-				items.push(
-					<div key={`g:${n.path.join('::')}`}>
-						{depth === 0 ? <Divider my="xs" style={{ marginTop: '8px', marginBottom: '8px' }} /> : null}
-						<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>
-							{n.name}
-						</Menu.Label>
-						<div style={{ paddingLeft: depth === 0 ? 0 : 12 }}>
-							{renderTree(n.children, depth + 1)}
+	// Render search results
+	const renderSearchResults = () => (
+		<>
+			{searchFilteredBasicNodes.length > 0 && (
+				<>
+					<div style={menuTheme.sectionLabel}>Basic Nodes</div>
+					{searchFilteredBasicNodes.map(node => (
+						<button
+							key={node.type}
+							style={menuTheme.menuItem}
+							onClick={() => {
+								onSelectBasicNode(node.type);
+								onClose();
+							}}
+							onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = menuTheme.menuItemHover.backgroundColor)}
+							onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+						>
+							<span>
+								<span style={menuTheme.menuItemIcon}>{node.icon}</span>
+								{node.label}
+							</span>
+						</button>
+					))}
+				</>
+			)}
+			{filteredFunctions.length > 0 && (
+				<>
+					{searchFilteredBasicNodes.length > 0 && <div style={menuTheme.divider} />}
+					<div style={menuTheme.sectionLabel}>Functions</div>
+					{filteredFunctions.slice(0, 20).map(fn => (
+						<button
+							key={fn.fullName}
+							style={menuTheme.menuItem}
+							onClick={() => {
+								onSelectFunction(toFunctionInfo(fn.fullName, fn.params, fn.displayName));
+								onClose();
+							}}
+							onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = menuTheme.menuItemHover.backgroundColor)}
+							onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+						>
+							<span>{fn.displayName}</span>
+							<span style={{ ...menuTheme.menuItemArrow, fontSize: '11px', color: '#9ca3af' }}>
+								{fn.fullName.split('::').slice(0, -1).join('::')}
+							</span>
+						</button>
+					))}
+					{filteredFunctions.length > 20 && (
+						<div style={{ ...menuTheme.sectionLabel, textAlign: 'center' }}>
+							...and {filteredFunctions.length - 20} more
 						</div>
-					</div>,
-				)
-				continue
-			}
+					)}
+				</>
+			)}
+			{searchFilteredBasicNodes.length === 0 && filteredFunctions.length === 0 && (
+				<div style={{ ...menuTheme.sectionLabel, textAlign: 'center', padding: '20px' }}>
+					No results found
+				</div>
+			)}
+		</>
+	);
 
-			items.push(
+	// Render normal menu (categories with submenus)
+	const renderNormalMenu = () => (
+		<>
+			{/* Basic Nodes category */}
+			<div
+				onMouseEnter={(e) => handleCategoryMouseEnter('basic', e)}
+				onMouseLeave={handleCategoryMouseLeave}
+			>
 				<button
-					key={n.fullName}
-					onClick={() => {
-						onSelectFunction(toFunctionInfo(n.fullName, n.params, n.displayName))
-						onClose()
-					}}
-					className="px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
 					style={{
-						fontSize: '13px',
-						lineHeight: '1.4',
-						marginLeft: depth > 1 ? (depth - 1) * 12 : 0,
+						...menuTheme.menuItem,
+						...(hoveredCategory === 'basic' ? menuTheme.menuItemHover : {}),
 					}}
 				>
-					{n.displayName}
-				</button>,
-			)
-		}
-		return items
-	}
+					<span>Basic Nodes</span>
+					<span style={menuTheme.menuItemArrow}>▶</span>
+				</button>
+				{hoveredCategory === 'basic' && subMenuPosition && (
+					<div
+						className="node-selection-menu"
+						style={{
+							...menuTheme.container,
+							position: 'fixed',
+							left: `${subMenuPosition.x}px`,
+							top: `${subMenuPosition.y}px`,
+						}}
+						onMouseEnter={handleSubMenuMouseEnter}
+						onMouseLeave={handleCategoryMouseLeave}
+					>
+						{filteredBasicNodes.map(node => (
+							<button
+								key={node.type}
+								style={menuTheme.menuItem}
+								onClick={() => {
+									onSelectBasicNode(node.type);
+									onClose();
+								}}
+								onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = menuTheme.menuItemHover.backgroundColor)}
+								onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+							>
+								<span>
+									<span style={menuTheme.menuItemIcon}>{node.icon}</span>
+									{node.label}
+								</span>
+							</button>
+						))}
+					</div>
+				)}
+			</div>
+
+			<div style={menuTheme.divider} />
+
+			{/* Function categories */}
+			{tree.map((node) => {
+				if (node.type !== 'group') return null;
+
+				const categoryKey = node.path.join('::');
+				const isHovered = hoveredCategory === categoryKey;
+
+				return (
+					<div
+						key={categoryKey}
+						onMouseEnter={(e) => handleCategoryMouseEnter(categoryKey, e)}
+						onMouseLeave={handleCategoryMouseLeave}
+					>
+						<button
+							style={{
+								...menuTheme.menuItem,
+								...(isHovered ? menuTheme.menuItemHover : {}),
+							}}
+						>
+							<span>{node.name}</span>
+							<span style={menuTheme.menuItemArrow}>▶</span>
+						</button>
+						{isHovered && subMenuPosition && (
+							<SubMenu
+								items={node.children}
+								position={subMenuPosition}
+								onSelectFunction={onSelectFunction}
+								onClose={onClose}
+								toFunctionInfo={toFunctionInfo}
+							/>
+						)}
+					</div>
+				);
+			})}
+		</>
+	);
 
 	return (
-		<Menu
-			opened={true}
-			onChange={onClose}
-			position="right-start"
-			withArrow
-			shadow="md"
-			radius="md"
-			width={350}
+		<div
+			ref={menuRef}
+			className="node-selection-menu"
+			style={{
+				...menuTheme.container,
+				left: `${adjustedPosition.x}px`,
+				top: `${adjustedPosition.y}px`,
+			}}
 		>
-			<Menu.Target>
-				<div
-					style={{
-						position: 'fixed',
-						left: `${position.x}px`,
-						top: `${position.y}px`,
-						width: 1,
-						height: 1
+			{/* Search input */}
+			<div style={menuTheme.searchContainer}>
+				<input
+					ref={searchInputRef}
+					type="text"
+					placeholder="Search..."
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+					style={menuTheme.searchInput}
+					onFocus={(e) => {
+						e.target.style.borderColor = '#93c5fd';
+						e.target.style.boxShadow = '0 0 0 3px rgba(147, 197, 253, 0.2)';
+					}}
+					onBlur={(e) => {
+						e.target.style.borderColor = '#e8d5e0';
+						e.target.style.boxShadow = 'none';
 					}}
 				/>
-			</Menu.Target>
+			</div>
 
-			<Menu.Dropdown
-				onClick={(e) => e.stopPropagation()}
-				onContextMenu={(e) => e.stopPropagation()}
-				style={{ maxHeight: '500px', overflowY: 'auto', padding: '8px' }}
-			>
-				<Menu.Label style={{ padding: '4px 8px', marginBottom: '4px' }}>Basic Nodes</Menu.Label>
-				{filteredBasicNodes.map(node => (
-					<Menu.Item
-						key={node.type}
-						leftSection={node.icon}
-						onClick={() => {
-							onSelectBasicNode(node.type);
-							onClose();
-						}}
-						style={{ padding: '8px 12px', marginBottom: '2px' }}
-					>
-						<div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-							<span style={{ fontWeight: 500 }}>{node.label}</span>
-							<Text size="xs" c="dimmed" style={{ fontSize: '11px', lineHeight: '1.2' }}>
-								{node.description}
-							</Text>
-						</div>
-					</Menu.Item>
-				))}
-				{renderTree(tree, 0)}
-			</Menu.Dropdown>
-		</Menu>
+			{/* Menu content */}
+			{searchQuery ? renderSearchResults() : renderNormalMenu()}
+		</div>
 	);
 }

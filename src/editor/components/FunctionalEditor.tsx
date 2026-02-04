@@ -789,9 +789,15 @@ function EditorContent(props: FunctionalEditorProps) {
 					className="w-full h-full"
 					onContextMenu={(e) => {
 						e.preventDefault();
+						const pos = { x: e.clientX, y: e.clientY };
 						setContextMenu({
 							show: true,
-							position: { x: e.clientX, y: e.clientY }
+							position: pos
+						});
+						// Also set menuState for node positioning when selecting from hover submenu
+						setMenuState({
+							show: false,
+							position: pos
 						});
 					}}
 					onClick={() => {
@@ -820,10 +826,15 @@ function EditorContent(props: FunctionalEditorProps) {
 								}))
 							);
 							// Open context menu
+							const pos = { x: event.clientX, y: event.clientY };
 							setContextMenu({
 								show: true,
-								position: { x: event.clientX, y: event.clientY },
+								position: pos,
 								nodeId: node.id
+							});
+							setMenuState({
+								show: false,
+								position: pos
 							});
 						}}
 						onEdgeContextMenu={(event, edge) => {
@@ -843,9 +854,14 @@ function EditorContent(props: FunctionalEditorProps) {
 								}))
 							);
 							// Open context menu
+							const pos = { x: event.clientX, y: event.clientY };
 							setContextMenu({
 								show: true,
-								position: { x: event.clientX, y: event.clientY }
+								position: pos
+							});
+							setMenuState({
+								show: false,
+								position: pos
 							});
 						}}
 						onNodesChange={onNodesChange}
@@ -885,14 +901,9 @@ function EditorContent(props: FunctionalEditorProps) {
 		{contextMenu && contextMenu.show && (
 			<ContextMenu
 				position={contextMenu.position}
-				onAddNode={() => {
-					// Open NodeSelectionMenu at context menu position
-					setMenuState({
-						show: true,
-						position: contextMenu.position
-					});
-					setContextMenu(null);
-				}}
+				onSelectFunction={addFunctionNodeFromMenu}
+				onSelectBasicNode={addBasicNodeFromMenu}
+				editorContext={editorContext}
 				onDeleteSelected={handleDeleteSelected}
 				hasSelection={nodes.some((node) => node.selected) || edges.some((edge) => edge.selected)}
 				onEvaluate={() => {

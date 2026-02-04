@@ -91,6 +91,13 @@ export type FlowNodeType =
 	| 'spellInput';
 
 /**
+ * Inline value type for node inputs
+ * - For Vector2D parameters: { x: number, y: number }
+ * - For Literal parameters: number | string
+ */
+export type InlineValue = number | string | { x: number; y: number };
+
+/**
  * Dynamic Function Node Data
  */
 export interface DynamicFunctionNodeData extends BaseNodeData {
@@ -100,6 +107,7 @@ export interface DynamicFunctionNodeData extends BaseNodeData {
 	params: string[];
 	isVariadic?: boolean;
 	parameterModes?: Record<string, { current: string; options: Array<{ mode: string; label: string; params: string[] }> }>;
+	inlineValues?: Record<string, InlineValue>;
 }
 
 /**
