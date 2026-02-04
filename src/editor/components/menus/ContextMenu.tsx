@@ -12,11 +12,21 @@ interface ContextMenuProps {
 	onDeleteSelected?: () => void;
 	onEvaluate: () => void;
 	onClose: () => void;
-	hasSelection?: boolean;
 	// For direct node selection (used when hovering Add Node)
 	onSelectFunction?: (funcInfo: FunctionInfo) => void;
 	onSelectBasicNode?: (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'spellInput') => void;
 	editorContext?: { sceneKey?: string } | null;
+	// Copy/paste support
+	onCopy?: () => void;
+	onPaste?: () => void;
+	canPaste?: boolean;
+	hasNodeSelected?: boolean;
+	hasEdgeSelected?: boolean;
+	// Undo/redo support
+	onUndo?: () => void;
+	onRedo?: () => void;
+	canUndo?: boolean;
+	canRedo?: boolean;
 }
 
 // Shared menu styles - Blue-pink theme
@@ -103,6 +113,10 @@ export const menuTheme = {
 		backgroundColor: '#fef2f2',
 		color: '#b91c1c',
 	},
+	disabledItem: {
+		color: '#9ca3af',
+		cursor: 'not-allowed',
+	},
 };
 
 export function ContextMenu({
@@ -111,10 +125,18 @@ export function ContextMenu({
 	onDeleteSelected,
 	onEvaluate,
 	onClose,
-	hasSelection,
 	onSelectFunction,
 	onSelectBasicNode,
-	editorContext
+	editorContext,
+	onCopy,
+	onPaste,
+	canPaste,
+	hasNodeSelected,
+	hasEdgeSelected,
+	onUndo,
+	onRedo,
+	canUndo,
+	canRedo,
 }: ContextMenuProps) {
 	const [showAddNodeMenu, setShowAddNodeMenu] = useState(false);
 	const [subMenuPosition, setSubMenuPosition] = useState<{ x: number; y: number } | null>(null);
@@ -213,6 +235,8 @@ export function ContextMenu({
 		onClose();
 	};
 
+	const hasSelection = hasNodeSelected || hasEdgeSelected;
+
 	return (
 		<div
 			ref={menuRef}
@@ -256,24 +280,131 @@ export function ContextMenu({
 				)}
 			</div>
 
-			{/* Delete Selected */}
-			{hasSelection && onDeleteSelected && (
+			<div style={menuTheme.divider} />
+
+			{/* Copy */}
+			{onCopy && (
 				<button
 					style={{
 						...menuTheme.menuItem,
-						...menuTheme.deleteItem,
-						...(hoveredItem === 'delete' ? menuTheme.deleteItemHover : {}),
+						...(hasNodeSelected ? {} : menuTheme.disabledItem),
+						...(hoveredItem === 'copy' && hasNodeSelected ? menuTheme.menuItemHover : {}),
+					}}
+					onMouseEnter={() => handleItemMouseEnter('copy')}
+					onMouseLeave={handleItemMouseLeave}
+					onClick={() => {
+						if (hasNodeSelected) {
+							onCopy();
+							onClose();
+						}
+					}}
+					disabled={!hasNodeSelected}
+				>
+					<span>
+						<span style={menuTheme.menuItemIcon}>📋</span>
+						Copy
+					</span>
+				</button>
+			)}
+
+			{/* Paste */}
+			{onPaste && (
+				<button
+					style={{
+						...menuTheme.menuItem,
+						...(canPaste ? {} : menuTheme.disabledItem),
+						...(hoveredItem === 'paste' && canPaste ? menuTheme.menuItemHover : {}),
+					}}
+					onMouseEnter={() => handleItemMouseEnter('paste')}
+					onMouseLeave={handleItemMouseLeave}
+					onClick={() => {
+						if (canPaste) {
+							onPaste();
+							onClose();
+						}
+					}}
+					disabled={!canPaste}
+				>
+					<span>
+						<span style={menuTheme.menuItemIcon}>📄</span>
+						Paste
+					</span>
+				</button>
+			)}
+
+			{/* Delete Selected */}
+			{onDeleteSelected && (
+				<button
+					style={{
+						...menuTheme.menuItem,
+						...(hasSelection ? menuTheme.deleteItem : menuTheme.disabledItem),
+						...(hoveredItem === 'delete' && hasSelection ? menuTheme.deleteItemHover : {}),
 					}}
 					onMouseEnter={() => handleItemMouseEnter('delete')}
 					onMouseLeave={handleItemMouseLeave}
 					onClick={() => {
-						onDeleteSelected();
-						onClose();
+						if (hasSelection) {
+							onDeleteSelected();
+							onClose();
+						}
 					}}
+					disabled={!hasSelection}
 				>
 					<span>
 						<span style={menuTheme.menuItemIcon}>🗑️</span>
 						Delete Selected
+					</span>
+				</button>
+			)}
+
+			<div style={menuTheme.divider} />
+
+			{/* Undo */}
+			{onUndo && (
+				<button
+					style={{
+						...menuTheme.menuItem,
+						...(canUndo ? {} : menuTheme.disabledItem),
+						...(hoveredItem === 'undo' && canUndo ? menuTheme.menuItemHover : {}),
+					}}
+					onMouseEnter={() => handleItemMouseEnter('undo')}
+					onMouseLeave={handleItemMouseLeave}
+					onClick={() => {
+						if (canUndo) {
+							onUndo();
+							onClose();
+						}
+					}}
+					disabled={!canUndo}
+				>
+					<span>
+						<span style={menuTheme.menuItemIcon}>↩️</span>
+						Undo
+					</span>
+				</button>
+			)}
+
+			{/* Redo */}
+			{onRedo && (
+				<button
+					style={{
+						...menuTheme.menuItem,
+						...(canRedo ? {} : menuTheme.disabledItem),
+						...(hoveredItem === 'redo' && canRedo ? menuTheme.menuItemHover : {}),
+					}}
+					onMouseEnter={() => handleItemMouseEnter('redo')}
+					onMouseLeave={handleItemMouseLeave}
+					onClick={() => {
+						if (canRedo) {
+							onRedo();
+							onClose();
+						}
+					}}
+					disabled={!canRedo}
+				>
+					<span>
+						<span style={menuTheme.menuItemIcon}>↪️</span>
+						Redo
 					</span>
 				</button>
 			)}

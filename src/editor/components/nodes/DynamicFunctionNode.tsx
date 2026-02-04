@@ -3,7 +3,7 @@
 //  -
 // =============================================
 
-import { Handle, Position, useEdges } from 'reactflow';
+import { Handle, Position, useStore } from 'reactflow';
 import { memo, useState, useEffect, useCallback } from 'react';
 import type { NodeProps } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
@@ -25,7 +25,17 @@ export interface DynamicFunctionNodeData {
 
 export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	const nodeData = data as DynamicFunctionNodeData;
-	const edges = useEdges();
+	// Only re-render when edges connecting to this node change (not on node position drag)
+	const connectedHandleIdsStr = useStore(
+		useCallback((state: { edges: Array<{ target: string; targetHandle?: string | null }> }) => {
+			const ids: string[] = [];
+			for (const e of state.edges) {
+				if (e.target === id && e.targetHandle) ids.push(e.targetHandle);
+			}
+			return ids.sort().join(',');
+		}, [id]),
+		(a: string, b: string) => a === b
+	);
 
 	const {
 		displayName,
@@ -37,8 +47,8 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 
 	// Check if a specific handle has an edge connected
 	const isHandleConnected = useCallback((handleId: string) => {
-		return edges.some(edge => edge.target === id && edge.targetHandle === handleId);
-	}, [edges, id]);
+		return connectedHandleIdsStr.split(',').includes(handleId);
+	}, [connectedHandleIdsStr]);
 
 	// Handle inline value changes
 	const handleInlineValueChange = useCallback((paramName: string, value: InlineValue) => {
@@ -189,7 +199,7 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 				};
 		}
 	};
-	
+
 	const colors = getNamespaceColor();
 
 	const displayParams = getDisplayParams();
