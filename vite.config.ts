@@ -6,5 +6,8 @@ export default defineConfig({
 	base: '/SpellCompiler-web/',
 	server: {
 		port: 3001,
+		proxy: {
+			'/api': { target: 'http://localhost:3002', changeOrigin: true },
+		},
 	},
 })

@@ -1,0 +1,50 @@
+/**
+ * List of available function names and params for the vibe prompt.
+ * Mirrors the editor's game + std libraries (no runtime dependency).
+ */
+export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayName?: string }[] = [
+	// vec
+	{ fullName: 'vec::create', params: ['x', 'y'] },
+	{ fullName: 'vec::x', params: ['v'] },
+	{ fullName: 'vec::y', params: ['v'] },
+	{ fullName: 'vec::add', params: ['a', 'b'] },
+	{ fullName: 'vec::subtract', params: ['a', 'b'] },
+	{ fullName: 'vec::scale', params: ['v', 's'] },
+	{ fullName: 'vec::length', params: ['v'] },
+	{ fullName: 'vec::normalize', params: ['v'] },
+	{ fullName: 'vec::distance', params: ['a', 'b'] },
+	// std::math
+	{ fullName: 'std::math::add', params: ['a', 'b'] },
+	{ fullName: 'std::math::subtract', params: ['a', 'b'] },
+	{ fullName: 'std::math::multiply', params: ['a', 'b'] },
+	{ fullName: 'std::math::divide', params: ['a', 'b'] },
+	{ fullName: 'std::math::min', params: ['a', 'b'] },
+	{ fullName: 'std::math::max', params: ['a', 'b'] },
+	{ fullName: 'std::cmp::gt', params: ['a', 'b'] },
+	{ fullName: 'std::cmp::lt', params: ['a', 'b'] },
+	{ fullName: 'std::cmp::gte', params: ['a', 'b'] },
+	{ fullName: 'std::cmp::lte', params: ['a', 'b'] },
+	{ fullName: 'std::cmp::eq', params: ['a', 'b'] },
+	{ fullName: 'std::cmp::neq', params: ['a', 'b'] },
+	// std::logic
+	{ fullName: 'std::logic::and', params: ['a', 'b'] },
+	{ fullName: 'std::logic::or', params: ['a', 'b'] },
+	{ fullName: 'std::logic::not', params: ['a'] },
+	// list
+	{ fullName: 'list::empty', params: [] },
+	{ fullName: 'list::cons', params: ['head', 'tail'] },
+	{ fullName: 'list::head', params: ['list'] },
+	{ fullName: 'list::tail', params: ['list'] },
+	{ fullName: 'list::isEmpty', params: ['list'] },
+	{ fullName: 'list::length', params: ['list'] },
+	{ fullName: 'list::fromArray', params: ['arr'] },
+	// game (spell context)
+	{ fullName: 'game::getPlayer', params: ['state'], displayName: 'getPlayer' },
+	{ fullName: 'game::getEntityPosition', params: ['state', 'entity'], displayName: 'getEntityPosition' },
+	{ fullName: 'game::getNearbyEnemies', params: ['state', 'position', 'radius'], displayName: 'getNearbyEnemies' },
+	{ fullName: 'game::spawnFireball', params: ['state', 'direction'], displayName: 'spawnFireball' },
+	{ fullName: 'game::healEntity', params: ['state', 'entity', 'amount'], displayName: 'healEntity' },
+	{ fullName: 'game::teleportRelative', params: ['state', 'entity', 'delta'], displayName: 'teleportRelative' },
+	{ fullName: 'game::emitEvent', params: ['state', 'eventName'], displayName: 'emitEvent' },
+	{ fullName: 'game::setTimeout', params: ['state', 'delayMs', 'callback'], displayName: 'setTimeout' },
+];
