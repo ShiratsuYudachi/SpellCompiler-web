@@ -1,7 +1,8 @@
 import type { Evaluator } from '../ast/evaluator';
 import type { Value, FunctionValue, GameState } from '../ast/ast';
+import { query } from 'bitecs';
 import { GameStateManager } from '../../game/state/GameStateManager';
-import { Health } from '../../game/components';
+import { Health, Enemy } from '../../game/components';
 import { spawnFireball } from '../../game/prefabs/spawnFireball';
 import { eventQueue } from '../../game/events/EventQueue';
 import { playTeleport, playFireballCast } from '../../game/SpellVisual/SpellVisualManager';
@@ -305,6 +306,85 @@ export function registerGameFunctions(evaluator: Evaluator) {
 			return state;
 		},
 		ui: { displayName: '📡 emitEvent' }
+	});
+
+	// ====================================
+	// Sniper / Targeting Functions
+	// ====================================
+
+	// game::getAllEnemies(state: GameState) -> List<eid>
+	// Returns a functional list of all living enemy entity IDs
+	evaluator.registerFunction({
+		fullName: 'game::getAllEnemies',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			const enemies: number[] = [];
+
+			for (const eid of query(manager.world, [Enemy, Health])) {
+				if ((Health.current[eid] ?? 0) > 0) {
+					enemies.push(eid);
+				}
+			}
+
+			return evaluator.callFunction('list::fromArray', enemies as any);
+		},
+		ui: { displayName: '👾 getAllEnemies' }
+	});
+
+	// game::getEntityHealth(state: GameState, eid: number) -> number
+	// Returns current HP of the entity. Returns -1 for invalid/non-existent entities.
+	evaluator.registerFunction({
+		fullName: 'game::getEntityHealth',
+		params: ['state', 'eid'],
+		fn: (state: Value, eid: Value): Value => {
+			assertGameState(state);
+			if (typeof eid !== 'number' || eid < 0) return -1;
+			const hp = Health.current[eid];
+			return hp !== undefined ? hp : -1;
+		},
+		ui: { displayName: '❤️ getEntityHealth' }
+	});
+
+	// game::damageEntity(state: GameState, eid: number, amount: number) -> GameState
+	// Deals direct damage to a specific entity by ID.
+	evaluator.registerFunction({
+		fullName: 'game::damageEntity',
+		params: ['state', 'eid', 'amount'],
+		fn: (state: Value, eid: Value, amount: Value): Value => {
+			assertGameState(state);
+			if (typeof eid !== 'number') throw new Error('eid must be a number');
+			if (typeof amount !== 'number') throw new Error('amount must be a number');
+			const manager = getManager();
+
+			if (Health.current[eid] !== undefined && Health.current[eid] > 0) {
+				Health.current[eid] = Math.max(0, Health.current[eid] - amount);
+
+				const scene = manager.world.resources.scene as Phaser.Scene;
+
+				// If this level registered civilian eids, fire a scene event on hit
+				const civilianEids = manager.world.resources.levelData?.['civilianEids'] as Set<number> | undefined;
+				if (civilianEids?.has(eid)) {
+					scene.events.emit('civilian-hit', eid);
+				}
+
+				// Brief flash visual on the target
+				const body = manager.world.resources.bodies.get(eid);
+				if (body) {
+					scene.tweens.add({
+						targets: body,
+						alpha: 0.15,
+						duration: 70,
+						yoyo: true,
+						onComplete: () => { if (body.active) body.setAlpha(1); }
+					});
+				}
+			}
+
+			return state;
+		},
+		ui: { displayName: '⚔️ damageEntity' }
 	});
 
 	// game::setTimeout(state: GameState, callback: Function, delayMs: number) -> GameState
