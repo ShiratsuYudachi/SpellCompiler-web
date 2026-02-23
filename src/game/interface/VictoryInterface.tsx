@@ -6,7 +6,7 @@ interface VictoryInterfaceProps {
 }
 
 export function VictoryInterface({ level, onNextLevel, onReplay, onMainMenu }: VictoryInterfaceProps) {
-	const isLastLevel = level >= 20
+	const isLastLevel = level >= 21
 
 	return (
 		<div

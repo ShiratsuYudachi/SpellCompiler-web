@@ -397,7 +397,7 @@ export class Level21 extends BaseScene {
 			'fold as argmax — mastered!\n' +
 			'The trilogy is complete.'
 		)
-		this.time.delayedCall(3500, () => this.scene.start('LevelSelectScene'))
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
 	}
 
 	private onMissionFail(): void {

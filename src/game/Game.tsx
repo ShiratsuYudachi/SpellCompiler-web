@@ -200,7 +200,7 @@ export function Game() {
 			completedLevelRef.current = 0
 
 			// Start next level
-			if (nextLevel <= 20) {
+			if (nextLevel <= 21) {
 				gameRef.current.scene.start(`Level${nextLevel}`)
 			} else {
 				gameRef.current.scene.start('MainInterface')

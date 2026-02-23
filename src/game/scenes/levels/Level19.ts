@@ -301,7 +301,7 @@ export class Level19 extends BaseScene {
 			`Civilian penalties: ${this.penaltyCount}/3\n` +
 			'filter → head → damageEntity — mastered!'
 		)
-		this.time.delayedCall(3000, () => this.scene.start('LevelSelectScene'))
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
 	}
 
 	private onMissionFail(): void {
