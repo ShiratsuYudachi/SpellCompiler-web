@@ -263,16 +263,18 @@ export class Level20 extends BaseScene {
 		if (pb) pb.setVelocity(0, 0)
 
 		// Fallback civilian penalty detection
-		for (const ent of this.entities) {
+		this.entities = this.entities.filter(ent => {
 			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.marker.getData('penaltyFired')) {
-					ent.marker.setData('penaltyFired', true)
-					this.events.emit('civilian-hit')
+				if (!ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
 				}
 				ent.marker.destroy()
 				ent.label.destroy()
+				return false  // remove dead civilian from list
 			}
-		}
+			return true
+		})
 
 		// Win condition: target despawned
 		if (!this.world.resources.bodies.has(this.targetEid)) {
