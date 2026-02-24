@@ -47,6 +47,8 @@ import { AddEventPanel } from './AddEventPanel'
 import { EventListPanel } from './EventListPanel'
 import { useEditorClipboard } from './hooks/useEditorClipboard'
 import { useEditorShortcut } from './hooks/useEditorShortcut'
+import { VibePanel, type VibeProvider } from './VibePanel'
+import { vibeBuild, vibeAsk } from '../../lib/vibe/vibeApi'
 
 // Define node types
 const nodeTypes = {
@@ -197,6 +199,41 @@ function EditorContent(props: FunctionalEditorProps) {
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'failed' | null>(null);
+
+	const VIBE_PANEL_WIDTH_KEY = 'spellcompiler-vibe-panel-width';
+	const [vibePanelWidth, setVibePanelWidth] = useState(() => {
+		try {
+			const w = parseInt(localStorage.getItem(VIBE_PANEL_WIDTH_KEY) ?? '', 10);
+			if (Number.isFinite(w) && w >= 200 && w <= 600) return w;
+		} catch { /* ignore */ }
+		return 320;
+	});
+	const vibeResizeStartRef = useRef<{ startX: number; startW: number } | null>(null);
+
+	const onVibeResizeStart = useCallback((e: React.MouseEvent) => {
+		e.preventDefault();
+		vibeResizeStartRef.current = { startX: e.clientX, startW: vibePanelWidth };
+		const onMove = (ev: MouseEvent) => {
+			const r = vibeResizeStartRef.current;
+			if (!r) return;
+			const delta = r.startX - ev.clientX;
+			const next = Math.max(200, Math.min(600, r.startW + delta));
+			vibeResizeStartRef.current = { startX: ev.clientX, startW: next };
+			setVibePanelWidth(next);
+			try { localStorage.setItem(VIBE_PANEL_WIDTH_KEY, String(next)); } catch { /* ignore */ }
+		};
+		const onUp = () => {
+			vibeResizeStartRef.current = null;
+			document.removeEventListener('mousemove', onMove);
+			document.removeEventListener('mouseup', onUp);
+			document.body.style.cursor = '';
+			document.body.style.userSelect = '';
+		};
+		document.addEventListener('mousemove', onMove);
+		document.addEventListener('mouseup', onUp);
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
+	}, [vibePanelWidth]);
 
 	const generateNodeId = useCallback(() => `node-${nodeIdCounter++}`, []);
 
@@ -730,6 +767,79 @@ function EditorContent(props: FunctionalEditorProps) {
 		}
 	};
 
+	// Vibe: pure front-end — call LLM from browser (no server)
+	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, provider?: VibeProvider) => {
+		if (!apiKey?.trim()) throw new Error('API key is required.');
+		const { nodes: vibeNodes, edges: vibeEdges } = await vibeBuild(userText, apiKey, provider);
+		return { nodes: vibeNodes as Node[], edges: vibeEdges as Edge[] };
+	}, []);
+
+	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, provider?: VibeProvider) => {
+		if (!apiKey?.trim()) throw new Error('API key is required.');
+		const nodes = getNodes();
+		const edges = getEdges();
+		const { explanation } = await vibeAsk(userText, nodes, edges, apiKey, provider);
+		return { explanation };
+	}, [getNodes, getEdges]);
+
+	const applyVibeFlow = useCallback((vibeNodes: Node[], vibeEdges: Edge[]) => {
+		const existingNodes = getNodes();
+		const existingEdges = getEdges();
+		const prefix = `vibe-${Date.now()}-`;
+		const idMap = new Map<string, string>();
+		const vibeOutputNode = vibeNodes.find((n) => n.type === 'output');
+		const existingOutput = existingNodes.find((n) => n.type === 'output');
+
+		for (const n of vibeNodes) {
+			if (n.type === 'output' && existingOutput) {
+				idMap.set(n.id, existingOutput.id);
+			} else {
+				idMap.set(n.id, prefix + n.id);
+			}
+		}
+
+		const existingMaxX = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.x)) : 0;
+		const existingMaxY = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.y)) : 0;
+		const vibeMinX = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.x)) : 0;
+		const vibeMinY = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.y)) : 0;
+		const offsetX = existingMaxX + 120 - vibeMinX;
+		const offsetY = existingMaxY + 80 - vibeMinY;
+
+		const newNodes: Node[] = vibeNodes
+			.filter((n) => !(n.type === 'output' && existingOutput))
+			.map((n) => ({
+				...n,
+				id: idMap.get(n.id) ?? n.id,
+				position: { x: n.position.x + offsetX, y: n.position.y + offsetY },
+			}));
+
+		const newEdges: Edge[] = vibeEdges.map((e) => ({
+			...e,
+			id: prefix + (e.id || `e-${e.source}-${e.target}`),
+			source: idMap.get(e.source) ?? e.source,
+			target: idMap.get(e.target) ?? e.target,
+		}));
+
+		// So the vibe graph becomes the main expression: drop existing edges into output, then add new edges
+		const existingWithoutOutputIncoming = existingOutput
+			? existingEdges.filter((e) => e.target !== existingOutput.id)
+			: existingEdges;
+		const mergedNodes = [...existingNodes, ...newNodes];
+		const mergedEdges = [...existingWithoutOutputIncoming, ...newEdges];
+
+		historyAllowedRef.current = true;
+		setHasUserActed(true);
+		pushUndo();
+		setNodes(mergedNodes);
+		setEdges(mergedEdges);
+		bumpNodeIdCounterFromNodes(mergedNodes);
+		triggerSave();
+		setEvaluationResult(null);
+		setCurrentAST(null);
+		setCurrentFunctions([]);
+		setError(null);
+	}, [getNodes, getEdges, setNodes, setEdges, pushUndo, triggerSave]);
+
 	// Import workflow from JSON file
 	const handleImport = () => {
 		try {
@@ -857,11 +967,13 @@ function EditorContent(props: FunctionalEditorProps) {
 				</Paper>
 			)}
 
-			{/* Main content area */}
-			<div className="flex-1 relative">
+			{/* Main content area: flow (left) + resizable vibe panel (right); force LTR so panel stays right */}
+			<div className="flex-1 flex flex-nowrap min-h-0 w-full overflow-hidden" style={{ flexDirection: 'row', direction: 'ltr' }}>
+				{/* Flow canvas - takes remaining space on the left */}
+				<div className="flex-1 min-w-0 relative flex flex-col overflow-hidden" style={{ order: 1 }}>
 				{/* React Flow editor - focusable so keyboard shortcuts work after clicking canvas */}
 				<div
-					className="w-full h-full outline-none"
+					className="w-full h-full outline-none flex-1 min-h-0"
 					tabIndex={0}
 					onContextMenu={onEditorAreaContextMenu}
 					onClick={onEditorAreaClick}
@@ -895,7 +1007,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						<MiniMap />
 					</ReactFlow>
 				</div>
-			</div>
+				</div>
 
 		{/* Node Selection Menu */}
 		{menuState && menuState.show && (
@@ -932,7 +1044,29 @@ function EditorContent(props: FunctionalEditorProps) {
 				onClose={() => setContextMenu(null)}
 			/>
 		)}
-	</div>
+				{/* Right side: resize handle + Vibe panel (fixed on the right, drag to resize) */}
+				<div className="flex shrink-0 flex-row h-full" style={{ width: 4 + vibePanelWidth, order: 2, marginLeft: 'auto' }}>
+					<div
+						role="separator"
+						aria-label="Resize Vibe panel"
+						onMouseDown={onVibeResizeStart}
+						className="shrink-0 w-1 cursor-col-resize bg-gray-300 hover:bg-blue-400 active:bg-blue-500 transition-colors self-stretch"
+						style={{ minWidth: 4 }}
+					/>
+					<aside
+						className="shrink-0 h-full border-l border-gray-200 bg-gray-50 flex flex-col overflow-hidden"
+						style={{ width: vibePanelWidth, minWidth: vibePanelWidth }}
+					>
+						<div className="p-2 flex-1 min-h-0 flex flex-col overflow-auto">
+							<VibePanel
+								onGenerate={handleVibeGenerate}
+								onApplyFlow={(nodes, edges) => applyVibeFlow(nodes as Node[], edges as Edge[])}
+								onAsk={handleVibeAsk}
+							/>
+						</div>
+					</aside>
+				</div>
+			</div>
 
 	{/* Event List Modal */}
 	<Modal
@@ -973,6 +1107,7 @@ function EditorContent(props: FunctionalEditorProps) {
             }}
         />
 	</Modal>
+			</div>
 	</EditorProvider>
 	);
 }
