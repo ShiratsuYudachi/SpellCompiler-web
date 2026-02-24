@@ -1,4 +1,4 @@
-import { AVAILABLE_FUNCTIONS } from './availableFunctions.js';
+import { AVAILABLE_FUNCTIONS } from './availableFunctions';
 
 const NODE_SCHEMA = `
 Node types and their "data" shape (each node has id, type, position: {x,y}, data):
@@ -19,9 +19,7 @@ Spell input parameters come from a spellInput node; use its source handles param
 `;
 
 export function buildVibePrompt(userText: string): string {
-	const fnList = AVAILABLE_FUNCTIONS.map(
-		(f) => `${f.fullName}(${f.params.join(', ')})`
-	).join('\n');
+	const fnList = AVAILABLE_FUNCTIONS.map((f) => `${f.fullName}(${f.params.join(', ')})`).join('\n');
 
 	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with two keys: "nodes" and "edges".
 
@@ -42,4 +40,9 @@ User request:
 ${userText}
 
 Respond with JSON only:`;
+}
+
+export function buildAskPrompt(question: string, nodes: unknown[], edges: unknown[]): string {
+	const graphSummary = JSON.stringify({ nodes, edges }, null, 0);
+	return `The user has a visual "Spell" graph (node-based editor). Here is the current graph as JSON:\n\n${graphSummary}\n\nUser question: ${question}\n\nProvide a clear, concise explanation in plain English. Do not output JSON.`;
 }

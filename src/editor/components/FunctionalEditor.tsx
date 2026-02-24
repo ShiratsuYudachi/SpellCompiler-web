@@ -48,6 +48,7 @@ import { EventListPanel } from './EventListPanel'
 import { useEditorClipboard } from './hooks/useEditorClipboard'
 import { useEditorShortcut } from './hooks/useEditorShortcut'
 import { VibePanel, type VibeProvider } from './VibePanel'
+import { vibeBuild, vibeAsk } from '../../lib/vibe/vibeApi'
 
 // Define node types
 const nodeTypes = {
@@ -766,48 +767,19 @@ function EditorContent(props: FunctionalEditorProps) {
 		}
 	};
 
-	// Vibe: fetch flow from API and merge into current graph
+	// Vibe: pure front-end — call LLM from browser (no server)
 	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, provider?: VibeProvider) => {
-		const res = await fetch('/api/vibe', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ mode: 'build', text: userText, apiKey: apiKey || undefined, provider: provider || 'openai' }),
-		});
-		if (!res.ok) {
-			const data = await res.json().catch(() => ({}));
-			throw new Error(data.error || `Request failed: ${res.status}`);
-		}
-		const { nodes: vibeNodes, edges: vibeEdges } = (await res.json()) as { nodes: Node[]; edges: Edge[] };
-		if (!Array.isArray(vibeNodes) || !Array.isArray(vibeEdges)) {
-			throw new Error('Invalid response: nodes and edges must be arrays');
-		}
-		return { nodes: vibeNodes, edges: vibeEdges };
+		if (!apiKey?.trim()) throw new Error('API key is required.');
+		const { nodes: vibeNodes, edges: vibeEdges } = await vibeBuild(userText, apiKey, provider);
+		return { nodes: vibeNodes as Node[], edges: vibeEdges as Edge[] };
 	}, []);
 
 	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, provider?: VibeProvider) => {
+		if (!apiKey?.trim()) throw new Error('API key is required.');
 		const nodes = getNodes();
 		const edges = getEdges();
-		const res = await fetch('/api/vibe', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				mode: 'ask',
-				text: userText,
-				nodes,
-				edges,
-				apiKey: apiKey || undefined,
-				provider: provider || 'openai',
-			}),
-		});
-		if (!res.ok) {
-			const data = await res.json().catch(() => ({}));
-			throw new Error(data.error || `Request failed: ${res.status}`);
-		}
-		const data = (await res.json()) as { explanation?: string };
-		if (typeof data.explanation !== 'string') {
-			throw new Error('Invalid response: missing explanation');
-		}
-		return { explanation: data.explanation };
+		const { explanation } = await vibeAsk(userText, nodes, edges, apiKey, provider);
+		return { explanation };
 	}, [getNodes, getEdges]);
 
 	const applyVibeFlow = useCallback((vibeNodes: Node[], vibeEdges: Edge[]) => {

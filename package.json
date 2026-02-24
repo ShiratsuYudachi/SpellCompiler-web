@@ -9,12 +9,9 @@
 		"preview": "vite preview",
 		"test": "tsx src/editor/test/run-tests.ts",
 		"test:ast": "tsx src/editor/ast/example.ts",
-		"test:lambda": "tsx src/editor/ast/test-lambda.ts",
-		"dev:server": "tsx server/index.ts"
+		"test:lambda": "tsx src/editor/ast/test-lambda.ts"
 	},
 	"devDependencies": {
-		"@types/cors": "^2.8.17",
-		"@types/express": "^5.0.0",
 		"@tailwindcss/postcss": "^4.1.14",
 		"@types/node": "^24.7.2",
 		"@types/react": "^19.2.1",
@@ -27,15 +24,11 @@
 		"typescript": "^5.0.0"
 	},
 	"dependencies": {
-		"@anthropic-ai/sdk": "^0.32.1",
 		"@mantine/core": "^8.3.3",
 		"@mantine/hooks": "^8.3.3",
 		"@vitejs/plugin-react": "^5.0.4",
 		"bitecs": "^0.4.0",
-		"cors": "^2.8.5",
-		"express": "^4.21.0",
 		"mermaid": "^11.12.0",
-		"openai": "^4.73.0",
 		"phaser": "^3.90.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",

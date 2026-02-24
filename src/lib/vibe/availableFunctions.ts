@@ -3,7 +3,6 @@
  * Mirrors the editor's game + std libraries (no runtime dependency).
  */
 export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayName?: string }[] = [
-	// vec
 	{ fullName: 'vec::create', params: ['x', 'y'] },
 	{ fullName: 'vec::x', params: ['v'] },
 	{ fullName: 'vec::y', params: ['v'] },
@@ -13,7 +12,6 @@ export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayN
 	{ fullName: 'vec::length', params: ['v'] },
 	{ fullName: 'vec::normalize', params: ['v'] },
 	{ fullName: 'vec::distance', params: ['a', 'b'] },
-	// std::math
 	{ fullName: 'std::math::add', params: ['a', 'b'] },
 	{ fullName: 'std::math::subtract', params: ['a', 'b'] },
 	{ fullName: 'std::math::multiply', params: ['a', 'b'] },
@@ -26,11 +24,9 @@ export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayN
 	{ fullName: 'std::cmp::lte', params: ['a', 'b'] },
 	{ fullName: 'std::cmp::eq', params: ['a', 'b'] },
 	{ fullName: 'std::cmp::neq', params: ['a', 'b'] },
-	// std::logic
 	{ fullName: 'std::logic::and', params: ['a', 'b'] },
 	{ fullName: 'std::logic::or', params: ['a', 'b'] },
 	{ fullName: 'std::logic::not', params: ['a'] },
-	// list
 	{ fullName: 'list::empty', params: [] },
 	{ fullName: 'list::cons', params: ['head', 'tail'] },
 	{ fullName: 'list::head', params: ['list'] },
@@ -38,7 +34,6 @@ export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayN
 	{ fullName: 'list::isEmpty', params: ['list'] },
 	{ fullName: 'list::length', params: ['list'] },
 	{ fullName: 'list::fromArray', params: ['arr'] },
-	// game (spell context)
 	{ fullName: 'game::getPlayer', params: ['state'], displayName: 'getPlayer' },
 	{ fullName: 'game::getEntityPosition', params: ['state', 'entity'], displayName: 'getEntityPosition' },
 	{ fullName: 'game::getNearbyEnemies', params: ['state', 'position', 'radius'], displayName: 'getNearbyEnemies' },

@@ -9,7 +9,7 @@ const API_KEY_STORAGE_KEY = 'spellcompiler-vibe-api-key';
 const PROVIDER_STORAGE_KEY = 'spellcompiler-vibe-provider';
 const MODE_STORAGE_KEY = 'spellcompiler-vibe-mode';
 
-// Must match server. Allowlist is best-effort (not all keys use these formats); unknown-format keys still pass through with fallback cleanup.
+// Allowlist is best-effort (not all keys use these formats); unknown-format keys still pass through with fallback cleanup.
 const KEY_PATTERN = /(sk-ant-[a-zA-Z0-9_-]+|gsk_[a-zA-Z0-9_-]+|sk-[a-zA-Z0-9_-]+)/;
 const TRAILING_KEY_JUNK: RegExp[] = [
 	/\s*\/?web\/?\s*$/i,
