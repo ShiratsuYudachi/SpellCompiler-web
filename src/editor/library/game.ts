@@ -369,6 +369,13 @@ export function registerGameFunctions(evaluator: Evaluator) {
 					scene.events.emit('civilian-hit', eid);
 				}
 
+				// Generic per-damage callback hook for level-specific mechanics
+				// (overkill tracking, shield restoration, etc.)
+				const onDamage = manager.world.resources.levelData?.['onDamage'] as ((eid: number, amount: number) => void) | undefined;
+				if (onDamage) {
+					onDamage(eid, amount);
+				}
+
 				// Brief flash visual on the target
 				const body = manager.world.resources.bodies.get(eid);
 				if (body) {
