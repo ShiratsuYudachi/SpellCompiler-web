@@ -156,6 +156,7 @@ interface TrackedEntity {
 	marker: Phaser.GameObjects.Arc
 	label: Phaser.GameObjects.Text
 	role: 'civilian' | 'weak' | 'guard' | 'target'
+	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
 }
 
 export class Level20 extends BaseScene {
@@ -232,8 +233,12 @@ export class Level20 extends BaseScene {
 		const civilianEids = new Set(this.entities.filter(e => e.role === 'civilian').map(e => e.eid))
 		this.world.resources.levelData!['civilianEids'] = civilianEids
 
-		this.events.on('civilian-hit', () => {
+		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.entities.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 80, 0)
@@ -314,7 +319,7 @@ export class Level20 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEntity = { eid, body, marker, label, role }
+		const tracked: TrackedEntity = { eid, body, marker, label, role, penaltyFired: false }
 		this.entities.push(tracked)
 		return tracked
 	}
