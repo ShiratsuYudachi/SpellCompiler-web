@@ -193,6 +193,14 @@ export class Level29 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update HP labels
+		for (const ent of this.enemies) {
+			const hpLabel = (ent as any).hpLabel as Phaser.GameObjects.Text | undefined
+			if (hpLabel && hpLabel.active && this.world.resources.bodies.has(ent.eid)) {
+				hpLabel.setText(`HP:${Math.max(0, Health.current[ent.eid])}`)
+			}
+		}
+
 		// Fallback penalty detection for civilians
 		this.enemies = this.enemies.filter(ent => {
 			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {

@@ -145,6 +145,13 @@ export class Level25 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update HP labels
+		for (const ent of this.enemies) {
+			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				ent.label.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+			}
+		}
+
 		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
 			this.onMissionSuccess()
 		}

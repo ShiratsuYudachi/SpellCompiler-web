@@ -204,6 +204,13 @@ export class Level26 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update fuel HP labels (core stays "???")
+		for (const ent of this.entities) {
+			if (ent.role === 'fuel' && this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				ent.label.setText(`FUEL HP:${Math.max(0, Health.current[ent.eid])}`)
+			}
+		}
+
 		if (this.coreEid > -1 && !this.world.resources.bodies.has(this.coreEid)) {
 			this.onMissionSuccess()
 		}

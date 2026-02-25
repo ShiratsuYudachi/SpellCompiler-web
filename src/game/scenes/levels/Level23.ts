@@ -131,6 +131,13 @@ export class Level23 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update HP labels
+		for (const ent of this.enemies) {
+			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				ent.label.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+			}
+		}
+
 		// Overkill check
 		if (this.totalDamageDealt > this.totalHPRequired * 1.2 && this.totalDamageDealt > 0) {
 			this.onMissionFail('Overkill! Total damage too high.')

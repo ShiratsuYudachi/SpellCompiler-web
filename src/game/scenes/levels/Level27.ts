@@ -198,6 +198,14 @@ export class Level27 extends BaseScene {
 
 	protected onLevelUpdate(): void {
 		if (this.levelWon) return
+
+		// Update HP labels
+		for (const ent of this.enemies) {
+			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				ent.label.setText(`HP:${Math.max(0, Health.current[ent.eid])}${ent.isStrong ? ' 🛡' : ''}`)
+			}
+		}
+
 		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
 			this.onMissionSuccess()
 		}

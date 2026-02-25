@@ -199,6 +199,14 @@ export class Level24 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update HP labels
+		for (const ent of [...this.enemies, ...this.civilians]) {
+			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				const roleName = ent.role === 'elite' ? 'ELITE' : ent.role === 'weak' ? 'WEAK' : 'CIV'
+				ent.label.setText(`${roleName}(${Math.max(0, Health.current[ent.eid])})`)
+			}
+		}
+
 		// Clean up dead civilians
 		this.civilians = this.civilians.filter(civ => {
 			if (!this.world.resources.bodies.has(civ.eid)) {
