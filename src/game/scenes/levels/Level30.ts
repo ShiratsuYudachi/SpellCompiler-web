@@ -89,6 +89,11 @@ export class Level30 extends BaseScene {
 			this.spawnDrone(pos.x, pos.y)
 		}
 
+		// Drones are fireball-immune: must be killed by damageEntity only
+		// (Elites are NOT immune — fireballs bypass their shield and kill them)
+		const droneEids = new Set(this.enemies.filter(e => e.role === 'drone').map(e => e.eid))
+		this.world.resources.levelData!['fireballImmuneEids'] = droneEids
+
 		// onDamage hook: shield elites from direct damageEntity
 		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
 			if (!this.shieldedEids.has(eid)) return

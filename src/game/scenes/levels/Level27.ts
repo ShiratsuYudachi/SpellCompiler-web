@@ -165,6 +165,11 @@ export class Level27 extends BaseScene {
 			if (ent.isStrong) this.shieldedEids.add(ent.eid)
 		}
 
+		// Weak enemies are fireball-immune: must be killed by damageEntity only
+		// (Strong enemies are NOT immune — fireballs are the only way to kill them)
+		const weakEids = new Set(this.enemies.filter(e => !this.shieldedEids.has(e.eid)).map(e => e.eid))
+		this.world.resources.levelData!['fireballImmuneEids'] = weakEids
+
 		// onDamage hook: shield restores HP for strong enemies hit by damageEntity
 		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
 			if (!this.shieldedEids.has(eid)) return

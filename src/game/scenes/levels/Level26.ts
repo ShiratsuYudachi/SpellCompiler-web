@@ -160,6 +160,9 @@ export class Level26 extends BaseScene {
 		const core = this.spawnCore(480, 320, totalFuelHP)
 		this.coreEid = core.eid
 
+		// Core is immune to fireball damage — can only die from exact damageEntity call
+		this.world.resources.levelData!['fireballImmuneEids'] = new Set([this.coreEid])
+
 		// Register onDamage hook: invalid damage on core → restore HP
 		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
 			if (eid !== this.coreEid) return
