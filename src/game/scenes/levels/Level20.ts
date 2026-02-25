@@ -262,6 +262,14 @@ export class Level20 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update HP labels
+		for (const ent of this.entities) {
+			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				const roleName = ent.role === 'civilian' ? 'CIVILIAN' : ent.role === 'weak' ? 'WEAK' : ent.role === 'guard' ? 'GUARD' : 'TARGET'
+				ent.label.setText(`${roleName} (${Math.max(0, Health.current[ent.eid])})`)
+			}
+		}
+
 		// Fallback civilian penalty detection
 		this.entities = this.entities.filter(ent => {
 			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {

@@ -296,6 +296,13 @@ export class Level21 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
+		// Update HP labels for enemies (civilians show static "CIVILIAN" text)
+		for (const ent of this.enemies) {
+			if (!ent.isCivilian && this.world.resources.bodies.has(ent.eid) && ent.hpLabel.active) {
+				ent.hpLabel.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+			}
+		}
+
 		// Fallback civilian penalty detection
 		this.enemies = this.enemies.filter(ent => {
 			if (ent.isCivilian && !this.world.resources.bodies.has(ent.eid)) {
