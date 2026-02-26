@@ -6,9 +6,10 @@
 import Phaser from 'phaser';
 import { playTeleportVisual, type TeleportVisualOptions } from './Visuals/teleportVisual';
 import { playFireballCastVisual, type FireballCastVisualOptions } from './Visuals/fireballVisual';
+import { playDamageHitVisual, type DamageHitVisualOptions } from './Visuals/damageVisual';
 
 // 效果类型定义
-export type SpellVisualType = 'teleport' | 'fireballCast';
+export type SpellVisualType = 'teleport' | 'fireballCast' | 'damageHit';
 
 // 通用选项接口
 export interface BaseVisualOptions {
@@ -44,6 +45,13 @@ export class SpellVisualManager {
   }
 
   /**
+   * 播放伤害命中特效
+   */
+  damageHit(x: number, y: number, amount: number, options?: Partial<DamageHitVisualOptions>): void {
+    playDamageHitVisual(this.scene, x, y, amount, options);
+  }
+
+  /**
    * 通用播放方法 - 根据类型播放对应特效
    */
   play(type: SpellVisualType, options: Record<string, any>): void {
@@ -53,6 +61,9 @@ export class SpellVisualManager {
         break;
       case 'fireballCast':
         this.fireballCast(options.x, options.y, options.dirX, options.dirY, options);
+        break;
+      case 'damageHit':
+        this.damageHit(options.x, options.y, options.amount, options);
         break;
       default:
         console.warn(`Unknown spell visual type: ${type}`);
@@ -100,6 +111,25 @@ export function playFireballCast(
   playFireballCastVisual(scene, x, y, dirX, dirY, options);
 }
 
+/**
+ * 播放伤害命中特效
+ * @param scene   Phaser场景
+ * @param x       命中点 X
+ * @param y       命中点 Y
+ * @param amount  伤害数值
+ * @param options 可选配置
+ */
+export function playDamageHit(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  amount: number,
+  options?: Partial<DamageHitVisualOptions>
+): void {
+  playDamageHitVisual(scene, x, y, amount, options);
+}
+
 // 重新导出所有视觉效果的类型
 export type { TeleportVisualOptions } from './Visuals/teleportVisual';
 export type { FireballCastVisualOptions } from './Visuals/fireballVisual';
+export type { DamageHitVisualOptions } from './Visuals/damageVisual';

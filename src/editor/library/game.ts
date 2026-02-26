@@ -5,7 +5,7 @@ import { GameStateManager } from '../../game/state/GameStateManager';
 import { Health, Enemy } from '../../game/components';
 import { spawnFireball } from '../../game/prefabs/spawnFireball';
 import { eventQueue } from '../../game/events/EventQueue';
-import { playTeleport, playFireballCast } from '../../game/SpellVisual/SpellVisualManager';
+import { playTeleport, playFireballCast, playDamageHit } from '../../game/SpellVisual/SpellVisualManager';
 
 // Global state manager reference
 let globalStateManager: GameStateManager | null = null;
@@ -376,16 +376,10 @@ export function registerGameFunctions(evaluator: Evaluator) {
 					onDamage(eid, amount);
 				}
 
-				// Brief flash visual on the target
+				// Damage hit visual: impact flash + shockwave rings + particle burst + floating number
 				const body = manager.world.resources.bodies.get(eid);
 				if (body) {
-					scene.tweens.add({
-						targets: body,
-						alpha: 0.15,
-						duration: 70,
-						yoyo: true,
-						onComplete: () => { if (body.active) body.setAlpha(1); }
-					});
+					playDamageHit(scene, body.x, body.y, amount);
 				}
 			}
 
