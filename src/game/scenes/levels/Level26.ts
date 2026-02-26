@@ -146,8 +146,12 @@ export class Level26 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setPosition(480, 320)
 
-		// Fuel cells: random HP
-		const fuelHPs = this.shuffleArray([15, 25, 35, 45])
+		// Fuel cells: random HP drawn from a large pool so the sum varies each run.
+		// Using a fixed set like [15,25,35,45] would make the sum always 120 —
+		// a player could hardcode damageEntity(core,120) and skip the fold entirely.
+		// Pool: multiples of 3 in [12,48], guaranteed individual < 60 and min-sum ≥ 60.
+		const pool = [12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48]
+		const fuelHPs = this.shuffleArray(pool).slice(0, 4)
 		const fuelPositions = [{ x: 180, y: 180 }, { x: 780, y: 180 }, { x: 180, y: 460 }, { x: 780, y: 460 }]
 		let totalFuelHP = 0
 		for (let i = 0; i < 4; i++) {
