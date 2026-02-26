@@ -156,6 +156,7 @@ interface TrackedEntity {
 	marker: Phaser.GameObjects.Arc
 	label: Phaser.GameObjects.Text
 	role: 'civilian' | 'weak' | 'guard' | 'target'
+	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
 }
 
 export class Level20 extends BaseScene {
@@ -232,8 +233,12 @@ export class Level20 extends BaseScene {
 		const civilianEids = new Set(this.entities.filter(e => e.role === 'civilian').map(e => e.eid))
 		this.world.resources.levelData!['civilianEids'] = civilianEids
 
-		this.events.on('civilian-hit', () => {
+		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.entities.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 80, 0)
@@ -257,17 +262,27 @@ export class Level20 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Fallback civilian penalty detection
+		// Update HP labels
 		for (const ent of this.entities) {
+			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
+				const roleName = ent.role === 'civilian' ? 'CIVILIAN' : ent.role === 'weak' ? 'WEAK' : ent.role === 'guard' ? 'GUARD' : 'TARGET'
+				ent.label.setText(`${roleName} (${Math.max(0, Health.current[ent.eid])})`)
+			}
+		}
+
+		// Fallback civilian penalty detection
+		this.entities = this.entities.filter(ent => {
 			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.marker.getData('penaltyFired')) {
-					ent.marker.setData('penaltyFired', true)
-					this.events.emit('civilian-hit')
+				if (!ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
 				}
 				ent.marker.destroy()
 				ent.label.destroy()
+				return false  // remove dead civilian from list
 			}
-		}
+			return true
+		})
 
 		// Win condition: target despawned
 		if (!this.world.resources.bodies.has(this.targetEid)) {
@@ -314,7 +329,7 @@ export class Level20 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEntity = { eid, body, marker, label, role }
+		const tracked: TrackedEntity = { eid, body, marker, label, role, penaltyFired: false }
 		this.entities.push(tracked)
 		return tracked
 	}
@@ -329,7 +344,7 @@ export class Level20 extends BaseScene {
 			`Civilian penalties: ${this.penaltyCount}/3\n` +
 			'and(gt(hp, 25), lt(hp, 60)) — double filter mastered!'
 		)
-		this.time.delayedCall(3000, () => this.scene.start('LevelSelectScene'))
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
 	}
 
 	private onMissionFail(): void {

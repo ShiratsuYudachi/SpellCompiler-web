@@ -17,3 +17,9 @@ export {
   playFireballReleaseVisual,
   type FireballCastVisualOptions,
 } from './fireballVisual';
+
+// 伤害命中特效
+export {
+  playDamageHitVisual,
+  type DamageHitVisualOptions,
+} from './damageVisual';

@@ -362,9 +362,10 @@ export abstract class BaseScene extends Phaser.Scene {
 			console.log('[BaseScene] Level completed:', levelNum)
 			LevelProgress.completeLevel(levelNum)
 
-			// Pause the scene and show victory screen
-			this.scene.pause()
+			// Emit BEFORE pausing so Game.tsx onShowVictory can find the active scene
+			// and correctly set pausedSceneRef (needed for scene cleanup on Next/Replay)
 			this.game.events.emit(GameEvents.showVictory, { level: levelNum })
+			this.scene.pause()
 		}
 	}
 

@@ -131,6 +131,7 @@ interface TrackedEntity {
 	marker: Phaser.GameObjects.Arc
 	label: Phaser.GameObjects.Text
 	isCivilian: boolean
+	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
 }
 
 export class Level19 extends BaseScene {
@@ -193,8 +194,13 @@ export class Level19 extends BaseScene {
 		this.world.resources.levelData!['scene'] = this
 
 		// Listen for civilian-hit events fired from damageEntity (via levelData hook)
-		this.events.on('civilian-hit', () => {
+		// eid is passed so we can mark the entity as penalized → prevents fallback double-count
+		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.entities.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 80, 0)
@@ -231,19 +237,21 @@ export class Level19 extends BaseScene {
 		if (pb) pb.setVelocity(0, 0)
 
 		// Detect civilian deaths (body removed by deathSystem)
-		for (const ent of this.entities) {
+		// Use entity-level penaltyFired flag (NOT Phaser DataManager) to avoid
+		// double-counting: after marker.destroy() the DataManager is recreated each
+		// frame, making getData() return undefined repeatedly and firing extra penalties.
+		this.entities = this.entities.filter(ent => {
 			if (ent.isCivilian && !this.world.resources.bodies.has(ent.eid)) {
-				// Already despawned — fire penalty if not yet recorded
-				// (primary detection is via 'civilian-hit' event in damageEntity;
-				//  this is a fallback for HP-reduction that didn't dispatch the event)
-				if (!ent.marker.getData('penaltyFired')) {
-					ent.marker.setData('penaltyFired', true)
-					this.events.emit('civilian-hit')
+				if (!ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
 				}
 				ent.marker.destroy()
 				ent.label.destroy()
+				return false  // remove dead civilian from list
 			}
-		}
+			return true
+		})
 
 		// Win condition: boss despawned (killed by damageEntity + deathSystem)
 		if (!this.world.resources.bodies.has(this.bossEid)) {
@@ -286,7 +294,7 @@ export class Level19 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEntity = { eid, body, marker, label, isCivilian }
+		const tracked: TrackedEntity = { eid, body, marker, label, isCivilian, penaltyFired: false }
 		this.entities.push(tracked)
 		return tracked
 	}
@@ -301,7 +309,7 @@ export class Level19 extends BaseScene {
 			`Civilian penalties: ${this.penaltyCount}/3\n` +
 			'filter → head → damageEntity — mastered!'
 		)
-		this.time.delayedCall(3000, () => this.scene.start('LevelSelectScene'))
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
 	}
 
 	private onMissionFail(): void {

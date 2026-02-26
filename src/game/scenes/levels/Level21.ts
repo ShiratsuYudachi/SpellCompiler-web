@@ -168,6 +168,7 @@ interface TrackedEnemy {
 	hpLabel: Phaser.GameObjects.Text
 	hp: number
 	isCivilian: boolean
+	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
 }
 
 export class Level21 extends BaseScene {
@@ -266,8 +267,12 @@ export class Level21 extends BaseScene {
 		const civilianEids = new Set(this.enemies.filter(e => e.isCivilian).map(e => e.eid))
 		this.world.resources.levelData!['civilianEids'] = civilianEids
 
-		this.events.on('civilian-hit', () => {
+		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.enemies.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 80, 0)
@@ -291,17 +296,26 @@ export class Level21 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Fallback civilian penalty
+		// Update HP labels for enemies (civilians show static "CIVILIAN" text)
 		for (const ent of this.enemies) {
+			if (!ent.isCivilian && this.world.resources.bodies.has(ent.eid) && ent.hpLabel.active) {
+				ent.hpLabel.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+			}
+		}
+
+		// Fallback civilian penalty detection
+		this.enemies = this.enemies.filter(ent => {
 			if (ent.isCivilian && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.marker.getData('penaltyFired')) {
-					ent.marker.setData('penaltyFired', true)
-					this.events.emit('civilian-hit')
+				if (!ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
 				}
 				ent.marker.destroy()
 				ent.hpLabel.destroy()
+				return false  // remove dead civilian from list
 			}
-		}
+			return true
+		})
 
 		// Win: supreme threat despawned
 		if (!this.world.resources.bodies.has(this.supremeEid)) {
@@ -340,7 +354,7 @@ export class Level21 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		return { eid, body, marker, hpLabel, hp, isCivilian: false }
+		return { eid, body, marker, hpLabel, hp, isCivilian: false, penaltyFired: false }
 	}
 
 	private spawnCivilian(x: number, y: number): TrackedEnemy {
@@ -373,7 +387,7 @@ export class Level21 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		return { eid, body, marker, hpLabel, hp, isCivilian: true }
+		return { eid, body, marker, hpLabel, hp, isCivilian: true, penaltyFired: false }
 	}
 
 	/** Fisher-Yates shuffle */
@@ -397,7 +411,7 @@ export class Level21 extends BaseScene {
 			'fold as argmax — mastered!\n' +
 			'The trilogy is complete.'
 		)
-		this.time.delayedCall(3500, () => this.scene.start('LevelSelectScene'))
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
 	}
 
 	private onMissionFail(): void {

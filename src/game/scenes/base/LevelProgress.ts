@@ -69,9 +69,11 @@ export class LevelProgress {
 			this.data.completedLevels.push(level)
 		}
 
-		// Unlock next level
-		const nextLevel = level + 1
-		if (nextLevel <= 20) {
+		// Unlock next level (skip missing levels 5 and 10)
+		let nextLevel = level + 1
+		if (nextLevel === 5) nextLevel = 6
+		if (nextLevel === 10) nextLevel = 11
+		if (nextLevel <= 31) {
 			this.unlockLevel(nextLevel)
 		}
 
@@ -108,7 +110,13 @@ export class LevelProgress {
 	 * Unlock all levels (for development)
 	 */
 	static unlockAll() {
-		this.data.unlockedLevels = Array.from({ length: 20 }, (_, i) => i + 1)
+		// All real levels: 1-4, 6-9, 11-31 (skip missing 5 and 10)
+		const allLevels = [
+			...Array.from({ length: 4 }, (_, i) => i + 1),   // 1-4
+			...Array.from({ length: 4 }, (_, i) => i + 6),   // 6-9
+			...Array.from({ length: 21 }, (_, i) => i + 11), // 11-31
+		]
+		this.data.unlockedLevels = allLevels
 		this.save()
 	}
 }

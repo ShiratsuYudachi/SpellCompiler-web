@@ -1,6 +1,24 @@
 import Phaser from 'phaser'
 import { LevelProgress } from '../scenes/base/LevelProgress'
 
+// Category color accents
+const CATEGORY_COLORS: Record<string, number> = {
+	'Basics':     0x4a90e2, // blue
+	'Deflection': 0xe2a94a, // orange
+	'Filter':     0xa94ae2, // purple
+	'forEach':    0x4ae27a, // green
+	'map':        0xe24a7a, // pink
+	'Spatial':    0x4ae2d0, // teal
+	'Combo':      0xe2e24a, // yellow
+}
+
+interface LevelEntry {
+	num: number
+	key: string
+	name: string
+	category: string
+}
+
 /**
  * LevelSelectInterface - Level selection interface
  * Supports scrolling, level unlocking, and progress display
@@ -30,98 +48,134 @@ export class LevelSelectInterface extends Phaser.Scene {
 		// Scrollable container
 		this.container = this.add.container(0, 80)
 
-		// Level mapping configuration
-		const levelMapping = [
-			{ num: 1, sceneKey: 'Level1', name: 'Move' },
-			{ num: 2, sceneKey: 'Level2', name: 'Attack' },
-			{ num: 3, sceneKey: 'Level3', name: 'Event System' },
-			{ num: 4, sceneKey: 'Level4', name: 'Custom Event' },
-			{ num: 16, sceneKey: 'Level16', name: 'Boss Battle' },
-			{ num: 17, sceneKey: 'Level17', name: 'Combat' },
-			{ num: 18, sceneKey: 'Level18', name: 'Deflection Grounds' },
+		// ── Full level list (skip missing 5 and 10) ──────────────────────
+		const levels: LevelEntry[] = [
+			// Chapter 1: Basics
+			{ num: 1,  key: 'Level1',  name: 'Move',         category: 'Basics' },
+			{ num: 2,  key: 'Level2',  name: 'Attack',       category: 'Basics' },
+			{ num: 3,  key: 'Level3',  name: 'Event System', category: 'Basics' },
+			{ num: 4,  key: 'Level4',  name: 'Custom Event', category: 'Basics' },
+			{ num: 6,  key: 'Level6',  name: 'Treasure Hunt',category: 'Basics' },
+			{ num: 7,  key: 'Level7',  name: 'Heavy Ball',   category: 'Basics' },
+			{ num: 8,  key: 'Level8',  name: 'Sort & Throw', category: 'Basics' },
+			{ num: 9,  key: 'Level9',  name: 'Reach Goal',   category: 'Basics' },
+			// Chapter 2: Deflection
+			{ num: 11, key: 'Level11', name: 'Deflect I',    category: 'Deflection' },
+			{ num: 12, key: 'Level12', name: 'Deflect II',   category: 'Deflection' },
+			{ num: 13, key: 'Level13', name: 'Deflect III',  category: 'Deflection' },
+			{ num: 14, key: 'Level14', name: 'Logic Gate',   category: 'Deflection' },
+			{ num: 15, key: 'Level15', name: 'Angled Rebound',category: 'Deflection' },
+			{ num: 16, key: 'Level16', name: 'Boss Battle',  category: 'Deflection' },
+			{ num: 17, key: 'Level17', name: 'Combat',       category: 'Deflection' },
+			{ num: 18, key: 'Level18', name: 'Conditions',   category: 'Deflection' },
+			// Chapter 3: Filter intro
+			{ num: 19, key: 'Level19', name: 'Only Red',     category: 'Filter' },
+			{ num: 20, key: 'Level20', name: 'Guided Strike',category: 'Filter' },
+			{ num: 21, key: 'Level21', name: 'Max Threat',   category: 'Filter' },
+			// Chapter 4: forEach
+			{ num: 22, key: 'Level22', name: 'Sweep',        category: 'forEach' },
+			{ num: 23, key: 'Level23', name: 'Precision',    category: 'forEach' },
+			{ num: 24, key: 'Level24', name: 'Strike',       category: 'forEach' },
+			// Chapter 5: map
+			{ num: 25, key: 'Level25', name: 'Guided Balls', category: 'map' },
+			{ num: 26, key: 'Level26', name: 'Reactor',      category: 'map' },
+			{ num: 27, key: 'Level27', name: 'Classified',   category: 'map' },
+			// Chapter 6: Spatial query
+			{ num: 28, key: 'Level28', name: 'Close Sweep',  category: 'Spatial' },
+			{ num: 29, key: 'Level29', name: 'Lockdown',     category: 'Spatial' },
+			// Chapter 7: Combination
+			{ num: 30, key: 'Level30', name: 'Combo I',      category: 'Combo' },
+			{ num: 31, key: 'Level31', name: 'Final Trial',  category: 'Combo' },
 		]
 
-		// Generate 20 levels (4 columns, 5 rows)
-		const totalLevels = 20
 		const cols = 4
-		const rows = Math.ceil(totalLevels / cols)
 		const startX = 180
 		const startY = 20
 		const spacingX = 200
 		const spacingY = 130
+		const rows = Math.ceil(levels.length / cols)
 
-		for (let i = 0; i < totalLevels; i++) {
-			const levelNum = i + 1
+		levels.forEach((entry, i) => {
 			const col = i % cols
 			const row = Math.floor(i / cols)
 			const x = startX + col * spacingX
 			const y = startY + row * spacingY
 
-			const mapped = levelMapping.find((m) => m.num === levelNum)
-			const sceneKey = mapped ? mapped.sceneKey : `Level${levelNum}`
-			const levelName = mapped ? mapped.name : 'Empty'
-			const isUnlocked = LevelProgress.isLevelUnlocked(levelNum)
-			const isCompleted = LevelProgress.isLevelCompleted(levelNum)
+			const isUnlocked = LevelProgress.isLevelUnlocked(entry.num)
+			const isCompleted = LevelProgress.isLevelCompleted(entry.num)
+			const accentColor = CATEGORY_COLORS[entry.category] ?? 0x4a90e2
 
 			// Button container
 			const btnGroup = this.add.container(x, y)
 
-			// Level button
+			// Background
 			const btn = this.add.rectangle(0, 0, 140, 100, isUnlocked ? 0x2d3748 : 0x1a1f2e)
-			btn.setStrokeStyle(2, isUnlocked ? 0x4a90e2 : 0x3a3f4e)
+			btn.setStrokeStyle(2, isUnlocked ? accentColor : 0x3a3f4e)
+
+			// Category accent bar (top of button)
+			if (isUnlocked) {
+				const accent = this.add.rectangle(0, -47, 136, 4, accentColor, 0.8)
+				btnGroup.add(accent)
+			}
 
 			// Level number
-			const numText = this.add.text(0, -20, `${levelNum}`, {
-				fontSize: '32px',
+			const numText = this.add.text(-28, -18, `${entry.num}`, {
+				fontSize: '28px',
 				color: isUnlocked ? '#ffffff' : '#555555',
 				fontStyle: 'bold',
-			}).setOrigin(0.5)
+			}).setOrigin(0, 0.5)
 
 			// Level name
-			const nameText = this.add.text(0, 20, levelName, {
-				fontSize: '14px',
+			const nameText = this.add.text(0, 22, entry.name, {
+				fontSize: '12px',
 				color: isUnlocked ? '#aaaaaa' : '#444444',
+				wordWrap: { width: 128 },
+				align: 'center',
 			}).setOrigin(0.5)
 
-			btnGroup.add([btn, numText, nameText])
+			// Category tag
+			const catText = this.add.text(42, -28, entry.category, {
+				fontSize: '9px',
+				color: isUnlocked ? `#${accentColor.toString(16).padStart(6, '0')}` : '#444444',
+			}).setOrigin(1, 0.5)
+
+			btnGroup.add([btn, numText, nameText, catText])
 
 			// Completion marker
 			if (isCompleted) {
-				const checkmark = this.add.text(50, -40, '✓', {
-					fontSize: '24px',
-					color: '#00ff00',
+				const checkmark = this.add.text(52, -42, '✓', {
+					fontSize: '20px',
+					color: '#00ff88',
 				}).setOrigin(0.5)
 				btnGroup.add(checkmark)
 			}
 
 			if (isUnlocked) {
-				// Available level: add interaction
 				btn.setInteractive({ useHandCursor: true })
 				btn.on('pointerover', () => {
 					btn.setFillStyle(0x3d4758)
-					btn.setStrokeStyle(3, 0x5aa0f2)
+					btn.setStrokeStyle(3, accentColor)
 				})
 				btn.on('pointerout', () => {
 					btn.setFillStyle(0x2d3748)
-					btn.setStrokeStyle(2, 0x4a90e2)
+					btn.setStrokeStyle(2, accentColor)
 				})
 				btn.on('pointerdown', () => {
-					this.scene.start(sceneKey)
+					this.scene.start(entry.key)
 				})
 			} else {
-				// Locked level: show lock icon
 				const lockText = this.add.text(0, 5, '🔒', {
-					fontSize: '32px',
+					fontSize: '28px',
 				}).setOrigin(0.5)
 				lockText.setAlpha(0.4)
 				btnGroup.add(lockText)
 			}
 
 			this.container.add(btnGroup)
-		}
+		})
 
 		// Calculate maximum scroll distance
-		this.maxScrollY = Math.max(0, rows * spacingY + 40 - 400) // 400 = viewport height
+		this.maxScrollY = Math.max(0, rows * spacingY + 40 - 400)
 
 		// Scrollbar (if needed)
 		if (this.maxScrollY > 0) {
@@ -142,10 +196,10 @@ export class LevelSelectInterface extends Phaser.Scene {
 		backBtn.on('pointerout', () => backBtn.setFillStyle(0x8b4513))
 		backBtn.on('pointerdown', () => this.scene.start('MainInterface'))
 
-		// Unlock hint (dev mode)
-		this.add.text(480, 510, 'Press U to unlock all levels (dev)', {
+		// Dev hints (small text)
+		this.add.text(480, 507, 'U = unlock all  |  R = reset progress', {
 			fontSize: '10px',
-			color: '#666666',
+			color: '#555555',
 		}).setOrigin(0.5).setScrollFactor(0)
 
 		// Setup drag scrolling
@@ -164,17 +218,14 @@ export class LevelSelectInterface extends Phaser.Scene {
 	}
 
 	private createScrollbar() {
-		const scrollbar = this.add.rectangle(930, 270, 8, 400, 0x333333, 0.5).setScrollFactor(0)
+		this.add.rectangle(930, 270, 8, 400, 0x333333, 0.5).setScrollFactor(0)
 		const scrollHandle = this.add.rectangle(930, 120, 12, 60, 0x666666).setScrollFactor(0)
-
-		this.data.set('scrollbar', scrollbar)
 		this.data.set('scrollHandle', scrollHandle)
 	}
 
 	private updateScrollbar() {
 		const scrollHandle = this.data.get('scrollHandle') as Phaser.GameObjects.Rectangle
 		if (!scrollHandle) return
-
 		const progress = this.scrollY / this.maxScrollY
 		const handleY = 120 + progress * 340
 		scrollHandle.setY(handleY)
@@ -190,7 +241,6 @@ export class LevelSelectInterface extends Phaser.Scene {
 
 		this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
 			if (!this.isDragging) return
-
 			const deltaY = pointer.y - this.dragStartY
 			this.scrollY = Phaser.Math.Clamp(this.dragStartScrollY - deltaY, 0, this.maxScrollY)
 			this.container.setY(80 - this.scrollY)
@@ -204,7 +254,6 @@ export class LevelSelectInterface extends Phaser.Scene {
 		// Mouse wheel
 		this.input.on('wheel', (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
 			if (this.maxScrollY <= 0) return
-
 			this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY * 0.5, 0, this.maxScrollY)
 			this.container.setY(80 - this.scrollY)
 			this.updateScrollbar()
