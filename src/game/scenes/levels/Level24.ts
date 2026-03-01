@@ -34,6 +34,7 @@ export const Level24Meta: LevelMeta = {
 		'Use an if node inside your lambda: if hp(eid) > 50 then 200 else 50',
 		'std::cmp::gt(a, b) returns true when a > b.',
 	],
+	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
 			{ id: 'si',     type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },

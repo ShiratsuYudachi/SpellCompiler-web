@@ -33,6 +33,7 @@ export const Level25Meta: LevelMeta = {
 		'normalize(v) makes it a unit vector — safe to pass to spawnFireball.',
 		'Chain: getAllEnemies → map(eid→dir) → forEach(dir→spawnFireball)',
 	],
+	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
 			{ id: 'si',       type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },

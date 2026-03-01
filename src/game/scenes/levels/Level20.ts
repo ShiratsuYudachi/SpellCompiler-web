@@ -47,6 +47,7 @@ export const Level20Meta: LevelMeta = {
 	// Complete solution spell:
 	//   getAllEnemies → filter(isMedium) → head → damageEntity(state, _, 100)
 	//   isMedium = lambda(eid) { and(gt(health(eid), 25), lt(health(eid), 60)) }
+	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
 			// ── Main chain ──────────────────────────────────────────

@@ -30,6 +30,7 @@ export const Level22Meta: LevelMeta = {
 		'Build a lambda: eid → damageEntity(state, eid, 100)',
 		'Connect the lambda\'s functionOut (function handle) to forEach\'s second argument.',
 	],
+	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
 			{ id: 'si',       type: 'spellInput',      position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
