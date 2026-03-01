@@ -96,7 +96,14 @@ export class Level28 extends BaseScene {
 		if (pb) pb.setPosition(480, 320)
 
 		// Left zone: targets (green, must eliminate)
-		const leftPositions = [{ x: 120, y: 160 }, { x: 220, y: 280 }, { x: 120, y: 400 }, { x: 300, y: 160 }, { x: 280, y: 440 }]
+		// All clustered within ~140px of (170, 300) so one cast covers them all
+		const leftPositions = [
+			{ x:  80, y: 220 },  // dist from (170,300) ≈ 120
+			{ x:  80, y: 380 },  // dist ≈ 120
+			{ x: 180, y: 160 },  // dist ≈ 140
+			{ x: 180, y: 440 },  // dist ≈ 140
+			{ x: 260, y: 300 },  // dist ≈ 90
+		]
 		for (const pos of leftPositions) {
 			this.spawnEnemy(pos.x, pos.y, 0x33cc66, 50, true)
 		}
@@ -138,9 +145,10 @@ export class Level28 extends BaseScene {
 			'GREEN enemies (LEFT) = your targets.\n' +
 			'RED enemies (RIGHT) = protected — hitting them = penalty.\n\n' +
 			'getNearbyEnemies returns only enemies within a given radius.\n\n' +
-			'Walk NEAR the green group, then cast:\n' +
+			'Walk to the LEFT side (near x=170), then cast:\n' +
 			'  getNearbyEnemies(state, playerPos, 150)\n\n' +
-			'Your position determines what gets returned!\n\n' +
+			'All 5 green enemies are clustered there — one cast clears them!\n' +
+			'Your position determines what gets returned.\n\n' +
 			'Press SPACE to cast.'
 		)
 

@@ -8,16 +8,17 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 27 — 「分类打击」
+// Level 27 — 「精准打击」
 //
-// 教学目标：map 专家 — filter 分组 + map 方向 + forEach 双手段
-//   strong = filter(enemies, eid → hp(eid) > 60)   — 用火球
-//   weak   = filter(enemies, eid → hp(eid) ≤ 60)   — 用 damageEntity
-//   dirs   = map(strong, eid → normalize(subtract(pos(eid), playerPos)))
+// 教学目标：filter + map + forEach 完整组合（单管道）
+//   threats = filter(getAllEnemies(state), eid → gt(hp(eid), 60))
+//   dirs    = map(threats, eid → normalize(subtract(pos(eid), playerPos)))
 //   forEach(dirs, dir → spawnFireball(state, playerPos, dir))
-//   forEach(weak,  eid → damageEntity(state, eid, 50))
 //
-// 机制：强敌被 damageEntity 命中 → 护盾恢复 HP（onDamage hook）
+// 场景：4个红色威胁（HP=80，位于正方向N/S/E/W）
+//       4个灰色平民（HP=20，位于斜方向NE/NW/SE/SW）
+// 机制：不使用 filter 直接开火 → 全部8个方向都有火球 → 平民被波及 → 惩罚
+//       正确 filter 后只有4个正方向火球 → 平民安全
 // ─────────────────────────────────────────────────────────────
 
 export const Level27Meta: LevelMeta = {
@@ -26,204 +27,230 @@ export const Level27Meta: LevelMeta = {
 	playerSpawnY: 320,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-classified', description: 'Destroy all enemies — use fireballs for shielded, direct damage for weak', type: 'defeat' }],
+	objectives: [{ id: 'clear-threats', description: 'Destroy 4 red threats — filter before firing!', type: 'defeat' }],
 	hints: [
-		'Strong enemies (HP > 60, RED) have energy shields — damageEntity has no effect on them!',
-		'Weak enemies (HP ≤ 60, GREY) can be hit with damageEntity but NOT fireballs (too slow).',
-		'Use filter twice: once to get strong, once to get weak.',
-		'map(strong, eid → direction) → forEach(dirs → spawnFireball)',
-		'forEach(weak, eid → damageEntity)',
+		'RED enemies (HP=80, N/S/E/W) = threats — must kill with fireballs.',
+		'GREY enemies (HP=20, diagonal) = civilians — penalty if hit!',
+		'getAllEnemies returns ALL 8 — you MUST filter first.',
+		'filter(enemies, eid → gt(hp(eid), 60)) keeps only threats (HP=80 > 60).',
+		'Then: map(threats, eid → normalize(pos(eid)−playerPos)) → forEach(spawnFireball)',
 	],
 	initialSpellWorkflow: {
 		nodes: [
-			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 300 }, data: { label: 'Game State', params: ['state'] } },
+			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// player position
-			{ id: 'f-gp',    type: 'dynamicFunction', position: { x:   60, y:  80 }, data: { functionName: 'game::getPlayer',          displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
-			{ id: 'f-pp',    type: 'dynamicFunction', position: { x:  260, y:  80 }, data: { functionName: 'game::getEntityPosition',   displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
-			// getAllEnemies x2
-			{ id: 'f-gae1',  type: 'dynamicFunction', position: { x:   60, y: 220 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
-			{ id: 'f-gae2',  type: 'dynamicFunction', position: { x:   60, y: 380 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
-			// filter strong (hp > 60)
-			{ id: 'f-fs',    type: 'dynamicFunction', position: { x:  260, y: 220 }, data: { functionName: 'list::filter', displayName: 'filter(strong)', namespace: 'list', params: ['l', 'pred'] } },
-			{ id: 'lam-s',   type: 'lambdaDef',       position: { x:   60, y: 560 }, data: { functionName: 'isStrong', params: ['eid'] } },
-			{ id: 'f-hps',   type: 'dynamicFunction', position: { x:  200, y: 620 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-gts',   type: 'dynamicFunction', position: { x:  370, y: 620 }, data: { functionName: 'std::cmp::gt',          displayName: '> gt',          namespace: 'std::cmp', params: ['a', 'b'] } },
-			{ id: 'lit-60s', type: 'literal',         position: { x:  200, y: 710 }, data: { value: 60 } },
-			{ id: 'fout-s',  type: 'functionOut',     position: { x:  530, y: 620 }, data: { lambdaId: 'lam-s' } },
-			// filter weak (hp <= 60)
-			{ id: 'f-fw',    type: 'dynamicFunction', position: { x:  260, y: 380 }, data: { functionName: 'list::filter', displayName: 'filter(weak)', namespace: 'list', params: ['l', 'pred'] } },
-			{ id: 'lam-w',   type: 'lambdaDef',       position: { x:   60, y: 820 }, data: { functionName: 'isWeak', params: ['eid'] } },
-			{ id: 'f-hpw',   type: 'dynamicFunction', position: { x:  200, y: 880 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-ltew',  type: 'dynamicFunction', position: { x:  370, y: 880 }, data: { functionName: 'std::cmp::lte',         displayName: '≤ lte',         namespace: 'std::cmp', params: ['a', 'b'] } },
-			{ id: 'lit-60w', type: 'literal',         position: { x:  200, y: 970 }, data: { value: 60 } },
-			{ id: 'fout-w',  type: 'functionOut',     position: { x:  530, y: 880 }, data: { lambdaId: 'lam-w' } },
-			// map strong → directions
-			{ id: 'f-map',   type: 'dynamicFunction', position: { x:  460, y: 220 }, data: { functionName: 'list::map', displayName: 'map', namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'lam-d',   type: 'lambdaDef',       position: { x:  460, y: 400 }, data: { functionName: 'toDir', params: ['eid'] } },
-			{ id: 'f-ep',    type: 'dynamicFunction', position: { x:  600, y: 460 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-sub',   type: 'dynamicFunction', position: { x:  760, y: 460 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
-			{ id: 'f-norm',  type: 'dynamicFunction', position: { x:  920, y: 460 }, data: { functionName: 'vec::normalize', displayName: 'normalize',namespace: 'vec', params: ['v'] } },
-			{ id: 'fout-d',  type: 'functionOut',     position: { x: 1080, y: 400 }, data: { lambdaId: 'lam-d' } },
-			// forEach strong → spawnFireball
-			{ id: 'f-fe1',   type: 'dynamicFunction', position: { x:  680, y: 220 }, data: { functionName: 'list::forEach', displayName: 'forEach(fireball)', namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'lam-fb',  type: 'lambdaDef',       position: { x:  680, y: 120 }, data: { functionName: 'shoot', params: ['dir'] } },
-			{ id: 'f-fb',    type: 'dynamicFunction', position: { x:  840, y: 120 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
-			{ id: 'fout-fb', type: 'functionOut',     position: { x: 1040, y: 120 }, data: { lambdaId: 'lam-fb' } },
-			// forEach weak → damageEntity
-			{ id: 'f-fe2',   type: 'dynamicFunction', position: { x:  460, y: 380 }, data: { functionName: 'list::forEach', displayName: 'forEach(damage)', namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'lam-de',  type: 'lambdaDef',       position: { x:  460, y: 300 }, data: { functionName: 'directHit', params: ['eid'] } },
-			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  620, y: 300 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
-			{ id: 'lit-50',  type: 'literal',         position: { x:  620, y: 380 }, data: { value: 50 } },
-			{ id: 'fout-de', type: 'functionOut',     position: { x:  800, y: 300 }, data: { lambdaId: 'lam-de' } },
-			{ id: 'out',     type: 'output',          position: { x: 1100, y: 220 }, data: { label: 'Output' } },
+			{ id: 'f-gp',    type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',          displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',    type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition',   displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			// getAllEnemies → filter(hp > 60)
+			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-filt',  type: 'dynamicFunction', position: { x:  280, y: 200 }, data: { functionName: 'list::filter', displayName: 'filter(threats)', namespace: 'list', params: ['l', 'pred'] } },
+			// filter lambda: isHostile(eid) = gt(hp(eid), 60)
+			{ id: 'lam-f',   type: 'lambdaDef',       position: { x:  100, y: 420 }, data: { functionName: 'isHostile', params: ['eid'] } },
+			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  250, y: 480 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gt',    type: 'dynamicFunction', position: { x:  440, y: 480 }, data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] } },
+			{ id: 'lit-60',  type: 'literal',         position: { x:  320, y: 580 }, data: { value: 60 } },
+			{ id: 'fout-f',  type: 'functionOut',     position: { x:  620, y: 420 }, data: { lambdaId: 'lam-f' } },
+			// map(threats, eid → dir)
+			{ id: 'f-map',   type: 'dynamicFunction', position: { x:  500, y: 200 }, data: { functionName: 'list::map', displayName: 'map(eid→dir)', namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'lam-d',   type: 'lambdaDef',       position: { x:  480, y: 680 }, data: { functionName: 'toDir', params: ['eid'] } },
+			{ id: 'f-ep',    type: 'dynamicFunction', position: { x:  640, y: 740 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-sub',   type: 'dynamicFunction', position: { x:  820, y: 740 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
+			{ id: 'f-norm',  type: 'dynamicFunction', position: { x:  990, y: 740 }, data: { functionName: 'vec::normalize', displayName: 'normalize', namespace: 'vec', params: ['v'] } },
+			{ id: 'fout-d',  type: 'functionOut',     position: { x: 1150, y: 680 }, data: { lambdaId: 'lam-d' } },
+			// forEach(dirs, dir → spawnFireball)
+			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  720, y: 200 }, data: { functionName: 'list::forEach', displayName: 'forEach(fireball)', namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'lam-fb',  type: 'lambdaDef',       position: { x:  720, y: 100 }, data: { functionName: 'shoot', params: ['dir'] } },
+			{ id: 'f-fb',    type: 'dynamicFunction', position: { x:  890, y: 100 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
+			{ id: 'fout-fb', type: 'functionOut',     position: { x: 1090, y: 100 }, data: { lambdaId: 'lam-fb' } },
+			{ id: 'out',     type: 'output',          position: { x:  960, y: 200 }, data: { label: 'Output' } },
 		],
 		edges: [
-			{ id: 'e1',  source: 'si',      target: 'f-gp',   targetHandle: 'arg0' },
-			{ id: 'e2',  source: 'si',      target: 'f-pp',   targetHandle: 'arg0' },
-			{ id: 'e3',  source: 'f-gp',    target: 'f-pp',   targetHandle: 'arg1' },
-			{ id: 'e4',  source: 'si',      target: 'f-gae1', targetHandle: 'arg0' },
-			{ id: 'e5',  source: 'si',      target: 'f-gae2', targetHandle: 'arg0' },
-			// filter strong
-			{ id: 'e6',  source: 'f-gae1',  target: 'f-fs',   targetHandle: 'arg0' },
-			{ id: 'e7',  source: 'fout-s',  sourceHandle: 'function', target: 'f-fs', targetHandle: 'arg1' },
-			{ id: 'e8',  source: 'si',      target: 'f-hps',  targetHandle: 'arg0' },
-			{ id: 'e9',  source: 'lam-s',   sourceHandle: 'param0', target: 'f-hps', targetHandle: 'arg1' },
-			{ id: 'e10', source: 'f-hps',   target: 'f-gts',  targetHandle: 'arg0' },
-			{ id: 'e11', source: 'lit-60s', target: 'f-gts',  targetHandle: 'arg1' },
-			{ id: 'e12', source: 'f-gts',   target: 'fout-s', targetHandle: 'value' },
-			// filter weak
-			{ id: 'e13', source: 'f-gae2',  target: 'f-fw',   targetHandle: 'arg0' },
-			{ id: 'e14', source: 'fout-w',  sourceHandle: 'function', target: 'f-fw', targetHandle: 'arg1' },
-			{ id: 'e15', source: 'si',      target: 'f-hpw',  targetHandle: 'arg0' },
-			{ id: 'e16', source: 'lam-w',   sourceHandle: 'param0', target: 'f-hpw', targetHandle: 'arg1' },
-			{ id: 'e17', source: 'f-hpw',   target: 'f-ltew', targetHandle: 'arg0' },
-			{ id: 'e18', source: 'lit-60w', target: 'f-ltew', targetHandle: 'arg1' },
-			{ id: 'e19', source: 'f-ltew',  target: 'fout-w', targetHandle: 'value' },
-			// map strong → dirs
-			{ id: 'e20', source: 'f-fs',    target: 'f-map',  targetHandle: 'arg0' },
-			{ id: 'e21', source: 'fout-d',  sourceHandle: 'function', target: 'f-map', targetHandle: 'arg1' },
-			{ id: 'e22', source: 'si',      target: 'f-ep',   targetHandle: 'arg0' },
-			{ id: 'e23', source: 'lam-d',   sourceHandle: 'param0', target: 'f-ep',   targetHandle: 'arg1' },
-			{ id: 'e24', source: 'f-ep',    target: 'f-sub',  targetHandle: 'arg0' },
-			{ id: 'e25', source: 'f-pp',    target: 'f-sub',  targetHandle: 'arg1' },
-			{ id: 'e26', source: 'f-sub',   target: 'f-norm', targetHandle: 'arg0' },
-			{ id: 'e27', source: 'f-norm',  target: 'fout-d', targetHandle: 'value' },
-			// forEach strong → spawnFireball
-			{ id: 'e28', source: 'f-map',   target: 'f-fe1',  targetHandle: 'arg0' },
-			{ id: 'e29', source: 'fout-fb', sourceHandle: 'function', target: 'f-fe1', targetHandle: 'arg1' },
-			{ id: 'e30', source: 'si',      target: 'f-fb',   targetHandle: 'arg0' },
-			{ id: 'e31', source: 'f-pp',    target: 'f-fb',   targetHandle: 'arg1' },
-			{ id: 'e32', source: 'lam-fb',  sourceHandle: 'param0', target: 'f-fb',   targetHandle: 'arg2' },
-			{ id: 'e33', source: 'f-fb',    target: 'fout-fb',targetHandle: 'value' },
-			// forEach weak → damageEntity
-			{ id: 'e34', source: 'f-fw',    target: 'f-fe2',  targetHandle: 'arg0' },
-			{ id: 'e35', source: 'fout-de', sourceHandle: 'function', target: 'f-fe2', targetHandle: 'arg1' },
-			{ id: 'e36', source: 'si',      target: 'f-dmg',  targetHandle: 'arg0' },
-			{ id: 'e37', source: 'lam-de',  sourceHandle: 'param0', target: 'f-dmg',  targetHandle: 'arg1' },
-			{ id: 'e38', source: 'lit-50',  target: 'f-dmg',  targetHandle: 'arg2' },
-			{ id: 'e39', source: 'f-dmg',   target: 'fout-de',targetHandle: 'value' },
-			{ id: 'e40', source: 'f-fe1',   target: 'out',    targetHandle: 'value' },
+			// player pos
+			{ id: 'e1',  source: 'si',     target: 'f-gp',   targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',     target: 'f-pp',   targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',   target: 'f-pp',   targetHandle: 'arg1' },
+			// getAllEnemies → filter
+			{ id: 'e4',  source: 'si',     target: 'f-gae',  targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-gae',  target: 'f-filt', targetHandle: 'arg0' },
+			{ id: 'e6',  source: 'fout-f', sourceHandle: 'function', target: 'f-filt', targetHandle: 'arg1' },
+			// filter lambda body
+			{ id: 'e7',  source: 'si',     target: 'f-hp',   targetHandle: 'arg0' },
+			{ id: 'e8',  source: 'lam-f',  sourceHandle: 'param0', target: 'f-hp',   targetHandle: 'arg1' },
+			{ id: 'e9',  source: 'f-hp',   target: 'f-gt',   targetHandle: 'arg0' },
+			{ id: 'e10', source: 'lit-60', target: 'f-gt',   targetHandle: 'arg1' },
+			{ id: 'e11', source: 'f-gt',   target: 'fout-f', targetHandle: 'value' },
+			// filter → map
+			{ id: 'e12', source: 'f-filt', target: 'f-map',  targetHandle: 'arg0' },
+			{ id: 'e13', source: 'fout-d', sourceHandle: 'function', target: 'f-map', targetHandle: 'arg1' },
+			// map lambda body: normalize(pos(eid) - playerPos)
+			{ id: 'e14', source: 'si',     target: 'f-ep',   targetHandle: 'arg0' },
+			{ id: 'e15', source: 'lam-d',  sourceHandle: 'param0', target: 'f-ep',   targetHandle: 'arg1' },
+			{ id: 'e16', source: 'f-ep',   target: 'f-sub',  targetHandle: 'arg0' },
+			{ id: 'e17', source: 'f-pp',   target: 'f-sub',  targetHandle: 'arg1' },
+			{ id: 'e18', source: 'f-sub',  target: 'f-norm', targetHandle: 'arg0' },
+			{ id: 'e19', source: 'f-norm', target: 'fout-d', targetHandle: 'value' },
+			// map → forEach
+			{ id: 'e20', source: 'f-map',  target: 'f-fe',   targetHandle: 'arg0' },
+			{ id: 'e21', source: 'fout-fb',sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			// forEach lambda body: spawnFireball(state, playerPos, dir)
+			{ id: 'e22', source: 'si',     target: 'f-fb',   targetHandle: 'arg0' },
+			{ id: 'e23', source: 'f-pp',   target: 'f-fb',   targetHandle: 'arg1' },
+			{ id: 'e24', source: 'lam-fb', sourceHandle: 'param0', target: 'f-fb',   targetHandle: 'arg2' },
+			{ id: 'e25', source: 'f-fb',   target: 'fout-fb',targetHandle: 'value' },
+			// forEach → output
+			{ id: 'e26', source: 'f-fe',   target: 'out',    targetHandle: 'value' },
 		],
 	},
 }
 
 levelRegistry.register(Level27Meta)
 
+type EnemyRole = 'threat' | 'civilian'
+
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
 	marker: Phaser.GameObjects.Arc
 	label: Phaser.GameObjects.Text
-	isStrong: boolean
+	role: EnemyRole
+	penaltyFired: boolean
 }
 
 export class Level27 extends BaseScene {
 	private enemies: TrackedEnemy[] = []
-	private shieldedEids: Set<number> = new Set()
+	private penaltyCount: number = 0
+	private levelFailed: boolean = false
 	private levelWon: boolean = false
 
 	constructor() { super({ key: 'Level27' }) }
 
 	protected onLevelCreate(): void {
 		this.enemies = []
-		this.shieldedEids = new Set()
+		this.penaltyCount = 0
+		this.levelFailed = false
 		this.levelWon = false
+		this.events.removeAllListeners('civilian-hit')
 
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setPosition(480, 320)
 
-		// Random positions in quadrants
-		const positions = [
-			{ x: 160, y: 160 }, { x: 780, y: 180 },
-			{ x: 340, y: 460 }, { x: 620, y: 460 },
-			{ x: 480, y: 150 }, { x: 480, y: 480 },
-		]
-		const hpValues = this.shuffleArray([80, 90, 70, 30, 40, 50])
+		const cx = 480, cy = 320, R = 180
 
-		for (let i = 0; i < 6; i++) {
-			const ent = this.spawnEnemy(positions[i].x, positions[i].y, hpValues[i])
-			if (ent.isStrong) this.shieldedEids.add(ent.eid)
+		// 4 red threats at cardinal angles — HP=80
+		const threatAngles = [0, 90, 180, 270]
+		for (const deg of threatAngles) {
+			const rad = (deg * Math.PI) / 180
+			const x = Math.round(cx + R * Math.cos(rad))
+			const y = Math.round(cy + R * Math.sin(rad))
+			this.spawnEnemy(x, y, 0xff3333, 80, 'threat')
 		}
 
-		// Weak enemies are fireball-immune: must be killed by damageEntity only
-		// (Strong enemies are NOT immune — fireballs are the only way to kill them)
-		const weakEids = new Set(this.enemies.filter(e => !this.shieldedEids.has(e.eid)).map(e => e.eid))
-		this.world.resources.levelData!['fireballImmuneEids'] = weakEids
-
-		// onDamage hook: shield restores HP for strong enemies hit by damageEntity
-		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
-			if (!this.shieldedEids.has(eid)) return
-			// Shield absorbs direct damage — restore HP
-			Health.current[eid] = Math.min(Health.max[eid], Health.current[eid] + amount)
-			this.cameras.main.flash(100, 100, 100, 255)
+		// 4 grey civilians at diagonal angles — HP=20
+		const civAngles = [45, 135, 225, 315]
+		for (const deg of civAngles) {
+			const rad = (deg * Math.PI) / 180
+			const x = Math.round(cx + R * Math.cos(rad))
+			const y = Math.round(cy + R * Math.sin(rad))
+			this.spawnEnemy(x, y, 0x888888, 20, 'civilian')
 		}
+
+		// Register civilians for penalty detection
+		const civEids = new Set(this.enemies.filter(e => e.role === 'civilian').map(e => e.eid))
+		this.world.resources.levelData!['civilianEids'] = civEids
+
+		this.events.on('civilian-hit', (eid?: number) => {
+			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.enemies.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
+			this.penaltyCount++
+			this.cameras.main.shake(180, 0.012)
+			this.cameras.main.flash(150, 255, 50, 50)
+			this.setTaskInfo('Precision Strike', [
+				'Destroy 4 RED threats (N/S/E/W, HP=80)',
+				'GREY civilians (diagonal, HP=20) = protected',
+				`Penalties: ${this.penaltyCount} / 3`,
+			])
+			if (this.penaltyCount >= 3) this.onMissionFail()
+		})
+
+		// Visual: ring + center dot + angle labels
+		this.add.circle(cx, cy, R, 0x4444ff, 0).setStrokeStyle(1, 0x4444bb, 0.3)
+		this.add.circle(cx, cy, 6, 0xffffff, 0.5)
 
 		this.showInstruction(
-			'【Classified Strike — map Expert】\n\n' +
-			'Two types of enemies:\n' +
-			'  RED (HP > 60): Energy shield — damageEntity has NO effect.\n' +
-			'  GREY (HP ≤ 60): Vulnerable — only damageEntity works.\n\n' +
-			'You must use TWO strategies in one spell:\n' +
-			'  Strong: filter → map(eid→dir) → forEach spawnFireball\n' +
-			'  Weak:   filter → forEach damageEntity\n\n' +
+			'【Precision Strike — filter + map + forEach】\n\n' +
+			'RED (N/S/E/W, HP=80) = threats — must eliminate.\n' +
+			'GREY (NE/NW/SE/SW, HP=20) = civilians — penalty on hit!\n\n' +
+			'getAllEnemies returns ALL 8 — filter BEFORE mapping:\n' +
+			'  threats = filter(enemies, eid → gt(hp(eid), 60))\n' +
+			'  dirs    = map(threats, eid → normalize(pos(eid)−playerPos))\n' +
+			'  forEach(dirs, dir → spawnFireball(state, playerPos, dir))\n\n' +
 			'Press SPACE to cast.'
 		)
 
-		this.setTaskInfo('Classified Strike', [
-			'Destroy all 6 enemies',
-			'RED (shield): fireballs only',
-			'GREY (no shield): direct damage only',
+		this.setTaskInfo('Precision Strike', [
+			'Destroy 4 RED threats (N/S/E/W, HP=80)',
+			'GREY civilians (diagonal, HP=20) = protected',
+			'Penalties: 0 / 3',
 		])
 	}
 
 	protected onLevelUpdate(): void {
-		if (this.levelWon) return
+		if (this.levelFailed || this.levelWon) return
+
+		// Lock player at center
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setVelocity(0, 0)
 
 		// Update HP labels
 		for (const ent of this.enemies) {
 			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				ent.label.setText(`HP:${Math.max(0, Health.current[ent.eid])}${ent.isStrong ? ' 🛡' : ''}`)
+				ent.label.setText(`HP:${Math.max(0, Health.current[ent.eid])}`)
 			}
 		}
 
-		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+		// Detect dead civilians → penalty
+		this.enemies = this.enemies.filter(ent => {
+			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {
+				if (!ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
+				}
+				ent.marker.destroy()
+				ent.label.destroy()
+				return false
+			}
+			return true
+		})
+
+		// Win: all 4 threats dead
+		const threats = this.enemies.filter(e => e.role === 'threat')
+		if (threats.length > 0 && threats.every(e => !this.world.resources.bodies.has(e.eid))) {
 			this.onMissionSuccess()
 		}
 	}
 
-	private spawnEnemy(x: number, y: number, hp: number): TrackedEnemy {
-		const isStrong = hp > 60
-		const size = isStrong ? 30 : 24
-		const color = isStrong ? 0xff3333 : 0x888888
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(isStrong ? 4 : 2, color)
-		if (isStrong) {
-			// Shield glow
-			this.tweens.add({ targets: marker, alpha: 0.5, duration: 600, yoyo: true, repeat: -1 })
+	private spawnEnemy(x: number, y: number, color: number, hp: number, role: EnemyRole): TrackedEnemy {
+		const size = role === 'threat' ? 28 : 18
+		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
+		if (role === 'threat') {
+			this.tweens.add({ targets: marker, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 })
 		}
-		const label = this.add.text(x, y - size - 12, `HP:${hp}${isStrong ? ' 🛡' : ''}`, {
-			fontSize: '12px', color: isStrong ? '#ff8888' : '#cccccc', stroke: '#000000', strokeThickness: 3,
+		const label = this.add.text(x, y - size - 12, `HP:${hp}`, {
+			fontSize: '11px',
+			color: role === 'threat' ? '#ff8888' : '#aaaaaa',
+			stroke: '#000000', strokeThickness: 3,
 		}).setOrigin(0.5)
-		const body = createRectBody(this, `enemy27-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
+		const roleTag = this.add.text(x, y + size + 8,
+			role === 'threat' ? 'THREAT' : 'CIV', {
+				fontSize: '9px',
+				color: role === 'threat' ? '#ff6666' : '#888888',
+				stroke: '#000000', strokeThickness: 2,
+			}).setOrigin(0.5)
+
+		const body = createRectBody(this, `enemy27-${role}-${x}-${y}`, color, size * 2, size * 2, x, y, role === 'threat' ? 5 : 2)
 		body.setImmovable(true)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
@@ -232,31 +259,40 @@ export class Level27 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEnemy = { eid, body, marker, label, isStrong }
+
+		const tracked: TrackedEnemy = { eid, body, marker, label, role, penaltyFired: false }
+		// Store roleTag for cleanup
+		;(tracked as any).roleTag = roleTag
 		this.enemies.push(tracked)
 		return tracked
-	}
-
-	private shuffleArray(arr: number[]): number[] {
-		const a = [...arr]
-		for (let i = a.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[a[i], a[j]] = [a[j], a[i]]
-		}
-		return a
 	}
 
 	private onMissionSuccess(): void {
 		if (this.levelWon) return
 		this.levelWon = true
-		this.cameras.main.flash(500, 100, 200, 255)
-		this.completeObjectiveById('clear-classified')
+		this.cameras.main.flash(400, 100, 200, 255)
+		this.completeObjectiveById('clear-threats')
 		this.showInstruction(
-			'Classified Strike — cleared!\n\n' +
-			'map Expert mastered:\n' +
-			'filter(strong) → map(dir) → forEach(fireball)\n' +
-			'filter(weak)   → forEach(damage)\n\n' +
-			'Two pipelines, one spell.'
+			'Precision Strike — cleared!\n\n' +
+			`Civilian penalties: ${this.penaltyCount}/3\n\n` +
+			'filter + map + forEach mastered:\n' +
+			'  filter selects the right targets,\n' +
+			'  map converts entities → directions,\n' +
+			'  forEach fires at each direction.'
 		)
+	}
+
+	private onMissionFail(): void {
+		if (this.levelFailed) return
+		this.levelFailed = true
+		this.cameras.main.shake(400, 0.025)
+		this.cameras.main.flash(300, 255, 0, 0)
+		this.showInstruction(
+			'MISSION FAILED — Too many civilian casualties.\n\n' +
+			'Filter enemies BEFORE mapping to directions:\n' +
+			'  filter(enemies, eid → gt(hp(eid), 60))\n\n' +
+			'Restarting in 3 seconds…'
+		)
+		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }
