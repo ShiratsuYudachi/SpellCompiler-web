@@ -27,6 +27,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	private taskText!: Phaser.GameObjects.Text
 	private tutorialOverlay!: Phaser.GameObjects.Container
 	private controlsPanel!: Phaser.GameObjects.Container
+	private castCountText!: Phaser.GameObjects.Text   // 施法次数显示（仅当关卡有限制时可见）
 
 	// Minimap
 	private minimapContainer!: Phaser.GameObjects.Container
@@ -66,6 +67,13 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.hazards = []
 		this.objectives.clear()
 		this.terrainRenderer = new TerrainRenderer(this)
+
+		// ── 施法次数上限初始化 ───────────────────────────────────
+		if (config?.maxSpellCasts !== undefined) {
+			this.world.resources.levelData!['_maxSpellCasts'] = config.maxSpellCasts
+			this.world.resources.levelData!['_spellCastCount'] = 0
+		}
+		// ────────────────────────────────────────────────────────
 
 		// 自动生成地形
 		if (config?.mapData) {
@@ -113,6 +121,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		processHoldEvents(this.world)
 		
 		this.updatePlayerHUD()
+		this.updateCastCountHUD()
 		this.updateMinimap()
 		this.updateHazards()
 		this.updateObjectives()
@@ -430,6 +439,44 @@ export abstract class BaseScene extends Phaser.Scene {
 			.setOrigin(0)
 			.setScrollFactor(0)
 			.setDepth(1002)
+
+		// 施法次数显示（初始隐藏，有限制时才显示）
+		this.castCountText = this.add
+			.text(x + 5, y + 63, '', {
+				fontSize: '14px',
+				color: '#ffd700',
+				fontStyle: 'bold',
+				stroke: '#000000',
+				strokeThickness: 3,
+			})
+			.setOrigin(0)
+			.setScrollFactor(0)
+			.setDepth(1002)
+			.setVisible(false)
+
+		// 监听施法次数已满事件，闪烁提示
+		this.events.on('spell-cast-limit-reached', (max: number) => {
+			this.castCountText.setText(`✨ 施法: 0/${max} — 次数已用完!`)
+			this.castCountText.setColor('#ff4444')
+			this.castCountText.setVisible(true)
+			// 0.8 秒后恢复正常颜色
+			this.time.delayedCall(800, () => {
+				this.castCountText.setColor('#ffd700')
+			})
+		})
+	}
+
+	private updateCastCountHUD() {
+		const levelData = this.world.resources.levelData
+		const maxCasts = levelData?.['_maxSpellCasts'] as number | undefined
+		if (maxCasts === undefined) {
+			this.castCountText.setVisible(false)
+			return
+		}
+		const usedCasts = (levelData!['_spellCastCount'] as number) ?? 0
+		const remaining = maxCasts - usedCasts
+		this.castCountText.setText(`✨ 施法: ${remaining}/${maxCasts}`)
+		this.castCountText.setVisible(true)
 	}
 
 	private updatePlayerHUD() {

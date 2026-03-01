@@ -31,6 +31,7 @@ export const Level23Meta: LevelMeta = {
 		'forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))',
 		'Overkill (total damage > 120% of total HP) = mission failure.',
 	],
+	maxSpellCasts: 1,
 	initialSpellWorkflow: {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },

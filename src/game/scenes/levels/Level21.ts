@@ -53,6 +53,7 @@ export const Level21Meta: LevelMeta = {
 	// Complete solution spell:
 	//   fold(getAllEnemies(state), -1, findMax)  →  damageEntity(state, result, 200)
 	//   findMax = lambda(best, eid) { if hp(eid) > hp(best) then eid else best }
+	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
 			// ── Main chain ──────────────────────────────────────────

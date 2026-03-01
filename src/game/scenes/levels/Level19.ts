@@ -39,6 +39,7 @@ export const Level19Meta: LevelMeta = {
 	// Complete solution spell:
 	//   getAllEnemies → filter(isTarget) → head → damageEntity(state, _, 100)
 	//   isTarget = lambda(eid) { getEntityHealth(state, eid) > 30 }
+	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
 			// ── Main chain ──────────────────────────────────────────
