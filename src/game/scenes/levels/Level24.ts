@@ -29,52 +29,52 @@ export const Level24Meta: LevelMeta = {
 	mapData: createRoom(12, 8),
 	objectives: [{ id: 'clear-tiered', description: 'Eliminate ALL enemies — use if to choose damage per target', type: 'defeat' }],
 	hints: [
-		'Elites (red, 80 HP) need ≥ 100 damage. Weak (grey, 20 HP) need ≤ 50.',
-		'Overkilling a weak enemy (dealing > 50 to it) triggers a splash that hurts civilians!',
-		'Use an if node inside your lambda: if hp(eid) > 50 then 200 else 50',
+		'Elites (red, 80 HP) need ≥ 100 damage. Weak (grey, 20 HP) need ≤ 60 — or nearby civilian gets splashed!',
+		'Use if to SELECT the amount first, then call damageEntity ONCE with that amount.',
+		'  amount = if(gt(hp(eid), 50), 200, 50)',
+		'  damageEntity(state, eid, amount)',
 		'std::cmp::gt(a, b) returns true when a > b.',
 	],
 	maxSpellCasts: 3,
 	initialSpellWorkflow: {
 		nodes: [
-			{ id: 'si',     type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
-			{ id: 'f-gae',  type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
-			{ id: 'f-fe',   type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach',      displayName: 'forEach',       namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'out',    type: 'output',          position: { x:  900, y: 200 }, data: { label: 'Output' } },
-			// Lambda
-			{ id: 'lam',    type: 'lambdaDef',       position: { x:   60, y: 430 }, data: { functionName: 'tiered', params: ['eid'] } },
-			{ id: 'f-hp',   type: 'dynamicFunction', position: { x:  200, y: 530 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-gt',   type: 'dynamicFunction', position: { x:  380, y: 530 }, data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] } },
-			{ id: 'lit-50', type: 'literal',         position: { x:  200, y: 630 }, data: { value: 50 } },
-			{ id: 'f-if',   type: 'if',              position: { x:  550, y: 480 }, data: {} },
-			{ id: 'f-dmg-h',type: 'dynamicFunction', position: { x:  380, y: 390 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity(200)', namespace: 'game', params: ['state', 'eid', 'amount'] } },
-			{ id: 'lit-200',type: 'literal',         position: { x:  200, y: 390 }, data: { value: 200 } },
-			{ id: 'f-dmg-l',type: 'dynamicFunction', position: { x:  380, y: 640 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity(50)', namespace: 'game', params: ['state', 'eid', 'amount'] } },
-			{ id: 'lit-50b',type: 'literal',         position: { x:  200, y: 720 }, data: { value: 50 } },
-			{ id: 'f-out',  type: 'functionOut',     position: { x:  760, y: 480 }, data: { lambdaId: 'lam' } },
+			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach',      displayName: 'forEach',       namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',     type: 'output',          position: { x:  960, y: 200 }, data: { label: 'Output' } },
+			// Lambda — tiered(eid): amount = if(hp>50, 200, 50); damageEntity(state, eid, amount)
+			{ id: 'lam',     type: 'lambdaDef',       position: { x:   60, y: 440 }, data: { functionName: 'tiered', params: ['eid'] } },
+			// hp → gt(hp, 50) → condition
+			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  210, y: 540 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gt',    type: 'dynamicFunction', position: { x:  400, y: 540 }, data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] } },
+			{ id: 'lit-thr', type: 'literal',         position: { x:  300, y: 650 }, data: { value: 50 } },
+			// if selects AMOUNT (pure values, no side effects)
+			{ id: 'f-if',    type: 'if',              position: { x:  600, y: 480 }, data: {} },
+			{ id: 'lit-200', type: 'literal',         position: { x:  460, y: 390 }, data: { value: 200 } },
+			{ id: 'lit-50',  type: 'literal',         position: { x:  460, y: 570 }, data: { value: 50 } },
+			// single damageEntity call with the chosen amount
+			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  780, y: 480 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'f-out',   type: 'functionOut',     position: { x:  980, y: 480 }, data: { lambdaId: 'lam' } },
 		],
 		edges: [
 			{ id: 'e1',  source: 'si',      target: 'f-gae',  targetHandle: 'arg0' },
 			{ id: 'e2',  source: 'f-gae',   target: 'f-fe',   targetHandle: 'arg0' },
 			{ id: 'e3',  source: 'f-out',   sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
 			{ id: 'e4',  source: 'f-fe',    target: 'out',    targetHandle: 'value' },
-			// Lambda body
+			// lambda body: hp check
 			{ id: 'e5',  source: 'si',      target: 'f-hp',   targetHandle: 'arg0' },
-			{ id: 'e6',  source: 'lam',     sourceHandle: 'param0', target: 'f-hp',   targetHandle: 'arg1' },
+			{ id: 'e6',  source: 'lam',     sourceHandle: 'param0', target: 'f-hp',  targetHandle: 'arg1' },
 			{ id: 'e7',  source: 'f-hp',    target: 'f-gt',   targetHandle: 'arg0' },
-			{ id: 'e8',  source: 'lit-50',  target: 'f-gt',   targetHandle: 'arg1' },
+			{ id: 'e8',  source: 'lit-thr', target: 'f-gt',   targetHandle: 'arg1' },
+			// if picks the amount value
 			{ id: 'e9',  source: 'f-gt',    target: 'f-if',   targetHandle: 'condition' },
-			// high-damage branch
-			{ id: 'e10', source: 'si',      target: 'f-dmg-h',targetHandle: 'arg0' },
-			{ id: 'e11', source: 'lam',     sourceHandle: 'param0', target: 'f-dmg-h', targetHandle: 'arg1' },
-			{ id: 'e12', source: 'lit-200', target: 'f-dmg-h',targetHandle: 'arg2' },
-			{ id: 'e13', source: 'f-dmg-h', target: 'f-if',   targetHandle: 'then' },
-			// low-damage branch
-			{ id: 'e14', source: 'si',      target: 'f-dmg-l',targetHandle: 'arg0' },
-			{ id: 'e15', source: 'lam',     sourceHandle: 'param0', target: 'f-dmg-l', targetHandle: 'arg1' },
-			{ id: 'e16', source: 'lit-50b', target: 'f-dmg-l',targetHandle: 'arg2' },
-			{ id: 'e17', source: 'f-dmg-l', target: 'f-if',   targetHandle: 'else' },
-			{ id: 'e18', source: 'f-if',    target: 'f-out',  targetHandle: 'value' },
+			{ id: 'e10', source: 'lit-200', target: 'f-if',   targetHandle: 'then' },
+			{ id: 'e11', source: 'lit-50',  target: 'f-if',   targetHandle: 'else' },
+			// single damage call
+			{ id: 'e12', source: 'si',      target: 'f-dmg',  targetHandle: 'arg0' },
+			{ id: 'e13', source: 'lam',     sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e14', source: 'f-if',    target: 'f-dmg',  targetHandle: 'arg2' },
+			{ id: 'e15', source: 'f-dmg',   target: 'f-out',  targetHandle: 'value' },
 		],
 	},
 }
@@ -113,13 +113,12 @@ export class Level24 extends BaseScene {
 
 		this.showInstruction(
 			'【Tiered Strike — forEach Expert】\n\n' +
-			'Elites (RED, 80 HP): need 200 damage — deal 50 and they survive!\n' +
-			'Weak (GREY, 20 HP): need 50 damage — deal 200 and they EXPLODE!\n\n' +
-			'Civilians (WHITE) stand next to weak enemies.\n' +
-			'Overkilling a weak enemy splashes the civilian — 3 penalties = failure.\n\n' +
-			'Use if inside your forEach lambda:\n' +
-			'  if hp(eid) > 50 → 200 damage\n' +
-			'  else            → 50 damage\n\n' +
+			'Elites (RED, 80 HP): deal 200 damage — 50 won\'t finish them!\n' +
+			'Weak (GREY, 20 HP): deal 50 damage — 200 SPLASHES the civilian!\n\n' +
+			'Civilians (WHITE) stand next to weak enemies. 3 penalties = failure.\n\n' +
+			'Key: use if to SELECT the amount, then call damageEntity ONCE:\n' +
+			'  amount = if(gt(hp(eid), 50), 200, 50)\n' +
+			'  damageEntity(state, eid, amount)\n\n' +
 			'Press SPACE to cast.'
 		)
 
@@ -240,7 +239,7 @@ export class Level24 extends BaseScene {
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Enemy)
+		if (role !== 'civilian') addComponent(this.world, eid, Enemy)  // civilians NOT in getAllEnemies
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
