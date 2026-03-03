@@ -6,6 +6,7 @@
  * avoiding circular dependencies.
  */
 
+import type Phaser from 'phaser'
 import type { GameWorld } from '../gameWorld'
 import { eventQueue } from '../events/EventQueue'
 import { castSpell } from '../spells/castSpell'
@@ -70,18 +71,35 @@ export function eventProcessSystem(world: GameWorld): void {
 		for (const binding of bindings) {
 			// Skip if event name doesn't match
 			if (binding.eventName !== event.name) continue
-			
+
 			// For input events, check if key/button matches
 			if (binding.keyOrButton !== undefined) {
 				if (keyOrButton !== binding.keyOrButton) continue
 			}
-			
+
 			// Skip hold mode bindings - they're processed separately
 			if (binding.triggerMode === 'hold') continue
-			
+
 			const spell = getSpell(binding.spellId)
 			if (!spell) continue
-			
+
+			// ── 施法次数上限检查 ─────────────────────────────────
+			const levelData = world.resources.levelData
+			const maxCasts = levelData?.['_maxSpellCasts'] as number | undefined
+			if (maxCasts !== undefined) {
+				const usedCasts = (levelData!['_spellCastCount'] as number) ?? 0
+				if (usedCasts >= maxCasts) {
+					console.warn(`[EventProcess] 施法次数已达上限 (${usedCasts}/${maxCasts})，本次施法被拒绝`)
+					// 通知场景显示提示
+					const scene = world.resources.scene as Phaser.Scene
+					scene.events.emit('spell-cast-limit-reached', maxCasts)
+					continue
+				}
+				// 先递增，再施法（防止法术内部递归触发）
+				levelData!['_spellCastCount'] = usedCasts + 1
+			}
+			// ────────────────────────────────────────────────────
+
 			try {
 				// Event args are passed after GameState
 				// GameState is always injected as first arg by castSpell

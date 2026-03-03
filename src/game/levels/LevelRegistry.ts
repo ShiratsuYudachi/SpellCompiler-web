@@ -15,6 +15,7 @@ export type LevelMeta = {
 	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'functionOut' | 'output' | 'dynamicFunction' | 'spellInput'>
 	hints?: string[]
 	logicReference?: Record<string, { gridX: number; gridY: number; action: string }>
+	maxSpellCasts?: number   // 关卡最多允许施法次数，undefined 表示不限制
 }
 
 class LevelRegistry {

@@ -105,6 +105,11 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 		const ownerEid = Owner.eid[eid]
 		const hitRadius = FireballStats.hitRadius[eid]
 
+		// Level-specific fireball immunity: levels can register a Set<number> of
+		// eids that should be immune to fireball damage (e.g. reactor core in L26,
+		// weak-only enemies in L27/L30 that must die to damageEntity instead).
+		const fireballImmuneEids = world.resources.levelData?.['fireballImmuneEids'] as Set<number> | undefined
+
 		for (const targetEid of query(world, [Sprite, Health])) {
 			if (targetEid === eid || targetEid === ownerEid) {
 				continue
@@ -120,6 +125,12 @@ export function fireballSystem(world: GameWorld, _dt: number) {
 			const dist = Math.sqrt(dx * dx + dy * dy)
 			if (dist > hitRadius) {
 				continue
+			}
+
+			// Skip immune targets — fireball dissipates on contact (no damage)
+			if (fireballImmuneEids?.has(targetEid)) {
+				despawnEntity(world, eid)
+				break
 			}
 
 			applyDamage(world, targetEid, FireballStats.damage[eid])
