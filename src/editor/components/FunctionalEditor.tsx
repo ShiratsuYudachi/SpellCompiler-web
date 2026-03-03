@@ -47,8 +47,8 @@ import { AddEventPanel } from './AddEventPanel'
 import { EventListPanel } from './EventListPanel'
 import { useEditorClipboard } from './hooks/useEditorClipboard'
 import { useEditorShortcut } from './hooks/useEditorShortcut'
-import { VibePanel, type VibeProvider } from './VibePanel'
-import { vibeBuild, vibeAsk } from '../../lib/vibe/vibeApi'
+import { VibePanel } from './VibePanel'
+import { vibeBuild, vibeAsk, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi'
 
 // Define node types
 const nodeTypes = {
@@ -488,9 +488,13 @@ function EditorContent(props: FunctionalEditorProps) {
 		onRedo: redo,
 	});
 
-	// Add function node from menu and connect
+	// Add function node from menu and connect. Position from pane/handle menu (menuState) or right-click context menu (contextMenu).
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
-		if (!menuState) return;
+		const screenPosition = menuState?.position ?? contextMenu?.position;
+		const sourceNodeId = menuState?.sourceNodeId;
+		const sourceHandleId = menuState?.sourceHandleId;
+		if (!screenPosition && !sourceNodeId) return;
+
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
 		pushUndo();
@@ -511,8 +515,8 @@ function EditorContent(props: FunctionalEditorProps) {
 			: undefined;
 
 		// If from handle click, position relative to source node
-		if (menuState.sourceNodeId) {
-			const sourceNode = getNode(menuState.sourceNodeId);
+		if (sourceNodeId) {
+			const sourceNode = getNode(sourceNodeId);
 			if (!sourceNode) return;
 
 			const newNode: Node = {
@@ -534,16 +538,16 @@ function EditorContent(props: FunctionalEditorProps) {
 			if (isVariadic || funcInfo.params.length > 0) {
 				const newEdge: Edge = {
 					id: `e-${Date.now()}`,
-					source: menuState.sourceNodeId,
-					sourceHandle: menuState.sourceHandleId!,
+					source: sourceNodeId,
+					sourceHandle: sourceHandleId!,
 					target: newNodeId,
 					targetHandle: 'arg0'
 				};
 				setEdges((eds) => [...eds, newEdge]);
 			}
 		} else {
-			// From context menu, position at menu location
-			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+			// From pane click or right-click context menu: position at menu location
+			const flowPos = screenToFlowPosition({ x: screenPosition.x, y: screenPosition.y });
 
 			const newNode: Node = {
 				id: newNodeId,
@@ -564,11 +568,16 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		triggerSave();
 		setMenuState(null);
+		setContextMenu(null);
 	};
 
-	// Add basic node from menu and connect
+	// Add basic node from menu. Position from pane/handle menu (menuState) or right-click context menu (contextMenu).
 	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'spellInput') => {
-		if (!menuState) return;
+		const screenPosition = menuState?.position ?? contextMenu?.position;
+		const sourceNodeId = menuState?.sourceNodeId;
+		const sourceHandleId = menuState?.sourceHandleId;
+		if (!screenPosition && !sourceNodeId) return;
+
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
 		pushUndo();
@@ -579,6 +588,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (allowedNodeTypes && !allowedNodeTypes.includes(type)) {
 			setError(`Node type "${type}" is not allowed in this level.`)
 			setMenuState(null)
+			setContextMenu(null)
 			return
 		}
 
@@ -605,8 +615,8 @@ function EditorContent(props: FunctionalEditorProps) {
 		};
 
 		// If from handle click, position relative to source node
-		if (menuState.sourceNodeId) {
-			const sourceNode = getNode(menuState.sourceNodeId);
+		if (sourceNodeId) {
+			const sourceNode = getNode(sourceNodeId);
 			if (!sourceNode) return;
 
 			const newNode: Node = {
@@ -638,15 +648,15 @@ function EditorContent(props: FunctionalEditorProps) {
 			};
 			const newEdge: Edge = {
 				id: `e-${Date.now()}`,
-				source: menuState.sourceNodeId,
-				sourceHandle: menuState.sourceHandleId!,
+				source: sourceNodeId,
+				sourceHandle: sourceHandleId!,
 				target: newNodeId,
 				targetHandle: getTargetHandle()
 			};
 			setEdges((eds) => [...eds, newEdge]);
 		} else {
-			// From context menu, position at menu location
-			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+			// From pane click or right-click context menu: position at menu location
+			const flowPos = screenToFlowPosition({ x: screenPosition.x, y: screenPosition.y });
 
 			const newNode: Node = {
 				id: newNodeId,
@@ -672,6 +682,7 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		triggerSave();
 		setMenuState(null);
+		setContextMenu(null);
 	};
 
 	// Evaluate the workflow
@@ -767,72 +778,108 @@ function EditorContent(props: FunctionalEditorProps) {
 		}
 	};
 
-	// Vibe: pure front-end — call LLM from browser (no server)
-	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, provider?: VibeProvider) => {
-		if (!apiKey?.trim()) throw new Error('API key is required.');
-		const { nodes: vibeNodes, edges: vibeEdges } = await vibeBuild(userText, apiKey, provider);
-		return { nodes: vibeNodes as Node[], edges: vibeEdges as Edge[] };
-	}, []);
-
-	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, provider?: VibeProvider) => {
-		if (!apiKey?.trim()) throw new Error('API key is required.');
-		const nodes = getNodes();
-		const edges = getEdges();
-		const { explanation } = await vibeAsk(userText, nodes, edges, apiKey, provider);
-		return { explanation };
+	// Vibe: frontend-only OpenRouter API; full graph is always sent for Build so model can return complete updated graph (in-place).
+	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, model?: string) => {
+		const useMock = model === MOCK_MODEL_ID;
+		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
+		const currentNodes = getNodes();
+		const currentEdges = getEdges();
+		const { nodes, edges } = await vibeBuild(userText, apiKey ?? '', model, {
+			nodes: currentNodes,
+			edges: currentEdges,
+		});
+		return {
+			nodes: nodes as Node[],
+			edges: edges as Edge[],
+			wasUpdate: currentNodes.length > 0 || currentEdges.length > 0,
+		};
 	}, [getNodes, getEdges]);
 
-	const applyVibeFlow = useCallback((vibeNodes: Node[], vibeEdges: Edge[]) => {
-		const existingNodes = getNodes();
-		const existingEdges = getEdges();
-		const prefix = `vibe-${Date.now()}-`;
-		const idMap = new Map<string, string>();
-		const vibeOutputNode = vibeNodes.find((n) => n.type === 'output');
-		const existingOutput = existingNodes.find((n) => n.type === 'output');
+	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, model?: string) => {
+		const useMock = model === MOCK_MODEL_ID;
+		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
+		const nodes = getNodes();
+		const edges = getEdges();
+		return vibeAsk(userText, nodes, edges, apiKey ?? '', model);
+	}, [getNodes, getEdges]);
 
-		for (const n of vibeNodes) {
-			if (n.type === 'output' && existingOutput) {
-				idMap.set(n.id, existingOutput.id);
-			} else {
-				idMap.set(n.id, prefix + n.id);
-			}
-		}
-
-		const existingMaxX = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.x)) : 0;
-		const existingMaxY = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.y)) : 0;
-		const vibeMinX = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.x)) : 0;
-		const vibeMinY = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.y)) : 0;
-		const offsetX = existingMaxX + 120 - vibeMinX;
-		const offsetY = existingMaxY + 80 - vibeMinY;
-
-		const newNodes: Node[] = vibeNodes
-			.filter((n) => !(n.type === 'output' && existingOutput))
-			.map((n) => ({
-				...n,
-				id: idMap.get(n.id) ?? n.id,
-				position: { x: n.position.x + offsetX, y: n.position.y + offsetY },
-			}));
-
-		const newEdges: Edge[] = vibeEdges.map((e) => ({
-			...e,
-			id: prefix + (e.id || `e-${e.source}-${e.target}`),
-			source: idMap.get(e.source) ?? e.source,
-			target: idMap.get(e.target) ?? e.target,
-		}));
-
-		// So the vibe graph becomes the main expression: drop existing edges into output, then add new edges
-		const existingWithoutOutputIncoming = existingOutput
-			? existingEdges.filter((e) => e.target !== existingOutput.id)
-			: existingEdges;
-		const mergedNodes = [...existingNodes, ...newNodes];
-		const mergedEdges = [...existingWithoutOutputIncoming, ...newEdges];
-
+	const applyVibeFlow = useCallback((
+		vibeNodes: Node[],
+		vibeEdges: Edge[],
+		options?: { replace?: boolean }
+	) => {
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
 		pushUndo();
-		setNodes(mergedNodes);
-		setEdges(mergedEdges);
-		bumpNodeIdCounterFromNodes(mergedNodes);
+
+		if (options?.replace) {
+			// Replace entire graph (e.g. "update the spell") — normalize so ReactFlow never gets invalid shape
+			const normNodes = vibeNodes.map((n, i) => ({
+				...n,
+				id: typeof n.id === 'string' ? n.id : `node-${i}`,
+				type: (typeof n.type === 'string' ? n.type : 'literal') as Node['type'],
+				position: typeof n.position === 'object' && n.position != null && 'x' in n.position && 'y' in n.position
+					? { x: Number((n.position as { x: number }).x) || 0, y: Number((n.position as { y: number }).y) || 0 }
+					: { x: 0, y: 0 },
+				data: (n.data && typeof n.data === 'object' ? n.data : {}) as Record<string, unknown>,
+			}));
+			const normEdges = vibeEdges.map((e, i) => ({
+				...e,
+				id: typeof e.id === 'string' ? e.id : `e-${i}`,
+				source: String(e.source ?? ''),
+				target: String(e.target ?? ''),
+			}));
+			setNodes(normNodes);
+			setEdges(normEdges);
+			bumpNodeIdCounterFromNodes(normNodes);
+		} else {
+			// Merge new nodes into existing graph (e.g. empty canvas or "add something")
+			const existingNodes = getNodes();
+			const existingEdges = getEdges();
+			const prefix = `vibe-${Date.now()}-`;
+			const idMap = new Map<string, string>();
+			const existingOutput = existingNodes.find((n) => n.type === 'output');
+
+			for (const n of vibeNodes) {
+				if (n.type === 'output' && existingOutput) {
+					idMap.set(n.id, existingOutput.id);
+				} else {
+					idMap.set(n.id, prefix + n.id);
+				}
+			}
+
+			const existingMaxX = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.x)) : 0;
+			const existingMaxY = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.y)) : 0;
+			const vibeMinX = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.x)) : 0;
+			const vibeMinY = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.y)) : 0;
+			const offsetX = existingMaxX + 120 - vibeMinX;
+			const offsetY = existingMaxY + 80 - vibeMinY;
+
+			const newNodes: Node[] = vibeNodes
+				.filter((n) => !(n.type === 'output' && existingOutput))
+				.map((n) => ({
+					...n,
+					id: idMap.get(n.id) ?? n.id,
+					position: { x: n.position.x + offsetX, y: n.position.y + offsetY },
+				}));
+
+			const newEdges: Edge[] = vibeEdges.map((e) => ({
+				...e,
+				id: prefix + (e.id || `e-${e.source}-${e.target}`),
+				source: idMap.get(e.source) ?? e.source,
+				target: idMap.get(e.target) ?? e.target,
+			}));
+
+			const existingWithoutOutputIncoming = existingOutput
+				? existingEdges.filter((e) => e.target !== existingOutput.id)
+				: existingEdges;
+			const mergedNodes = [...existingNodes, ...newNodes];
+			const mergedEdges = [...existingWithoutOutputIncoming, ...newEdges];
+			setNodes(mergedNodes);
+			setEdges(mergedEdges);
+			bumpNodeIdCounterFromNodes(mergedNodes);
+		}
+
 		triggerSave();
 		setEvaluationResult(null);
 		setCurrentAST(null);
@@ -1060,7 +1107,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						<div className="p-2 flex-1 min-h-0 flex flex-col overflow-auto">
 							<VibePanel
 								onGenerate={handleVibeGenerate}
-								onApplyFlow={(nodes, edges) => applyVibeFlow(nodes as Node[], edges as Edge[])}
+								onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
 								onAsk={handleVibeAsk}
 							/>
 						</div>

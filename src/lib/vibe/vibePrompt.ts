@@ -1,5 +1,34 @@
 import { AVAILABLE_FUNCTIONS } from './availableFunctions';
 
+/** Strip to minimal shape for the LLM (no ReactFlow internals); keeps prompt smaller and structure clear. */
+export function stripGraphForPrompt(nodes: unknown[], edges: unknown[]): { nodes: unknown[]; edges: unknown[] } {
+	const nodeList = Array.isArray(nodes) ? nodes : [];
+	const edgeList = Array.isArray(edges) ? edges : [];
+	return {
+		nodes: nodeList.map((n) => {
+			if (typeof n !== 'object' || n === null) return n;
+			const o = n as Record<string, unknown>;
+			return {
+				id: o.id,
+				type: o.type,
+				position: o.position && typeof o.position === 'object' ? { x: (o.position as { x?: number }).x ?? 0, y: (o.position as { y?: number }).y ?? 0 } : { x: 0, y: 0 },
+				data: o.data && typeof o.data === 'object' ? o.data : {},
+			};
+		}),
+		edges: edgeList.map((e) => {
+			if (typeof e !== 'object' || e === null) return e;
+			const o = e as Record<string, unknown>;
+			return {
+				id: o.id ?? `e-${o.source}-${o.target}`,
+				source: o.source,
+				target: o.target,
+				...(o.sourceHandle != null && { sourceHandle: o.sourceHandle }),
+				...(o.targetHandle != null && { targetHandle: o.targetHandle }),
+			};
+		}),
+	};
+}
+
 const NODE_SCHEMA = `
 Node types and their "data" shape (each node has id, type, position: {x,y}, data):
 - literal: data = { value: number | string | boolean }
@@ -18,11 +47,36 @@ There must be exactly one "output" node. The main expression connects TO the out
 Spell input parameters come from a spellInput node; use its source handles param-0, param-1 for each parameter.
 `;
 
-export function buildVibePrompt(userText: string): string {
+export function buildVibePrompt(
+	userText: string,
+	currentGraph?: { nodes: unknown[]; edges: unknown[] }
+): string {
 	const fnList = AVAILABLE_FUNCTIONS.map((f) => `${f.fullName}(${f.params.join(', ')})`).join('\n');
 
-	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with two keys: "nodes" and "edges".
+	const hasCurrentGraph =
+		currentGraph &&
+		Array.isArray(currentGraph.nodes) &&
+		Array.isArray(currentGraph.edges) &&
+		(currentGraph.nodes.length > 0 || currentGraph.edges.length > 0);
 
+	const currentGraphSection = hasCurrentGraph
+		? `
+IMPORTANT: The user has an EXISTING graph below. They want to UPDATE or MODIFY it. You MUST output the COMPLETE updated graph (all nodes and all edges). Reuse the same node ids for nodes that stay the same. Only change what the user asked for. Do NOT generate a brand-new graph from scratch.
+
+Current graph:
+\`\`\`json
+${JSON.stringify(stripGraphForPrompt(currentGraph.nodes, currentGraph.edges))}
+\`\`\`
+
+`
+		: '';
+
+	const updateRule = hasCurrentGraph
+		? '- Output the FULL graph (every node and edge). Preserve existing node ids when keeping nodes. Only add, remove, or edit as the user requested.\n'
+		: '';
+
+	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with two keys: "nodes" and "edges".
+${currentGraphSection}
 ${NODE_SCHEMA}
 
 Available functions (use exactly these fullName in dynamicFunction nodes):
@@ -30,7 +84,7 @@ ${fnList}
 
 Rules:
 - Output ONLY valid JSON. No markdown, no explanation. Start with { and end with }.
-- Each node needs: id (unique string), type (one of the types above), position: { x: number, y: number }, data: (object as above).
+${updateRule}- Each node needs: id (unique string), type (one of the types above), position: { x: number, y: number }, data: (object as above).
 - Place nodes with reasonable positions (e.g. x: 0,100,200... and y: 0,80,160... so they don't overlap).
 - Edges connect nodes: source/target are node ids; use sourceHandle and targetHandle when needed (e.g. targetHandle "value" for the output, "arg0"/"arg1" for function args, "condition"/"then"/"else" for if).
 - For game spells, include one spellInput node with params: ["state"] and connect state to game:: functions as first argument.

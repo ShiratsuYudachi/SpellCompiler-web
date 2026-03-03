@@ -1,67 +1,36 @@
 // =============================================
-// Vibe Panel - Ask (explain) and Build (generate nodes)
+// Vibe Panel - Ask (explain) and Build (generate nodes) via OpenRouter
 // =============================================
 
 import { useState, useEffect } from 'react';
 import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea } from '@mantine/core';
+import { OPENROUTER_MODELS, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi';
 
-const API_KEY_STORAGE_KEY = 'spellcompiler-vibe-api-key';
-const PROVIDER_STORAGE_KEY = 'spellcompiler-vibe-provider';
+const API_KEY_STORAGE_KEY = 'spellcompiler-openrouter-api-key';
+const MODEL_STORAGE_KEY = 'spellcompiler-openrouter-model';
 const MODE_STORAGE_KEY = 'spellcompiler-vibe-mode';
 
-// Allowlist is best-effort (not all keys use these formats); unknown-format keys still pass through with fallback cleanup.
-const KEY_PATTERN = /(sk-ant-[a-zA-Z0-9_-]+|gsk_[a-zA-Z0-9_-]+|sk-[a-zA-Z0-9_-]+)/;
-const TRAILING_KEY_JUNK: RegExp[] = [
-	/\s*\/?web\/?\s*$/i,
-	/\s*ance\s*$/i,
-	/\s*balance\s*$/i,
-	/\s*insufficient\s*$/i,
-	/\s*invalid\s*$/i,
-	/\s*key\s*$/i,
-	/\/+\s*$/,
-];
-
 function sanitizeApiKey(key: string): string {
-	const s = key.trim();
-	const allowMatch = s.match(KEY_PATTERN);
-	const out = allowMatch ? allowMatch[1] : (() => {
-		let fallback = s;
-		for (const re of TRAILING_KEY_JUNK) {
-			fallback = fallback.replace(re, '').trim();
-		}
-		return fallback;
-	})();
-	if (out !== s && typeof console !== 'undefined' && console.warn) {
-		console.warn('[Vibe] API key was cleaned (allowlist extract or trailing junk removed).', { beforeLength: s.length, afterLength: out.length });
-	}
-	return out;
+	return key.trim().replace(/\s*\/?\s*$/i, '').trim();
 }
-
-export type VibeProvider = 'openai' | 'anthropic' | 'deepseek' | 'kimi' | 'groq';
 
 export type VibeMode = 'ask' | 'build';
 
 export type VibePanelProps = {
 	mode?: VibeMode;
-	onGenerate: (text: string, apiKey?: string, provider?: VibeProvider) => Promise<{ nodes: unknown[]; edges: unknown[] }>;
-	onApplyFlow: (nodes: unknown[], edges: unknown[]) => void;
-	onAsk?: (text: string, apiKey?: string, provider?: VibeProvider) => Promise<{ explanation: string }>;
+	onGenerate: (text: string, apiKey?: string, model?: string) => Promise<{ nodes: unknown[]; edges: unknown[]; wasUpdate?: boolean }>;
+	onApplyFlow: (nodes: unknown[], edges: unknown[], options?: { replace?: boolean }) => void;
+	onAsk?: (text: string, apiKey?: string, model?: string) => Promise<{ explanation: string }>;
 	disabled?: boolean;
 };
 
-const PROVIDER_OPTIONS = [
-	{ value: 'openai', label: 'OpenAI (GPT)' },
-	{ value: 'groq', label: 'Groq (free tier)' },
-	{ value: 'anthropic', label: 'Anthropic (Claude)' },
-	{ value: 'deepseek', label: 'DeepSeek' },
-	{ value: 'kimi', label: 'Kimi (Moonshot)' },
-] as const;
+const MODEL_OPTIONS = OPENROUTER_MODELS.map((m) => ({ value: m.value, label: m.label }));
 
 export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePanelProps) {
 	const [mode, setMode] = useState<VibeMode>('build');
 	const [text, setText] = useState('');
 	const [apiKey, setApiKey] = useState('');
-	const [provider, setProvider] = useState<VibeProvider>('openai');
+	const [model, setModel] = useState<string>('openai/gpt-4o-mini');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [open, setOpen] = useState(true);
@@ -77,8 +46,8 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 					localStorage.setItem(API_KEY_STORAGE_KEY, cleaned);
 				}
 			}
-			const storedProvider = localStorage.getItem(PROVIDER_STORAGE_KEY) as VibeProvider | null;
-			if (storedProvider === 'openai' || storedProvider === 'anthropic' || storedProvider === 'deepseek' || storedProvider === 'kimi' || storedProvider === 'groq') setProvider(storedProvider);
+			const storedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+			if (storedModel) setModel(storedModel);
 			const storedMode = localStorage.getItem(MODE_STORAGE_KEY) as VibeMode | null;
 			if (storedMode === 'ask' || storedMode === 'build') setMode(storedMode);
 		} catch {
@@ -96,12 +65,11 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		}
 	};
 
-	const saveProvider = (value: string) => {
-		const p = value as VibeProvider;
-		if (p === 'openai' || p === 'anthropic' || p === 'deepseek' || p === 'kimi' || p === 'groq') {
-			setProvider(p);
+	const saveModel = (value: string | null) => {
+		if (value) {
+			setModel(value);
 			try {
-				localStorage.setItem(PROVIDER_STORAGE_KEY, p);
+				localStorage.setItem(MODEL_STORAGE_KEY, value);
 			} catch {
 				// ignore
 			}
@@ -119,19 +87,20 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		}
 	};
 
+	const useMock = model === MOCK_MODEL_ID;
+
 	const handleBuild = async () => {
 		const trimmed = text.trim();
 		if (!trimmed) return;
-		const key = sanitizeApiKey(apiKey);
-		if (!key) {
-			setError('Please enter your API key.');
+		if (!useMock && !sanitizeApiKey(apiKey)) {
+			setError('Please enter your API key (or choose Mock for testing without API).');
 			return;
 		}
 		setError(null);
 		setLoading(true);
 		try {
-			const { nodes, edges } = await onGenerate(trimmed, key, provider);
-			onApplyFlow(nodes, edges);
+			const result = await onGenerate(trimmed, useMock ? '' : sanitizeApiKey(apiKey), model);
+			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
 			setText('');
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
@@ -143,16 +112,15 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 	const handleAsk = async () => {
 		const trimmed = text.trim();
 		if (!trimmed || !onAsk) return;
-		const key = sanitizeApiKey(apiKey);
-		if (!key) {
-			setError('Please enter your API key.');
+		if (!useMock && !sanitizeApiKey(apiKey)) {
+			setError('Please enter your API key (or choose Mock for testing without API).');
 			return;
 		}
 		setError(null);
 		setExplanation(null);
 		setLoading(true);
 		try {
-			const { explanation: result } = await onAsk(trimmed, key, provider);
+			const { explanation: result } = await onAsk(trimmed, useMock ? '' : sanitizeApiKey(apiKey), model);
 			setExplanation(result);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
@@ -173,22 +141,25 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 			</button>
 			<Collapse in={open} className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
 				<Select
-					label="Provider"
+					label="Model"
+					description={useMock ? 'Mock: no API key needed. Use to test Ask/Build without spending credits.' : 'OpenRouter model. Get a key at openrouter.ai/keys'}
 					size="xs"
-					data={PROVIDER_OPTIONS}
-					value={provider}
-					onChange={(v) => v && saveProvider(v)}
+					data={MODEL_OPTIONS}
+					value={model}
+					onChange={saveModel}
 					disabled={disabled}
+					searchable
+					allowDeselect={false}
 				/>
 				<TextInput
 					type="password"
-					placeholder="Paste key only (no URL or trailing text)"
+					placeholder="OpenRouter API key"
 					value={apiKey}
 					onChange={(e) => saveApiKey(e.currentTarget.value)}
 					size="xs"
 					disabled={disabled}
-					label="API Key"
-					description="Key is cleaned on save and send (trailing 'web/', 'ance', etc. removed). If auth still fails, re-paste the key from the provider."
+					label="OpenRouter API Key"
+					description="Key is stored locally. Get one at openrouter.ai/keys"
 				/>
 				<SegmentedControl
 					size="xs"
@@ -215,7 +186,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 							variant="light"
 							onClick={handleBuild}
 							loading={loading}
-							disabled={!text.trim() || !apiKey.trim() || disabled}
+							disabled={!text.trim() || (!useMock && !apiKey.trim()) || disabled}
 						>
 							Generate
 						</Button>
@@ -234,7 +205,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 							variant="light"
 							onClick={handleAsk}
 							loading={loading}
-							disabled={!text.trim() || !apiKey.trim() || !onAsk || disabled}
+							disabled={!text.trim() || (!useMock && !apiKey.trim()) || !onAsk || disabled}
 						>
 							Ask
 						</Button>
