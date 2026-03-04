@@ -20,8 +20,8 @@ import type Phaser from 'phaser'
 
 export const Level28Meta: LevelMeta = {
 	key: 'Level28',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
+	playerSpawnX: 190,
+	playerSpawnY: 300,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
 	objectives: [{ id: 'clear-left', description: 'Eliminate only the LEFT zone enemies (5 targets)', type: 'defeat' }],
@@ -93,7 +93,7 @@ export class Level28 extends BaseScene {
 		this.events.removeAllListeners('civilian-hit')
 
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (pb) pb.setPosition(480, 320)
+		if (pb) pb.setPosition(190, 300)
 
 		// Left zone: targets (green, must eliminate)
 		// All clustered within ~140px of (190, 300) so one cast covers them all
@@ -146,9 +146,9 @@ export class Level28 extends BaseScene {
 			'GREEN enemies (LEFT) = your targets.\n' +
 			'RED enemies (RIGHT) = protected — hitting them = penalty.\n\n' +
 			'getNearbyEnemies returns only enemies within a given radius.\n\n' +
-			'Walk to the LEFT side (near x=190), then cast:\n' +
+			'You start near the LEFT cluster. Cast:\n' +
 			'  getNearbyEnemies(state, playerPos, 150)\n\n' +
-			'All 5 green enemies are clustered there — one cast clears them!\n' +
+			'All 5 green enemies are within range — press SPACE to clear them!\n' +
 			'Your position determines what gets returned.\n\n' +
 			'Press SPACE to cast.'
 		)
