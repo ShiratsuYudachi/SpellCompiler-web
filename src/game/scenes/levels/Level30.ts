@@ -38,7 +38,7 @@ export const Level30Meta: LevelMeta = {
 	mapData: createRoom(12, 8),
 	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using the correct strategy for each type', type: 'defeat' }],
 	hints: [
-		'RED elites (HP=80, TOP): damageEntity is BLOCKED by their shield!',
+		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
 		'Use spawnFireball(state, direction) to bypass the shield.',
 		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
 		'GREY drones (HP=30, BOTTOM): normal damageEntity works fine.',
@@ -48,7 +48,7 @@ export const Level30Meta: LevelMeta = {
 	// Both effects fire for every enemy; level mechanics decide which has real impact:
 	//   Elites (shielded): onDamage restores direct damage → only fireball damages
 	//   Drones (fireballImmuneEids): fireball blocked → only damageEntity kills
-	// Note: elites have 80 HP but fireball deals 10/hit → press Space ~8 times to clear them.
+	// Elites HP=10 = exactly one fireball kill (fireball deals 10 dmg). One cast clears all.
 	initialSpellWorkflow: {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
@@ -183,7 +183,7 @@ export class Level30 extends BaseScene {
 
 		this.showInstruction(
 			'【Combined Assault — Synthesis I】\n\n' +
-			'RED elites (HP=80, TOP): Their SHIELD blocks damageEntity!\n' +
+			'RED elites (HP=10, TOP): Their SHIELD blocks damageEntity!\n' +
 			'  → Must use spawnFireball(state, direction) to bypass.\n' +
 			'  Direction = normalize(subtract(enemyPos, playerPos))\n\n' +
 			'GREY drones (HP=30, BOTTOM): Normal damageEntity works.\n\n' +
@@ -233,7 +233,7 @@ export class Level30 extends BaseScene {
 
 	private spawnElite(x: number, y: number): TrackedEnemy {
 		const size = 24
-		const hp = 80
+		const hp = 10
 		const color = 0xff4444
 		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(4, 0xffaa00)
 		const label = this.add.text(x, y - size - 12, 'ELITE', {
