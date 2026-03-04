@@ -38,13 +38,66 @@ export const Level30Meta: LevelMeta = {
 	mapData: createRoom(12, 8),
 	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using the correct strategy for each type', type: 'defeat' }],
 	hints: [
-		'RED elites (HP=80, TOP): damageEntity is BLOCKED by their shield!',
+		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
 		'Use spawnFireball(state, direction) to bypass the shield.',
 		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
 		'GREY drones (HP=30, BOTTOM): normal damageEntity works fine.',
 		'Use filter to separate elites from drones, then handle each group differently.',
 	],
-	// No initialSpellWorkflow — blank editor for synthesis challenge
+	// Template: forEach all enemies → damageEntity chained into spawnFireball via state.
+	// Both effects fire for every enemy; level mechanics decide which has real impact:
+	//   Elites (shielded): onDamage restores direct damage → only fireball damages
+	//   Drones (fireballImmuneEids): fireball blocked → only damageEntity kills
+	// Elites HP=10 = exactly one fireball kill (fireball deals 10 dmg). One cast clears all.
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			// Player position
+			{ id: 'f-gp',   type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',   type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			// getAllEnemies → forEach → out
+			{ id: 'f-gae',  type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-fe',   type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach', displayName: 'forEach', namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',    type: 'output',           position: { x:  540, y: 200 }, data: { label: 'Output' } },
+			// Lambda: hit(eid) — damageEntity then spawnFireball, chained via state return
+			{ id: 'lam',    type: 'lambdaDef',        position: { x:   60, y: 420 }, data: { functionName: 'hit', params: ['eid'] } },
+			// Enemy position → direction vector
+			{ id: 'f-ep',   type: 'dynamicFunction', position: { x:  200, y: 500 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-sub',  type: 'dynamicFunction', position: { x:  400, y: 500 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
+			{ id: 'f-norm', type: 'dynamicFunction', position: { x:  600, y: 500 }, data: { functionName: 'vec::normalize', displayName: 'normalize', namespace: 'vec', params: ['v'] } },
+			// damageEntity returns state → pass as first arg to spawnFireball
+			{ id: 'lit-100',type: 'literal',          position: { x:  200, y: 640 }, data: { value: 100 } },
+			{ id: 'f-dmg',  type: 'dynamicFunction', position: { x:  380, y: 640 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'f-sfb',  type: 'dynamicFunction', position: { x:  640, y: 580 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
+			{ id: 'fout',   type: 'functionOut',      position: { x:  880, y: 420 }, data: { lambdaId: 'lam' } },
+		],
+		edges: [
+			// Player position
+			{ id: 'e1',  source: 'si',      target: 'f-gp',  targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',      target: 'f-pp',  targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',   target: 'f-pp',  targetHandle: 'arg1' },
+			// getAllEnemies → forEach → out
+			{ id: 'e4',  source: 'si',      target: 'f-gae', targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-gae',  target: 'f-fe',  targetHandle: 'arg0' },
+			{ id: 'e6',  source: 'fout',   sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e7',  source: 'f-fe',   target: 'out',   targetHandle: 'value' },
+			// Lambda body — enemy position → direction
+			{ id: 'e8',  source: 'si',     target: 'f-ep',  targetHandle: 'arg0' },
+			{ id: 'e9',  source: 'lam',    sourceHandle: 'param0', target: 'f-ep', targetHandle: 'arg1' },
+			{ id: 'e10', source: 'f-ep',   target: 'f-sub', targetHandle: 'arg0' },
+			{ id: 'e11', source: 'f-pp',   target: 'f-sub', targetHandle: 'arg1' },
+			{ id: 'e12', source: 'f-sub',  target: 'f-norm',targetHandle: 'arg0' },
+			// damageEntity
+			{ id: 'e13', source: 'si',     target: 'f-dmg', targetHandle: 'arg0' },
+			{ id: 'e14', source: 'lam',    sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e15', source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
+			// spawnFireball uses damageEntity's returned state — forces both into evaluation chain
+			{ id: 'e16', source: 'f-dmg',  target: 'f-sfb', targetHandle: 'arg0' },
+			{ id: 'e17', source: 'f-pp',   target: 'f-sfb', targetHandle: 'arg1' },
+			{ id: 'e18', source: 'f-norm', target: 'f-sfb', targetHandle: 'arg2' },
+			{ id: 'e19', source: 'f-sfb',  target: 'fout',  targetHandle: 'value' },
+		],
+	},
 }
 
 levelRegistry.register(Level30Meta)
@@ -130,7 +183,7 @@ export class Level30 extends BaseScene {
 
 		this.showInstruction(
 			'【Combined Assault — Synthesis I】\n\n' +
-			'RED elites (HP=80, TOP): Their SHIELD blocks damageEntity!\n' +
+			'RED elites (HP=10, TOP): Their SHIELD blocks damageEntity!\n' +
 			'  → Must use spawnFireball(state, direction) to bypass.\n' +
 			'  Direction = normalize(subtract(enemyPos, playerPos))\n\n' +
 			'GREY drones (HP=30, BOTTOM): Normal damageEntity works.\n\n' +
@@ -180,7 +233,7 @@ export class Level30 extends BaseScene {
 
 	private spawnElite(x: number, y: number): TrackedEnemy {
 		const size = 24
-		const hp = 80
+		const hp = 10
 		const color = 0xff4444
 		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(4, 0xffaa00)
 		const label = this.add.text(x, y - size - 12, 'ELITE', {
