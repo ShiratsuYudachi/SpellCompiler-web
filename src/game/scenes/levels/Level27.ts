@@ -11,14 +11,15 @@ import type Phaser from 'phaser'
 // Level 27 — 「精准打击」
 //
 // 教学目标：filter + map + forEach 完整组合（单管道）
-//   threats = filter(getAllEnemies(state), eid → gt(hp(eid), 60))
+//   threats = filter(getAllEnemies(state), eid → gt(hp(eid), 5))
 //   dirs    = map(threats, eid → normalize(subtract(pos(eid), playerPos)))
 //   forEach(dirs, dir → spawnFireball(state, playerPos, dir))
 //
-// 场景：4个红色威胁（HP=80，位于正方向N/S/E/W）
-//       4个灰色平民（HP=20，位于斜方向NE/NW/SE/SW）
+// 场景：4个红色威胁（HP=10，位于正方向N/S/E/W）
+//       4个灰色平民（HP=5，位于斜方向NE/NW/SE/SW）
 // 机制：不使用 filter 直接开火 → 全部8个方向都有火球 → 平民被波及 → 惩罚
 //       正确 filter 后只有4个正方向火球 → 平民安全
+// 火球伤害=10，威胁HP=10：一发秒杀；平民HP=5：也是一发秒（触发惩罚）
 // ─────────────────────────────────────────────────────────────
 
 export const Level27Meta: LevelMeta = {
@@ -29,10 +30,10 @@ export const Level27Meta: LevelMeta = {
 	mapData: createRoom(12, 8),
 	objectives: [{ id: 'clear-threats', description: 'Destroy 4 red threats — filter before firing!', type: 'defeat' }],
 	hints: [
-		'RED enemies (HP=80, N/S/E/W) = threats — must kill with fireballs.',
-		'GREY enemies (HP=20, diagonal) = civilians — penalty if hit!',
+		'RED enemies (HP=10, N/S/E/W) = threats — must kill with fireballs.',
+		'GREY enemies (HP=5, diagonal) = civilians — penalty if hit!',
 		'getAllEnemies returns ALL 8 — you MUST filter first.',
-		'filter(enemies, eid → gt(hp(eid), 60)) keeps only threats (HP=80 > 60).',
+		'filter(enemies, eid → gt(hp(eid), 5)) keeps only threats (HP=10 > 5).',
 		'Then: map(threats, eid → normalize(pos(eid)−playerPos)) → forEach(spawnFireball)',
 	],
 	initialSpellWorkflow: {
@@ -48,7 +49,7 @@ export const Level27Meta: LevelMeta = {
 			{ id: 'lam-f',   type: 'lambdaDef',       position: { x:  100, y: 420 }, data: { functionName: 'isHostile', params: ['eid'] } },
 			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  250, y: 480 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
 			{ id: 'f-gt',    type: 'dynamicFunction', position: { x:  440, y: 480 }, data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] } },
-			{ id: 'lit-60',  type: 'literal',         position: { x:  320, y: 580 }, data: { value: 60 } },
+			{ id: 'lit-60',  type: 'literal',         position: { x:  320, y: 580 }, data: { value: 5 } },
 			{ id: 'fout-f',  type: 'functionOut',     position: { x:  620, y: 420 }, data: { lambdaId: 'lam-f' } },
 			// map(threats, eid → dir)
 			{ id: 'f-map',   type: 'dynamicFunction', position: { x:  500, y: 200 }, data: { functionName: 'list::map', displayName: 'map(eid→dir)', namespace: 'list', params: ['l', 'f'] } },
@@ -136,22 +137,22 @@ export class Level27 extends BaseScene {
 
 		const cx = 480, cy = 320, R = 180
 
-		// 4 red threats at cardinal angles — HP=80
+		// 4 red threats at cardinal angles — HP=10 (fireball=10dmg, one-shot)
 		const threatAngles = [0, 90, 180, 270]
 		for (const deg of threatAngles) {
 			const rad = (deg * Math.PI) / 180
 			const x = Math.round(cx + R * Math.cos(rad))
 			const y = Math.round(cy + R * Math.sin(rad))
-			this.spawnEnemy(x, y, 0xff3333, 80, 'threat')
+			this.spawnEnemy(x, y, 0xff3333, 10, 'threat')
 		}
 
-		// 4 grey civilians at diagonal angles — HP=20
+		// 4 grey civilians at diagonal angles — HP=5 (also one-shot, triggers penalty)
 		const civAngles = [45, 135, 225, 315]
 		for (const deg of civAngles) {
 			const rad = (deg * Math.PI) / 180
 			const x = Math.round(cx + R * Math.cos(rad))
 			const y = Math.round(cy + R * Math.sin(rad))
-			this.spawnEnemy(x, y, 0x888888, 20, 'civilian')
+			this.spawnEnemy(x, y, 0x888888, 5, 'civilian')
 		}
 
 		// Register civilians for penalty detection
@@ -168,8 +169,8 @@ export class Level27 extends BaseScene {
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 50, 50)
 			this.setTaskInfo('Precision Strike', [
-				'Destroy 4 RED threats (N/S/E/W, HP=80)',
-				'GREY civilians (diagonal, HP=20) = protected',
+				'Destroy 4 RED threats (N/S/E/W, HP=10)',
+				'GREY civilians (diagonal, HP=5) = protected',
 				`Penalties: ${this.penaltyCount} / 3`,
 			])
 			if (this.penaltyCount >= 3) this.onMissionFail()
@@ -181,18 +182,18 @@ export class Level27 extends BaseScene {
 
 		this.showInstruction(
 			'【Precision Strike — filter + map + forEach】\n\n' +
-			'RED (N/S/E/W, HP=80) = threats — must eliminate.\n' +
-			'GREY (NE/NW/SE/SW, HP=20) = civilians — penalty on hit!\n\n' +
+			'RED (N/S/E/W, HP=10) = threats — must eliminate.\n' +
+			'GREY (NE/NW/SE/SW, HP=5) = civilians — penalty on hit!\n\n' +
 			'getAllEnemies returns ALL 8 — filter BEFORE mapping:\n' +
-			'  threats = filter(enemies, eid → gt(hp(eid), 60))\n' +
+			'  threats = filter(enemies, eid → gt(hp(eid), 5))\n' +
 			'  dirs    = map(threats, eid → normalize(pos(eid)−playerPos))\n' +
 			'  forEach(dirs, dir → spawnFireball(state, playerPos, dir))\n\n' +
 			'Press SPACE to cast.'
 		)
 
 		this.setTaskInfo('Precision Strike', [
-			'Destroy 4 RED threats (N/S/E/W, HP=80)',
-			'GREY civilians (diagonal, HP=20) = protected',
+			'Destroy 4 RED threats (N/S/E/W, HP=10)',
+			'GREY civilians (diagonal, HP=5) = protected',
 			'Penalties: 0 / 3',
 		])
 	}
