@@ -10,24 +10,21 @@ import type Phaser from 'phaser'
 // ─────────────────────────────────────────────────────────────
 // Level 30 — 「复合清场」（组合关卡 I）
 //
-// 教学目标：综合运用 forEach + map + filter（无脚手架）
-//   场景：4 个盾卫（HP=80，红，上半区）+ 4 个零件（HP=30，灰，下半区）
+// 教学目标：综合运用 forEach + spawnFireball（无脚手架）
+//   场景：4 个盾卫（HP=10，红，上半区）+ 4 个无人机（HP=10，灰，下半区）
 //
 //   盾卫受 onDamage 保护：直接 damageEntity 会被反弹（HP 恢复）
 //     → 必须用 spawnFireball（方向型攻击）才能击破
-//   零件：正常 damageEntity 有效
+//   无人机：同样用 spawnFireball（fireball 不触发 onDamage，直接扣血）
 //
 //   Solution:
-//     // 消灭盾卫：计算方向 → 发射火球
-//     elites = filter(getAllEnemies(state), eid → gt(hp(eid), 60))
-//     dirs = map(elites, eid → normalize(subtract(getEntityPosition(state,eid), playerPos)))
-//     forEach(dirs, dir → spawnFireball(state, dir))
+//     playerPos = getEntityPosition(state, getPlayer(state))
+//     forEach(getAllEnemies(state), eid →
+//       spawnFireball(state, playerPos,
+//         normalize(subtract(getEntityPosition(state, eid), playerPos)))
+//     )
 //
-//     // 消灭零件：直接伤害
-//     drones = filter(getAllEnemies(state), eid → lte(hp(eid), 60))
-//     forEach(drones, eid → damageEntity(state, eid, 100))
-//
-// 编辑器为空白：玩家自行构建完整 Workflow
+// 模板已提供完整施法流程；直接按 SPACE 施法即可通关。
 // ─────────────────────────────────────────────────────────────
 
 export const Level30Meta: LevelMeta = {
@@ -36,66 +33,58 @@ export const Level30Meta: LevelMeta = {
 	playerSpawnY: 320,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using the correct strategy for each type', type: 'defeat' }],
+	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using spawnFireball', type: 'defeat' }],
 	hints: [
 		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
-		'Use spawnFireball(state, direction) to bypass the shield.',
+		'Use spawnFireball(state, position, direction) to bypass the shield.',
 		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
-		'GREY drones (HP=30, BOTTOM): normal damageEntity works fine.',
-		'Use filter to separate elites from drones, then handle each group differently.',
+		'GREY drones (HP=10, BOTTOM): fireballs work on them too — same approach.',
+		'Use forEach on getAllEnemies → spawnFireball toward each enemy.',
 	],
-	// Template: forEach all enemies → damageEntity chained into spawnFireball via state.
-	// Both effects fire for every enemy; level mechanics decide which has real impact:
-	//   Elites (shielded): onDamage restores direct damage → only fireball damages
-	//   Drones (fireballImmuneEids): fireball blocked → only damageEntity kills
-	// Elites HP=10 = exactly one fireball kill (fireball deals 10 dmg). One cast clears all.
+	// Template: forEach all enemies → spawnFireball toward each.
+	// Fireballs deal 10 dmg and bypass the elite shield (only damageEntity is blocked).
+	// Both elites (HP=10) and drones (HP=10) die in one fireball hit. One cast clears all.
 	initialSpellWorkflow: {
 		nodes: [
-			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			{ id: 'si',     type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// Player position
-			{ id: 'f-gp',   type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
-			{ id: 'f-pp',   type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gp',  type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',  type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
 			// getAllEnemies → forEach → out
-			{ id: 'f-gae',  type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
-			{ id: 'f-fe',   type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach', displayName: 'forEach', namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'out',    type: 'output',           position: { x:  540, y: 200 }, data: { label: 'Output' } },
-			// Lambda: hit(eid) — damageEntity then spawnFireball, chained via state return
-			{ id: 'lam',    type: 'lambdaDef',        position: { x:   60, y: 420 }, data: { functionName: 'hit', params: ['eid'] } },
+			{ id: 'f-gae', type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-fe',  type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach', displayName: 'forEach', namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',   type: 'output',           position: { x:  540, y: 200 }, data: { label: 'Output' } },
+			// Lambda: hit(eid) — spawnFireball toward enemy
+			{ id: 'lam',   type: 'lambdaDef',        position: { x:   60, y: 420 }, data: { functionName: 'hit', params: ['eid'] } },
 			// Enemy position → direction vector
-			{ id: 'f-ep',   type: 'dynamicFunction', position: { x:  200, y: 500 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-sub',  type: 'dynamicFunction', position: { x:  400, y: 500 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
-			{ id: 'f-norm', type: 'dynamicFunction', position: { x:  600, y: 500 }, data: { functionName: 'vec::normalize', displayName: 'normalize', namespace: 'vec', params: ['v'] } },
-			// damageEntity returns state → pass as first arg to spawnFireball
-			{ id: 'lit-100',type: 'literal',          position: { x:  200, y: 640 }, data: { value: 100 } },
-			{ id: 'f-dmg',  type: 'dynamicFunction', position: { x:  380, y: 640 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
-			{ id: 'f-sfb',  type: 'dynamicFunction', position: { x:  640, y: 580 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
-			{ id: 'fout',   type: 'functionOut',      position: { x:  880, y: 420 }, data: { lambdaId: 'lam' } },
+			{ id: 'f-ep',  type: 'dynamicFunction', position: { x:  200, y: 500 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-sub', type: 'dynamicFunction', position: { x:  400, y: 500 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
+			{ id: 'f-norm',type: 'dynamicFunction', position: { x:  600, y: 500 }, data: { functionName: 'vec::normalize', displayName: 'normalize', namespace: 'vec', params: ['v'] } },
+			// spawnFireball: state, player position, normalized direction
+			{ id: 'f-sfb', type: 'dynamicFunction', position: { x:  640, y: 580 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
+			{ id: 'fout',  type: 'functionOut',      position: { x:  880, y: 420 }, data: { lambdaId: 'lam' } },
 		],
 		edges: [
 			// Player position
-			{ id: 'e1',  source: 'si',      target: 'f-gp',  targetHandle: 'arg0' },
-			{ id: 'e2',  source: 'si',      target: 'f-pp',  targetHandle: 'arg0' },
-			{ id: 'e3',  source: 'f-gp',   target: 'f-pp',  targetHandle: 'arg1' },
+			{ id: 'e1',  source: 'si',     target: 'f-gp',  targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',     target: 'f-pp',  targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',  target: 'f-pp',  targetHandle: 'arg1' },
 			// getAllEnemies → forEach → out
-			{ id: 'e4',  source: 'si',      target: 'f-gae', targetHandle: 'arg0' },
-			{ id: 'e5',  source: 'f-gae',  target: 'f-fe',  targetHandle: 'arg0' },
-			{ id: 'e6',  source: 'fout',   sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
-			{ id: 'e7',  source: 'f-fe',   target: 'out',   targetHandle: 'value' },
+			{ id: 'e4',  source: 'si',     target: 'f-gae', targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-gae', target: 'f-fe',  targetHandle: 'arg0' },
+			{ id: 'e6',  source: 'fout',  sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e7',  source: 'f-fe',  target: 'out',   targetHandle: 'value' },
 			// Lambda body — enemy position → direction
-			{ id: 'e8',  source: 'si',     target: 'f-ep',  targetHandle: 'arg0' },
-			{ id: 'e9',  source: 'lam',    sourceHandle: 'param0', target: 'f-ep', targetHandle: 'arg1' },
-			{ id: 'e10', source: 'f-ep',   target: 'f-sub', targetHandle: 'arg0' },
-			{ id: 'e11', source: 'f-pp',   target: 'f-sub', targetHandle: 'arg1' },
-			{ id: 'e12', source: 'f-sub',  target: 'f-norm',targetHandle: 'arg0' },
-			// damageEntity
-			{ id: 'e13', source: 'si',     target: 'f-dmg', targetHandle: 'arg0' },
-			{ id: 'e14', source: 'lam',    sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
-			{ id: 'e15', source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
-			// spawnFireball uses damageEntity's returned state — forces both into evaluation chain
-			{ id: 'e16', source: 'f-dmg',  target: 'f-sfb', targetHandle: 'arg0' },
-			{ id: 'e17', source: 'f-pp',   target: 'f-sfb', targetHandle: 'arg1' },
-			{ id: 'e18', source: 'f-norm', target: 'f-sfb', targetHandle: 'arg2' },
-			{ id: 'e19', source: 'f-sfb',  target: 'fout',  targetHandle: 'value' },
+			{ id: 'e8',  source: 'si',    target: 'f-ep',  targetHandle: 'arg0' },
+			{ id: 'e9',  source: 'lam',   sourceHandle: 'param0', target: 'f-ep', targetHandle: 'arg1' },
+			{ id: 'e10', source: 'f-ep',  target: 'f-sub', targetHandle: 'arg0' },
+			{ id: 'e11', source: 'f-pp',  target: 'f-sub', targetHandle: 'arg1' },
+			{ id: 'e12', source: 'f-sub', target: 'f-norm',targetHandle: 'arg0' },
+			// spawnFireball: state directly, player position, normalized direction
+			{ id: 'e13', source: 'si',    target: 'f-sfb', targetHandle: 'arg0' },
+			{ id: 'e14', source: 'f-pp',  target: 'f-sfb', targetHandle: 'arg1' },
+			{ id: 'e15', source: 'f-norm',target: 'f-sfb', targetHandle: 'arg2' },
+			{ id: 'e16', source: 'f-sfb', target: 'fout',  targetHandle: 'value' },
 		],
 	},
 }
@@ -124,7 +113,7 @@ export class Level30 extends BaseScene {
 		this.levelWon = false
 		this.levelFailed = false
 
-		// 4 red elites (HP=80) in top half — shielded, need fireballs
+		// 4 red elites (HP=10) in top half — shielded, need fireballs
 		const elitePositions = [
 			{ x: 160, y: 140 }, { x: 360, y: 130 },
 			{ x: 580, y: 140 }, { x: 780, y: 130 },
@@ -133,7 +122,7 @@ export class Level30 extends BaseScene {
 			this.spawnElite(pos.x, pos.y)
 		}
 
-		// 4 grey drones (HP=30) in bottom half — normal enemies
+		// 4 grey drones (HP=10) in bottom half — also killed by fireballs
 		const dronePositions = [
 			{ x: 200, y: 460 }, { x: 400, y: 470 },
 			{ x: 600, y: 460 }, { x: 800, y: 470 },
@@ -142,10 +131,9 @@ export class Level30 extends BaseScene {
 			this.spawnDrone(pos.x, pos.y)
 		}
 
-		// Drones are fireball-immune: must be killed by damageEntity only
-		// (Elites are NOT immune — fireballs bypass their shield and kill them)
-		const droneEids = new Set(this.enemies.filter(e => e.role === 'drone').map(e => e.eid))
-		this.world.resources.levelData!['fireballImmuneEids'] = droneEids
+		// All enemies can be hit by fireballs.
+		// Elites have a SHIELD (onDamage hook) that blocks damageEntity — only fireballs work on them.
+		// Drones have no shield — both damageEntity and fireballs work.
 
 		// onDamage hook: shield elites from direct damageEntity
 		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
@@ -166,7 +154,7 @@ export class Level30 extends BaseScene {
 				})
 				this.setTaskInfo('Combined Assault', [
 					'RED elites: use spawnFireball (shield blocks damageEntity)',
-					'GREY drones: use damageEntity directly',
+					'GREY drones: fireballs work too!',
 					'⚠ Shield deflected — use fireballs for red enemies!',
 				])
 			}
@@ -184,18 +172,17 @@ export class Level30 extends BaseScene {
 		this.showInstruction(
 			'【Combined Assault — Synthesis I】\n\n' +
 			'RED elites (HP=10, TOP): Their SHIELD blocks damageEntity!\n' +
-			'  → Must use spawnFireball(state, direction) to bypass.\n' +
+			'  → Must use spawnFireball(state, position, direction) to bypass.\n' +
 			'  Direction = normalize(subtract(enemyPos, playerPos))\n\n' +
-			'GREY drones (HP=30, BOTTOM): Normal damageEntity works.\n\n' +
-			'No scaffolding — build the full spell yourself:\n' +
-			'  filter + map + forEach for elites\n' +
-			'  filter + forEach for drones\n\n' +
+			'GREY drones (HP=10, BOTTOM): Fireballs also work on them!\n\n' +
+			'Use forEach + spawnFireball for ALL enemies:\n' +
+			'  getAllEnemies → forEach → spawnFireball toward each\n\n' +
 			'Press SPACE to cast.'
 		)
 
 		this.setTaskInfo('Combined Assault', [
 			'RED elites: use spawnFireball (shield blocks damageEntity)',
-			'GREY drones: use damageEntity directly',
+			'GREY drones: fireballs work too!',
 			`Remaining: ${this.enemies.length} / 8`,
 		])
 	}
@@ -260,7 +247,7 @@ export class Level30 extends BaseScene {
 
 	private spawnDrone(x: number, y: number): TrackedEnemy {
 		const size = 16
-		const hp = 30
+		const hp = 10
 		const color = 0x888888
 		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(2, color)
 		const label = this.add.text(x, y - size - 10, 'DRONE', {
@@ -290,10 +277,10 @@ export class Level30 extends BaseScene {
 		this.showInstruction(
 			'All enemies eliminated!\n\n' +
 			'SYNTHESIS COMPLETE:\n' +
-			'  ✓ filter — separated elites from drones\n' +
-			'  ✓ map — transformed eids to direction vectors\n' +
-			'  ✓ forEach — applied the correct action to each group\n' +
-			'  ✓ spawnFireball — bypassed shield with ranged attack\n\n' +
+			'  ✓ forEach — iterated over all enemies\n' +
+			'  ✓ getEntityPosition — located each enemy\n' +
+			'  ✓ normalize + subtract — computed attack directions\n' +
+			'  ✓ spawnFireball — bypassed elite shield, killed all targets\n\n' +
 			'One more challenge awaits — the final trial!'
 		)
 	}
