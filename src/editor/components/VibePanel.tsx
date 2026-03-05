@@ -89,21 +89,34 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 
 	const useMock = model === MOCK_MODEL_ID;
 
+	useEffect(() => {
+		console.warn('[Vibe] Panel ready. Click Generate and watch for [Vibe] logs here.');
+	}, []);
+
 	const handleBuild = async () => {
 		const trimmed = text.trim();
-		if (!trimmed) return;
+		console.log('[Vibe] Build clicked', { hasText: !!trimmed, model, useMock, hasKey: !!(apiKey?.trim()) });
+		if (!trimmed) {
+			console.log('[Vibe] Build skipped: no text');
+			return;
+		}
 		if (!useMock && !sanitizeApiKey(apiKey)) {
 			setError('Please enter your API key (or choose Mock for testing without API).');
+			console.log('[Vibe] Build skipped: no API key');
 			return;
 		}
 		setError(null);
 		setLoading(true);
 		try {
+			console.log('[Vibe] Calling onGenerate...');
 			const result = await onGenerate(trimmed, useMock ? '' : sanitizeApiKey(apiKey), model);
+			console.log('[Vibe] onGenerate done', { nodesCount: result?.nodes?.length, edgesCount: result?.edges?.length });
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
 			setText('');
 		} catch (e) {
-			setError(e instanceof Error ? e.message : String(e));
+			console.error('[Vibe] Build failed', e);
+			const msg = e instanceof Error ? e.message : String(e);
+			setError(msg + ' (See F12 Console for details.)');
 		} finally {
 			setLoading(false);
 		}

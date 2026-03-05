@@ -11,6 +11,8 @@ import ReactFlow, {
 	addEdge,
 	useReactFlow,
 	ReactFlowProvider,
+	useNodesState,
+	useEdgesState,
 	type Connection,
 	type Edge,
 	type Node,
@@ -111,13 +113,21 @@ function bumpNodeIdCounterFromNodes(nodes: Node[]) {
 
 type FlowState = { nodes: Node[]; edges: Edge[] };
 
-// Uncontrolled mode: React Flow manages nodes/edges internally during drag - no parent re-renders.
-// We only sync to our undo history on explicit actions (drag stop, add, delete, connect).
+// Controlled nodes/edges so that setNodes/setEdges (e.g. from Vibe Build) reliably update the view.
 function EditorContent(props: FunctionalEditorProps) {
 	const isLibraryMode = props.isLibraryMode ?? Boolean(props.onExit && props.initialSpellId !== null)
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
-	const defaultNodes = useMemo(() => startingFlow?.nodes || defaultNewFlow.nodes, [startingFlow]);
-	const defaultEdges = useMemo(() => startingFlow?.edges || defaultNewFlow.edges, [startingFlow]);
+	const initialNodes = useMemo(() => startingFlow?.nodes ?? defaultNewFlow.nodes, [startingFlow]);
+	const initialEdges = useMemo(() => startingFlow?.edges ?? defaultNewFlow.edges, [startingFlow]);
+
+	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+	// Sync to initial flow when opening a different spell
+	useEffect(() => {
+		setNodes(initialNodes);
+		setEdges(initialEdges);
+	}, [initialNodes, initialEdges, setNodes, setEdges]);
 
 	// Custom undo/redo - sync with React Flow instance, no state updates during drag
 	const pastRef = useRef<FlowState[]>([]);
@@ -126,7 +136,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	const historyAllowedRef = useRef(false);
 	const [hasUserActed, setHasUserActed] = useState(false);
 
-	const { setNodes, setEdges, getNodes, getEdges, screenToFlowPosition, getNode, toObject } = useReactFlow();
+	const { getNodes, getEdges, screenToFlowPosition, getNode, toObject } = useReactFlow();
 
 	const pushUndo = useCallback(() => {
 		const nodes = getNodes();
@@ -780,14 +790,17 @@ function EditorContent(props: FunctionalEditorProps) {
 
 	// Vibe: frontend-only OpenRouter API; full graph is always sent for Build so model can return complete updated graph (in-place).
 	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, model?: string) => {
+		console.log('[Vibe] handleVibeGenerate', { model, hasKey: !!apiKey?.trim() });
 		const useMock = model === MOCK_MODEL_ID;
 		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
 		const currentNodes = getNodes();
 		const currentEdges = getEdges();
+		console.log('[Vibe] Calling vibeBuild...');
 		const { nodes, edges } = await vibeBuild(userText, apiKey ?? '', model, {
 			nodes: currentNodes,
 			edges: currentEdges,
 		});
+		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length });
 		return {
 			nodes: nodes as Node[],
 			edges: edges as Edge[],
@@ -814,7 +827,7 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		if (options?.replace) {
 			// Replace entire graph (e.g. "update the spell") — normalize so ReactFlow never gets invalid shape
-			const normNodes = vibeNodes.map((n, i) => ({
+			const normNodes: Node[] = vibeNodes.map((n, i) => ({
 				...n,
 				id: typeof n.id === 'string' ? n.id : `node-${i}`,
 				type: (typeof n.type === 'string' ? n.type : 'literal') as Node['type'],
@@ -822,12 +835,14 @@ function EditorContent(props: FunctionalEditorProps) {
 					? { x: Number((n.position as { x: number }).x) || 0, y: Number((n.position as { y: number }).y) || 0 }
 					: { x: 0, y: 0 },
 				data: (n.data && typeof n.data === 'object' ? n.data : {}) as Record<string, unknown>,
+				selected: false,
 			}));
-			const normEdges = vibeEdges.map((e, i) => ({
+			const normEdges: Edge[] = vibeEdges.map((e, i) => ({
 				...e,
 				id: typeof e.id === 'string' ? e.id : `e-${i}`,
 				source: String(e.source ?? ''),
 				target: String(e.target ?? ''),
+				selected: false,
 			}));
 			setNodes(normNodes);
 			setEdges(normEdges);
@@ -1027,8 +1042,10 @@ function EditorContent(props: FunctionalEditorProps) {
 				>
 					<ReactFlow
 						key={props.initialSpellId ?? 'new'}
-						defaultNodes={defaultNodes}
-						defaultEdges={defaultEdges}
+						nodes={nodes}
+						edges={edges}
+						onNodesChange={onNodesChange}
+						onEdgesChange={onEdgesChange}
 						onPaneClick={onPaneClick}
 						onNodeContextMenu={onNodeContextMenu}
 						onEdgeContextMenu={onEdgeContextMenu}

@@ -65,11 +65,30 @@ function mockAsk(question: string, nodes: unknown[], edges: unknown[]): { explan
 	};
 }
 
+/** Extract JSON string from model output. Handles text before/after, code blocks anywhere, or raw JSON. */
 function extractJsonFromRaw(raw: string): string {
-	let jsonStr = raw.trim();
-	const codeMatch = raw.match(/^```(?:json)?\s*([\s\S]*?)```$/);
-	if (codeMatch) jsonStr = codeMatch[1].trim();
-	return jsonStr;
+	const s = raw.trim();
+	// 1) Code block anywhere (e.g. "Here is the graph:\n```json\n{...}\n```")
+	const blockMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+	if (blockMatch) {
+		const candidate = blockMatch[1].trim();
+		if (candidate.startsWith('{')) return candidate;
+	}
+	// 2) Whole string is JSON object
+	if (s.startsWith('{')) return s;
+	// 3) Find first { and try to parse to matching }
+	const start = s.indexOf('{');
+	if (start !== -1) {
+		let depth = 0;
+		for (let i = start; i < s.length; i++) {
+			if (s[i] === '{') depth++;
+			else if (s[i] === '}') {
+				depth--;
+				if (depth === 0) return s.slice(start, i + 1);
+			}
+		}
+	}
+	return s;
 }
 
 function mapResponseError(res: Response, body: unknown): string {
@@ -98,28 +117,62 @@ async function callOpenRouter(
 	userContent: string,
 	opts: { temperature?: number; maxTokens?: number }
 ): Promise<string> {
-	const res = await fetch(OPENROUTER_URL, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			Authorization: `Bearer ${apiKey}`,
-			'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
-		},
-		body: JSON.stringify({
-			model,
-			messages: [
-				{ role: 'system', content: systemPrompt },
-				{ role: 'user', content: userContent },
-			],
-			temperature: opts.temperature ?? 0.2,
-			max_tokens: opts.maxTokens ?? 4096,
-		}),
-	});
-	const data = (await res.json().catch(() => ({}))) as { choices?: Array<{ message?: { content?: string } }>; error?: unknown };
-	if (!res.ok) {
-		throw new Error(mapResponseError(res, data));
+	console.log('[Vibe] fetch start', { url: OPENROUTER_URL, model });
+	let res: Response;
+	try {
+		res = await fetch(OPENROUTER_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${apiKey}`,
+				'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : '',
+			},
+			body: JSON.stringify({
+				model,
+				messages: [
+					{ role: 'system', content: systemPrompt },
+					{ role: 'user', content: userContent },
+				],
+				temperature: opts.temperature ?? 0.2,
+				max_tokens: opts.maxTokens ?? 8192,
+			}),
+		});
+	} catch (e) {
+		console.error('[Vibe] fetch threw', e);
+		const msg = e instanceof Error ? e.message : String(e);
+		if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+			throw new Error('Network error. OpenRouter allows browser requests; check the browser console (F12) for CORS or connection details.');
+		}
+		throw e;
 	}
-	const text = data.choices?.[0]?.message?.content?.trim() ?? '';
+	console.log('[Vibe] fetch done', res.status, res.ok);
+	const data = (await res.json().catch((e) => {
+		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] OpenRouter response not JSON:', e);
+		return {};
+	})) as { choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>; error?: unknown };
+	if (!res.ok) {
+		const errMsg = mapResponseError(res, data);
+		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] OpenRouter error:', res.status, data);
+		throw new Error(errMsg);
+	}
+	const content = data.choices?.[0]?.message?.content;
+	let text = typeof content === 'string'
+		? content.trim()
+		: Array.isArray(content)
+			? content
+					.map((p) => {
+						if (!p || typeof p !== 'object') return '';
+						const part = p as Record<string, unknown>;
+						if (typeof part.text === 'string') return part.text;
+						if (typeof part.content === 'string') return part.content;
+						return '';
+					})
+					.join('')
+					.trim()
+			: '';
+	if (!text && data && typeof console !== 'undefined' && console.warn) {
+		console.warn('[Vibe] OpenRouter returned empty content. Full response:', JSON.stringify(data).slice(0, 500));
+	}
 	return text;
 }
 
@@ -131,34 +184,42 @@ export async function vibeBuild(
 	options?: { nodes?: unknown[]; edges?: unknown[] }
 ): Promise<{ nodes: unknown[]; edges: unknown[] }> {
 	const m = normalizeModel(model);
+	console.log('[Vibe] vibeBuild', { model: m, hasOptions: !!(options?.nodes && options?.edges) });
 	if (m === MOCK_MODEL_ID) {
+		console.log('[Vibe] Using mock');
 		await new Promise((r) => setTimeout(r, 400));
 		return mockBuild(options);
 	}
 	const prompt = buildVibePrompt(text.trim(), options?.nodes && options?.edges ? { nodes: options.nodes, edges: options.edges } : undefined);
 	const systemPrompt = 'You output only valid JSON with keys "nodes" and "edges". No other text.';
+	console.log('[Vibe] Calling OpenRouter...', OPENROUTER_URL);
 	let raw: string;
 	try {
-		raw = await callOpenRouter(apiKey, m, systemPrompt, prompt, { temperature: 0.2, maxTokens: 4096 });
+		raw = await callOpenRouter(apiKey, m, systemPrompt, prompt, { temperature: 0.2, maxTokens: 8192 });
 	} catch (e) {
 		const message = e instanceof Error ? e.message : String(e);
+		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build request failed:', e);
 		if (message.includes('JSON') || message.includes('valid')) {
 			throw new Error('Model did not return valid JSON. Try rephrasing.');
 		}
 		throw e;
 	}
 	if (!raw) {
-		throw new Error('Empty response from model');
+		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build: empty response from model. Check OpenRouter response shape in Network tab.');
+		throw new Error('Empty response from model. Try another model (e.g. OpenAI GPT-4o mini) or check browser Network tab (F12).');
 	}
 	const jsonStr = extractJsonFromRaw(raw);
 	let parsed: { nodes?: unknown; edges?: unknown };
 	try {
 		parsed = JSON.parse(jsonStr) as { nodes?: unknown; edges?: unknown };
-	} catch {
-		throw new Error('Model did not return valid JSON. Try rephrasing.');
+	} catch (parseErr) {
+		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build: JSON parse failed. Raw (first 500 chars):', raw.slice(0, 500), parseErr);
+		const hint = jsonStr.length > 150 ? `${jsonStr.slice(0, 150)}...` : jsonStr;
+		throw new Error(`Model did not return valid JSON. Snippet: ${hint}`);
 	}
 	if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
-		throw new Error('Response must contain "nodes" and "edges" arrays');
+		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build: response missing nodes/edges arrays:', parsed);
+		throw new Error('Response must contain "nodes" and "edges" arrays. Try model "OpenAI GPT-4o Mini" or "Claude 3.5 Haiku" via OpenRouter.');
 	}
 	return normalizeGraphResponse(parsed.nodes, parsed.edges);
 }
