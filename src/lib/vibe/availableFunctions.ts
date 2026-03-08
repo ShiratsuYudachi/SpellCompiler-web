@@ -44,7 +44,7 @@ export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayN
 	{ fullName: 'game::getNearbyEnemies', params: ['state', 'position', 'radius'], displayName: 'getNearbyEnemies' },
 	{ fullName: 'game::getAllEnemies', params: ['state'], displayName: 'getAllEnemies' },
 	{ fullName: 'game::damageEntity', params: ['state', 'entity', 'amount'], displayName: 'damageEntity' },
-	{ fullName: 'game::spawnFireball', params: ['state', 'direction'], displayName: 'spawnFireball' },
+	{ fullName: 'game::spawnFireball', params: ['state', 'position', 'direction'], displayName: 'spawnFireball' },
 	{ fullName: 'game::healEntity', params: ['state', 'entity', 'amount'], displayName: 'healEntity' },
 	{ fullName: 'game::teleportRelative', params: ['state', 'entity', 'delta'], displayName: 'teleportRelative' },
 	{ fullName: 'game::emitEvent', params: ['state', 'eventName'], displayName: 'emitEvent' },

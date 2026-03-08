@@ -137,7 +137,7 @@ export class Level25 extends BaseScene {
 			const q = quadrants[i]
 			const x = Math.floor(Math.random() * (q.maxX - q.minX)) + q.minX
 			const y = Math.floor(Math.random() * (q.maxY - q.minY)) + q.minY
-			this.spawnEnemy(x, y, colors[i], 40)
+			this.spawnEnemy(x, y, colors[i], 10)
 		}
 	}
 
