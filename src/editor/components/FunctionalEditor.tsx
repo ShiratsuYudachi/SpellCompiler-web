@@ -50,7 +50,8 @@ import { EventListPanel } from './EventListPanel'
 import { useEditorClipboard } from './hooks/useEditorClipboard'
 import { useEditorShortcut } from './hooks/useEditorShortcut'
 import { VibePanel } from './VibePanel'
-import { vibeBuild, vibeAsk, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi'
+import { vibeBuild, vibeAsk, MOCK_MODEL_ID, type LevelContext } from '../../lib/vibe/vibeApi'
+import type { LevelMeta } from '../../game/levels/LevelRegistry'
 
 // Define node types
 const nodeTypes = {
@@ -76,6 +77,7 @@ export type FunctionalEditorProps = {
 	backButtonText?: string
 	isLibraryMode?: boolean
 	onBeforeExit?: () => void
+	levelMeta?: LevelMeta
 }
 
 const defaultNewFlow: FlowSnapshot = {
@@ -789,8 +791,20 @@ function EditorContent(props: FunctionalEditorProps) {
 	};
 
 	// Vibe: frontend-only OpenRouter API; full graph is always sent for Build so model can return complete updated graph (in-place).
+	// useMemo so the object reference is stable — avoids unnecessary useCallback rebuilds on every render.
+	const levelContext: LevelContext | undefined = useMemo(() =>
+		props.levelMeta ? {
+			key: props.levelMeta.key,
+			objectives: props.levelMeta.objectives,
+			hints: props.levelMeta.hints,
+			allowedNodeTypes: props.levelMeta.allowedNodeTypes,
+			maxSpellCasts: props.levelMeta.maxSpellCasts,
+			editorRestrictions: props.levelMeta.editorRestrictions,
+		} : undefined,
+	[props.levelMeta]);
+
 	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, model?: string) => {
-		console.log('[Vibe] handleVibeGenerate', { model, hasKey: !!apiKey?.trim() });
+		console.log('[Vibe] handleVibeGenerate', { model, hasKey: !!apiKey?.trim(), level: levelContext?.key });
 		const useMock = model === MOCK_MODEL_ID;
 		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
 		const currentNodes = getNodes();
@@ -799,22 +813,22 @@ function EditorContent(props: FunctionalEditorProps) {
 		const { nodes, edges } = await vibeBuild(userText, apiKey ?? '', model, {
 			nodes: currentNodes,
 			edges: currentEdges,
-		});
+		}, levelContext);
 		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length });
 		return {
 			nodes: nodes as Node[],
 			edges: edges as Edge[],
 			wasUpdate: currentNodes.length > 0 || currentEdges.length > 0,
 		};
-	}, [getNodes, getEdges]);
+	}, [getNodes, getEdges, levelContext]);
 
 	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, model?: string) => {
 		const useMock = model === MOCK_MODEL_ID;
 		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
 		const nodes = getNodes();
 		const edges = getEdges();
-		return vibeAsk(userText, nodes, edges, apiKey ?? '', model);
-	}, [getNodes, getEdges]);
+		return vibeAsk(userText, nodes, edges, apiKey ?? '', model, levelContext);
+	}, [getNodes, getEdges, levelContext]);
 
 	const applyVibeFlow = useCallback((
 		vibeNodes: Node[],
@@ -1126,6 +1140,7 @@ function EditorContent(props: FunctionalEditorProps) {
 								onGenerate={handleVibeGenerate}
 								onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
 								onAsk={handleVibeAsk}
+								hasExistingNodes={nodes.length > 0}
 							/>
 						</div>
 					</aside>

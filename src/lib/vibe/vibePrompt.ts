@@ -1,5 +1,139 @@
 import { AVAILABLE_FUNCTIONS } from './availableFunctions';
 
+/** Minimal level context passed to the AI so it understands the current challenge. */
+export type LevelContext = {
+	key: string
+	objectives?: Array<{ description?: string; id?: string; type?: string }>
+	hints?: string[]
+	allowedNodeTypes?: string[]
+	maxSpellCasts?: number
+	editorRestrictions?: RegExp
+}
+
+function buildLevelSection(level: LevelContext): string {
+	const lines: string[] = [
+		`=== LEVEL CONTEXT: ${level.key} ===`,
+	];
+	if (level.objectives?.length) {
+		lines.push(`Objectives: ${level.objectives.map(o => o.description ?? o.id ?? '').filter(Boolean).join('; ')}`);
+	}
+	if (level.hints?.length) {
+		lines.push('Hints from the level designer:');
+		level.hints.forEach(h => lines.push(`  - ${h}`));
+	}
+	if (level.maxSpellCasts !== undefined) {
+		lines.push(`Max spell casts: ${level.maxSpellCasts} (keep the spell efficient!)`);
+	}
+	if (level.allowedNodeTypes?.length) {
+		lines.push(`Allowed node types: ${level.allowedNodeTypes.join(', ')}`);
+	}
+	if (level.editorRestrictions) {
+		lines.push(`Allowed function name pattern: ${level.editorRestrictions.toString()}`);
+	}
+	lines.push('=== END LEVEL CONTEXT ===');
+	return lines.join('\n');
+}
+
+// ─── Typed helpers for graph analysis ────────────────────────────────────────
+type StrippedNode = { id: string; type: string; data: Record<string, unknown> }
+type StrippedEdge = { id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }
+
+/**
+ * Analyse an existing graph and return:
+ * - A human-readable node inventory (id → what it does)
+ * - A list of unconnected required handles ("missing connections")
+ * - The flat list of existing node IDs (so the AI can't claim ignorance)
+ */
+function analyzeExistingGraph(nodes: unknown[], edges: unknown[]): {
+	inventoryText: string
+	missingText: string
+	nodeIds: string[]
+} {
+	const nodeList = (Array.isArray(nodes) ? nodes : []) as StrippedNode[]
+	const edgeList = (Array.isArray(edges) ? edges : []) as StrippedEdge[]
+
+	// Build set of occupied target handles: "nodeId::handleName"
+	const connectedTargets = new Set(
+		edgeList.map(e => `${e.target}::${e.targetHandle ?? 'value'}`)
+	)
+
+	// ── Node inventory ────────────────────────────────────────────────────────
+	const invLines: string[] = []
+	for (const n of nodeList) {
+		const d = (n.data ?? {}) as Record<string, unknown>
+		let desc = ''
+		if (n.type === 'dynamicFunction') {
+			const params = Array.isArray(d.params) ? (d.params as string[]) : []
+			const argList = params.map((p, i) => `arg${i}=${p}`).join(', ')
+			desc = `${String(d.functionName ?? '?')} (${argList})`
+		} else if (n.type === 'literal') {
+			desc = `value = ${JSON.stringify(d.value)}`
+		} else if (n.type === 'spellInput') {
+			const params = Array.isArray(d.params) ? (d.params as string[]) : []
+			desc = `inputs: [${params.join(', ')}] → source handles: ${params.map((_, i) => `param-${i}`).join(', ')}`
+		} else if (n.type === 'lambdaDef') {
+			const params = Array.isArray(d.params) ? (d.params as string[]) : []
+			desc = `"${String(d.functionName ?? '')}" params=[${params.join(', ')}] → source handles: ${params.map((_, i) => `param${i}`).join(', ')}`
+		} else if (n.type === 'functionOut') {
+			desc = `return value for lambda "${String(d.lambdaId ?? '')}" — needs "value" target handle`
+		} else if (n.type === 'output') {
+			desc = `final spell output — needs "value" target handle`
+		} else if (n.type === 'if') {
+			desc = `condition/then/else branches → source handle: result`
+		} else if (n.type === 'vector') {
+			desc = `x=${d.x}, y=${d.y}`
+		}
+		invLines.push(`  "${n.id}" → ${n.type}${desc ? ': ' + desc : ''}`)
+	}
+
+	// ── Missing connections ───────────────────────────────────────────────────
+	const missing: string[] = []
+	for (const n of nodeList) {
+		const d = (n.data ?? {}) as Record<string, unknown>
+
+		if (n.type === 'dynamicFunction') {
+			const params = Array.isArray(d.params) ? (d.params as string[]) : []
+			params.forEach((pName, i) => {
+				if (!connectedTargets.has(`${n.id}::arg${i}`)) {
+					missing.push(`  "${n.id}" (${String(d.functionName ?? '?')}): arg${i} (${pName}) — no incoming edge`)
+				}
+			})
+		} else if (n.type === 'output') {
+			if (!connectedTargets.has(`${n.id}::value`)) {
+				missing.push(`  "${n.id}" (output): "value" handle — no incoming edge  ← spell has no result!`)
+			}
+		} else if (n.type === 'functionOut') {
+			if (!connectedTargets.has(`${n.id}::value`)) {
+				missing.push(`  "${n.id}" (functionOut for "${String(d.lambdaId ?? '')}"): "value" handle — lambda body is empty!`)
+			}
+		} else if (n.type === 'if') {
+			for (const h of ['condition', 'then', 'else'] as const) {
+				if (!connectedTargets.has(`${n.id}::${h}`)) {
+					missing.push(`  "${n.id}" (if): "${h}" handle — no incoming edge`)
+				}
+			}
+		} else if (n.type === 'applyFunc') {
+			const count = typeof d.paramCount === 'number' ? d.paramCount : 0
+			if (!connectedTargets.has(`${n.id}::func`)) {
+				missing.push(`  "${n.id}" (applyFunc): "func" handle — no function connected`)
+			}
+			for (let i = 0; i < count; i++) {
+				if (!connectedTargets.has(`${n.id}::arg${i}`)) {
+					missing.push(`  "${n.id}" (applyFunc): arg${i} — no incoming edge`)
+				}
+			}
+		}
+	}
+
+	return {
+		inventoryText: invLines.length > 0 ? invLines.join('\n') : '  (empty graph)',
+		missingText: missing.length > 0
+			? missing.join('\n')
+			: '  (none — graph may already be complete)',
+		nodeIds: nodeList.map(n => n.id),
+	}
+}
+
 /** Strip to minimal shape for the LLM (no ReactFlow internals); keeps prompt smaller and structure clear. */
 export function stripGraphForPrompt(nodes: unknown[], edges: unknown[]): { nodes: unknown[]; edges: unknown[] } {
 	const nodeList = Array.isArray(nodes) ? nodes : [];
@@ -47,9 +181,18 @@ There must be exactly one "output" node. The main expression connects TO the out
 Spell input parameters come from a spellInput node; use its source handles param-0, param-1 for each parameter.
 `;
 
+/** Instruction injected when the user explicitly wants to complete/wire an existing graph. */
+export const COMPLETE_SPELL_INSTRUCTION =
+	'Complete all missing connections in the current spell to make it work. ' +
+	'Wire up every unconnected node input. ' +
+	'You may add new literal/lambdaDef/functionOut/if/vector nodes if they are needed as values or predicates. ' +
+	'You may also add new dynamicFunction nodes, but ONLY using functionNames from the Available Functions list. ' +
+	'Reuse existing nodes wherever possible — do not duplicate nodes that already serve the same purpose.';
+
 export function buildVibePrompt(
 	userText: string,
-	currentGraph?: { nodes: unknown[]; edges: unknown[] }
+	currentGraph?: { nodes: unknown[]; edges: unknown[] },
+	levelContext?: LevelContext
 ): string {
 	const fnList = AVAILABLE_FUNCTIONS.map((f) => `${f.fullName}(${f.params.join(', ')})`).join('\n');
 
@@ -59,24 +202,45 @@ export function buildVibePrompt(
 		Array.isArray(currentGraph.edges) &&
 		(currentGraph.nodes.length > 0 || currentGraph.edges.length > 0);
 
-	const currentGraphSection = hasCurrentGraph
-		? `
-IMPORTANT: The user has an EXISTING graph below. They want to UPDATE or MODIFY it. You MUST output the COMPLETE updated graph (all nodes and all edges). Reuse the same node ids for nodes that stay the same. Only change what the user asked for. Do NOT generate a brand-new graph from scratch.
+	// Detect "complete/wire/fill" intent to apply stricter node-reuse rules
+	const isCompleteIntent = /\b(complet|fill.?in|wire|connect|补全|补齐|缺失|finish)\b/i.test(userText);
 
-Current graph:
+	let currentGraphSection = '';
+	let updateRule = '';
+
+	if (hasCurrentGraph) {
+		const stripped = stripGraphForPrompt(currentGraph!.nodes, currentGraph!.edges);
+		const { inventoryText, missingText } = analyzeExistingGraph(stripped.nodes, stripped.edges);
+
+		currentGraphSection = `
+⚠️  EXISTING GRAPH — RULES (violations will break the spell):
+1. FUNCTION NAME VALIDITY: For every dynamicFunction node, the "functionName" field MUST be a name from the "Available functions" list below. Never invent a function name (e.g. "game::getLevel" is not in the list → forbidden).
+2. NO DUPLICATES: If an existing node already serves the same purpose (same functionName OR same logical role), REUSE it — don't create a second copy.
+3. ${isCompleteIntent
+	? 'COMPLETE MODE: Wire up all unconnected inputs. You may add new literal/lambdaDef/functionOut/if nodes as values or predicates. You may add a new dynamicFunction ONLY if its name is in the Available Functions list AND no equivalent node already exists.'
+	: 'Only change what the user asked for. Keep everything else — nodes and edges — exactly as-is.'}
+4. Copy ALL existing edges into your output unchanged.
+5. Use the EXACT same node ids for existing nodes — do not rename or recreate them.
+
+NODE INVENTORY — every node that currently exists (reuse these exact ids):
+${inventoryText}
+
+MISSING CONNECTIONS — handles that have no incoming edge yet:
+${missingText}
+
+Full graph JSON (reference):
 \`\`\`json
-${JSON.stringify(stripGraphForPrompt(currentGraph.nodes, currentGraph.edges))}
+${JSON.stringify(stripped)}
 \`\`\`
 
-`
-		: '';
+`;
+		updateRule = '- Output the FULL graph (all nodes + all edges). Preserve existing node ids. Only add/remove/edit as the user requested.\n';
+	}
 
-	const updateRule = hasCurrentGraph
-		? '- Output the FULL graph (every node and edge). Preserve existing node ids when keeping nodes. Only add, remove, or edit as the user requested.\n'
-		: '';
+	const levelSection = levelContext ? `\n${buildLevelSection(levelContext)}\n` : '';
 
 	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with two keys: "nodes" and "edges".
-${currentGraphSection}
+${levelSection}${currentGraphSection}
 ${NODE_SCHEMA}
 
 Available functions (use exactly these fullName in dynamicFunction nodes):
@@ -89,6 +253,7 @@ ${updateRule}- Each node needs: id (unique string), type (one of the types above
 - Edges connect nodes: source/target are node ids; use sourceHandle and targetHandle when needed (e.g. targetHandle "value" for the output, "arg0"/"arg1" for function args, "condition"/"then"/"else" for if).
 - For game spells, include one spellInput node with params: ["state"] and connect state to game:: functions as first argument.
 - The final result must flow into the output node's "value" handle.
+- CRITICAL — dynamicFunction nodes: the "functionName" field MUST be one of the exact strings in the "Available functions" list above. Never use a function name that does not appear in that list.
 
 User request:
 ${userText}
@@ -96,7 +261,8 @@ ${userText}
 Respond with JSON only:`;
 }
 
-export function buildAskPrompt(question: string, nodes: unknown[], edges: unknown[]): string {
+export function buildAskPrompt(question: string, nodes: unknown[], edges: unknown[], levelContext?: LevelContext): string {
 	const graphSummary = JSON.stringify({ nodes, edges }, null, 0);
-	return `The user has a visual "Spell" graph (node-based editor). Here is the current graph as JSON:\n\n${graphSummary}\n\nUser question: ${question}\n\nProvide a clear, concise explanation in plain English. Do not output JSON.`;
+	const levelSection = levelContext ? `\n${buildLevelSection(levelContext)}\n` : '';
+	return `The user has a visual "Spell" graph (node-based editor).${levelSection}\nHere is the current graph as JSON:\n\n${graphSummary}\n\nUser question: ${question}\n\nProvide a clear, concise explanation in plain English. Do not output JSON.`;
 }
