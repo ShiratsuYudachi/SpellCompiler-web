@@ -3,7 +3,8 @@
  * No server required. Use your OpenRouter API key at https://openrouter.ai/keys
  */
 
-import { buildVibePrompt, buildAskPrompt } from './vibePrompt';
+import { buildVibePrompt, buildAskPrompt, type LevelContext } from './vibePrompt';
+export type { LevelContext };
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -181,7 +182,8 @@ export async function vibeBuild(
 	text: string,
 	apiKey: string,
 	model?: OpenRouterModelId | string,
-	options?: { nodes?: unknown[]; edges?: unknown[] }
+	options?: { nodes?: unknown[]; edges?: unknown[] },
+	levelContext?: LevelContext
 ): Promise<{ nodes: unknown[]; edges: unknown[] }> {
 	const m = normalizeModel(model);
 	console.log('[Vibe] vibeBuild', { model: m, hasOptions: !!(options?.nodes && options?.edges) });
@@ -190,7 +192,7 @@ export async function vibeBuild(
 		await new Promise((r) => setTimeout(r, 400));
 		return mockBuild(options);
 	}
-	const prompt = buildVibePrompt(text.trim(), options?.nodes && options?.edges ? { nodes: options.nodes, edges: options.edges } : undefined);
+	const prompt = buildVibePrompt(text.trim(), options?.nodes && options?.edges ? { nodes: options.nodes, edges: options.edges } : undefined, levelContext);
 	const systemPrompt = 'You output only valid JSON with keys "nodes" and "edges". No other text.';
 	console.log('[Vibe] Calling OpenRouter...', OPENROUTER_URL);
 	let raw: string;
@@ -259,14 +261,15 @@ export async function vibeAsk(
 	nodes: unknown[],
 	edges: unknown[],
 	apiKey: string,
-	model?: OpenRouterModelId | string
+	model?: OpenRouterModelId | string,
+	levelContext?: LevelContext
 ): Promise<{ explanation: string }> {
 	const m = normalizeModel(model);
 	if (m === MOCK_MODEL_ID) {
 		await new Promise((r) => setTimeout(r, 300));
 		return mockAsk(question, nodes, edges);
 	}
-	const userContent = buildAskPrompt(question.trim(), nodes, edges);
+	const userContent = buildAskPrompt(question.trim(), nodes, edges, levelContext);
 	const systemPrompt = "You explain visual programming graphs in plain English. Answer the user's question about their graph clearly and concisely. Do not output code or JSON unless asked.";
 	const raw = await callOpenRouter(apiKey, m, systemPrompt, userContent, { temperature: 0.3, maxTokens: 2048 });
 	if (!raw) {

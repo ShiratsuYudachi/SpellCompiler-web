@@ -128,6 +128,7 @@ export function Editor() {
 				onExit={handleExit}
 				backButtonText="Spell Library"
 				isLibraryMode={false}
+				levelMeta={sceneConfig}
 			/>
 		)
 	}

@@ -3,8 +3,9 @@
 // =============================================
 
 import { useState, useEffect } from 'react';
-import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea } from '@mantine/core';
+import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea, Tooltip } from '@mantine/core';
 import { OPENROUTER_MODELS, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi';
+import { COMPLETE_SPELL_INSTRUCTION } from '../../lib/vibe/vibePrompt';
 
 const API_KEY_STORAGE_KEY = 'spellcompiler-openrouter-api-key';
 const MODEL_STORAGE_KEY = 'spellcompiler-openrouter-model';
@@ -22,11 +23,13 @@ export type VibePanelProps = {
 	onApplyFlow: (nodes: unknown[], edges: unknown[], options?: { replace?: boolean }) => void;
 	onAsk?: (text: string, apiKey?: string, model?: string) => Promise<{ explanation: string }>;
 	disabled?: boolean;
+	/** Whether the canvas already has nodes — enables the "Complete Spell" quick action */
+	hasExistingNodes?: boolean;
 };
 
 const MODEL_OPTIONS = OPENROUTER_MODELS.map((m) => ({ value: m.value, label: m.label }));
 
-export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePanelProps) {
+export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistingNodes }: VibePanelProps) {
 	const [mode, setMode] = useState<VibeMode>('build');
 	const [text, setText] = useState('');
 	const [apiKey, setApiKey] = useState('');
@@ -93,26 +96,17 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		console.warn('[Vibe] Panel ready. Click Generate and watch for [Vibe] logs here.');
 	}, []);
 
-	const handleBuild = async () => {
-		const trimmed = text.trim();
-		console.log('[Vibe] Build clicked', { hasText: !!trimmed, model, useMock, hasKey: !!(apiKey?.trim()) });
-		if (!trimmed) {
-			console.log('[Vibe] Build skipped: no text');
-			return;
-		}
+	/** Shared submit logic — accepts explicit instruction text so Complete can bypass the textarea. */
+	const submitBuild = async (instruction: string) => {
 		if (!useMock && !sanitizeApiKey(apiKey)) {
 			setError('Please enter your API key (or choose Mock for testing without API).');
-			console.log('[Vibe] Build skipped: no API key');
 			return;
 		}
 		setError(null);
 		setLoading(true);
 		try {
-			console.log('[Vibe] Calling onGenerate...');
-			const result = await onGenerate(trimmed, useMock ? '' : sanitizeApiKey(apiKey), model);
-			console.log('[Vibe] onGenerate done', { nodesCount: result?.nodes?.length, edgesCount: result?.edges?.length });
+			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
-			setText('');
 		} catch (e) {
 			console.error('[Vibe] Build failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
@@ -120,6 +114,18 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const handleBuild = async () => {
+		const trimmed = text.trim();
+		if (!trimmed) return;
+		await submitBuild(trimmed);
+		setText('');
+	};
+
+	/** One-click "Complete Spell" — wires up missing connections using existing nodes only. */
+	const handleComplete = async () => {
+		await submitBuild(COMPLETE_SPELL_INSTRUCTION);
 	};
 
 	const handleAsk = async () => {
@@ -141,6 +147,8 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 			setLoading(false);
 		}
 	};
+
+	const canSubmit = !disabled && !loading && (useMock || !!sanitizeApiKey(apiKey));
 
 	return (
 		<Paper p="sm" shadow="sm" withBorder className="flex flex-col gap-2 h-full overflow-hidden">
@@ -186,8 +194,35 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 				/>
 				{mode === 'build' ? (
 					<>
+						{/* ── Quick action: complete existing spell ── */}
+						{hasExistingNodes && (
+							<Tooltip
+								label="Analyses the current nodes, detects missing connections, and wires them up automatically. No new nodes are created."
+								position="left"
+								multiline
+								w={240}
+								withArrow
+							>
+								<Button
+									size="xs"
+									variant="filled"
+									color="teal"
+									onClick={handleComplete}
+									loading={loading}
+									disabled={!canSubmit}
+									fullWidth
+								>
+									✓ Complete Spell
+								</Button>
+							</Tooltip>
+						)}
+
 						<Textarea
-							placeholder="Describe what the spell should do... e.g. return 42, or if state then move player left else do nothing"
+							placeholder={
+								hasExistingNodes
+									? 'Modify the spell... e.g. "also heal the player after attacking" or "change damage to 50"'
+									: 'Describe what the spell should do... e.g. "move player left by 80 pixels"'
+							}
 							value={text}
 							onChange={(e) => setText(e.currentTarget.value)}
 							minRows={3}
@@ -199,9 +234,9 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 							variant="light"
 							onClick={handleBuild}
 							loading={loading}
-							disabled={!text.trim() || (!useMock && !apiKey.trim()) || disabled}
+							disabled={!text.trim() || !canSubmit}
 						>
-							Generate
+							{hasExistingNodes ? 'Modify' : 'Generate'}
 						</Button>
 					</>
 				) : (
