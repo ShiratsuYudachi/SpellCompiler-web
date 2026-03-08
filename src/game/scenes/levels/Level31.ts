@@ -46,7 +46,75 @@ export const Level31Meta: LevelMeta = {
 		'Wave 3 solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity).',
 		'Cast the spell multiple times — each wave requires a different approach!',
 	],
-	// No initialSpellWorkflow — blank editor for ultimate synthesis test
+	// Template: filter(HP>40) → forEach → damageEntity chained into spawnFireball via state.
+	// filter(HP>40) keeps infantry/elites/threats; removes wave-3 civilians (HP=15).
+	// Wave 1 infantry (HP=50): damageEntity(100) kills in one cast.
+	// Wave 2 elites (HP=80, shielded): shield restores damageEntity; fireball does 10/cast → ~8 casts.
+	// Wave 3 threats (HP=80): damageEntity(100) kills; civilians(HP=15) filtered out safely.
+	initialSpellWorkflow: {
+		nodes: [
+			{ id: 'si',       type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			// Player position
+			{ id: 'f-gp',    type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',    type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			// getAllEnemies → filter(HP>40) → forEach → out
+			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-filt',  type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::filter', displayName: 'filter(threats)', namespace: 'list', params: ['l', 'pred'] } },
+			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  560, y: 200 }, data: { functionName: 'list::forEach', displayName: 'forEach', namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',     type: 'output',           position: { x:  800, y: 200 }, data: { label: 'Output' } },
+			// Filter lambda: isThreat(eid) = gt(hp(eid), 40)
+			{ id: 'lam-f',   type: 'lambdaDef',        position: { x:   80, y: 400 }, data: { functionName: 'isThreat', params: ['eid'] } },
+			{ id: 'f-hp-f',  type: 'dynamicFunction', position: { x:  220, y: 460 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gt-f',  type: 'dynamicFunction', position: { x:  420, y: 460 }, data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] } },
+			{ id: 'lit-40',  type: 'literal',           position: { x:  320, y: 560 }, data: { value: 40 } },
+			{ id: 'fout-f',  type: 'functionOut',       position: { x:  620, y: 400 }, data: { lambdaId: 'lam-f' } },
+			// Hit lambda: hit(eid) — damageEntity then spawnFireball, chained via state
+			{ id: 'lam-h',   type: 'lambdaDef',        position: { x:   80, y: 660 }, data: { functionName: 'hit', params: ['eid'] } },
+			// Enemy position → direction vector
+			{ id: 'f-ep',    type: 'dynamicFunction', position: { x:  220, y: 740 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-sub',   type: 'dynamicFunction', position: { x:  420, y: 740 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
+			{ id: 'f-norm',  type: 'dynamicFunction', position: { x:  620, y: 740 }, data: { functionName: 'vec::normalize', displayName: 'normalize', namespace: 'vec', params: ['v'] } },
+			// damageEntity returns state → pass as first arg to spawnFireball
+			{ id: 'lit-100', type: 'literal',           position: { x:  220, y: 880 }, data: { value: 100 } },
+			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  400, y: 880 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'f-sfb',   type: 'dynamicFunction', position: { x:  660, y: 820 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
+			{ id: 'fout-h',  type: 'functionOut',       position: { x:  900, y: 660 }, data: { lambdaId: 'lam-h' } },
+		],
+		edges: [
+			// Player position
+			{ id: 'e1',  source: 'si',      target: 'f-gp',   targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',      target: 'f-pp',   targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',   target: 'f-pp',   targetHandle: 'arg1' },
+			// getAllEnemies → filter → forEach → out
+			{ id: 'e4',  source: 'si',      target: 'f-gae',  targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-gae',  target: 'f-filt', targetHandle: 'arg0' },
+			{ id: 'e6',  source: 'fout-f', sourceHandle: 'function', target: 'f-filt', targetHandle: 'arg1' },
+			{ id: 'e7',  source: 'f-filt', target: 'f-fe',   targetHandle: 'arg0' },
+			{ id: 'e8',  source: 'fout-h', sourceHandle: 'function', target: 'f-fe',   targetHandle: 'arg1' },
+			{ id: 'e9',  source: 'f-fe',   target: 'out',    targetHandle: 'value' },
+			// Filter lambda body
+			{ id: 'e10', source: 'si',      target: 'f-hp-f', targetHandle: 'arg0' },
+			{ id: 'e11', source: 'lam-f',  sourceHandle: 'param0', target: 'f-hp-f', targetHandle: 'arg1' },
+			{ id: 'e12', source: 'f-hp-f', target: 'f-gt-f', targetHandle: 'arg0' },
+			{ id: 'e13', source: 'lit-40', target: 'f-gt-f', targetHandle: 'arg1' },
+			{ id: 'e14', source: 'f-gt-f', target: 'fout-f', targetHandle: 'value' },
+			// Hit lambda body — enemy position → direction
+			{ id: 'e15', source: 'si',      target: 'f-ep',   targetHandle: 'arg0' },
+			{ id: 'e16', source: 'lam-h',  sourceHandle: 'param0', target: 'f-ep', targetHandle: 'arg1' },
+			{ id: 'e17', source: 'f-ep',   target: 'f-sub',  targetHandle: 'arg0' },
+			{ id: 'e18', source: 'f-pp',   target: 'f-sub',  targetHandle: 'arg1' },
+			{ id: 'e19', source: 'f-sub',  target: 'f-norm', targetHandle: 'arg0' },
+			// damageEntity
+			{ id: 'e20', source: 'si',      target: 'f-dmg',  targetHandle: 'arg0' },
+			{ id: 'e21', source: 'lam-h',  sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e22', source: 'lit-100',target: 'f-dmg',  targetHandle: 'arg2' },
+			// spawnFireball uses damageEntity's returned state — forces both into evaluation chain
+			{ id: 'e23', source: 'f-dmg',  target: 'f-sfb',  targetHandle: 'arg0' },
+			{ id: 'e24', source: 'f-pp',   target: 'f-sfb',  targetHandle: 'arg1' },
+			{ id: 'e25', source: 'f-norm', target: 'f-sfb',  targetHandle: 'arg2' },
+			{ id: 'e26', source: 'f-sfb',  target: 'fout-h', targetHandle: 'value' },
+		],
+	},
 }
 
 levelRegistry.register(Level31Meta)
