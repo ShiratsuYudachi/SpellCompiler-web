@@ -103,29 +103,22 @@ export function Editor() {
 	if (screen === 'sceneConfig') {
 		const editorContext = getEditorContext()
 		const sceneKey = editorContext?.sceneKey || 'Level1'
-
-		// Always load from scene config default
 		const sceneConfig = levelRegistry.get(sceneKey)
-		const initialSceneFlow = sceneConfig?.initialSpellWorkflow
-		console.log('[Editor] Using default workflow for scene:', sceneKey)
-
-		const handleExit = () => {
-			if (isGameMode) {
-				// In game mode, go to spell library
-				setScreen('manager')
-			} else {
-				// In library mode, go back to manager
-				setScreen('manager')
-			}
-		}
+		// Use a stable per-scene spell ID so edits survive Tab open/close
+		const sceneSpellId = `scene-spell-${sceneKey}`
+		const savedSpell = loadSpell(sceneSpellId)
+		// Prefer saved working copy; fall back to the level template
+		const initialSceneFlow = (savedSpell?.flow as { nodes: Node[]; edges: Edge[] } | null)
+			?? sceneConfig?.initialSpellWorkflow
+		console.log('[Editor] Loading workflow for scene:', sceneKey, savedSpell ? '(saved copy)' : '(template)')
 
 		return (
 			<FunctionalEditor
 				key={`scene-${sceneKey}`}
-				initialSpellId={null}
+				initialSpellId={sceneSpellId}
 				initialSpellName={`Scene: ${sceneKey}`}
 				initialFlow={initialSceneFlow}
-				onExit={handleExit}
+				onExit={() => setScreen('manager')}
 				backButtonText="Spell Library"
 				isLibraryMode={false}
 				levelMeta={sceneConfig}

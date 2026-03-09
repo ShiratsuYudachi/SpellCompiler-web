@@ -42,7 +42,7 @@ import type { EventBinding } from '../../game/events/EventQueue'
 import { getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { updateSpellInCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
-import { upsertSpell } from '../utils/spellStorage'
+import { upsertSpell, loadSpell } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
 import { SpellInputNode } from './nodes/SpellInputNode'
 import { AddEventPanel } from './AddEventPanel'
@@ -274,18 +274,26 @@ function EditorContent(props: FunctionalEditorProps) {
 			console.log('[Editor] Game mode: loading workflow for sceneKey:', newSceneKey)
 
 			try {
-				// Always load from scene config
 				const config = newSceneKey ? levelRegistry.get(newSceneKey) : null;
-				const templateNodes = config?.initialSpellWorkflow?.nodes || [];
-				const templateEdges = config?.initialSpellWorkflow?.edges || [];
+				// Check if player has a saved working copy for this scene
+				const sceneSpellId = newSceneKey ? `scene-spell-${newSceneKey}` : null;
+				const savedSpell = sceneSpellId ? loadSpell(sceneSpellId) : null;
+				const nodesToLoad = savedSpell
+					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.nodes ?? [])
+					: (config?.initialSpellWorkflow?.nodes ?? []);
+				const edgesToLoad = savedSpell
+					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.edges ?? [])
+					: (config?.initialSpellWorkflow?.edges ?? []);
 
-				console.log('[Editor] Game mode: loading default workflow, nodes:', templateNodes.length)
-				setNodes(templateNodes);
-				setEdges(templateEdges);
+				console.log('[Editor] Game mode: loading workflow for', newSceneKey, savedSpell ? '(saved copy)' : '(template)', 'nodes:', nodesToLoad.length)
+				setNodes(nodesToLoad);
+				setEdges(edgesToLoad);
+				// Adopt stable spell ID so auto-save targets the same slot
+				if (sceneSpellId) { setSpellId(sceneSpellId); }
 
 				// Update nodeIdCounter to avoid conflicts
 				let maxId = nodeIdCounter;
-				templateNodes.forEach((node: Node) => {
+				nodesToLoad.forEach((node: Node) => {
 					const match = node.id.match(/-(\d+)$/);
 					if (match) {
 						const num = parseInt(match[1], 10);
@@ -307,7 +315,7 @@ function EditorContent(props: FunctionalEditorProps) {
 
 	// Auto-save: trigger on flow changes (saveTrigger incremented by drag stop, add, delete, connect)
 	useEffect(() => {
-		if (!isLibraryMode || !spellId) return
+		if (!spellId) return
 		const timeoutId = setTimeout(() => {
 			try {
 				const nodes = getNodes();
@@ -318,14 +326,14 @@ function EditorContent(props: FunctionalEditorProps) {
 			}
 		}, 1000);
 		return () => clearTimeout(timeoutId);
-	}, [saveTrigger, isLibraryMode, spellId, spellName, getNodes, getEdges]);
+	}, [saveTrigger, spellId, spellName, getNodes, getEdges]);
 	useEffect(() => {
 		if (!startingFlow) return
 		bumpNodeIdCounterFromNodes(startingFlow.nodes)
 	}, [startingFlow])
 
 	const forceSave = useCallback(() => {
-		if (!isLibraryMode || !spellId) return;
+		if (!spellId) return;
 		try {
 			const nodes = getNodes();
 			const edges = getEdges();
@@ -333,7 +341,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		} catch (err) {
 			console.error('[Editor] Force save failed:', err);
 		}
-	}, [isLibraryMode, spellId, spellName, getNodes, getEdges]);
+	}, [spellId, spellName, getNodes, getEdges]);
 
 	// Save on component unmount
 	useEffect(() => {
@@ -559,6 +567,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			}
 		} else {
 			// From pane click or right-click context menu: position at menu location
+			if (!screenPosition) return;
 			const flowPos = screenToFlowPosition({ x: screenPosition.x, y: screenPosition.y });
 
 			const newNode: Node = {
@@ -668,6 +677,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			setEdges((eds) => [...eds, newEdge]);
 		} else {
 			// From pane click or right-click context menu: position at menu location
+			if (!screenPosition) return;
 			const flowPos = screenToFlowPosition({ x: screenPosition.x, y: screenPosition.y });
 
 			const newNode: Node = {

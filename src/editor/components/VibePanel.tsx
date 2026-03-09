@@ -36,6 +36,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	const [model, setModel] = useState<string>('openai/gpt-4o-mini');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [successMsg, setSuccessMsg] = useState<string | null>(null);
 	const [open, setOpen] = useState(true);
 	const [explanation, setExplanation] = useState<string | null>(null);
 
@@ -83,6 +84,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		setMode(value);
 		setExplanation(null);
 		setError(null);
+		setSuccessMsg(null);
 		try {
 			localStorage.setItem(MODE_STORAGE_KEY, value);
 		} catch {
@@ -97,16 +99,29 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	}, []);
 
 	/** Shared submit logic — accepts explicit instruction text so Complete can bypass the textarea. */
-	const submitBuild = async (instruction: string) => {
+	const submitBuild = async (instruction: string, opts?: { isComplete?: boolean }) => {
+		const isComplete = opts?.isComplete ?? false;
+		// Mock model can't actually wire connections — inform the user
+		if (isComplete && useMock) {
+			setError('Complete Spell needs a real AI model to wire connections. Select an OpenRouter model and enter your API key at openrouter.ai/keys.');
+			setSuccessMsg(null);
+			return;
+		}
 		if (!useMock && !sanitizeApiKey(apiKey)) {
 			setError('Please enter your API key (or choose Mock for testing without API).');
 			return;
 		}
 		setError(null);
+		setSuccessMsg(null);
 		setLoading(true);
 		try {
 			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
+			setSuccessMsg(
+				isComplete
+					? `✓ Connections wired! (${result.edges.length} total edges)`
+					: `✓ Applied: ${result.nodes.length} node${result.nodes.length !== 1 ? 's' : ''}, ${result.edges.length} edge${result.edges.length !== 1 ? 's' : ''}`
+			);
 		} catch (e) {
 			console.error('[Vibe] Build failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
@@ -125,7 +140,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 
 	/** One-click "Complete Spell" — wires up missing connections using existing nodes only. */
 	const handleComplete = async () => {
-		await submitBuild(COMPLETE_SPELL_INSTRUCTION);
+		await submitBuild(COMPLETE_SPELL_INSTRUCTION, { isComplete: true });
 	};
 
 	const handleAsk = async () => {
@@ -136,6 +151,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 			return;
 		}
 		setError(null);
+		setSuccessMsg(null);
 		setExplanation(null);
 		setLoading(true);
 		try {
@@ -269,6 +285,11 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 				{error && (
 					<Text size="xs" c="red">
 						{error}
+					</Text>
+				)}
+				{!error && successMsg && (
+					<Text size="xs" c="teal">
+						{successMsg}
 					</Text>
 				)}
 			</Collapse>
