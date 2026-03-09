@@ -19,7 +19,17 @@ export type VibeMode = 'ask' | 'build';
 
 export type VibePanelProps = {
 	mode?: VibeMode;
-	onGenerate: (text: string, apiKey?: string, model?: string) => Promise<{ nodes: unknown[]; edges: unknown[]; wasUpdate?: boolean }>;
+	onGenerate: (text: string, apiKey?: string, model?: string) => Promise<{
+		nodes: unknown[];
+		edges: unknown[];
+		wasUpdate?: boolean;
+		/** Node count BEFORE this build (for computing diff in the UI) */
+		prevNodeCount?: number;
+		/** Edge count BEFORE this build (for computing diff in the UI) */
+		prevEdgeCount?: number;
+		/** Optional plain-English summary from the AI about what changed */
+		summary?: string;
+	}>;
 	onApplyFlow: (nodes: unknown[], edges: unknown[], options?: { replace?: boolean }) => void;
 	onAsk?: (text: string, apiKey?: string, model?: string) => Promise<{ explanation: string }>;
 	disabled?: boolean;
@@ -37,6 +47,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
+	const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
 	const [open, setOpen] = useState(true);
 	const [explanation, setExplanation] = useState<string | null>(null);
 
@@ -85,6 +96,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		setExplanation(null);
 		setError(null);
 		setSuccessMsg(null);
+		setSummaryMsg(null);
 		try {
 			localStorage.setItem(MODE_STORAGE_KEY, value);
 		} catch {
@@ -105,6 +117,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		if (isComplete && useMock) {
 			setError('Complete Spell needs a real AI model to wire connections. Select an OpenRouter model and enter your API key at openrouter.ai/keys.');
 			setSuccessMsg(null);
+			setSummaryMsg(null);
 			return;
 		}
 		if (!useMock && !sanitizeApiKey(apiKey)) {
@@ -113,15 +126,24 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		}
 		setError(null);
 		setSuccessMsg(null);
+		setSummaryMsg(null);
 		setLoading(true);
 		try {
 			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
-			setSuccessMsg(
-				isComplete
-					? `✓ Connections wired! (${result.edges.length} total edges)`
-					: `✓ Applied: ${result.nodes.length} node${result.nodes.length !== 1 ? 's' : ''}, ${result.edges.length} edge${result.edges.length !== 1 ? 's' : ''}`
-			);
+			// Compute diff for the success headline
+			const addedNodes = result.nodes.length - (result.prevNodeCount ?? 0);
+			const addedEdges = result.edges.length - (result.prevEdgeCount ?? 0);
+			if (isComplete) {
+				const parts: string[] = [];
+				if (addedNodes > 0) parts.push(`+${addedNodes} node${addedNodes !== 1 ? 's' : ''}`);
+				if (addedEdges > 0) parts.push(`+${addedEdges} edge${addedEdges !== 1 ? 's' : ''}`);
+				setSuccessMsg(`✓ Spell completed!${parts.length > 0 ? ' ' + parts.join(', ') : ''}`);
+			} else {
+				setSuccessMsg(`✓ Applied: ${result.nodes.length} node${result.nodes.length !== 1 ? 's' : ''}, ${result.edges.length} edge${result.edges.length !== 1 ? 's' : ''}`);
+			}
+			// Show AI-provided explanation if available
+			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
 			console.error('[Vibe] Build failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
@@ -152,6 +174,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		}
 		setError(null);
 		setSuccessMsg(null);
+		setSummaryMsg(null);
 		setExplanation(null);
 		setLoading(true);
 		try {
@@ -288,9 +311,16 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 					</Text>
 				)}
 				{!error && successMsg && (
-					<Text size="xs" c="teal">
+					<Text size="xs" c="teal" fw={500}>
 						{successMsg}
 					</Text>
+				)}
+				{!error && summaryMsg && (
+					<ScrollArea className="flex-1 min-h-0" type="auto" offsetScrollbars style={{ maxHeight: 120 }}>
+						<Text size="xs" className="whitespace-pre-wrap p-2 rounded" style={{ background: '#f0fdf4', color: '#166534' }}>
+							{summaryMsg}
+						</Text>
+					</ScrollArea>
 				)}
 			</Collapse>
 		</Paper>

@@ -184,7 +184,7 @@ export async function vibeBuild(
 	model?: OpenRouterModelId | string,
 	options?: { nodes?: unknown[]; edges?: unknown[] },
 	levelContext?: LevelContext
-): Promise<{ nodes: unknown[]; edges: unknown[] }> {
+): Promise<{ nodes: unknown[]; edges: unknown[]; summary?: string }> {
 	const m = normalizeModel(model);
 	console.log('[Vibe] vibeBuild', { model: m, hasOptions: !!(options?.nodes && options?.edges) });
 	if (m === MOCK_MODEL_ID) {
@@ -193,7 +193,7 @@ export async function vibeBuild(
 		return mockBuild(options);
 	}
 	const prompt = buildVibePrompt(text.trim(), options?.nodes && options?.edges ? { nodes: options.nodes, edges: options.edges } : undefined, levelContext);
-	const systemPrompt = 'You output only valid JSON with keys "nodes" and "edges". No other text.';
+	const systemPrompt = 'You output only valid JSON with keys "nodes", "edges", and optionally "summary" (a brief plain English description of what you changed). No other text before or after the JSON.';
 	console.log('[Vibe] Calling OpenRouter...', OPENROUTER_URL);
 	let raw: string;
 	try {
@@ -211,9 +211,9 @@ export async function vibeBuild(
 		throw new Error('Empty response from model. Try another model (e.g. OpenAI GPT-4o mini) or check browser Network tab (F12).');
 	}
 	const jsonStr = extractJsonFromRaw(raw);
-	let parsed: { nodes?: unknown; edges?: unknown };
+	let parsed: { nodes?: unknown; edges?: unknown; summary?: unknown };
 	try {
-		parsed = JSON.parse(jsonStr) as { nodes?: unknown; edges?: unknown };
+		parsed = JSON.parse(jsonStr) as { nodes?: unknown; edges?: unknown; summary?: unknown };
 	} catch (parseErr) {
 		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build: JSON parse failed. Raw (first 500 chars):', raw.slice(0, 500), parseErr);
 		const hint = jsonStr.length > 150 ? `${jsonStr.slice(0, 150)}...` : jsonStr;
@@ -223,7 +223,8 @@ export async function vibeBuild(
 		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build: response missing nodes/edges arrays:', parsed);
 		throw new Error('Response must contain "nodes" and "edges" arrays. Try model "OpenAI GPT-4o Mini" or "Claude 3.5 Haiku" via OpenRouter.');
 	}
-	return normalizeGraphResponse(parsed.nodes, parsed.edges);
+	const summary = typeof parsed.summary === 'string' && parsed.summary.trim() ? parsed.summary.trim() : undefined;
+	return { ...normalizeGraphResponse(parsed.nodes, parsed.edges), summary };
 }
 
 function normalizeGraphResponse(nodes: unknown[], edges: unknown[]): { nodes: unknown[]; edges: unknown[] } {

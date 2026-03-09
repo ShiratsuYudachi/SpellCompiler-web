@@ -183,11 +183,13 @@ Spell input parameters come from a spellInput node; use its source handles param
 
 /** Instruction injected when the user explicitly wants to complete/wire an existing graph. */
 export const COMPLETE_SPELL_INSTRUCTION =
-	'Complete all missing connections in the current spell to make it work. ' +
-	'Wire up every unconnected node input. ' +
-	'You may add new literal/lambdaDef/functionOut/if/vector nodes if they are needed as values or predicates. ' +
-	'You may also add new dynamicFunction nodes, but ONLY using functionNames from the Available Functions list. ' +
-	'Reuse existing nodes wherever possible — do not duplicate nodes that already serve the same purpose.';
+	'Complete all missing connections in the current spell to make it fully functional. ' +
+	'For EVERY item listed under MISSING CONNECTIONS: add an edge that resolves it. ' +
+	'For any new node you add: wire ALL its input handles AND route its output to the correct downstream node — never leave a new node orphaned. ' +
+	'Trace every data path from source nodes all the way to the output node — no dead ends. ' +
+	'You may add literal/lambdaDef/functionOut/if/vector nodes as needed values. ' +
+	'You may add dynamicFunction nodes ONLY from the Available Functions list. ' +
+	'Reuse existing nodes — do not duplicate any node that already serves the same purpose.';
 
 export function buildVibePrompt(
 	userText: string,
@@ -217,15 +219,19 @@ export function buildVibePrompt(
 1. FUNCTION NAME VALIDITY: For every dynamicFunction node, the "functionName" field MUST be a name from the "Available functions" list below. Never invent a function name (e.g. "game::getLevel" is not in the list → forbidden).
 2. NO DUPLICATES: If an existing node already serves the same purpose (same functionName OR same logical role), REUSE it — don't create a second copy.
 3. ${isCompleteIntent
-	? 'COMPLETE MODE: Wire up all unconnected inputs. You may add new literal/lambdaDef/functionOut/if nodes as values or predicates. You may add a new dynamicFunction ONLY if its name is in the Available Functions list AND no equivalent node already exists.'
+	? `COMPLETE MODE — resolve EVERY item in "MISSING CONNECTIONS" below:
+   · For each missing handle: add an edge using the exact node id and handle name from NODE INVENTORY.
+   · For any NEW node you add: wire ALL its input handles AND connect its output to the correct downstream node (no orphaned nodes).
+   · After adding everything, trace each data path end-to-end — every path must eventually reach the "output" node's "value" handle.
+   · Allowed new nodes: literal, lambdaDef, functionOut, if, vector; dynamicFunction ONLY if from Available Functions list and no equivalent exists.`
 	: 'Only change what the user asked for. Keep everything else — nodes and edges — exactly as-is.'}
-4. Copy ALL existing edges into your output unchanged.
+4. Include ALL edges in your output: copy every EXISTING edge unchanged, PLUS add every NEW edge for the missing connections. Never drop an existing edge.
 5. Use the EXACT same node ids for existing nodes — do not rename or recreate them.
 
 NODE INVENTORY — every node that currently exists (reuse these exact ids):
 ${inventoryText}
 
-MISSING CONNECTIONS — handles that have no incoming edge yet:
+MISSING CONNECTIONS — handles that have no incoming edge yet (resolve ALL of these):
 ${missingText}
 
 Full graph JSON (reference):
@@ -234,12 +240,15 @@ ${JSON.stringify(stripped)}
 \`\`\`
 
 `;
-		updateRule = '- Output the FULL graph (all nodes + all edges). Preserve existing node ids. Only add/remove/edit as the user requested.\n';
+		updateRule = isCompleteIntent
+			? '- Return the COMPLETE graph: all existing nodes (same ids) + any new nodes, ALL existing edges + ALL new edges.\n' +
+			  '- ⚠️ VERIFY before outputting: every item from "MISSING CONNECTIONS" must have a corresponding edge in your output.\n'
+			: '- Output the FULL graph (all nodes + all edges). Preserve existing node ids. Only add/remove/edit as the user requested.\n';
 	}
 
 	const levelSection = levelContext ? `\n${buildLevelSection(levelContext)}\n` : '';
 
-	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with two keys: "nodes" and "edges".
+	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with keys "nodes", "edges", and optionally "summary".
 ${levelSection}${currentGraphSection}
 ${NODE_SCHEMA}
 
@@ -254,6 +263,7 @@ ${updateRule}- Each node needs: id (unique string), type (one of the types above
 - For game spells, include one spellInput node with params: ["state"] and connect state to game:: functions as first argument.
 - The final result must flow into the output node's "value" handle.
 - CRITICAL — dynamicFunction nodes: the "functionName" field MUST be one of the exact strings in the "Available functions" list above. Never use a function name that does not appear in that list.
+- You MAY include a "summary" field: a 1-3 sentence plain English description of what you connected or added (helps the user understand what changed).
 
 User request:
 ${userText}

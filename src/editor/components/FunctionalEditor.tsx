@@ -820,15 +820,18 @@ function EditorContent(props: FunctionalEditorProps) {
 		const currentNodes = getNodes();
 		const currentEdges = getEdges();
 		console.log('[Vibe] Calling vibeBuild...');
-		const { nodes, edges } = await vibeBuild(userText, apiKey ?? '', model, {
+		const { nodes, edges, summary } = await vibeBuild(userText, apiKey ?? '', model, {
 			nodes: currentNodes,
 			edges: currentEdges,
 		}, levelContext);
-		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length });
+		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length, hasSummary: !!summary });
 		return {
 			nodes: nodes as Node[],
 			edges: edges as Edge[],
 			wasUpdate: currentNodes.length > 0 || currentEdges.length > 0,
+			prevNodeCount: currentNodes.length,
+			prevEdgeCount: currentEdges.length,
+			summary,
 		};
 	}, [getNodes, getEdges, levelContext]);
 
