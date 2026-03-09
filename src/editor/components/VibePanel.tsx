@@ -316,11 +316,14 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 					</Text>
 				)}
 				{!error && summaryMsg && (
-					<ScrollArea className="flex-1 min-h-0" type="auto" offsetScrollbars style={{ maxHeight: 120 }}>
-						<Text size="xs" className="whitespace-pre-wrap p-2 rounded" style={{ background: '#f0fdf4', color: '#166534' }}>
-							{summaryMsg}
-						</Text>
-					</ScrollArea>
+					<div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 10px' }}>
+						<Text size="xs" fw={600} style={{ color: '#15803d', marginBottom: 4 }}>✨ 法术效果</Text>
+						<ScrollArea type="auto" offsetScrollbars style={{ maxHeight: 100 }}>
+							<Text size="xs" className="whitespace-pre-wrap" style={{ color: '#166534' }}>
+								{summaryMsg}
+							</Text>
+						</ScrollArea>
+					</div>
 				)}
 			</Collapse>
 		</Paper>

@@ -193,7 +193,7 @@ export async function vibeBuild(
 		return mockBuild(options);
 	}
 	const prompt = buildVibePrompt(text.trim(), options?.nodes && options?.edges ? { nodes: options.nodes, edges: options.edges } : undefined, levelContext);
-	const systemPrompt = 'You output only valid JSON with keys "nodes", "edges", and optionally "summary" (a brief plain English description of what you changed). No other text before or after the JSON.';
+	const systemPrompt = 'You output only valid JSON with keys "nodes", "edges", and "summary". The "summary" field is REQUIRED: write 1-3 sentences explaining what this spell will DO in the game from the player\'s perspective (e.g. "This spell damages all enemies with HP above 30 for 100 points each."). Describe the game effect, not the graph structure. No other text before or after the JSON.';
 	console.log('[Vibe] Calling OpenRouter...', OPENROUTER_URL);
 	let raw: string;
 	try {

@@ -263,7 +263,7 @@ ${updateRule}- Each node needs: id (unique string), type (one of the types above
 - For game spells, include one spellInput node with params: ["state"] and connect state to game:: functions as first argument.
 - The final result must flow into the output node's "value" handle.
 - CRITICAL — dynamicFunction nodes: the "functionName" field MUST be one of the exact strings in the "Available functions" list above. Never use a function name that does not appear in that list.
-- You MAY include a "summary" field: a 1-3 sentence plain English description of what you connected or added (helps the user understand what changed).
+- You MUST include a "summary" field: 1-3 sentences describing what this spell will DO in the game from the player's perspective (e.g. "This spell filters enemies with HP above 30, takes the first one, and deals 100 damage to it."). Focus on the game effect, not graph structure.
 
 User request:
 ${userText}
