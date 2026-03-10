@@ -282,7 +282,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 								disabled={!canSubmit}
 								fullWidth
 							>
-								⚡ 完全重生成
+								⚡ Full Regen
 							</Button>
 						</Tooltip>
 

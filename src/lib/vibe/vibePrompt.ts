@@ -241,7 +241,10 @@ export function buildVibePrompt(
 	levelContext?: LevelContext
 ): string {
 	const fnList = AVAILABLE_FUNCTIONS.map((f) => {
-		const sig = `${f.fullName}(${f.params.join(', ')})`;
+		const parts = f.fullName.split('::');
+		const displayName = (f as { displayName?: string }).displayName ?? parts[parts.length - 1];
+		const namespace = parts.slice(0, -1).join('::');
+		const sig = `${f.fullName}(${f.params.join(', ')})  [displayName="${displayName}", namespace="${namespace}"]`;
 		return (f as { hint?: string }).hint ? `${sig}  --  ${(f as { hint?: string }).hint!}` : sig;
 	}).join('\n');
 
@@ -302,7 +305,7 @@ ${JSON.stringify(stripped)}
 ${levelSection}${currentGraphSection}
 ${NODE_SCHEMA}
 
-Available functions (use exactly these fullName in dynamicFunction nodes):
+Available functions (each entry shows: fullName(params)  [displayName="...", namespace="..."]):
 ${fnList}
 
 Rules:
@@ -312,7 +315,7 @@ ${updateRule}- Each node needs: id (unique string), type (one of the types above
 - Edges connect nodes: source/target are node ids; use sourceHandle and targetHandle when needed (e.g. targetHandle "value" for the output, "arg0"/"arg1" for function args, "condition"/"then"/"else" for if).
 - For game spells, include one spellInput node with params: ["state"] and connect state to game:: functions as first argument.
 - The final result must flow into the output node's "value" handle.
-- CRITICAL — dynamicFunction nodes: the "functionName" field MUST be one of the exact strings in the "Available functions" list above. Never use a function name that does not appear in that list.
+- CRITICAL — dynamicFunction nodes: the "functionName" field MUST be one of the exact fullName strings in the list above. The "displayName" field MUST be the exact displayName shown in [displayName="..."] for that function. The "namespace" field MUST be the exact namespace shown in [namespace="..."]. Never invent or paraphrase these values.
 - You MUST include a "summary" field: 1-3 sentences describing what this spell will DO in the game from the player's perspective (e.g. "This spell filters enemies with HP above 30, takes the first one, and deals 100 damage to it."). Focus on the game effect, not graph structure.
 
 User request:
