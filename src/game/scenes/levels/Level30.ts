@@ -27,24 +27,7 @@ import type Phaser from 'phaser'
 // 模板已提供完整施法流程；直接按 SPACE 施法即可通关。
 // ─────────────────────────────────────────────────────────────
 
-export const Level30Meta: LevelMeta = {
-	key: 'Level30',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using spawnFireball', type: 'defeat' }],
-	hints: [
-		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
-		'Use spawnFireball(state, position, direction) to bypass the shield.',
-		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
-		'GREY drones (HP=10, BOTTOM): fireballs work on them too — same approach.',
-		'Use forEach on getAllEnemies → spawnFireball toward each enemy.',
-	],
-	// Template: forEach all enemies → spawnFireball toward each.
-	// Fireballs deal 10 dmg and bypass the elite shield (only damageEntity is blocked).
-	// Both elites (HP=10) and drones (HP=10) die in one fireball hit. One cast clears all.
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',     type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// Player position
@@ -86,7 +69,27 @@ export const Level30Meta: LevelMeta = {
 			{ id: 'e15', source: 'f-norm',target: 'f-sfb', targetHandle: 'arg2' },
 			{ id: 'e16', source: 'f-sfb', target: 'fout',  targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level30Meta: LevelMeta = {
+	key: 'Level30',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using spawnFireball', type: 'defeat' }],
+	hints: [
+		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
+		'Use spawnFireball(state, position, direction) to bypass the shield.',
+		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
+		'GREY drones (HP=10, BOTTOM): fireballs work on them too — same approach.',
+		'Use forEach on getAllEnemies → spawnFireball toward each enemy.',
+	],
+	// Template: forEach all enemies → spawnFireball toward each.
+	// Fireballs deal 10 dmg and bypass the elite shield (only damageEntity is blocked).
+	// Both elites (HP=10) and drones (HP=10) die in one fireball hit. One cast clears all.
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level30Meta)

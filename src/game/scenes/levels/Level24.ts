@@ -21,22 +21,7 @@ import type Phaser from 'phaser'
 //       对精英用 50 伤害 → 无法消灭（HP 80 > 50）
 // ─────────────────────────────────────────────────────────────
 
-export const Level24Meta: LevelMeta = {
-	key: 'Level24',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-tiered', description: 'Eliminate ALL enemies — use if to choose damage per target', type: 'defeat' }],
-	hints: [
-		'Elites (red, 80 HP) need ≥ 100 damage. Weak (grey, 20 HP) need ≤ 60 — or nearby civilian gets splashed!',
-		'Use if to SELECT the amount first, then call damageEntity ONCE with that amount.',
-		'  amount = if(gt(hp(eid), 50), 200, 50)',
-		'  damageEntity(state, eid, amount)',
-		'std::cmp::gt(a, b) returns true when a > b.',
-	],
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
@@ -76,7 +61,25 @@ export const Level24Meta: LevelMeta = {
 			{ id: 'e14', source: 'f-if',    target: 'f-dmg',  targetHandle: 'arg2' },
 			{ id: 'e15', source: 'f-dmg',   target: 'f-out',  targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level24Meta: LevelMeta = {
+	key: 'Level24',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-tiered', description: 'Eliminate ALL enemies — use if to choose damage per target', type: 'defeat' }],
+	hints: [
+		'Elites (red, 80 HP) need ≥ 100 damage. Weak (grey, 20 HP) need ≤ 60 — or nearby civilian gets splashed!',
+		'Use if to SELECT the amount first, then call damageEntity ONCE with that amount.',
+		'  amount = if(gt(hp(eid), 50), 200, 50)',
+		'  damageEntity(state, eid, amount)',
+		'std::cmp::gt(a, b) returns true when a > b.',
+	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level24Meta)

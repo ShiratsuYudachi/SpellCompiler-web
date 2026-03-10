@@ -17,21 +17,7 @@ import type Phaser from 'phaser'
 // 问题：damageEntity 只打单个目标——必须遍历所有
 // ─────────────────────────────────────────────────────────────
 
-export const Level22Meta: LevelMeta = {
-	key: 'Level22',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-all', description: 'Eliminate ALL 6 enemies using forEach', type: 'defeat' }],
-	hints: [
-		'getAllEnemies returns a LIST of all enemies — not just one.',
-		'forEach(list, f) calls f on every element in the list.',
-		'Build a lambda: eid → damageEntity(state, eid, 100)',
-		'Connect the lambda\'s functionOut (function handle) to forEach\'s second argument.',
-	],
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',       type: 'spellInput',      position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			{ id: 'f-gae',    type: 'dynamicFunction',  position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
@@ -54,7 +40,24 @@ export const Level22Meta: LevelMeta = {
 			{ id: 'e7', source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
 			{ id: 'e8', source: 'f-dmg',  target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level22Meta: LevelMeta = {
+	key: 'Level22',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-all', description: 'Eliminate ALL 6 enemies using forEach', type: 'defeat' }],
+	hints: [
+		'getAllEnemies returns a LIST of all enemies — not just one.',
+		'forEach(list, f) calls f on every element in the list.',
+		'Build a lambda: eid → damageEntity(state, eid, 100)',
+		'Connect the lambda\'s functionOut (function handle) to forEach\'s second argument.',
+	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level22Meta)

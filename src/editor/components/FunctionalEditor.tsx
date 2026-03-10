@@ -826,10 +826,13 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
 		const currentNodes = getNodes();
 		const currentEdges = getEdges();
-		// Full regen: don't pass current graph — generate fresh from level context only
+		// Full regen: don't pass current graph; inject answerSpellWorkflow as structural reference
 		const graphOptions = isFullRegen ? undefined : { nodes: currentNodes, edges: currentEdges };
+		const effectiveLevelContext = isFullRegen && levelContext && props.levelMeta?.answerSpellWorkflow
+			? { ...levelContext, referenceSolution: props.levelMeta.answerSpellWorkflow }
+			: levelContext;
 		console.log('[Vibe] Calling vibeBuild...');
-		const { nodes, edges, summary } = await vibeBuild(userText, apiKey ?? '', model, graphOptions, levelContext);
+		const { nodes, edges, summary } = await vibeBuild(userText, apiKey ?? '', model, graphOptions, effectiveLevelContext);
 		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length, hasSummary: !!summary });
 		return {
 			nodes: nodes as Node[],
@@ -839,7 +842,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			prevEdgeCount: isFullRegen ? 0 : currentEdges.length,
 			summary,
 		};
-	}, [getNodes, getEdges, levelContext]);
+	}, [getNodes, getEdges, levelContext, props.levelMeta]);
 
 	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, model?: string) => {
 		const useMock = model === MOCK_MODEL_ID;

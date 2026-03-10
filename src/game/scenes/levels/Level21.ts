@@ -31,30 +31,7 @@ import type Phaser from 'phaser'
 //   关卡仅在 HP 最高的敌人死亡时胜利
 // ─────────────────────────────────────────────────────────────
 
-export const Level21Meta: LevelMeta = {
-	key: 'Level21',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [
-		{
-			id: 'kill-strongest',
-			description: 'Destroy the entity with the HIGHEST HP — use fold to find the maximum',
-			type: 'defeat',
-		},
-	],
-	hints: [
-		'Enemy HP values are randomized every attempt — no fixed threshold works.',
-		'Use fold(list, -1, (best,eid) → if hp(eid)>hp(best) then eid else best)',
-		'getEntityHealth(state, -1) returns -1, so the first real enemy always wins.',
-		'After fold you have the eid of the strongest enemy — pass it to damageEntity.',
-	],
-	// Complete solution spell:
-	//   fold(getAllEnemies(state), -1, findMax)  →  damageEntity(state, result, 200)
-	//   findMax = lambda(best, eid) { if hp(eid) > hp(best) then eid else best }
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			// ── Main chain ──────────────────────────────────────────
 			{
@@ -157,7 +134,33 @@ export const Level21Meta: LevelMeta = {
 			{ id: 'e17', source: 'lam',          sourceHandle: 'param0', target: 'f-if', targetHandle: 'else' },
 			{ id: 'e18', source: 'f-if',         target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level21Meta: LevelMeta = {
+	key: 'Level21',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [
+		{
+			id: 'kill-strongest',
+			description: 'Destroy the entity with the HIGHEST HP — use fold to find the maximum',
+			type: 'defeat',
+		},
+	],
+	hints: [
+		'Enemy HP values are randomized every attempt — no fixed threshold works.',
+		'Use fold(list, -1, (best,eid) → if hp(eid)>hp(best) then eid else best)',
+		'getEntityHealth(state, -1) returns -1, so the first real enemy always wins.',
+		'After fold you have the eid of the strongest enemy — pass it to damageEntity.',
+	],
+	// Complete solution spell:
+	//   fold(getAllEnemies(state), -1, findMax)  →  damageEntity(state, result, 200)
+	//   findMax = lambda(best, eid) { if hp(eid) > hp(best) then eid else best }
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level21Meta)

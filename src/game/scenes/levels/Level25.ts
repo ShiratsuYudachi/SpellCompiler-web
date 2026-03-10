@@ -19,22 +19,7 @@ import type Phaser from 'phaser'
 // 关键：敌人位置每次随机 → 写死方向无效 → 必须动态计算
 // ─────────────────────────────────────────────────────────────
 
-export const Level25Meta: LevelMeta = {
-	key: 'Level25',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'destroy-all', description: 'Destroy all 4 enemies — aim fireballs dynamically', type: 'defeat' }],
-	hints: [
-		'Enemy positions are RANDOMIZED each attempt — hardcoded directions will fail.',
-		'map(list, f) transforms every element: map(enemies, eid → position(eid)) gives positions.',
-		'subtract(enemyPos, playerPos) gives the direction vector from player to enemy.',
-		'normalize(v) makes it a unit vector — safe to pass to spawnFireball.',
-		'Chain: getAllEnemies → map(eid→dir) → forEach(dir→spawnFireball)',
-	],
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',       type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// Get player position
@@ -81,7 +66,25 @@ export const Level25Meta: LevelMeta = {
 			{ id: 'e18', source: 'lam2',  sourceHandle: 'param0', target: 'f-fb',  targetHandle: 'arg2' },
 			{ id: 'e19', source: 'f-fb',  target: 'f-out2',targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level25Meta: LevelMeta = {
+	key: 'Level25',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'destroy-all', description: 'Destroy all 4 enemies — aim fireballs dynamically', type: 'defeat' }],
+	hints: [
+		'Enemy positions are RANDOMIZED each attempt — hardcoded directions will fail.',
+		'map(list, f) transforms every element: map(enemies, eid → position(eid)) gives positions.',
+		'subtract(enemyPos, playerPos) gives the direction vector from player to enemy.',
+		'normalize(v) makes it a unit vector — safe to pass to spawnFireball.',
+		'Chain: getAllEnemies → map(eid→dir) → forEach(dir→spawnFireball)',
+	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level25Meta)

@@ -22,21 +22,7 @@ import type Phaser from 'phaser'
 // 火球伤害=10，威胁HP=10：一发秒杀；平民HP=5：也是一发秒（触发惩罚）
 // ─────────────────────────────────────────────────────────────
 
-export const Level27Meta: LevelMeta = {
-	key: 'Level27',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-threats', description: 'Destroy 4 red threats — filter before firing!', type: 'defeat' }],
-	hints: [
-		'RED enemies (HP=10, N/S/E/W) = threats — must kill with fireballs.',
-		'GREY enemies (HP=5, diagonal) = civilians — penalty if hit!',
-		'getAllEnemies returns ALL 8 — you MUST filter first.',
-		'filter(enemies, eid → gt(hp(eid), 5)) keeps only threats (HP=10 > 5).',
-		'Then: map(threats, eid → normalize(pos(eid)−playerPos)) → forEach(spawnFireball)',
-	],
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// player position
@@ -101,7 +87,24 @@ export const Level27Meta: LevelMeta = {
 			// forEach → output
 			{ id: 'e26', source: 'f-fe',   target: 'out',    targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level27Meta: LevelMeta = {
+	key: 'Level27',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-threats', description: 'Destroy 4 red threats — filter before firing!', type: 'defeat' }],
+	hints: [
+		'RED enemies (HP=10, N/S/E/W) = threats — must kill with fireballs.',
+		'GREY enemies (HP=5, diagonal) = civilians — penalty if hit!',
+		'getAllEnemies returns ALL 8 — you MUST filter first.',
+		'filter(enemies, eid → gt(hp(eid), 5)) keeps only threats (HP=10 > 5).',
+		'Then: map(threats, eid → normalize(pos(eid)−playerPos)) → forEach(spawnFireball)',
+	],
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level27Meta)

@@ -18,21 +18,7 @@ import type Phaser from 'phaser'
 // 关键：玩家需要移动到正确位置再施法；位置成为解题变量
 // ─────────────────────────────────────────────────────────────
 
-export const Level28Meta: LevelMeta = {
-	key: 'Level28',
-	playerSpawnX: 190,
-	playerSpawnY: 300,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-left', description: 'Eliminate only the LEFT zone enemies (5 targets)', type: 'defeat' }],
-	hints: [
-		'Two groups: LEFT zone (targets) and RIGHT zone (protected).',
-		'getNearbyEnemies(state, position, radius) returns only enemies within range.',
-		'Move your player near the LEFT group, then cast.',
-		'getEntityPosition(state, getPlayer(state)) gives your current position.',
-		'Hitting right-zone enemies = penalty (3 = failure).',
-	],
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',    type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			{ id: 'f-gp',  type: 'dynamicFunction', position: { x:   60, y:  80 }, data: { functionName: 'game::getPlayer',          displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
@@ -63,7 +49,24 @@ export const Level28Meta: LevelMeta = {
 			{ id: 'e12',source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
 			{ id: 'e13',source: 'f-dmg',  target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level28Meta: LevelMeta = {
+	key: 'Level28',
+	playerSpawnX: 190,
+	playerSpawnY: 300,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-left', description: 'Eliminate only the LEFT zone enemies (5 targets)', type: 'defeat' }],
+	hints: [
+		'Two groups: LEFT zone (targets) and RIGHT zone (protected).',
+		'getNearbyEnemies(state, position, radius) returns only enemies within range.',
+		'Move your player near the LEFT group, then cast.',
+		'getEntityPosition(state, getPlayer(state)) gives your current position.',
+		'Hitting right-zone enemies = penalty (3 = failure).',
+	],
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level28Meta)

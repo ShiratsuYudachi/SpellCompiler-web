@@ -20,21 +20,7 @@ import type Phaser from 'phaser'
 //   forEach(targets, eid → damageEntity(state, eid, 100))
 // ─────────────────────────────────────────────────────────────
 
-export const Level29Meta: LevelMeta = {
-	key: 'Level29',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-threats', description: 'Eliminate 4 red threats WITHOUT hitting grey civilians', type: 'defeat' }],
-	hints: [
-		'All 8 enemies are within getNearbyEnemies radius 150 from center.',
-		'getNearbyEnemies does NOT distinguish by type — returns ALL in range!',
-		'Add a filter AFTER getNearbyEnemies: filter(nearby, eid → gt(hp(eid), 40))',
-		'Grey enemies (HP=15) are civilians — hitting them = penalty.',
-		'Solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity)',
-	],
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// getPlayer → getEntityPosition (player pos)
@@ -86,7 +72,24 @@ export const Level29Meta: LevelMeta = {
 			{ id: 'e19', source: 'lit-100', target: 'f-dmg',  targetHandle: 'arg2' },
 			{ id: 'e20', source: 'f-dmg',   target: 'fout-d', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level29Meta: LevelMeta = {
+	key: 'Level29',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-threats', description: 'Eliminate 4 red threats WITHOUT hitting grey civilians', type: 'defeat' }],
+	hints: [
+		'All 8 enemies are within getNearbyEnemies radius 150 from center.',
+		'getNearbyEnemies does NOT distinguish by type — returns ALL in range!',
+		'Add a filter AFTER getNearbyEnemies: filter(nearby, eid → gt(hp(eid), 40))',
+		'Grey enemies (HP=15) are civilians — hitting them = penalty.',
+		'Solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity)',
+	],
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level29Meta)

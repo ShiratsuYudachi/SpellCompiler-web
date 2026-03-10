@@ -18,21 +18,7 @@ import type Phaser from 'phaser'
 // 关键洞察：eid 既是目标，也是 getEntityHealth 的参数
 // ─────────────────────────────────────────────────────────────
 
-export const Level23Meta: LevelMeta = {
-	key: 'Level23',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-precise', description: 'Eliminate all enemies — deal damage equal to each one\'s HP', type: 'defeat' }],
-	hints: [
-		'getEntityHealth(state, eid) returns the current HP of an entity.',
-		'Inside a lambda, you already have eid — use it to query HP!',
-		'forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))',
-		'Overkill (total damage > 120% of total HP) = mission failure.',
-	],
-	maxSpellCasts: 1,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
@@ -57,7 +43,24 @@ export const Level23Meta: LevelMeta = {
 			{ id: 'e9', source: 'f-hp', target: 'f-dmg', targetHandle: 'arg2' },
 			{ id: 'e10',source: 'f-dmg',target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level23Meta: LevelMeta = {
+	key: 'Level23',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-precise', description: 'Eliminate all enemies — deal damage equal to each one\'s HP', type: 'defeat' }],
+	hints: [
+		'getEntityHealth(state, eid) returns the current HP of an entity.',
+		'Inside a lambda, you already have eid — use it to query HP!',
+		'forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))',
+		'Overkill (total damage > 120% of total HP) = mission failure.',
+	],
+	maxSpellCasts: 1,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level23Meta)

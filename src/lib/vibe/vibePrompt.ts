@@ -8,6 +8,8 @@ export type LevelContext = {
 	allowedNodeTypes?: string[]
 	maxSpellCasts?: number
 	editorRestrictions?: RegExp
+	/** Complete working answer for this level — injected as structural reference during Full Regen. */
+	referenceSolution?: { nodes: unknown[]; edges: unknown[] }
 }
 
 function buildLevelSection(level: LevelContext): string {
@@ -301,8 +303,18 @@ ${JSON.stringify(stripped)}
 
 	const levelSection = levelContext ? `\n${buildLevelSection(levelContext)}\n` : '';
 
+	const referenceSolutionSection = levelContext?.referenceSolution
+		? `\n=== REFERENCE SOLUTION ===
+This is a COMPLETE, WORKING spell for this exact level. Use it as your structural blueprint:
+- Copy the node types, functionName, displayName, namespace, and edge connections exactly.
+- Preserve the overall wiring pattern (especially lambda structure and handle names).
+- You may adjust literal values if the level objective clearly requires different numbers.
+${JSON.stringify(levelContext.referenceSolution)}
+=== END REFERENCE SOLUTION ===\n`
+		: '';
+
 	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with keys "nodes", "edges", and optionally "summary".
-${levelSection}${currentGraphSection}
+${levelSection}${referenceSolutionSection}${currentGraphSection}
 ${NODE_SCHEMA}
 
 Available functions (each entry shows: fullName(params)  [displayName="...", namespace="..."]):

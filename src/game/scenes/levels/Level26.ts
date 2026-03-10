@@ -20,22 +20,7 @@ import type Phaser from 'phaser'
 // FYP 亮点：filter → map → fold 就是 MapReduce 的完整流程
 // ─────────────────────────────────────────────────────────────
 
-export const Level26Meta: LevelMeta = {
-	key: 'Level26',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'destroy-core', description: 'Calculate the reactor core HP and deal exactly that much damage', type: 'defeat' }],
-	hints: [
-		'The reactor core HP (???) equals the SUM of all 4 fuel cell HPs.',
-		'Step 1: filter enemies with hp < 60 to get fuel cells.',
-		'Step 2: map(fuels, eid → getEntityHealth(state, eid)) converts eids to HP numbers.',
-		'Step 3: fold(hpList, 0, (acc, hp) → add(acc, hp)) sums them all.',
-		'Step 4: filter to find the core (hp ≥ 60), then head, then damageEntity.',
-		'Wrong damage amount (±5 error) = shield deflects — core HP restores!',
-	],
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 300 }, data: { label: 'Game State', params: ['state'] } },
 			// getAllEnemies (shared source, used twice)
@@ -115,7 +100,25 @@ export const Level26Meta: LevelMeta = {
 			{ id: 'e31', source: 'f-fold',  target: 'f-dmg',  targetHandle: 'arg2' },
 			{ id: 'e32', source: 'f-dmg',   target: 'out',    targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level26Meta: LevelMeta = {
+	key: 'Level26',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'destroy-core', description: 'Calculate the reactor core HP and deal exactly that much damage', type: 'defeat' }],
+	hints: [
+		'The reactor core HP (???) equals the SUM of all 4 fuel cell HPs.',
+		'Step 1: filter enemies with hp < 60 to get fuel cells.',
+		'Step 2: map(fuels, eid → getEntityHealth(state, eid)) converts eids to HP numbers.',
+		'Step 3: fold(hpList, 0, (acc, hp) → add(acc, hp)) sums them all.',
+		'Step 4: filter to find the core (hp ≥ 60), then head, then damageEntity.',
+		'Wrong damage amount (±5 error) = shield deflects — core HP restores!',
+	],
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level26Meta)

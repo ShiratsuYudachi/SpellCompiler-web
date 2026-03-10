@@ -11,6 +11,11 @@ export type LevelMeta = {
 		nodes: any[]
 		edges: any[]
 	}
+	/** Complete working answer for this level — used as structural reference by the Vibe AI (Full Regen). */
+	answerSpellWorkflow?: {
+		nodes: any[]
+		edges: any[]
+	}
 	editorRestrictions?: RegExp
 	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'functionOut' | 'output' | 'dynamicFunction' | 'spellInput'>
 	hints?: string[]

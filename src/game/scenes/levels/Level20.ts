@@ -25,30 +25,7 @@ import type Phaser from 'phaser'
 // 唯有 and(gt(hp,25), lt(hp,60)) 能精确隔离 40 HP 目标
 // ─────────────────────────────────────────────────────────────
 
-export const Level20Meta: LevelMeta = {
-	key: 'Level20',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [
-		{
-			id: 'kill-target',
-			description: 'Eliminate the orange Target only — use a double-condition filter (AND)',
-			type: 'defeat',
-		},
-	],
-	hints: [
-		'A single threshold cannot isolate the orange target (40 HP).',
-		'Hint: civilians are 10 HP, weak enemies 18 HP, guards 75 HP, target 40 HP.',
-		'You need: filter(eid → and(gt(health, 25), lt(health, 60)))',
-		'logic::and takes two booleans and returns true only if BOTH are true.',
-	],
-	// Complete solution spell:
-	//   getAllEnemies → filter(isMedium) → head → damageEntity(state, _, 100)
-	//   isMedium = lambda(eid) { and(gt(health(eid), 25), lt(health(eid), 60)) }
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			// ── Main chain ──────────────────────────────────────────
 			{
@@ -146,7 +123,33 @@ export const Level20Meta: LevelMeta = {
 			{ id: 'e16', source: 'f-lt',  target: 'f-and', targetHandle: 'arg1' },
 			{ id: 'e17', source: 'f-and', target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level20Meta: LevelMeta = {
+	key: 'Level20',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [
+		{
+			id: 'kill-target',
+			description: 'Eliminate the orange Target only — use a double-condition filter (AND)',
+			type: 'defeat',
+		},
+	],
+	hints: [
+		'A single threshold cannot isolate the orange target (40 HP).',
+		'Hint: civilians are 10 HP, weak enemies 18 HP, guards 75 HP, target 40 HP.',
+		'You need: filter(eid → and(gt(health, 25), lt(health, 60)))',
+		'logic::and takes two booleans and returns true only if BOTH are true.',
+	],
+	// Complete solution spell:
+	//   getAllEnemies → filter(isMedium) → head → damageEntity(state, _, 100)
+	//   isMedium = lambda(eid) { and(gt(health(eid), 25), lt(health(eid), 60)) }
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level20Meta)

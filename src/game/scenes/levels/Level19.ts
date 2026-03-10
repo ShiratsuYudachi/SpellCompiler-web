@@ -18,29 +18,7 @@ import type Phaser from 'phaser'
 // 规则：每击中平民 +1 惩罚；3 次惩罚 → 任务失败并重置
 // ─────────────────────────────────────────────────────────────
 
-export const Level19Meta: LevelMeta = {
-	key: 'Level19',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [
-		{
-			id: 'kill-boss',
-			description: 'Eliminate the Target (red): filter by HP, then attack with damageEntity',
-			type: 'defeat',
-		},
-	],
-	hints: [
-		'getAllEnemies returns ALL entities — civilians included.',
-		'Use filter with a lambda: eid → getEntityHealth(state, eid) > 30',
-		'Then head to pick the first match, then damageEntity(state, eid, 100)',
-	],
-	// Complete solution spell:
-	//   getAllEnemies → filter(isTarget) → head → damageEntity(state, _, 100)
-	//   isTarget = lambda(eid) { getEntityHealth(state, eid) > 30 }
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			// ── Main chain ──────────────────────────────────────────
 			{
@@ -120,7 +98,32 @@ export const Level19Meta: LevelMeta = {
 			{ id: 'e12', source: 'lit-30',   target: 'f-gt', targetHandle: 'arg1' },
 			{ id: 'e13', source: 'f-gt',     target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level19Meta: LevelMeta = {
+	key: 'Level19',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [
+		{
+			id: 'kill-boss',
+			description: 'Eliminate the Target (red): filter by HP, then attack with damageEntity',
+			type: 'defeat',
+		},
+	],
+	hints: [
+		'getAllEnemies returns ALL entities — civilians included.',
+		'Use filter with a lambda: eid → getEntityHealth(state, eid) > 30',
+		'Then head to pick the first match, then damageEntity(state, eid, 100)',
+	],
+	// Complete solution spell:
+	//   getAllEnemies → filter(isTarget) → head → damageEntity(state, _, 100)
+	//   isTarget = lambda(eid) { getEntityHealth(state, eid) > 30 }
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level19Meta)
