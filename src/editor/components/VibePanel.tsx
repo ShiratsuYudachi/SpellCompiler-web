@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea, Tooltip } from '@mantine/core';
 import { OPENROUTER_MODELS, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi';
-import { COMPLETE_SPELL_INSTRUCTION } from '../../lib/vibe/vibePrompt';
+import { COMPLETE_SPELL_INSTRUCTION, FULL_REGEN_INSTRUCTION } from '../../lib/vibe/vibePrompt';
 
 const API_KEY_STORAGE_KEY = 'spellcompiler-openrouter-api-key';
 const MODEL_STORAGE_KEY = 'spellcompiler-openrouter-model';
@@ -19,7 +19,7 @@ export type VibeMode = 'ask' | 'build';
 
 export type VibePanelProps = {
 	mode?: VibeMode;
-	onGenerate: (text: string, apiKey?: string, model?: string) => Promise<{
+	onGenerate: (text: string, apiKey?: string, model?: string, options?: { isFullRegen?: boolean }) => Promise<{
 		nodes: unknown[];
 		edges: unknown[];
 		wasUpdate?: boolean;
@@ -45,6 +45,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	const [apiKey, setApiKey] = useState('');
 	const [model, setModel] = useState<string>('openai/gpt-4o-mini');
 	const [loading, setLoading] = useState(false);
+	const [regenLoading, setRegenLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
 	const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
@@ -111,10 +112,11 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	}, []);
 
 	/** Shared submit logic — accepts explicit instruction text so Complete can bypass the textarea. */
-	const submitBuild = async (instruction: string, opts?: { isComplete?: boolean }) => {
+	const submitBuild = async (instruction: string, opts?: { isComplete?: boolean; isFullRegen?: boolean }) => {
 		const isComplete = opts?.isComplete ?? false;
+		const isFullRegen = opts?.isFullRegen ?? false;
 		// Mock model can't actually wire connections — inform the user
-		if (isComplete && useMock) {
+		if ((isComplete || isFullRegen) && useMock) {
 			setError('Complete Spell needs a real AI model to wire connections. Select an OpenRouter model and enter your API key at openrouter.ai/keys.');
 			setSuccessMsg(null);
 			setSummaryMsg(null);
@@ -127,14 +129,16 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
-		setLoading(true);
+		if (isFullRegen) setRegenLoading(true); else setLoading(true);
 		try {
-			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model);
+			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model, isFullRegen ? { isFullRegen: true } : undefined);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
 			// Compute diff for the success headline
 			const addedNodes = result.nodes.length - (result.prevNodeCount ?? 0);
 			const addedEdges = result.edges.length - (result.prevEdgeCount ?? 0);
-			if (isComplete) {
+			if (isFullRegen) {
+				setSuccessMsg(`⚡ Regenerated: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+			} else if (isComplete) {
 				const parts: string[] = [];
 				if (addedNodes > 0) parts.push(`+${addedNodes} node${addedNodes !== 1 ? 's' : ''}`);
 				if (addedEdges > 0) parts.push(`+${addedEdges} edge${addedEdges !== 1 ? 's' : ''}`);
@@ -150,6 +154,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 			setError(msg + ' (See F12 Console for details.)');
 		} finally {
 			setLoading(false);
+			setRegenLoading(false);
 		}
 	};
 
@@ -163,6 +168,11 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	/** One-click "Complete Spell" — wires up missing connections using existing nodes only. */
 	const handleComplete = async () => {
 		await submitBuild(COMPLETE_SPELL_INSTRUCTION, { isComplete: true });
+	};
+
+	/** One-click "完全重生成" — discards current graph and generates a fresh complete spell from level objectives. */
+	const handleFullRegen = async () => {
+		await submitBuild(FULL_REGEN_INSTRUCTION, { isFullRegen: true });
 	};
 
 	const handleAsk = async () => {
@@ -184,10 +194,11 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 			setError(e instanceof Error ? e.message : String(e));
 		} finally {
 			setLoading(false);
+			setRegenLoading(false);
 		}
 	};
 
-	const canSubmit = !disabled && !loading && (useMock || !!sanitizeApiKey(apiKey));
+	const canSubmit = !disabled && !loading && !regenLoading && (useMock || !!sanitizeApiKey(apiKey));
 
 	return (
 		<Paper p="sm" shadow="sm" withBorder className="flex flex-col gap-2 h-full overflow-hidden">
@@ -255,6 +266,25 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 								</Button>
 							</Tooltip>
 						)}
+						<Tooltip
+							label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
+							position="left"
+							multiline
+							w={240}
+							withArrow
+						>
+							<Button
+								size="xs"
+								variant="filled"
+								color="orange"
+								onClick={handleFullRegen}
+								loading={regenLoading}
+								disabled={!canSubmit}
+								fullWidth
+							>
+								⚡ 完全重生成
+							</Button>
+						</Tooltip>
 
 						<Textarea
 							placeholder={

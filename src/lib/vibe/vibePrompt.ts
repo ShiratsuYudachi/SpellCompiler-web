@@ -227,6 +227,14 @@ export const COMPLETE_SPELL_INSTRUCTION =
 	'You may add dynamicFunction nodes ONLY from the Available Functions list. ' +
 	'Reuse existing nodes — do not duplicate any node that already serves the same purpose.';
 
+/** Instruction injected when the user wants a full regeneration from scratch. */
+export const FULL_REGEN_INSTRUCTION =
+	'Generate a COMPLETE spell from scratch that correctly achieves the level objective shown above. ' +
+	'Ignore the current graph — build a fresh, fully-functional spell. ' +
+	'Include ALL necessary nodes: spellInput, every required game/std function, all literals, and the output node. ' +
+	'Wire EVERY handle on EVERY node. No orphaned nodes. Every data path must reach the output node. ' +
+	'Choose function parameter values (literals) that are appropriate for the level objective.';
+
 export function buildVibePrompt(
 	userText: string,
 	currentGraph?: { nodes: unknown[]; edges: unknown[] },

@@ -819,24 +819,24 @@ function EditorContent(props: FunctionalEditorProps) {
 		} : undefined,
 	[props.levelMeta]);
 
-	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, model?: string) => {
-		console.log('[Vibe] handleVibeGenerate', { model, hasKey: !!apiKey?.trim(), level: levelContext?.key });
+	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, model?: string, options?: { isFullRegen?: boolean }) => {
+		const isFullRegen = options?.isFullRegen ?? false;
+		console.log('[Vibe] handleVibeGenerate', { model, hasKey: !!apiKey?.trim(), level: levelContext?.key, isFullRegen });
 		const useMock = model === MOCK_MODEL_ID;
 		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
 		const currentNodes = getNodes();
 		const currentEdges = getEdges();
+		// Full regen: don't pass current graph — generate fresh from level context only
+		const graphOptions = isFullRegen ? undefined : { nodes: currentNodes, edges: currentEdges };
 		console.log('[Vibe] Calling vibeBuild...');
-		const { nodes, edges, summary } = await vibeBuild(userText, apiKey ?? '', model, {
-			nodes: currentNodes,
-			edges: currentEdges,
-		}, levelContext);
+		const { nodes, edges, summary } = await vibeBuild(userText, apiKey ?? '', model, graphOptions, levelContext);
 		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length, hasSummary: !!summary });
 		return {
 			nodes: nodes as Node[],
 			edges: edges as Edge[],
-			wasUpdate: currentNodes.length > 0 || currentEdges.length > 0,
-			prevNodeCount: currentNodes.length,
-			prevEdgeCount: currentEdges.length,
+			wasUpdate: true, // always replace existing graph
+			prevNodeCount: isFullRegen ? 0 : currentNodes.length,
+			prevEdgeCount: isFullRegen ? 0 : currentEdges.length,
 			summary,
 		};
 	}, [getNodes, getEdges, levelContext]);
