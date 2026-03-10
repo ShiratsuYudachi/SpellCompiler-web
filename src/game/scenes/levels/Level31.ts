@@ -8,24 +8,24 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 31 — 「最终审判」（终极关卡）
+// Level 31 — "Final Judgment" (final level)
 //
-// 三波攻势：每波清空后自动触发下一波，测试所有核心技能
+// Three waves: each wave triggers the next when cleared; tests all core skills
 //
-//   Wave 1 — 「直冲阵」
-//     5 个蓝色步兵（HP=50），散布在左区
-//     → 直接 forEach + damageEntity
+//   Wave 1 — "Direct Assault"
+//     5 blue infantry (HP=50), scattered left
+//     → forEach + damageEntity
 //
-//   Wave 2 — 「远程狙击」
-//     4 个橙色精英（HP=80，位于场地四角附近）
-//     → 必须用 map(eid→direction) + forEach(spawnFireball)
-//       （onDamage hook：直接 damageEntity 会被护盾反弹）
+//   Wave 2 — "Long-Range Snipe"
+//     4 orange elites (HP=80, near corners)
+//     → map(eid→direction) + forEach(spawnFireball)
+//       (onDamage: direct damageEntity is reflected by shield)
 //
-//   Wave 3 — 「混合围攻」
-//     8 个敌人围成圆形（红色威胁 HP=80 × 4 + 灰色平民 HP=15 × 4）
+//   Wave 3 — "Mixed Siege"
+//     8 enemies in a circle (4 red threats HP=80 + 4 gray civilians HP=15)
 //     → getNearbyEnemies(state, playerPos, 200) + filter(HP>40) + forEach(damage)
 //
-// 编辑器为空白；玩家自行构建每波的 Spell
+// Editor starts empty; player builds the spell for each wave
 // ─────────────────────────────────────────────────────────────
 
 export const Level31Meta: LevelMeta = {

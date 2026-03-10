@@ -4,7 +4,7 @@ export type LevelMeta = {
 	key: string
 	playerSpawnX: number
 	playerSpawnY: number
-	mapData?: number[][] // 0: 空地, 1: 墙壁, 2: 平台, 3: 危险区, 4: 目标点
+	mapData?: number[][] // 0: empty, 1: wall, 2: platform, 3: hazard, 4: objective
 	tileSize?: number
 	objectives?: ObjectiveConfig[]
 	initialSpellWorkflow?: {
@@ -20,7 +20,7 @@ export type LevelMeta = {
 	allowedNodeTypes?: Array<'literal' | 'vector' | 'if' | 'customFunction' | 'applyFunc' | 'lambdaDef' | 'functionOut' | 'output' | 'dynamicFunction' | 'spellInput'>
 	hints?: string[]
 	logicReference?: Record<string, { gridX: number; gridY: number; action: string }>
-	maxSpellCasts?: number   // 关卡最多允许施法次数，undefined 表示不限制
+	maxSpellCasts?: number   // Max spell casts for this level; undefined = no limit
 }
 
 class LevelRegistry {

@@ -1,33 +1,33 @@
 /**
- * fireballVisual - 火球法术视觉效果
- * 魔法光环风格 - 多层光环、旋转粒子、魔法箭头
+ * fireballVisual - Fireball spell visual effect
+ * Magic aura style: layered rings, orbiting particles, direction arrow
  */
 
 import Phaser from 'phaser';
 
 export interface FireballCastVisualOptions {
-  /** 火焰主色 */
+  /** Flame main color */
   color: number;
-  /** 火焰次色（内焰） */
+  /** Flame inner color */
   innerColor: number;
-  /** 核心色（最亮） */
+  /** Core color (brightest) */
   coreColor: number;
-  /** 效果半径 */
+  /** Effect radius */
   radius: number;
-  /** 动画持续时间(ms) */
+  /** Animation duration (ms) */
   duration: number;
-  /** 粒子数量 */
+  /** Particle count */
   particleCount: number;
-  /** 是否显示方向指示 */
+  /** Show direction indicator */
   showDirection: boolean;
-  /** 是否显示光晕 */
+  /** Show glow */
   showGlow: boolean;
 }
 
 const DEFAULT_OPTIONS: FireballCastVisualOptions = {
-  color: 0xff6600,        // 橙色火焰
-  innerColor: 0xffaa00,   // 金黄色
-  coreColor: 0xffffcc,    // 亮黄白色核心
+  color: 0xff6600,        // Orange flame
+  innerColor: 0xffaa00,   // Gold
+  coreColor: 0xffffcc,    // Bright yellow-white core
   radius: 35,
   duration: 350,
   particleCount: 10,
@@ -36,7 +36,7 @@ const DEFAULT_OPTIONS: FireballCastVisualOptions = {
 };
 
 /**
- * 播放火球施法视觉效果（魔法光环风格）
+ * Play fireball cast visual (magic aura style)
  */
 export function playFireballCastVisual(
   scene: Phaser.Scene,
@@ -48,25 +48,25 @@ export function playFireballCastVisual(
 ): void {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // 1. 中心光晕辉光
+  // 1. Center glow
   if (opts.showGlow) {
     createGlowEffect(scene, x, y, opts);
   }
 
-  // 2. 多层魔法光环
+  // 2. Magic rings
   createMagicRings(scene, x, y, opts);
 
-  // 3. 旋转火焰粒子
+  // 3. Orbiting flame particles
   createOrbitingParticles(scene, x, y, opts);
 
-  // 4. 魔法箭头方向指示
+  // 4. Direction arrow
   if (opts.showDirection) {
     createMagicArrow(scene, x, y, dirX, dirY, opts);
   }
 }
 
 /**
- * 播放火球蓄力效果
+ * Play fireball charge effect
  */
 export function playFireballChargeVisual(
   scene: Phaser.Scene,
@@ -79,15 +79,15 @@ export function playFireballChargeVisual(
   const container = scene.add.container(x, y);
   container.setDepth(100);
 
-  // 外层光晕
+  // Outer glow
   const glow = scene.add.circle(0, 0, opts.radius * 0.8, opts.color, 0.3);
   container.add(glow);
 
-  // 内圈 - 脉动的火焰核心
+  // Inner pulsing core
   const core = scene.add.circle(0, 0, opts.radius * 0.3, opts.coreColor, 0.9);
   container.add(core);
 
-  // 旋转的粒子环
+  // Orbiting particle ring
   const particles: Phaser.GameObjects.Arc[] = [];
   for (let i = 0; i < 6; i++) {
     const angle = (Math.PI * 2 / 6) * i;
@@ -98,7 +98,7 @@ export function playFireballChargeVisual(
     container.add(particle);
   }
 
-  // 光晕脉动
+  // Glow pulse
   scene.tweens.add({
     targets: glow,
     scale: { from: 0.9, to: 1.2 },
@@ -109,7 +109,7 @@ export function playFireballChargeVisual(
     ease: 'Sine.easeInOut',
   });
 
-  // 核心脉动
+  // Core pulse
   scene.tweens.add({
     targets: core,
     scale: { from: 0.8, to: 1.1 },
@@ -119,7 +119,7 @@ export function playFireballChargeVisual(
     ease: 'Sine.easeInOut',
   });
 
-  // 粒子旋转
+  // Particle rotation
   scene.tweens.add({
     targets: container,
     angle: 360,
@@ -132,7 +132,7 @@ export function playFireballChargeVisual(
 }
 
 /**
- * 停止蓄力效果并播放释放动画
+ * Stop charge effect and play release animation
  */
 export function playFireballReleaseVisual(
   scene: Phaser.Scene,
@@ -145,12 +145,12 @@ export function playFireballReleaseVisual(
   const x = chargeContainer.x;
   const y = chargeContainer.y;
 
-  // 停止并销毁蓄力效果
+  // Stop and destroy charge effect
   scene.tweens.killTweensOf(chargeContainer);
   scene.tweens.killTweensOf(chargeContainer.list);
   chargeContainer.destroy();
 
-  // 播放增强版释放效果
+  // Play enhanced release effect
   createGlowEffect(scene, x, y, { ...opts, radius: opts.radius * 1.5 });
   createMagicRings(scene, x, y, { ...opts, radius: opts.radius * 1.3 });
   createOrbitingParticles(scene, x, y, { ...opts, particleCount: opts.particleCount * 2 });
@@ -158,11 +158,11 @@ export function playFireballReleaseVisual(
 }
 
 // ========================================
-// 内部辅助函数
+// Internal helpers
 // ========================================
 
 /**
- * 创建中心光晕辉光效果
+ * Create center glow effect
  */
 function createGlowEffect(
   scene: Phaser.Scene,
@@ -170,11 +170,11 @@ function createGlowEffect(
   y: number,
   opts: FireballCastVisualOptions
 ): void {
-  // 大范围柔和光晕
+  // Large soft glow
   const glow = scene.add.circle(x, y, opts.radius * 1.2, opts.innerColor, 0.4);
   glow.setDepth(98);
 
-  // 快速脉冲然后消失
+  // Quick pulse then fade
   scene.tweens.add({
     targets: glow,
     scale: { from: 0.5, to: 1.8 },
@@ -186,7 +186,7 @@ function createGlowEffect(
 }
 
 /**
- * 创建多层魔法光环
+ * Create layered magic rings
  */
 function createMagicRings(
   scene: Phaser.Scene,
@@ -202,12 +202,12 @@ function createMagicRings(
 
   rings.forEach(({ color, radius, delay, thickness }) => {
     scene.time.delayedCall(delay, () => {
-      // 创建光环（空心圆）
+      // Create ring (hollow circle)
       const ring = scene.add.circle(x, y, radius * 0.3, 0x000000, 0);
       ring.setStrokeStyle(thickness, color, 1);
       ring.setDepth(100);
 
-      // 扩散动画
+      // Expand animation
       scene.tweens.add({
         targets: ring,
         radius: radius * 2.5,
@@ -219,7 +219,7 @@ function createMagicRings(
     });
   });
 
-  // 中心核心闪光
+  // Center core flash
   const core = scene.add.circle(x, y, opts.radius * 0.2, opts.coreColor, 1);
   core.setDepth(101);
 
@@ -234,7 +234,7 @@ function createMagicRings(
 }
 
 /**
- * 创建旋转火焰粒子
+ * Create orbiting flame particles
  */
 function createOrbitingParticles(
   scene: Phaser.Scene,
@@ -250,25 +250,25 @@ function createOrbitingParticles(
     const particleColor = colors[i % colors.length];
     const size = 3 + Math.random() * 3;
 
-    // 圆形粒子
+    // Circular particle
     const particle = scene.add.circle(x, y, size, particleColor, 0.9);
     particle.setDepth(100);
 
-    // 计算旋转路径
+    // Compute rotation path
     const orbitRadius = radius * (0.4 + Math.random() * 0.3);
-    const rotationAngle = Math.PI * 0.5 + Math.random() * Math.PI * 0.3; // 旋转90-135度
+    const rotationAngle = Math.PI * 0.5 + Math.random() * Math.PI * 0.3; // Rotate 90-135 deg
     const finalAngle = startAngle + rotationAngle;
 
-    // 最终位置（旋转后向外扩散）
+    // Final position (after rotation, expand outward)
     const finalRadius = radius * (1.5 + Math.random() * 0.5);
     const finalX = x + Math.cos(finalAngle) * finalRadius;
     const finalY = y + Math.sin(finalAngle) * finalRadius;
 
-    // 中间位置（旋转轨道上）
+    // Mid position (on rotation orbit)
     const midX = x + Math.cos(startAngle + rotationAngle * 0.5) * orbitRadius;
     const midY = y + Math.sin(startAngle + rotationAngle * 0.5) * orbitRadius;
 
-    // 两段动画：先旋转，后扩散
+    // Two-phase animation: rotate then expand
     scene.tweens.add({
       targets: particle,
       x: midX,
@@ -279,7 +279,7 @@ function createOrbitingParticles(
         scene.tweens.add({
           targets: particle,
           x: finalX,
-          y: finalY - 8, // 轻微上飘
+          y: finalY - 8, // Slight float up
           alpha: 0,
           scale: 0.3,
           duration: duration * 0.6,
@@ -292,7 +292,7 @@ function createOrbitingParticles(
 }
 
 /**
- * 创建魔法箭头方向指示
+ * Create magic arrow direction indicator
  */
 function createMagicArrow(
   scene: Phaser.Scene,
@@ -302,7 +302,7 @@ function createMagicArrow(
   dirY: number,
   opts: FireballCastVisualOptions
 ): void {
-  // 归一化方向
+  // Normalize direction
   const len = Math.sqrt(dirX * dirX + dirY * dirY);
   if (len === 0) return;
 
@@ -310,32 +310,32 @@ function createMagicArrow(
   const ny = dirY / len;
   const angle = Math.atan2(ny, nx);
 
-  // 箭头起始位置
+  // Arrow start position
   const startX = x + nx * opts.radius * 0.5;
   const startY = y + ny * opts.radius * 0.5;
 
-  // 创建三角形箭头
+  // Create triangle arrow
   const arrow = scene.add.graphics();
   arrow.setDepth(102);
 
-  // 绘制三角形
+  // Draw triangle
   const arrowSize = 12;
   arrow.fillStyle(opts.coreColor, 0.9);
   arrow.beginPath();
-  arrow.moveTo(arrowSize, 0);           // 尖端
-  arrow.lineTo(-arrowSize * 0.5, -arrowSize * 0.5);  // 左后
-  arrow.lineTo(-arrowSize * 0.5, arrowSize * 0.5);   // 右后
+  arrow.moveTo(arrowSize, 0);           // Tip
+  arrow.lineTo(-arrowSize * 0.5, -arrowSize * 0.5);  // Left rear
+  arrow.lineTo(-arrowSize * 0.5, arrowSize * 0.5);   // Right rear
   arrow.closePath();
   arrow.fillPath();
 
-  // 添加发光边缘
+  // Add glow edge
   arrow.lineStyle(2, opts.innerColor, 0.8);
   arrow.strokePath();
 
   arrow.setPosition(startX, startY);
   arrow.setRotation(angle);
 
-  // 箭头飞出动画
+  // Arrow fly-out animation
   const flyDistance = opts.radius * 2.5;
   const targetX = startX + nx * flyDistance;
   const targetY = startY + ny * flyDistance;
@@ -351,12 +351,12 @@ function createMagicArrow(
     onComplete: () => arrow.destroy(),
   });
 
-  // 箭头拖尾粒子
+  // Arrow trail particles
   createArrowTrail(scene, startX, startY, nx, ny, flyDistance, opts);
 }
 
 /**
- * 创建箭头拖尾效果
+ * Create arrow trail effect
  */
 function createArrowTrail(
   scene: Phaser.Scene,

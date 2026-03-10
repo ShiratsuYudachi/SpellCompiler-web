@@ -13,7 +13,7 @@ export interface BaseNodeData extends Record<string, unknown> {
 }
 
 /**
- * Literal Node - 数字字面量
+ * Literal Node - numeric literal
  */
 export interface LiteralNodeData extends BaseNodeData {
 	value: number | string | boolean;

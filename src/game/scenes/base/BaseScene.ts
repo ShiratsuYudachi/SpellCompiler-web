@@ -16,9 +16,9 @@ export abstract class BaseScene extends Phaser.Scene {
 	protected hazards: Phaser.GameObjects.Rectangle[] = []
 	protected objectives: Map<string, { sprite: Phaser.GameObjects.Arc; config: ObjectiveConfig }> = new Map()
 	protected terrainRenderer!: TerrainRenderer
-	protected allObjectives: ObjectiveConfig[] = [] // 所有任务
+	protected allObjectives: ObjectiveConfig[] = [] // All objectives
 
-	// UI组件
+	// UI components
 	private hpBar!: Phaser.GameObjects.Graphics
 	private hpText!: Phaser.GameObjects.Text
 	private manaBar!: Phaser.GameObjects.Graphics
@@ -27,7 +27,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	private taskText!: Phaser.GameObjects.Text
 	private tutorialOverlay!: Phaser.GameObjects.Container
 	private controlsPanel!: Phaser.GameObjects.Container
-	private castCountText!: Phaser.GameObjects.Text   // 施法次数显示（仅当关卡有限制时可见）
+	private castCountText!: Phaser.GameObjects.Text   // Spell cast count (visible only when level has limit)
 
 	// Minimap
 	private minimapContainer!: Phaser.GameObjects.Container
@@ -47,14 +47,14 @@ export abstract class BaseScene extends Phaser.Scene {
 	create() {
 		const config = levelRegistry.get(this.scene.key)
 
-		// 计算动态世界大小
+		// Compute dynamic world size
 		if (config?.mapData) {
 			const tileSize = config.tileSize || 64
 			this.worldWidth = config.mapData[0].length * tileSize
 			this.worldHeight = config.mapData.length * tileSize
 		}
 
-		// 物理世界基础
+		// Physics world setup
 		this.cameras.main.setBackgroundColor('#1b1f2a')
 		this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight)
 		this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight)
@@ -68,19 +68,18 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.objectives.clear()
 		this.terrainRenderer = new TerrainRenderer(this)
 
-		// ── 施法次数上限初始化 ───────────────────────────────────
+		// Spell cast limit init
 		if (config?.maxSpellCasts !== undefined) {
 			this.world.resources.levelData!['_maxSpellCasts'] = config.maxSpellCasts
 			this.world.resources.levelData!['_spellCastCount'] = 0
 		}
-		// ────────────────────────────────────────────────────────
 
-		// 自动生成地形
+		// Generate terrain
 		if (config?.mapData) {
 			this.generateTerrain(config.mapData, config.tileSize || 64)
 		}
 
-		// 碰撞逻辑
+		// Collision
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
 			this.physics.add.collider(playerBody, this.platforms)
@@ -88,19 +87,19 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// 初始化 UI 系统
+		// Init UI
 		this.initPlayerHUD()
 		this.initTaskUI()
 		this.initMinimap()
 		this.initControlsPanel()
 		this.initTutorial()
 
-		// 初始化渐进式任务
+		// Init progressive objectives
 		if (config?.objectives) {
 			this.initProgressiveObjectives(config.objectives)
 		}
 
-		// 编辑器与法术事件
+		// Editor and spell events
 		this.bindGlobalEvents()
 
 		// Set up event system input listeners
@@ -129,7 +128,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.onLevelUpdate()
 	}
 
-	// --- 渐进式任务系统 ---
+	// --- Progressive objective system ---
 	private initProgressiveObjectives(objectives: ObjectiveConfig[]) {
 		this.allObjectives = objectives.map(obj => ({
 			...obj,
@@ -141,14 +140,14 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	private updateTaskDisplay() {
-		// 只显示当前激活的任务（第一个未完成的可见任务）
-		// 已完成的任务自动隐藏
+		// Show only current active objective (first incomplete visible one)
+		// Completed objectives are hidden
 		const currentTask = this.allObjectives.find(obj => obj.visible && !obj.completed)
 
 		if (currentTask) {
 			this.taskText.setText(`☐ ${currentTask.description}`)
 		} else if (this.allObjectives.every(obj => obj.completed)) {
-			// 所有任务完成
+			// All objectives complete
 			this.taskText.setText('✓ All objectives complete!')
 		} else {
 			this.taskText.setText('')
@@ -165,7 +164,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.updateTaskDisplay()
 	}
 
-	// 【新增】子类可以手动完成任务
+	// Subclasses can complete objectives manually
 	protected completeObjectiveById(id: string) {
 		const task = this.allObjectives.find(obj => obj.id === id)
 		if (task && !task.completed) {
@@ -173,14 +172,14 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.unlockNextObjective(id)
 			this.updateTaskDisplay()
 
-			// 检查是否全部完成
+			// Check if all complete
 			if (this.allObjectives.every(obj => obj.completed)) {
 				this.onAllObjectivesComplete()
 			}
 		}
 	}
 
-	// 【新增】更新任务描述（用于显示进度）
+	// Update task description (for progress display)
 	protected updateObjectiveDescription(id: string, newDescription: string) {
 		const task = this.allObjectives.find(obj => obj.id === id)
 		if (task) {
@@ -189,7 +188,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		}
 	}
 
-	// --- 地形生成器 ---
+	// --- Terrain generator ---
 	private generateTerrain(data: number[][], size: number) {
 		data.forEach((row, y) => {
 			row.forEach((type, x) => {
@@ -228,7 +227,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		const wall = this.add.rectangle(x, y, size - 2, size - 2, 0x3e4a59, 1)
 		this.physics.add.existing(wall, true)
 		this.platforms.add(wall)
-		// 将墙体添加到 world.resources.walls 用于火球碰撞检测
+		// Add walls to world.resources.walls for fireball collision
 		this.world.resources.walls.push(wall)
 	}
 
@@ -254,21 +253,21 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	/**
-	 * 创建压力板
+	 * Create pressure plate
 	 */
 	private createPressurePlate(x: number, y: number, size: number, color: 'RED' | 'YELLOW') {
-		// 渲染压力板
+		// Render pressure plate
 		if (color === 'RED') {
 			this.terrainRenderer.renderPressurePlateRed(x, y, size)
 		} else {
 			this.terrainRenderer.renderPressurePlateYellow(x, y, size)
 		}
 
-		// 创建碰撞检测区域（不可见）
+		// Create collision area (invisible)
 		const plateHeight = size / 4
 		const rect = this.add.rectangle(x, y, size - 12, plateHeight, 0x000000, 0)
 
-		// 存储压力板信息
+		// Store pressure plate info
 		this.world.resources.pressurePlates.push({
 			x,
 			y,
@@ -280,16 +279,16 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	/**
-	 * 创建感应器
+	 * Create sensor
 	 */
 	private createSensor(x: number, y: number, size: number) {
-		// 渲染感应器
+		// Render sensor
 		this.terrainRenderer.renderSensor(x, y, size)
 
-		// 创建碰撞检测区域（不可见）
+		// Create collision area (invisible)
 		const rect = this.add.rectangle(x, y, size / 2 - 8, size - 16, 0x000000, 0)
 
-		// 存储感应器信息
+		// Store sensor info
 		this.world.resources.sensors.push({
 			x,
 			y,
@@ -300,7 +299,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		})
 	}
 
-	// --- 危险区更新 ---
+	// --- Hazard zone update ---
 	private updateHazards() {
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (!playerBody) return
@@ -323,7 +322,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		})
 	}
 
-	// --- 目标点更新 ---
+	// --- Objective point update ---
 	private updateObjectives() {
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (!playerBody) return
@@ -351,14 +350,14 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	protected onObjectiveComplete(id: string, _objective: ObjectiveConfig) {
-		// 标记任务完成
+		// Mark objective complete
 		const task = this.allObjectives.find(obj => obj.id === id)
 		if (task) {
 			task.completed = true
 			this.unlockNextObjective(id)
 		}
 
-		// 检查是否所有任务完成
+		// Check if all objectives complete
 		const allCompleted = this.allObjectives.every(obj => obj.completed)
 		if (allCompleted) {
 			this.onAllObjectivesComplete()
@@ -378,15 +377,15 @@ export abstract class BaseScene extends Phaser.Scene {
 		}
 	}
 
-	// --- 压力板检测 ---
+	// --- Pressure plate detection ---
 	private updatePressurePlates() {
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (!playerBody) return
 
-		// 重置压力板状态
+		// Reset pressure plate state
 		let currentPlateColor: 'NONE' | 'RED' | 'YELLOW' = 'NONE'
 
-		// 检测玩家是否在压力板上
+		// Check if player is on pressure plate
 		for (const plate of this.world.resources.pressurePlates) {
 			const bounds = plate.rect.getBounds()
 			if (
@@ -400,11 +399,11 @@ export abstract class BaseScene extends Phaser.Scene {
 			}
 		}
 
-		// 更新全局状态
+		// Update global state
 		this.world.resources.currentPlateColor = currentPlateColor
 	}
 
-	// --- UI 系统 ---
+	// --- UI system ---
 	private initPlayerHUD() {
 		const x = 20
 		const y = 20
@@ -440,7 +439,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			.setScrollFactor(0)
 			.setDepth(1002)
 
-		// 施法次数显示（初始隐藏，有限制时才显示）
+		// Spell cast count (hidden by default, shown when limit exists)
 		this.castCountText = this.add
 			.text(x + 5, y + 63, '', {
 				fontSize: '14px',
@@ -454,12 +453,12 @@ export abstract class BaseScene extends Phaser.Scene {
 			.setDepth(1002)
 			.setVisible(false)
 
-		// 监听施法次数已满事件，闪烁提示
+		// Listen for spell cast limit reached, flash hint
 		this.events.on('spell-cast-limit-reached', (max: number) => {
-			this.castCountText.setText(`✨ 施法: 0/${max} — 次数已用完!`)
+			this.castCountText.setText(`✨ Spells: 0/${max} — No casts left!`)
 			this.castCountText.setColor('#ff4444')
 			this.castCountText.setVisible(true)
-			// 0.8 秒后恢复正常颜色
+			// Restore color after 0.8s
 			this.time.delayedCall(800, () => {
 				this.castCountText.setColor('#ffd700')
 			})
@@ -475,7 +474,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		}
 		const usedCasts = (levelData!['_spellCastCount'] as number) ?? 0
 		const remaining = maxCasts - usedCasts
-		this.castCountText.setText(`✨ 施法: ${remaining}/${maxCasts}`)
+		this.castCountText.setText(`✨ Spells: ${remaining}/${maxCasts}`)
 		this.castCountText.setVisible(true)
 	}
 
@@ -502,7 +501,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	private initTaskUI() {
 		this.taskPanel = this.add.container(735, 20).setScrollFactor(0).setDepth(1000)
 
-		// 缩小面板尺寸，因为现在只显示一个任务
+		// Smaller panel since we only show one task
 		const panelWidth = 210
 		const panelHeight = 90
 
@@ -623,7 +622,6 @@ export abstract class BaseScene extends Phaser.Scene {
 			.setOrigin(0.5)
 
 		const controls = [
-			'1  →  Cast Spell',
 			'Tab  →  Toggle Editor',
 			'ESC  →  Pause Menu',
 		]
@@ -657,7 +655,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.tutorialOverlay.setVisible(true)
 	}
 
-	// --- 核心逻辑 ---
+	// --- Core logic ---
 	private bindGlobalEvents() {
 		// ESC key for pause menu
 		this.input.keyboard?.on('keydown-ESC', (e: KeyboardEvent) => {

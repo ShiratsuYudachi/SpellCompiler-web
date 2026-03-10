@@ -8,14 +8,14 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 30 — 「复合清场」（组合关卡 I）
+// Level 30 — "Compound Clear" (combo level I)
 //
-// 教学目标：综合运用 forEach + spawnFireball（无脚手架）
-//   场景：4 个盾卫（HP=10，红，上半区）+ 4 个无人机（HP=10，灰，下半区）
+// Teaching goal: forEach + spawnFireball (no scaffold)
+//   Setup: 4 shield guards (HP=10, red, upper) + 4 drones (HP=10, gray, lower)
 //
-//   盾卫受 onDamage 保护：直接 damageEntity 会被反弹（HP 恢复）
-//     → 必须用 spawnFireball（方向型攻击）才能击破
-//   无人机：同样用 spawnFireball（fireball 不触发 onDamage，直接扣血）
+//   Shield guards have onDamage protection: direct damageEntity is reflected (HP restored)
+//     → must use spawnFireball (directional attack) to break
+//   Drones: same spawnFireball (fireball does not trigger onDamage, direct damage)
 //
 //   Solution:
 //     playerPos = getEntityPosition(state, getPlayer(state))
@@ -24,7 +24,7 @@ import type Phaser from 'phaser'
 //         normalize(subtract(getEntityPosition(state, eid), playerPos)))
 //     )
 //
-// 模板已提供完整施法流程；直接按 SPACE 施法即可通关。
+// Template provides full cast flow; press SPACE to cast and clear.
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {

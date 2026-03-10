@@ -1,6 +1,6 @@
 /**
- * SpellVisualManager - 法术视觉效果管理器
- * 提供统一的接口来播放各种法术施法动画
+ * SpellVisualManager - Spell visual effects manager
+ * Unified API to play spell cast animations
  */
 
 import Phaser from 'phaser';
@@ -8,10 +8,10 @@ import { playTeleportVisual, type TeleportVisualOptions } from './Visuals/telepo
 import { playFireballCastVisual, type FireballCastVisualOptions } from './Visuals/fireballVisual';
 import { playDamageHitVisual, type DamageHitVisualOptions } from './Visuals/damageVisual';
 
-// 效果类型定义
+// Effect type
 export type SpellVisualType = 'teleport' | 'fireballCast' | 'damageHit';
 
-// 通用选项接口
+// Common options
 export interface BaseVisualOptions {
   x: number;
   y: number;
@@ -20,8 +20,7 @@ export interface BaseVisualOptions {
 }
 
 /**
- * 法术视觉效果管理器
- * 可以通过实例方式使用，也可以通过静态方法使用
+ * Spell visual effects manager (instance or static API)
  */
 export class SpellVisualManager {
   private scene: Phaser.Scene;
@@ -30,30 +29,22 @@ export class SpellVisualManager {
     this.scene = scene;
   }
 
-  /**
-   * 播放传送特效
-   */
+  /** Play teleport effect */
   teleport(x: number, y: number, options?: Partial<TeleportVisualOptions>): void {
     playTeleportVisual(this.scene, x, y, options);
   }
 
-  /**
-   * 播放火球施法特效
-   */
+  /** Play fireball cast effect */
   fireballCast(x: number, y: number, dirX: number, dirY: number, options?: Partial<FireballCastVisualOptions>): void {
     playFireballCastVisual(this.scene, x, y, dirX, dirY, options);
   }
 
-  /**
-   * 播放伤害命中特效
-   */
+  /** Play damage hit effect */
   damageHit(x: number, y: number, amount: number, options?: Partial<DamageHitVisualOptions>): void {
     playDamageHitVisual(this.scene, x, y, amount, options);
   }
 
-  /**
-   * 通用播放方法 - 根据类型播放对应特效
-   */
+  /** Play effect by type */
   play(type: SpellVisualType, options: Record<string, any>): void {
     switch (type) {
       case 'teleport':
@@ -72,15 +63,15 @@ export class SpellVisualManager {
 }
 
 // ========================================
-// 静态函数式 API（直接使用，无需实例化）
+// Static API (use without instantiating)
 // ========================================
 
 /**
- * 播放传送特效
- * @param scene Phaser场景
- * @param x 目标X坐标
- * @param y 目标Y坐标
- * @param options 可选配置
+ * Play teleport effect
+ * @param scene Phaser scene
+ * @param x target X
+ * @param y target Y
+ * @param options optional config
  */
 export function playTeleport(
   scene: Phaser.Scene,
@@ -92,13 +83,13 @@ export function playTeleport(
 }
 
 /**
- * 播放火球施法特效
- * @param scene Phaser场景
- * @param x 起始X坐标
- * @param y 起始Y坐标
- * @param dirX 方向X分量
- * @param dirY 方向Y分量
- * @param options 可选配置
+ * Play fireball cast effect
+ * @param scene Phaser scene
+ * @param x start X
+ * @param y start Y
+ * @param dirX direction X
+ * @param dirY direction Y
+ * @param options optional config
  */
 export function playFireballCast(
   scene: Phaser.Scene,
@@ -112,12 +103,12 @@ export function playFireballCast(
 }
 
 /**
- * 播放伤害命中特效
- * @param scene   Phaser场景
- * @param x       命中点 X
- * @param y       命中点 Y
- * @param amount  伤害数值
- * @param options 可选配置
+ * Play damage hit effect
+ * @param scene   Phaser scene
+ * @param x       hit X
+ * @param y       hit Y
+ * @param amount  damage value
+ * @param options optional config
  */
 export function playDamageHit(
   scene: Phaser.Scene,
@@ -129,7 +120,7 @@ export function playDamageHit(
   playDamageHitVisual(scene, x, y, amount, options);
 }
 
-// 重新导出所有视觉效果的类型
+// Re-export visual effect types
 export type { TeleportVisualOptions } from './Visuals/teleportVisual';
 export type { FireballCastVisualOptions } from './Visuals/fireballVisual';
 export type { DamageHitVisualOptions } from './Visuals/damageVisual';

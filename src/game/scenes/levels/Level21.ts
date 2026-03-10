@@ -8,27 +8,27 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 21 — 「最大威胁」
+// Level 21 — "Greatest Threat"
 //
-// 教学目标：用 fold 求 argmax（HP 最大的实体）
+// Teaching goal: use fold to find argmax (entity with highest HP)
 //
 //   fold(
 //     getAllEnemies(state),
-//     -1,                                       ← 哨兵初值
+//     -1,                                       ← sentinel
 //     (best, eid) →
 //       if getEntityHealth(state,eid) > getEntityHealth(state,best)
 //       then eid
 //       else best
 //   )  →  damageEntity(state, result, 200)
 //
-// 为什么 filter 不够用？
-//   每次载入关卡，5 个敌人的 HP 都会重新随机洗牌。
-//   玩家无法用固定阈值找到"最高血量"的那个——必须用 fold。
+// Why filter is not enough:
+//   Each load, 5 enemies get random HP. Player cannot use a fixed
+//   threshold to find the highest-HP one — must use fold.
 //
-// 场景：
-//   5 个敌人（随机 HP，范围 20-115，其中最高 HP 那个是目标）
-//   4 个平民（白，10 HP，严禁击中）
-//   关卡仅在 HP 最高的敌人死亡时胜利
+// Setup:
+//   5 enemies (random HP 20–115; highest is target)
+//   4 civilians (white, 10 HP; do not hit)
+//   Win only when the highest-HP enemy dies
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {

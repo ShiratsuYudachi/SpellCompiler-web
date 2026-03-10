@@ -8,17 +8,17 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 24 — 「分级打击」
+// Level 24 — "Tiered Strike"
 //
-// 教学目标：forEach 专家 — lambda 内部使用 if 分支
+// Teaching goal: forEach with if inside lambda
 //   forEach(enemies,
 //     eid → if hp(eid) > 50
 //           then damageEntity(state, eid, 200)
 //           else damageEntity(state, eid, 50))
 //
-// 场景：4 精英（红，HP=80）+ 4 小兵（灰，HP=20）+ 3 平民（白，HP=5）
-// 机制：平民与小兵相邻；对小兵用 200+ 伤害 → 触发溅射 → 伤及平民
-//       对精英用 50 伤害 → 无法消灭（HP 80 > 50）
+// Setup: 4 elites (red, HP=80) + 4 minions (gray, HP=20) + 3 civilians (white, HP=5)
+// Mechanic: civilians next to minions; 200+ on minion → splash → hits civilians
+//           50 on elite → cannot kill (HP 80 > 50)
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {

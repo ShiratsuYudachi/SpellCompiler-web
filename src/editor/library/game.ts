@@ -432,6 +432,252 @@ export function registerGameFunctions(evaluator: Evaluator) {
 		},
 		ui: { displayName: '⏰ setTimeout' }
 	});
+
+	// ====================================
+	// Level 6–9: levelData-backed queries
+	// ====================================
+
+	// game::detectTreasure(state: GameState, chestIndex: number) -> boolean
+	// Level 6: returns true if chest at index contains treasure, false if bomb. Uses levelData.chests.
+	evaluator.registerFunction({
+		fullName: 'game::detectTreasure',
+		params: ['state', 'chestIndex'],
+		fn: (state: Value, chestIndex: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof chestIndex !== 'number' || chestIndex < 0) return false;
+			const chests = manager.world.resources.levelData?.['chests'] as Array<{ item?: boolean }> | undefined;
+			if (!chests || !chests[chestIndex]) return false;
+			return chests[chestIndex].item === true;
+		},
+		ui: { displayName: '📦 detectTreasure' }
+	});
+
+	// game::getChestIndices(state: GameState) -> List<number>
+	// Level 6: returns list [0,1,2,3,4] for filter + head pattern (Level19-style).
+	evaluator.registerFunction({
+		fullName: 'game::getChestIndices',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			return evaluator.callFunction('list::fromArray', [0, 1, 2, 3, 4] as any);
+		},
+		ui: { displayName: '📋 getChestIndices' }
+	});
+
+	// game::openChest(state: GameState, chestIndex: number) -> GameState
+	// Level 6: requests the level to open the chest at index (the one with treasure). Level processes _openChestIndex next frame.
+	evaluator.registerFunction({
+		fullName: 'game::openChest',
+		params: ['state', 'chestIndex'],
+		fn: (state: Value, chestIndex: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof chestIndex !== 'number' || chestIndex < 0) return state;
+			if (!manager.world.resources.levelData) return state;
+			manager.world.resources.levelData['_openChestIndex'] = chestIndex;
+			return state;
+		},
+		ui: { displayName: '📂 openChest' }
+	});
+
+	// game::getLightColor(state: GameState, id: number) -> string
+	// Level 9: returns "green" | "red" | "yellow" for light id. Uses levelData.lights.
+	evaluator.registerFunction({
+		fullName: 'game::getLightColor',
+		params: ['state', 'id'],
+		fn: (state: Value, id: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof id !== 'number') return '';
+			const lights = manager.world.resources.levelData?.['lights'] as Array<{ ID: number; color: string }> | undefined;
+			if (!lights) return '';
+			const light = lights.find((l: { ID: number }) => l.ID === id);
+			return light ? light.color : '';
+		},
+		ui: { displayName: '🚦 getLightColor' }
+	});
+
+	// game::getBallIndices(state: GameState) -> List<number>
+	// Level 7: returns list of ball indices [0..n-1]. Uses levelData.balls (array of { index, weight }).
+	evaluator.registerFunction({
+		fullName: 'game::getBallIndices',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			const balls = manager.world.resources.levelData?.['balls'] as Array<{ index: number; weight: number }> | undefined;
+			if (!balls || !Array.isArray(balls)) return evaluator.callFunction('list::fromArray', [] as any);
+			const indices = balls.map((b: { index: number }) => b.index);
+			return evaluator.callFunction('list::fromArray', indices as any);
+		},
+		ui: { displayName: '🔢 getBallIndices' }
+	});
+
+	// game::getBallWeight(state: GameState, ballIndex: number) -> number
+	// Level 7/8: returns weight of ball at index. Uses levelData.balls.
+	evaluator.registerFunction({
+		fullName: 'game::getBallWeight',
+		params: ['state', 'ballIndex'],
+		fn: (state: Value, ballIndex: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof ballIndex !== 'number' || ballIndex < 0) return 0;
+			const balls = manager.world.resources.levelData?.['balls'] as Array<{ index: number; weight: number }> | undefined;
+			if (!balls) return 0;
+			const b = balls.find((x: { index: number }) => x.index === ballIndex);
+			return b ? b.weight : 0;
+		},
+		ui: { displayName: '⚖️ getBallWeight' }
+	});
+
+	// game::isHeaviestBall(state: GameState, ballIndex: number) -> boolean
+	// Level 7: returns true iff the ball at index has the maximum weight among all balls.
+	evaluator.registerFunction({
+		fullName: 'game::isHeaviestBall',
+		params: ['state', 'ballIndex'],
+		fn: (state: Value, ballIndex: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof ballIndex !== 'number' || ballIndex < 0) return false;
+			const balls = manager.world.resources.levelData?.['balls'] as Array<{ index: number; weight: number }> | undefined;
+			if (!balls || balls.length === 0) return false;
+			const maxWeight = Math.max(...balls.map((b: { weight: number }) => b.weight));
+			const b = balls.find((x: { index: number }) => x.index === ballIndex);
+			return b ? b.weight === maxWeight : false;
+		},
+		ui: { displayName: '⬆️ isHeaviestBall' }
+	});
+
+	// game::getRemainingBallIndices(state: GameState) -> List<number>
+	// Level 8: returns indices of balls not yet thrown. Uses levelData.remainingBallIndices.
+	evaluator.registerFunction({
+		fullName: 'game::getRemainingBallIndices',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			const remaining = manager.world.resources.levelData?.['remainingBallIndices'] as number[] | undefined;
+			if (!remaining || !Array.isArray(remaining)) return evaluator.callFunction('list::fromArray', [] as any);
+			return evaluator.callFunction('list::fromArray', remaining as any);
+		},
+		ui: { displayName: '🔢 getRemainingBallIndices' }
+	});
+
+	// game::isLightestBall(state: GameState, ballIndex: number) -> boolean
+	// Level 8: among remaining balls, returns true iff this ball has the minimum weight.
+	evaluator.registerFunction({
+		fullName: 'game::isLightestBall',
+		params: ['state', 'ballIndex'],
+		fn: (state: Value, ballIndex: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof ballIndex !== 'number' || ballIndex < 0) return false;
+			const balls = manager.world.resources.levelData?.['balls'] as Array<{ index: number; weight: number }> | undefined;
+			const remaining = manager.world.resources.levelData?.['remainingBallIndices'] as number[] | undefined;
+			if (!balls || !remaining || remaining.length === 0) return false;
+			const remainingWeights = remaining.map((i: number) => {
+				const b = balls.find((x: { index: number }) => x.index === i);
+				return b ? b.weight : Infinity;
+			});
+			const minWeight = Math.min(...remainingWeights);
+			const b = balls.find((x: { index: number }) => x.index === ballIndex);
+			if (!b || !remaining.includes(ballIndex)) return false;
+			return b.weight === minWeight;
+		},
+		ui: { displayName: '⬇️ isLightestBall' }
+	});
+
+	// game::throwBallToGate(state: GameState, ballIndex: number) -> GameState
+	// Level 7/8: requests level to throw the ball at index to the gate. Level processes _throwBallIndex next frame.
+	evaluator.registerFunction({
+		fullName: 'game::throwBallToGate',
+		params: ['state', 'ballIndex'],
+		fn: (state: Value, ballIndex: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (typeof ballIndex !== 'number' || ballIndex < 0) return state;
+			if (!manager.world.resources.levelData) return state;
+			manager.world.resources.levelData['_throwBallIndex'] = ballIndex;
+			return state;
+		},
+		ui: { displayName: '🎯 throwBallToGate' }
+	});
+
+	// game::getWeight(state: GameState) -> number | null
+	// Level 7 (legacy): returns current ball weight. Uses levelData.currentBallWeight.
+	evaluator.registerFunction({
+		fullName: 'game::getWeight',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			const w = manager.world.resources.levelData?.['currentBallWeight'];
+			return w != null && typeof w === 'number' ? w : 0;
+		},
+		ui: { displayName: '⚖️ getWeight' }
+	});
+
+	// game::measureWeight(state: GameState) -> number | null
+	// Level 7/8: returns current ball weight (for use in spell only; level may hide from HUD). Uses levelData.currentBallWeight.
+	evaluator.registerFunction({
+		fullName: 'game::measureWeight',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			const w = manager.world.resources.levelData?.['currentBallWeight'];
+			return w != null && typeof w === 'number' ? w : 0;
+		},
+		ui: { displayName: '⚖️ measureWeight' }
+	});
+
+	// game::setSlot(state: GameState, slotId: number, value: number) -> GameState
+	// game::getSlot(state: GameState, slotId: number) -> number | null
+	// game::clearSlots(state: GameState) -> GameState
+	// Level 8: temporary storage for sorting. Uses levelData.slot1, slot2.
+	evaluator.registerFunction({
+		fullName: 'game::setSlot',
+		params: ['state', 'slotId', 'value'],
+		fn: (state: Value, slotId: Value, value: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (!manager.world.resources.levelData) return state;
+			const id = typeof slotId === 'number' ? slotId : 0;
+			const v = typeof value === 'number' ? value : null;
+			if (id === 1) manager.world.resources.levelData['slot1'] = v;
+			else if (id === 2) manager.world.resources.levelData['slot2'] = v;
+			return state;
+		},
+		ui: { displayName: '📥 setSlot' }
+	});
+	evaluator.registerFunction({
+		fullName: 'game::getSlot',
+		params: ['state', 'slotId'],
+		fn: (state: Value, slotId: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			const id = typeof slotId === 'number' ? slotId : 0;
+			if (id === 1) return (manager.world.resources.levelData?.['slot1'] as Value) ?? 0;
+			if (id === 2) return (manager.world.resources.levelData?.['slot2'] as Value) ?? 0;
+			return 0;
+		},
+		ui: { displayName: '📤 getSlot' }
+	});
+	evaluator.registerFunction({
+		fullName: 'game::clearSlots',
+		params: ['state'],
+		fn: (state: Value): Value => {
+			assertGameState(state);
+			const manager = getManager();
+			if (manager.world.resources.levelData) {
+				manager.world.resources.levelData['slot1'] = null;
+				manager.world.resources.levelData['slot2'] = null;
+			}
+			return state;
+		},
+		ui: { displayName: '🗑️ clearSlots' }
+	});
 }
 
 

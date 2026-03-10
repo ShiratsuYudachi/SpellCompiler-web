@@ -8,14 +8,14 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 28 — 「近距清场」
+// Level 28 — "Close Clear"
 //
-// 教学目标：空间查询基础 — getNearbyEnemies 按距离筛选
+// Teaching goal: spatial query — getNearbyEnemies by distance
 //   playerPos = getEntityPosition(state, getPlayer(state))
 //   nearby = getNearbyEnemies(state, playerPos, 150)
 //   forEach(nearby, eid → damageEntity(state, eid, 100))
 //
-// 关键：玩家需要移动到正确位置再施法；位置成为解题变量
+// Key: player must move to the right position before casting; position is part of the solution
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {

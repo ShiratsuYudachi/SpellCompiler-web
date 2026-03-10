@@ -83,19 +83,18 @@ export function eventProcessSystem(world: GameWorld): void {
 			const spell = getSpell(binding.spellId)
 			if (!spell) continue
 
-			// ── 施法次数上限检查 ─────────────────────────────────
+			// Spell cast limit check
 			const levelData = world.resources.levelData
 			const maxCasts = levelData?.['_maxSpellCasts'] as number | undefined
 			if (maxCasts !== undefined) {
 				const usedCasts = (levelData!['_spellCastCount'] as number) ?? 0
 				if (usedCasts >= maxCasts) {
-					console.warn(`[EventProcess] 施法次数已达上限 (${usedCasts}/${maxCasts})，本次施法被拒绝`)
-					// 通知场景显示提示
+					console.warn(`[EventProcess] Spell cast limit reached (${usedCasts}/${maxCasts}), cast rejected`)
 					const scene = world.resources.scene as Phaser.Scene
 					scene.events.emit('spell-cast-limit-reached', maxCasts)
 					continue
 				}
-				// 先递增，再施法（防止法术内部递归触发）
+				// Increment before cast to prevent recursive triggers
 				levelData!['_spellCastCount'] = usedCasts + 1
 			}
 			// ────────────────────────────────────────────────────
@@ -103,7 +102,11 @@ export function eventProcessSystem(world: GameWorld): void {
 			try {
 				// Event args are passed after GameState
 				// GameState is always injected as first arg by castSpell
-				castSpell(world, playerEid, spell, event.args.slice(1))
+				const result = castSpell(world, playerEid, spell, event.args.slice(1))
+				// Store last spell result for levels that need it (e.g. Level 6 treasure index)
+				if (world.resources.levelData) {
+					world.resources.levelData._lastSpellResult = result
+				}
 			} catch (err) {
 				console.error(`[EventProcess] Error executing handler for ${event.name}:`, err)
 			}

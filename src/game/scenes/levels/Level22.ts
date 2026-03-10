@@ -8,13 +8,13 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 22 — 「扫荡令」
+// Level 22 — "Sweep Order"
 //
-// 教学目标：forEach 基础
+// Teaching goal: forEach basics
 //   forEach(getAllEnemies(state), eid → damageEntity(state, eid, 100))
 //
-// 场景：6 个相同 HP 的敌人，玩家锁定中心
-// 问题：damageEntity 只打单个目标——必须遍历所有
+// Setup: 6 enemies with same HP, player locked at center
+// Problem: damageEntity hits one target — must iterate over all
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {
