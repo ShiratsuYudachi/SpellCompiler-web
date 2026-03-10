@@ -38,15 +38,50 @@ function buildLevelSection(level: LevelContext): string {
 type StrippedNode = { id: string; type: string; data: Record<string, unknown> }
 type StrippedEdge = { id: string; source: string; target: string; sourceHandle?: string; targetHandle?: string }
 
+/** Build a human-readable list of source handles available on each node (for the AI to wire FROM). */
+function buildNodeOutputsText(nodes: StrippedNode[], edges: StrippedEdge[]): string {
+	const lines: string[] = []
+	for (const n of nodes) {
+		const d = (n.data ?? {}) as Record<string, unknown>
+		if (n.type === 'literal') {
+			lines.push(`  "${n.id}" (literal ${JSON.stringify(d.value)}) → no sourceHandle needed`)
+		} else if (n.type === 'vector') {
+			lines.push(`  "${n.id}" (vector {x:${d.x}, y:${d.y}}) → no sourceHandle needed`)
+		} else if (n.type === 'spellInput') {
+			const params = Array.isArray(d.params) ? (d.params as string[]) : []
+			params.forEach((pName, i) => {
+				lines.push(`  "${n.id}" (spellInput) → sourceHandle: "param-${i}" = ${pName} (GameState)`)
+			})
+		} else if (n.type === 'lambdaDef') {
+			const params = Array.isArray(d.params) ? (d.params as string[]) : []
+			params.forEach((pName, i) => {
+				lines.push(`  "${n.id}" (lambdaDef "${String(d.functionName ?? '')}") → sourceHandle: "param${i}" = ${pName}`)
+			})
+		} else if (n.type === 'dynamicFunction') {
+			const fname = String(d.functionName ?? '?')
+			lines.push(`  "${n.id}" (${fname}) → sourceHandle: "result"`)
+		} else if (n.type === 'functionOut') {
+			lines.push(`  "${n.id}" (functionOut, lambda "${String(d.lambdaId ?? '')}") → sourceHandle: "function" (the lambda itself)`)
+		} else if (n.type === 'if') {
+			lines.push(`  "${n.id}" (if) → sourceHandle: "result"`)
+		} else if (n.type === 'applyFunc') {
+			lines.push(`  "${n.id}" (applyFunc) → sourceHandle: "result"`)
+		}
+		// output node has no source handles
+	}
+	return lines.length > 0 ? lines.join('\n') : '  (no source nodes)'
+}
+
 /**
  * Analyse an existing graph and return:
  * - A human-readable node inventory (id → what it does)
  * - A list of unconnected required handles ("missing connections")
  * - The flat list of existing node IDs (so the AI can't claim ignorance)
  */
-function analyzeExistingGraph(nodes: unknown[], edges: unknown[]): {
+export function analyzeExistingGraph(nodes: unknown[], edges: unknown[]): {
 	inventoryText: string
 	missingText: string
+	nodeOutputsText: string
 	nodeIds: string[]
 } {
 	const nodeList = (Array.isArray(nodes) ? nodes : []) as StrippedNode[]
@@ -130,6 +165,7 @@ function analyzeExistingGraph(nodes: unknown[], edges: unknown[]): {
 		missingText: missing.length > 0
 			? missing.join('\n')
 			: '  (none — graph may already be complete)',
+		nodeOutputsText: buildNodeOutputsText(nodeList, edgeList),
 		nodeIds: nodeList.map(n => n.id),
 	}
 }
@@ -196,7 +232,10 @@ export function buildVibePrompt(
 	currentGraph?: { nodes: unknown[]; edges: unknown[] },
 	levelContext?: LevelContext
 ): string {
-	const fnList = AVAILABLE_FUNCTIONS.map((f) => `${f.fullName}(${f.params.join(', ')})`).join('\n');
+	const fnList = AVAILABLE_FUNCTIONS.map((f) => {
+		const sig = `${f.fullName}(${f.params.join(', ')})`;
+		return (f as { hint?: string }).hint ? `${sig}  --  ${(f as { hint?: string }).hint!}` : sig;
+	}).join('\n');
 
 	const hasCurrentGraph =
 		currentGraph &&
@@ -212,7 +251,7 @@ export function buildVibePrompt(
 
 	if (hasCurrentGraph) {
 		const stripped = stripGraphForPrompt(currentGraph!.nodes, currentGraph!.edges);
-		const { inventoryText, missingText } = analyzeExistingGraph(stripped.nodes, stripped.edges);
+		const { inventoryText, missingText, nodeOutputsText } = analyzeExistingGraph(stripped.nodes, stripped.edges);
 
 		currentGraphSection = `
 ⚠️  EXISTING GRAPH — RULES (violations will break the spell):
@@ -233,6 +272,9 @@ ${inventoryText}
 
 MISSING CONNECTIONS — handles that have no incoming edge yet (resolve ALL of these):
 ${missingText}
+
+NODE OUTPUTS — exact source info for every existing node (use these when you need to wire FROM a node):
+${nodeOutputsText}
 
 Full graph JSON (reference):
 \`\`\`json

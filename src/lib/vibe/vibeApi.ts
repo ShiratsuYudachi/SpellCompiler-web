@@ -3,7 +3,7 @@
  * No server required. Use your OpenRouter API key at https://openrouter.ai/keys
  */
 
-import { buildVibePrompt, buildAskPrompt, type LevelContext } from './vibePrompt';
+import { buildVibePrompt, buildAskPrompt, analyzeExistingGraph, type LevelContext } from './vibePrompt';
 export type { LevelContext };
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -177,8 +177,8 @@ async function callOpenRouter(
 	return text;
 }
 
-/** Build mode: generate or update nodes and edges from natural language. Sends the full current graph when updating so the model can return the complete updated graph (in-place update). */
-export async function vibeBuild(
+/** Single (non-retrying) build call — used internally by vibeBuild. */
+async function _vibeBuildOnce(
 	text: string,
 	apiKey: string,
 	model?: OpenRouterModelId | string,
@@ -225,6 +225,37 @@ export async function vibeBuild(
 	}
 	const summary = typeof parsed.summary === 'string' && parsed.summary.trim() ? parsed.summary.trim() : undefined;
 	return { ...normalizeGraphResponse(parsed.nodes, parsed.edges), summary };
+}
+
+/** Build mode: generate or update nodes and edges from natural language.
+ * Runs a second targeted pass automatically if the first response still has unconnected handles. */
+export async function vibeBuild(
+	text: string,
+	apiKey: string,
+	model?: OpenRouterModelId | string,
+	options?: { nodes?: unknown[]; edges?: unknown[] },
+	levelContext?: LevelContext
+): Promise<{ nodes: unknown[]; edges: unknown[]; summary?: string }> {
+	const result = await _vibeBuildOnce(text, apiKey, model, options, levelContext);
+	// B: skip retry for mock model
+	const m = normalizeModel(model);
+	if (m === MOCK_MODEL_ID) return result;
+	// Check if the returned graph still has unresolved connections
+	const { missingText } = analyzeExistingGraph(result.nodes, result.edges);
+	if (missingText.includes('(none')) return result; // all good
+	console.log('[Vibe] Retry: still missing connections after first pass:', missingText);
+	const retryText = `Connect all still-missing handles. These connections are STILL unresolved:
+${missingText}
+
+Add ONLY the missing edges. Reuse existing node ids exactly. Do not add new nodes unless absolutely required.`;
+	try {
+		const retryResult = await _vibeBuildOnce(retryText, apiKey, model, { nodes: result.nodes, edges: result.edges }, levelContext);
+		console.log('[Vibe] Retry succeeded');
+		return retryResult;
+	} catch (retryErr) {
+		console.warn('[Vibe] Retry failed, returning first result:', retryErr);
+		return result;
+	}
 }
 
 function normalizeGraphResponse(nodes: unknown[], edges: unknown[]): { nodes: unknown[]; edges: unknown[] } {

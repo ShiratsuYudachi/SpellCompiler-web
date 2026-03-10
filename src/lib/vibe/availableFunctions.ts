@@ -2,7 +2,7 @@
  * List of available function names and params for the vibe prompt.
  * Mirrors the editor's game + std libraries (no runtime dependency).
  */
-export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayName?: string }[] = [
+export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayName?: string; hint?: string }[] = [
 	{ fullName: 'vec::create', params: ['x', 'y'] },
 	{ fullName: 'vec::x', params: ['v'] },
 	{ fullName: 'vec::y', params: ['v'] },
@@ -38,15 +38,15 @@ export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayN
 	{ fullName: 'list::filter', params: ['list', 'pred'] },
 	{ fullName: 'list::fold', params: ['list', 'init', 'f'] },
 	{ fullName: 'list::forEach', params: ['list', 'f'] },
-	{ fullName: 'game::getPlayer', params: ['state'], displayName: 'getPlayer' },
-	{ fullName: 'game::getEntityPosition', params: ['state', 'entity'], displayName: 'getEntityPosition' },
-	{ fullName: 'game::getEntityHealth', params: ['state', 'entity'], displayName: 'getEntityHealth' },
-	{ fullName: 'game::getNearbyEnemies', params: ['state', 'position', 'radius'], displayName: 'getNearbyEnemies' },
-	{ fullName: 'game::getAllEnemies', params: ['state'], displayName: 'getAllEnemies' },
-	{ fullName: 'game::damageEntity', params: ['state', 'entity', 'amount'], displayName: 'damageEntity' },
-	{ fullName: 'game::spawnFireball', params: ['state', 'position', 'direction'], displayName: 'spawnFireball' },
-	{ fullName: 'game::healEntity', params: ['state', 'entity', 'amount'], displayName: 'healEntity' },
-	{ fullName: 'game::teleportRelative', params: ['state', 'entity', 'delta'], displayName: 'teleportRelative' },
-	{ fullName: 'game::emitEvent', params: ['state', 'eventName'], displayName: 'emitEvent' },
-	{ fullName: 'game::setTimeout', params: ['state', 'delayMs', 'callback'], displayName: 'setTimeout' },
+	{ fullName: 'game::getPlayer', params: ['state'], displayName: 'getPlayer', hint: 'state: GameState → EntityId (the player)' },
+	{ fullName: 'game::getEntityPosition', params: ['state', 'entity'], displayName: 'getEntityPosition', hint: 'state: GameState, entity: EntityId → Vec2 (position)' },
+	{ fullName: 'game::getEntityHealth', params: ['state', 'entity'], displayName: 'getEntityHealth', hint: 'state: GameState, entity: EntityId → number (current HP)' },
+	{ fullName: 'game::getNearbyEnemies', params: ['state', 'position', 'radius'], displayName: 'getNearbyEnemies', hint: 'state: GameState, position: Vec2, radius: number → List<EntityId>' },
+	{ fullName: 'game::getAllEnemies', params: ['state'], displayName: 'getAllEnemies', hint: 'state: GameState → List<EntityId> (all enemies)' },
+	{ fullName: 'game::damageEntity', params: ['state', 'entity', 'amount'], displayName: 'damageEntity', hint: 'state: GameState, entity: EntityId (use head/tail of enemy list), amount: number (damage value, use a literal) → deals damage' },
+	{ fullName: 'game::spawnFireball', params: ['state', 'position', 'direction'], displayName: 'spawnFireball', hint: 'state: GameState, position: Vec2, direction: Vec2 → spawns a fireball' },
+	{ fullName: 'game::healEntity', params: ['state', 'entity', 'amount'], displayName: 'healEntity', hint: 'state: GameState, entity: EntityId, amount: number (heal value) → heals entity' },
+	{ fullName: 'game::teleportRelative', params: ['state', 'entity', 'delta'], displayName: 'teleportRelative', hint: 'state: GameState, entity: EntityId, delta: Vec2 → teleports entity' },
+	{ fullName: 'game::emitEvent', params: ['state', 'eventName'], displayName: 'emitEvent', hint: 'state: GameState, eventName: string → emits a game event' },
+	{ fullName: 'game::setTimeout', params: ['state', 'delayMs', 'callback'], displayName: 'setTimeout', hint: 'state: GameState, delayMs: number, callback: function → delayed callback' },
 ];
