@@ -90,23 +90,23 @@ export class Level12 extends BaseScene {
 	private task2Unlocked = false
 	private task3Unlocked = false
 
-	// 磁能盾 - 中空设计（上下两块，中间有缺口）
+	// Energy shield - hollow (two halves, gap in middle)
 	private shieldTop: Phaser.GameObjects.Rectangle | null = null
 	private shieldBottom: Phaser.GameObjects.Rectangle | null = null
 	private shieldTopBounds: Phaser.Geom.Rectangle | null = null
 	private shieldBottomBounds: Phaser.Geom.Rectangle | null = null
 
-	// 压力板状态显示
+	// Pressure plate state display
 	private plateStatusText!: Phaser.GameObjects.Text
 
-	// Task 3 计数
+	// Task 3 count
 	private task3TargetsDestroyed = 0
 
 	constructor() {
 		super({ key: 'Level12' })
 	}
 
-	// 重置关卡状态（每次进入关卡时调用）
+	// Reset level state (on level enter)
 	private resetLevelState(): void {
 		this.targets = []
 		this.task2Unlocked = false
@@ -119,28 +119,28 @@ export class Level12 extends BaseScene {
 	}
 
 	protected onLevelCreate(): void {
-		// 每次进入关卡时重置状态
+		// Reset state when entering level
 		this.resetLevelState()
 		this.showInstruction(
-			'【Level 12: 安全分流】\n\n' +
-			'学习使用 If 节点进行条件分支。\n\n' +
-			'• getPlayerPlateColor(): 获取玩家所在压力板颜色\n' +
+			'【Level 12: Safe Split】\n\n' +
+			'Use If node for conditional branching.\n\n' +
+			'• getPlayerPlateColor(): get color of pressure plate under player\n' +
 			'• If(condition, trueValue, falseValue)\n\n' +
-			'逻辑：\n' +
-			'IF (踩红板) { 偏转绕过盾牌 }\n' +
-			'ELSE { 直行 }\n\n' +
-			'盾牌会阻挡正面飞来的火球！\n\n' +
-			'按 TAB 编辑法术，按 1 发射火球。'
+			'Logic:\n' +
+			'IF (on red plate) { deflect to bypass shield }\n' +
+			'ELSE { go straight }\n\n' +
+			'The shield blocks fireballs from the front!\n\n' +
+			'Press TAB to edit spell, 1 to fire.'
 		)
 
-		// 锁定玩家位置
+		// Lock player position
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
 			playerBody.setPosition(96, 288)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// 创建压力板状态显示
+		// Create pressure plate state display
 		this.plateStatusText = this.add.text(20, 80, 'Plate: NONE', {
 			fontSize: '16px',
 			color: '#ffffff',
@@ -148,25 +148,23 @@ export class Level12 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// 创建磁能盾 - 中空设计（上下两块，中间有缺口让火球穿过）
-		// 位置：x=544 (盾牌后移到第8-9列之间)
-		// 中间缺口高度约80px，火球从中间穿过后再偏转
+		// Energy shield - hollow (two halves, gap for fireball); x=544
 		const shieldX = 544
 		const shieldWidth = 20
-		const gapHeight = 80 // 中间缺口高度
-		const shieldHeight = 80 // 每块盾牌高度
+		const gapHeight = 80 // Center gap
+		const shieldHeight = 80 // Each half
 
-		// 上半部分盾牌
+		// Upper half
 		this.shieldTop = this.add.rectangle(shieldX, 288 - gapHeight / 2 - shieldHeight / 2, shieldWidth, shieldHeight, 0x00ffff, 0.7)
 		this.shieldTop.setStrokeStyle(3, 0x00ffff)
 		this.shieldTopBounds = this.shieldTop.getBounds()
 
-		// 下半部分盾牌
+		// Lower half
 		this.shieldBottom = this.add.rectangle(shieldX, 288 + gapHeight / 2 + shieldHeight / 2, shieldWidth, shieldHeight, 0x00ffff, 0.7)
 		this.shieldBottom.setStrokeStyle(3, 0x00ffff)
 		this.shieldBottomBounds = this.shieldBottom.getBounds()
 
-		// 盾牌标签
+		// Shield label
 		this.add.text(shieldX, 288 - gapHeight / 2 - shieldHeight - 15, '⚡ Shield', {
 			fontSize: '12px',
 			color: '#00ffff',
@@ -174,7 +172,7 @@ export class Level12 extends BaseScene {
 			strokeThickness: 2,
 		}).setOrigin(0.5)
 
-		// 中间缺口指示
+		// Gap indicator
 		this.add.text(shieldX, 288, '→', {
 			fontSize: '16px',
 			color: '#00ffff',
@@ -182,27 +180,19 @@ export class Level12 extends BaseScene {
 			strokeThickness: 2,
 		}).setOrigin(0.5)
 
-		// 计算目标位置
-		// tileSize = 64, 地图 15x9
-		// 盾牌在 x=544，目标在盾牌后方
-		// 火球从中间缺口穿过后偏转击中目标
+		// Target positions: tileSize=64, map 15x9; shield at x=544, targets behind
 
-		// Task 1: 上方目标（盾牌后上方）
-		// 火球从中间穿过后向上偏转 -35° 击中
+		// Task 1: upper target (behind shield); fireball through gap, deflect -35° up
 		this.createTarget(750, 128, 'Task 1: UP', 0xff4444, 'task1-left', true)
 
-		// Task 2: 下方目标（盾牌后下方）- 初始隐藏
-		// 火球从中间穿过后向下偏转 +35° 击中
+		// Task 2: lower target (behind shield), initially hidden; deflect +35° down
 		this.createTarget(750, 448, 'Task 2: DOWN', 0x44ff44, 'task2-right', false)
 
-		// Task 3: 分流测试 - 两个目标同时出现 - 初始隐藏
-		// 上方目标：需要踩板偏转（靠上）
-		// 下方目标：需要不踩板直行（靠下）
-		// 把两个目标稍微分开（防止重叠或被遮挡），并保持初始隐藏
+		// Task 3: two targets at once, initially hidden; one deflect on plate, one straight off plate
 		this.createTarget(820, 160, 'Task 3-A: Deflect', 0xffaa00, 'task3-deflect', false)
 		this.createTarget(820, 360, 'Task 3-B: Straight', 0xffaa00, 'task3-straight', false)
 
-		// 绑定按键 '1' 发射火球 + 施放法术
+		// Bind key '1' to fire and cast
 		this.input.keyboard?.on('keydown-ONE', () => {
 			this.shootAndCastSpell()
 		})
@@ -212,10 +202,10 @@ export class Level12 extends BaseScene {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// 锁定玩家在左侧区域（可以踩到压力板或离开）
+		// Lock player to left area (can step on plates or not)
 		if (playerBody) {
 			const minX = 64
-			const maxX = 280 // 盾牌前
+			const maxX = 280 // In front of shield
 			const minY = 96
 			const maxY = 480
 			if (playerBody.x < minX) playerBody.x = minX
@@ -224,7 +214,7 @@ export class Level12 extends BaseScene {
 			if (playerBody.y > maxY) playerBody.y = maxY
 		}
 
-		// 更新压力板状态显示
+		// Update pressure plate state display
 		const plateColor = this.world.resources.currentPlateColor
 		this.plateStatusText.setText(`Plate: ${plateColor}`)
 		if (plateColor === 'RED') {
@@ -233,10 +223,10 @@ export class Level12 extends BaseScene {
 			this.plateStatusText.setColor('#ffffff')
 		}
 
-		// 检查火球与盾牌碰撞
+		// Check fireball vs shield collision
 		this.checkShieldCollision()
 
-		// 检测目标销毁
+		// Detect target destroyed
 		this.targets.forEach((target) => {
 			if (!target.destroyed && Health.current[target.eid] <= 0) {
 				target.destroyed = true
@@ -244,7 +234,7 @@ export class Level12 extends BaseScene {
 				target.label.destroy()
 				target.body.destroy()
 
-				// 完成对应任务
+				// Complete corresponding task
 				if (target.taskId === 'task1-left') {
 					this.completeObjectiveById('task1-left')
 					this.unlockTask2()
@@ -257,7 +247,7 @@ export class Level12 extends BaseScene {
 					this.task3TargetsDestroyed++
 					this.cameras.main.flash(200, 255, 165, 0)
 
-					// 两个目标都被消灭才算完成 Task 3
+					// Task 3 complete when both targets destroyed
 					if (this.task3TargetsDestroyed >= 2) {
 						this.completeObjectiveById('task3-split')
 					}
@@ -290,9 +280,9 @@ export class Level12 extends BaseScene {
 		if (this.task3Unlocked) return
 		this.task3Unlocked = true
 
-		// Task 3 不需要调整盾牌，因为中空设计已经允许直行通过
+		// Task 3: no shield change; hollow design allows straight pass
 
-		// 显示 Task 3 的两个目标
+		// Show Task 3 targets
 		const task3Targets = this.targets.filter(t => t.taskId.startsWith('task3-'))
 		console.log('[Level12] unlockTask3: showing targets ->', task3Targets.map(t => t.taskId))
 		task3Targets.forEach(target => {
@@ -309,8 +299,8 @@ export class Level12 extends BaseScene {
 			})
 		})
 
-		// 提示 Task 3 规则
-		this.add.text(480, 50, '⚠️ Task 3: 用同一套代码击中两个目标！\n第一发踩板偏转，第二发不踩板直行', {
+		// Task 3 rule hint
+		this.add.text(480, 50, '⚠️ Task 3: Hit both targets with one spell!\nFirst shot: on plate deflect; second: off plate straight', {
 			fontSize: '12px',
 			color: '#ffaa00',
 			stroke: '#000000',
@@ -320,13 +310,13 @@ export class Level12 extends BaseScene {
 	}
 
 	private checkShieldCollision() {
-		// 检查上半部分盾牌
+		// Check upper shield
 		if (this.shieldTop && this.shieldTopBounds) {
 			this.shieldTopBounds = this.shieldTop.getBounds()
 			this.checkCollisionWithShieldPart(this.shieldTopBounds)
 		}
 
-		// 检查下半部分盾牌
+		// Check lower shield
 		if (this.shieldBottom && this.shieldBottomBounds) {
 			this.shieldBottomBounds = this.shieldBottom.getBounds()
 			this.checkCollisionWithShieldPart(this.shieldBottomBounds)
@@ -334,9 +324,9 @@ export class Level12 extends BaseScene {
 	}
 
 	private checkCollisionWithShieldPart(bounds: Phaser.Geom.Rectangle) {
-		// 检查所有火球
+		// Check all fireballs
 		this.world.resources.bodies.forEach((body, eid) => {
-			// 检查是否是火球
+			// Is it a fireball?
 			if (FireballStats.speed[eid] === undefined) return
 
 			if (
@@ -345,11 +335,11 @@ export class Level12 extends BaseScene {
 				body.y > bounds.top &&
 				body.y < bounds.bottom
 			) {
-				// 火球被盾牌阻挡
+				// Fireball blocked by shield
 				body.destroy()
 				this.world.resources.bodies.delete(eid)
 
-				// 显示阻挡效果
+				// Show block effect
 				const flash = this.add.circle(body.x, body.y, 20, 0x00ffff, 0.8)
 				this.tweens.add({
 					targets: flash,
@@ -367,10 +357,10 @@ export class Level12 extends BaseScene {
 		const playerBody = this.world.resources.bodies.get(playerEid)
 		if (!playerBody) return
 
-		// 1. 发射火球（固定向右）
+		// 1. Fire fireball (fixed right)
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 2. 提示绑定
+		// 2. Hint binding
         console.log('[Level12] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 
@@ -438,7 +428,7 @@ export class Level12 extends BaseScene {
 		}).setOrigin(0.5)
 		label.setVisible(visible)
 
-		// 创建敌人实体 - body 也根据 visible 设置
+		// Create enemy entity (body visibility follows visible)
 		const body = createRectBody(this, `target-${taskId}`, color, 50, 50, x, y, 3)
 		body.setImmovable(true)
 		body.setVisible(visible)

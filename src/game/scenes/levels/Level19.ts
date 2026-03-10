@@ -8,14 +8,14 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 19 — 「只打那个红色的」
+// Level 19 — "Only Hit the Red One"
 //
-// 教学目标：
-//   getAllEnemies  →  filter(eid → health(eid) > threshold)
-//                →  head  →  damageEntity
+// Teaching goal:
+//   getAllEnemies → filter(eid → health(eid) > threshold)
+//                → head → damageEntity
 //
-// 场景：5 个平民（白色，10 HP）+ 1 个 Boss 史莱姆（红色，80 HP）
-// 规则：每击中平民 +1 惩罚；3 次惩罚 → 任务失败并重置
+// Setup: 5 civilians (white, 10 HP) + 1 Boss (red, 80 HP)
+// Rule: Hitting a civilian = +1 penalty; 3 penalties → mission fail and reset
 // ─────────────────────────────────────────────────────────────
 
 export const Level19Meta: LevelMeta = {

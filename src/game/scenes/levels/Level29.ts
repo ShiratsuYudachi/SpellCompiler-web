@@ -8,12 +8,12 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 29 — 「精准封锁」
+// Level 29 — "Precision Lockdown"
 //
-// 教学目标：空间查询进阶 — getNearbyEnemies 之后必须再 filter
-//   8 个敌人均在 radius 150 范围内，但 4 个是平民（HP=15）
-//   仅靠 getNearbyEnemies 会一次打到所有人
-//   需要叠加 filter(eid → gt(hp(eid), 40)) 精准筛选威胁目标
+// Teaching goal: getNearbyEnemies then filter
+//   8 enemies in radius 150, but 4 are civilians (HP=15)
+//   getNearbyEnemies alone hits everyone
+//   Add filter(eid → gt(hp(eid), 40)) to isolate threats
 //
 //   inRange  = getNearbyEnemies(state, playerPos, 150)
 //   targets  = filter(inRange, eid → gt(getEntityHealth(state, eid), 40))

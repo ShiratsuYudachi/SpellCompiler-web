@@ -203,7 +203,7 @@ export function buildVibePrompt(
 		(currentGraph.nodes.length > 0 || currentGraph.edges.length > 0);
 
 	// Detect "complete/wire/fill" intent to apply stricter node-reuse rules
-	const isCompleteIntent = /\b(complet|fill.?in|wire|connect|补全|补齐|缺失|finish)\b/i.test(userText);
+	const isCompleteIntent = /\b(complet|fill.?in|wire|connect|missing|finish)\b/i.test(userText);
 
 	let currentGraphSection = '';
 	let updateRule = '';

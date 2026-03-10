@@ -1,8 +1,8 @@
 /**
- * Visuals - 法术视觉效果统一导出
+ * Visuals - Unified export for spell visual effects
  */
 
-// 传送特效
+// Teleport effects
 export {
   playTeleportVisual,
   playTeleportDisappear,
@@ -10,7 +10,7 @@ export {
   type TeleportVisualOptions,
 } from './teleportVisual';
 
-// 火球特效
+// Fireball effects
 export {
   playFireballCastVisual,
   playFireballChargeVisual,
@@ -18,7 +18,7 @@ export {
   type FireballCastVisualOptions,
 } from './fireballVisual';
 
-// 伤害命中特效
+// Damage hit effects
 export {
   playDamageHitVisual,
   type DamageHitVisualOptions,

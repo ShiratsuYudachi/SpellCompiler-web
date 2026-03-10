@@ -8,16 +8,16 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 26 — 「反应堆燃料」
+// Level 26 — "Reactor Fuel"
 //
-// 教学目标：map 进阶 — map 提取数据 + fold 聚合 (MapReduce)
+// Teaching goal: map + fold (MapReduce-style)
 //   fuels = filter(enemies, eid → lt(hp(eid), 60))
 //   hpList = map(fuels, eid → getEntityHealth(state, eid))
 //   total  = fold(hpList, 0, (acc, hp) → add(acc, hp))
 //   core   = head(filter(enemies, eid → gte(hp(eid), 60)))
 //   damageEntity(state, core, total)
 //
-// FYP 亮点：filter → map → fold 就是 MapReduce 的完整流程
+// filter → map → fold is the full MapReduce-style pipeline
 // ─────────────────────────────────────────────────────────────
 
 export const Level26Meta: LevelMeta = {

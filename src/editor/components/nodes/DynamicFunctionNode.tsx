@@ -124,6 +124,15 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 		return funcInfo?.parameterModes?.[paramName];
 	};
 
+	// Human-readable labels for list/generic params so "l" is not mistaken for "|"
+	const getParamDisplayLabel = (paramName: string): string => {
+		if (namespace === 'list') {
+			const map: Record<string, string> = { l: 'list', pred: 'predicate', f: 'function', init: 'init', head: 'head', tail: 'tail', arr: 'array' };
+			return map[paramName] ?? paramName;
+		}
+		return paramName;
+	};
+
 	// Get actual parameters to display based on modes
 	const getDisplayParams = (): Array<{ name: string; index: number; originalParam: string }> => {
 		if (isVariadic) {
@@ -225,10 +234,12 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 				{displayName}
 			</div>
 
-			{/* Namespace badge */}
-			<div className={`text-xs ${colors.text} opacity-60 text-center mb-3`}>
-				{namespace}::
-			</div>
+			{/* Namespace badge (namespace name only, no "::" to avoid confusion with pipe) */}
+			{namespace ? (
+				<div className={`text-xs ${colors.text} opacity-60 text-center mb-3`}>
+					{namespace}
+				</div>
+			) : null}
 
 			{/* Input parameters with mode selectors */}
 			{paramGroups.length > 0 && (
@@ -288,7 +299,7 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 											/>
 											<div className={`ml-3 text-xs ${colors.text} opacity-70 flex items-center gap-1`}>
 												<span>
-													{param.name}
+													{getParamDisplayLabel(param.name)}
 													{isVariadic && <span className="opacity-50">?</span>}
 												</span>
 												{/* Inline input - only show when not connected and type supports inline */}

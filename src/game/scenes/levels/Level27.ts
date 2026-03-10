@@ -8,18 +8,17 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 27 — 「精准打击」
+// Level 27 — "Precision Strike"
 //
-// 教学目标：filter + map + forEach 完整组合（单管道）
+// Teaching goal: filter + map + forEach pipeline
 //   threats = filter(getAllEnemies(state), eid → gt(hp(eid), 5))
 //   dirs    = map(threats, eid → normalize(subtract(pos(eid), playerPos)))
 //   forEach(dirs, dir → spawnFireball(state, playerPos, dir))
 //
-// 场景：4个红色威胁（HP=10，位于正方向N/S/E/W）
-//       4个灰色平民（HP=5，位于斜方向NE/NW/SE/SW）
-// 机制：不使用 filter 直接开火 → 全部8个方向都有火球 → 平民被波及 → 惩罚
-//       正确 filter 后只有4个正方向火球 → 平民安全
-// 火球伤害=10，威胁HP=10：一发秒杀；平民HP=5：也是一发秒（触发惩罚）
+// Setup: 4 red threats (HP=10, N/S/E/W) + 4 gray civilians (HP=5, NE/NW/SE/SW)
+// Mechanic: no filter → fire in all 8 directions → civilians hit → penalty
+//           correct filter → only 4 cardinal fireballs → civilians safe
+// Fireball damage=10; threat HP=10: one-shot; civilian HP=5: one-shot (penalty)
 // ─────────────────────────────────────────────────────────────
 
 export const Level27Meta: LevelMeta = {

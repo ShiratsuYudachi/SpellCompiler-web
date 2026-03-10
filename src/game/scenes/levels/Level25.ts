@@ -8,15 +8,15 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 25 — 「制导火球」
+// Level 25 — "Guided Fireball"
 //
-// 教学目标：map 基础 — 类型变换 List<eid> → List<Vector2D>
+// Teaching goal: map basics — type transform List<eid> → List<Vector2D>
 //   playerPos = getEntityPosition(state, getPlayer(state))
 //   dirs = map(getAllEnemies(state),
 //              eid → normalize(subtract(getEntityPosition(state, eid), playerPos)))
 //   forEach(dirs, dir → spawnFireball(state, playerPos, dir))
 //
-// 关键：敌人位置每次随机 → 写死方向无效 → 必须动态计算
+// Key: enemy positions random each time → fixed directions fail → must compute dynamically
 // ─────────────────────────────────────────────────────────────
 
 export const Level25Meta: LevelMeta = {

@@ -8,14 +8,14 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 23 — 「精准剂量」
+// Level 23 — "Precise Dose"
 //
-// 教学目标：forEach 进阶 — lambda 内部二次查询同一 eid
+// Teaching goal: forEach advanced — query same eid twice inside lambda
 //   forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))
 //
-// 场景：5 个 HP 不同的敌人（随机洗牌）
-// 约束：总伤害不能超过总 HP 的 120%（否则 overkill 警告）
-// 关键洞察：eid 既是目标，也是 getEntityHealth 的参数
+// Setup: 5 enemies with different HP (random order)
+// Constraint: total damage must not exceed 120% of total HP (else overkill warning)
+// Key insight: eid is both target and argument to getEntityHealth
 // ─────────────────────────────────────────────────────────────
 
 export const Level23Meta: LevelMeta = {

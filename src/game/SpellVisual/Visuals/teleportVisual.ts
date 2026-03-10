@@ -1,25 +1,25 @@
 /**
- * teleportVisual - 传送法术视觉效果
- * 包含传送起点消失效果和传送终点出现效果
+ * teleportVisual - Teleport spell visual effect
+ * Departure (disappear) and arrival (appear) effects
  */
 
 import Phaser from 'phaser';
 
 export interface TeleportVisualOptions {
-  /** 效果颜色 */
+  /** Effect color */
   color: number;
-  /** 闪光半径 */
+  /** Flash radius */
   radius: number;
-  /** 动画持续时间(ms) */
+  /** Animation duration (ms) */
   duration: number;
-  /** 粒子数量 */
+  /** Particle count */
   particleCount: number;
-  /** 是否显示冲击波 */
+  /** Show shockwave */
   showShockwave: boolean;
 }
 
 const DEFAULT_OPTIONS: TeleportVisualOptions = {
-  color: 0x00ffff,      // 青色
+  color: 0x00ffff,      // Cyan
   radius: 40,
   duration: 300,
   particleCount: 12,
@@ -27,11 +27,11 @@ const DEFAULT_OPTIONS: TeleportVisualOptions = {
 };
 
 /**
- * 播放传送视觉效果（起点消失 + 终点出现）
- * @param scene Phaser场景
- * @param x 传送位置X
- * @param y 传送位置Y
- * @param options 可选配置
+ * Play teleport visual (disappear + appear)
+ * @param scene Phaser scene
+ * @param x teleport X
+ * @param y teleport Y
+ * @param options optional config
  */
 export function playTeleportVisual(
   scene: Phaser.Scene,
@@ -41,20 +41,20 @@ export function playTeleportVisual(
 ): void {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // 1. 中心闪光
+  // 1. Center flash
   createFlash(scene, x, y, opts);
 
-  // 2. 粒子爆发
+  // 2. Particle burst
   createParticleBurst(scene, x, y, opts);
 
-  // 3. 冲击波（可选）
+  // 3. Shockwave (optional)
   if (opts.showShockwave) {
     createShockwave(scene, x, y, opts);
   }
 }
 
 /**
- * 播放传送起点消失效果
+ * Play teleport departure (disappear) effect
  */
 export function playTeleportDisappear(
   scene: Phaser.Scene,
@@ -64,15 +64,15 @@ export function playTeleportDisappear(
 ): void {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // 向内收缩的粒子效果
+  // Imploding particles
   createImplodingParticles(scene, x, y, opts);
 
-  // 快速闪光
+  // Quick flash
   createFlash(scene, x, y, { ...opts, duration: opts.duration * 0.5 });
 }
 
 /**
- * 播放传送终点出现效果
+ * Play teleport arrival (appear) effect
  */
 export function playTeleportAppear(
   scene: Phaser.Scene,
@@ -82,20 +82,20 @@ export function playTeleportAppear(
 ): void {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // 中心闪光
+  // Center flash
   createFlash(scene, x, y, opts);
 
-  // 向外扩散的粒子
+  // Outward particle burst
   createParticleBurst(scene, x, y, opts);
 
-  // 冲击波
+  // Shockwave
   if (opts.showShockwave) {
     createShockwave(scene, x, y, opts);
   }
 }
 
 // ========================================
-// 内部辅助函数
+// Internal helpers
 // ========================================
 
 function createFlash(

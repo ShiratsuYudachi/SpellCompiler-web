@@ -8,21 +8,21 @@ import { createRoom } from '../../utils/levelUtils'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 20 — 「精确制导」
+// Level 20 — "Precision Guidance"
 //
-// 教学目标：
-//   getAllEnemies  →  filter( and(gt(hp, 25), lt(hp, 60)) )
-//                →  head  →  damageEntity
+// Teaching goal:
+//   getAllEnemies → filter( and(gt(hp, 25), lt(hp, 60)) )
+//                → head → damageEntity
 //
-// 新概念：logic::and 组合两个条件，缩窄筛选范围
+// New concept: logic::and combines two conditions to narrow the filter
 //
-// 场景（HP 故意设计为无法用单个阈值精确隔离目标）：
-//   4 个平民   (白，10 HP)  — 严禁击中
-//   3 个弱小怪 (灰，18 HP)  — 可误击但不得分
-//   3 个重甲卫 (紫，75 HP)  — 可误击但不得分
-//   1 个目标   (橙，40 HP)  — 必须击杀
+// Setup (HP designed so a single threshold cannot isolate the target):
+//   4 civilians (white, 10 HP) — do not hit
+//   3 weak (gray, 18 HP) — can miss-hit, no score
+//   3 heavy (purple, 75 HP) — can miss-hit, no score
+//   1 target (orange, 40 HP) — must kill
 //
-// 唯有 and(gt(hp,25), lt(hp,60)) 能精确隔离 40 HP 目标
+// Only and(gt(hp,25), lt(hp,60)) isolates the 40 HP target
 // ─────────────────────────────────────────────────────────────
 
 export const Level20Meta: LevelMeta = {
