@@ -219,6 +219,95 @@ There must be exactly one "output" node. The main expression connects TO the out
 Spell input parameters come from a spellInput node; use its source handles param-0, param-1 for each parameter.
 `;
 
+/**
+ * Worked structural examples for common spell patterns.
+ * Injected when no level-specific reference solution is available.
+ * These examples show the EXACT edge wiring rules that AI frequently gets wrong.
+ */
+const SPELL_PATTERNS = `
+=== SPELL PATTERNS (structurally correct worked examples) ===
+Three rules that MUST be followed (AI frequently violates these):
+  1. lambdaDef param source handles are "param0", "param1" (NO hyphen).
+  2. State from spellInput wires DIRECTLY into lambda body nodes — no special env port.
+  3. To pass a lambda to filter/forEach, use sourceHandle="function" on the functionOut node.
+  4. functionOut.data.lambdaId must equal the lambdaDef node's id exactly.
+
+── PATTERN A: pick one enemy and act (no lambda) ──────────────────────────────
+Nodes: si(spellInput,params=["state"]), f-gae(game::getAllEnemies), f-head(list::head),
+       f-act(game::damageEntity), lit(literal,100), out(output)
+Edges:
+  si            → f-gae(arg0)           state to getAllEnemies
+  f-gae         → f-head(arg0)          enemy list → head
+  si            → f-act(arg0)           state to action (arg0 is always state for game:: funcs)
+  f-head        → f-act(arg1)           picked eid
+  lit           → f-act(arg2)           damage amount
+  f-act         → out(value)
+
+── PATTERN B: filter enemies by condition, pick one, act (1-level lambda) ──────
+Nodes: si, f-gae(getAllEnemies), lam(lambdaDef,params=["eid"]),
+       f-hp(game::getEntityHealth), f-gt(std::cmp::gt), lit-N(literal,30),
+       f-out(functionOut,lambdaId="lam"), f-flt(list::filter),
+       f-head(list::head), f-act(game::damageEntity), lit-amt(literal,100), out
+Edges — main chain:
+  si            → f-gae(arg0)
+  f-gae         → f-flt(arg0)           enemy list → filter
+  f-out [sourceHandle="function"] → f-flt(arg1)    ← pass lambda as predicate
+  f-flt         → f-head(arg0)
+  si            → f-act(arg0)
+  f-head        → f-act(arg1)
+  lit-amt       → f-act(arg2)
+  f-act         → out(value)
+Edges — lambda body (state wires FROM si DIRECTLY, NOT through any env port):
+  si            → f-hp(arg0)            ← state crosses lambda boundary directly
+  lam [sourceHandle="param0"] → f-hp(arg1)   ← lambda's eid param (NO hyphen!)
+  f-hp          → f-gt(arg0)
+  lit-N         → f-gt(arg1)
+  f-gt          → f-out(value)          ← lambda return value
+
+── PATTERN C: forEach — apply action to ALL enemies (1-level lambda) ───────────
+(spawnFireball example; for damageEntity forEach, replace inner nodes accordingly)
+Nodes: si, f-gp(game::getPlayer), f-pp(game::getEntityPosition),
+       f-gae(getAllEnemies), f-fe(list::forEach), out,
+       lam(lambdaDef,params=["eid"]),
+       f-ep(game::getEntityPosition), f-sub(vec::subtract), f-norm(vec::normalize),
+       f-sfb(game::spawnFireball), fout(functionOut,lambdaId="lam")
+Edges — setup:
+  si            → f-gp(arg0)            get player eid
+  si            → f-pp(arg0)            state to getEntityPosition
+  f-gp          → f-pp(arg1)            player eid → get player position
+  si            → f-gae(arg0)
+  f-gae         → f-fe(arg0)            enemy list → forEach
+  fout [sourceHandle="function"] → f-fe(arg1)    ← pass lambda
+  f-fe          → out(value)
+Edges — lambda body:
+  si            → f-ep(arg0)            ← state direct (no env port)
+  lam [sourceHandle="param0"] → f-ep(arg1)   ← eid from lambda (NO hyphen)
+  f-ep          → f-sub(arg0)           enemy position
+  f-pp          → f-sub(arg1)           subtract player position → direction
+  f-sub         → f-norm(arg0)          normalize direction
+  si            → f-sfb(arg0)           state to spawnFireball
+  f-pp          → f-sfb(arg1)           spawn point = player position
+  f-norm        → f-sfb(arg2)           normalized direction
+  f-sfb         → fout(value)           ← lambda return value
+
+── PATTERN D: conditional action on one enemy (if node) ────────────────────────
+Nodes: si, f-gae(getAllEnemies), f-head(list::head),
+       f-hp(getEntityHealth), lit-thr(literal,50), f-gt(std::cmp::gt),
+       if-node(if), f-hi(damageEntity,lit-100), f-lo(damageEntity,lit-10), out
+Edges:
+  si            → f-gae(arg0)
+  f-gae         → f-head(arg0)
+  si            → f-hp(arg0),  f-head → f-hp(arg1)
+  f-hp          → f-gt(arg0),  lit-thr → f-gt(arg1)
+  f-gt          → if-node(condition)
+  si            → f-hi(arg0),  f-head → f-hi(arg1),  lit-100 → f-hi(arg2)
+  f-hi          → if-node(then)
+  si            → f-lo(arg0),  f-head → f-lo(arg1),  lit-10  → f-lo(arg2)
+  f-lo          → if-node(else)
+  if-node [sourceHandle="result"] → out(value)
+=== END SPELL PATTERNS ===
+`;
+
 /** Instruction injected when the user explicitly wants to complete/wire an existing graph. */
 export const COMPLETE_SPELL_INSTRUCTION =
 	'Complete all missing connections in the current spell to make it fully functional. ' +
@@ -313,8 +402,11 @@ ${JSON.stringify(levelContext.referenceSolution)}
 === END REFERENCE SOLUTION ===\n`
 		: '';
 
+	// Inject generic patterns when no level-specific reference solution is available
+	const spellPatternsSection = levelContext?.referenceSolution ? '' : SPELL_PATTERNS;
+
 	return `You are a code generator for a visual "Spell" editor. The user describes what they want in plain English. You must output a single JSON object with keys "nodes", "edges", and optionally "summary".
-${levelSection}${referenceSolutionSection}${currentGraphSection}
+${levelSection}${referenceSolutionSection}${spellPatternsSection}${currentGraphSection}
 ${NODE_SCHEMA}
 
 Available functions (each entry shows: fullName(params)  [displayName="...", namespace="..."]):
