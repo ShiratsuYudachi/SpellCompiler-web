@@ -222,6 +222,78 @@ export function registerListFunctions(evaluator: Evaluator) {
 		ui: { displayName: '📋 forEach' }
 	});
 
+	// list::minBy(l: List, f: Function) -> Value
+	// Returns the element e in l for which f(e) is smallest.
+	// Throws on empty list.
+	evaluator.registerFunction({
+		fullName: 'list::minBy',
+		params: ['l', 'f'],
+		fn: (l: Value, f: Value): Value => {
+			const funcVal = l as FunctionValue;
+			if (funcVal.definition.params.length === 0) {
+				throw new Error('Cannot call minBy on empty list');
+			}
+
+			let bestElem = evaluator.callFunctionValue(funcVal, 'head');
+			let bestScore = evaluator.callFunctionValue(f as FunctionValue, bestElem) as number;
+			let current = evaluator.callFunctionValue(funcVal, 'tail');
+
+			while (true) {
+				const cur = current as FunctionValue;
+				if (cur.definition.params.length === 0) break;
+
+				const elem = evaluator.callFunctionValue(cur, 'head');
+				const score = evaluator.callFunctionValue(f as FunctionValue, elem) as number;
+
+				if (score < bestScore) {
+					bestScore = score;
+					bestElem = elem;
+				}
+
+				current = evaluator.callFunctionValue(cur, 'tail');
+			}
+
+			return bestElem;
+		},
+		ui: { displayName: '📋 minBy' }
+	});
+
+	// list::maxBy(l: List, f: Function) -> Value
+	// Returns the element e in l for which f(e) is largest.
+	// Throws on empty list.
+	evaluator.registerFunction({
+		fullName: 'list::maxBy',
+		params: ['l', 'f'],
+		fn: (l: Value, f: Value): Value => {
+			const funcVal = l as FunctionValue;
+			if (funcVal.definition.params.length === 0) {
+				throw new Error('Cannot call maxBy on empty list');
+			}
+
+			let bestElem = evaluator.callFunctionValue(funcVal, 'head');
+			let bestScore = evaluator.callFunctionValue(f as FunctionValue, bestElem) as number;
+			let current = evaluator.callFunctionValue(funcVal, 'tail');
+
+			while (true) {
+				const cur = current as FunctionValue;
+				if (cur.definition.params.length === 0) break;
+
+				const elem = evaluator.callFunctionValue(cur, 'head');
+				const score = evaluator.callFunctionValue(f as FunctionValue, elem) as number;
+
+				if (score > bestScore) {
+					bestScore = score;
+					bestElem = elem;
+				}
+
+				current = evaluator.callFunctionValue(cur, 'tail');
+			}
+
+			return bestElem;
+		},
+		ui: { displayName: '📋 maxBy' }
+	});
+
 	// list::fromArray(arr: any) -> List (internal helper)
 	// Note: This is a helper for converting JS arrays to lists (for testing/interop)
 	evaluator.registerFunction({

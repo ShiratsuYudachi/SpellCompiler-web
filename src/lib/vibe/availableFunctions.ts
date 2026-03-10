@@ -38,6 +38,8 @@ export const AVAILABLE_FUNCTIONS: { fullName: string; params: string[]; displayN
 	{ fullName: 'list::filter', params: ['list', 'pred'] },
 	{ fullName: 'list::fold', params: ['list', 'init', 'f'] },
 	{ fullName: 'list::forEach', params: ['list', 'f'] },
+	{ fullName: 'list::minBy', params: ['list', 'f'], hint: 'list: List<EntityId>, f: lambda(eid)→number — returns the element with the SMALLEST f(e) value (e.g. lowest HP enemy)' },
+	{ fullName: 'list::maxBy', params: ['list', 'f'], hint: 'list: List<EntityId>, f: lambda(eid)→number — returns the element with the LARGEST f(e) value (e.g. highest HP enemy)' },
 	{ fullName: 'game::getPlayer', params: ['state'], displayName: 'getPlayer', hint: 'state: GameState → EntityId (the player)' },
 	{ fullName: 'game::getEntityPosition', params: ['state', 'entity'], displayName: 'getEntityPosition', hint: 'state: GameState, entity: EntityId → Vec2 (position)' },
 	{ fullName: 'game::getEntityHealth', params: ['state', 'entity'], displayName: 'getEntityHealth', hint: 'state: GameState, entity: EntityId → number (current HP)' },

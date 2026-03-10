@@ -305,6 +305,53 @@ Edges:
   si            → f-lo(arg0),  f-head → f-lo(arg1),  lit-10  → f-lo(arg2)
   f-lo          → if-node(else)
   if-node [sourceHandle="result"] → out(value)
+
+── PATTERN E: forEach — different action per enemy based on HP (if inside lambda) ──
+(forEach with an if node INSIDE the lambda body — state wires directly as always)
+Nodes: si, f-gae(getAllEnemies), f-fe(list::forEach), out,
+       lam(lambdaDef,params=["eid"]),
+       f-hp(game::getEntityHealth), lit-thr(literal,50), f-gt(std::cmp::gt),
+       f-hi(game::damageEntity), lit-hi(literal,100),
+       f-lo(game::damageEntity), lit-lo(literal,10),
+       if-n(if), fout(functionOut,lambdaId="lam")
+Edges — setup (outside lambda):
+  si            → f-gae(arg0)
+  f-gae         → f-fe(arg0)             enemy list → forEach
+  fout [sourceHandle="function"] → f-fe(arg1)    ← pass lambda
+  f-fe          → out(value)
+Edges — lambda body (EVERY game:: call needs state wired in from si directly):
+  si            → f-hp(arg0)             ← state crosses lambda boundary directly
+  lam [sourceHandle="param0"] → f-hp(arg1)    ← eid from lambda (NO hyphen)
+  f-hp          → f-gt(arg0)
+  lit-thr       → f-gt(arg1)
+  f-gt          → if-n(condition)
+  si            → f-hi(arg0)             ← state to high-damage action
+  lam [sourceHandle="param0"] → f-hi(arg1)
+  lit-hi        → f-hi(arg2)
+  f-hi          → if-n(then)             ← high-HP branch: big damage
+  si            → f-lo(arg0)             ← state to low-damage action
+  lam [sourceHandle="param0"] → f-lo(arg1)
+  lit-lo        → f-lo(arg2)
+  f-lo          → if-n(else)             ← low-HP branch: small damage
+  if-n [sourceHandle="result"] → fout(value)    ← lambda return value
+
+── PATTERN F: attack the enemy with the lowest HP (list::minBy + 1-level lambda) ──
+(minBy takes the SAME lambda pattern as filter — use it to score each element)
+Nodes: si, f-gae(getAllEnemies),
+       lam(lambdaDef,params=["eid"]), f-hp(game::getEntityHealth), fout(functionOut,lambdaId="lam"),
+       f-min(list::minBy), f-act(game::damageEntity), lit-amt(literal,100), out
+Edges — main chain:
+  si            → f-gae(arg0)
+  f-gae         → f-min(arg0)            enemy list → minBy
+  fout [sourceHandle="function"] → f-min(arg1)   ← scoring lambda (returns HP per eid)
+  si            → f-act(arg0)
+  f-min         → f-act(arg1)            lowest-HP enemy eid → damage
+  lit-amt       → f-act(arg2)
+  f-act         → out(value)
+Edges — lambda body (scoring: just return the entity's HP):
+  si            → f-hp(arg0)             ← state direct (no env port)
+  lam [sourceHandle="param0"] → f-hp(arg1)    ← eid from lambda (NO hyphen)
+  f-hp          → fout(value)            ← minBy uses this number to rank elements
 === END SPELL PATTERNS ===
 `;
 
