@@ -208,8 +208,8 @@ Node types and their "data" shape (each node has id, type, position: {x,y}, data
 - spellInput: data = { label?: string, params: string[] } (e.g. params: ["state"])
 - if: data = {} (has targetHandles: condition, then, else; sourceHandle: result)
 - output: data = {} (has targetHandle: value - the main expression feeds here)
-- lambdaDef: data = { functionName?: string, params: string[] } (e.g. params: ["arg0"]); sourceHandles: param0, param1, ...
-- functionOut: data = { lambdaId: string } (id of the lambdaDef node); targetHandle: value, sourceHandle: function
+- lambdaDef: data = { functionName?: string, params: string[] } (e.g. params: ["arg0"]); sourceHandles: param0, param1, ... WARNING: the UI shows an "env" port on lambdaDef — DO NOT wire anything to env. It is automatic. State from spellInput wires directly to each game:: node inside the lambda.
+- functionOut: data = { lambdaId: string } (id of the lambdaDef node); targetHandle: value, sourceHandle: function. WARNING: functionOut is MANDATORY for every lambda — it is the lambda's return node AND the way to pass the lambda to forEach/filter. Without functionOut the lambda cannot run.
 - applyFunc: data = { paramCount: number }; targetHandles: func, arg0, arg1, ...
 - dynamicFunction: data = { functionName: string (fullName e.g. "std::math::add"), displayName: string, namespace: string, params: string[] }; targetHandles: arg0, arg1, ...; sourceHandle: result
 
@@ -226,11 +226,12 @@ Spell input parameters come from a spellInput node; use its source handles param
  */
 const SPELL_PATTERNS = `
 === SPELL PATTERNS (structurally correct worked examples) ===
-Three rules that MUST be followed (AI frequently violates these):
-  1. lambdaDef param source handles are "param0", "param1" (NO hyphen).
-  2. State from spellInput wires DIRECTLY into lambda body nodes — no special env port.
-  3. To pass a lambda to filter/forEach, use sourceHandle="function" on the functionOut node.
-  4. functionOut.data.lambdaId must equal the lambdaDef node's id exactly.
+FIVE RULES that MUST be followed (AI frequently violates these):
+  1. lambdaDef param source handles are "param0", "param1" (NO hyphen — never "param-0").
+  2. State from spellInput wires DIRECTLY to every game:: node inside the lambda — no env port.
+  3. Every lambda REQUIRES a functionOut node (lambdaId = lambdaDef id). Without it the lambda has no return value and cannot be passed to forEach/filter.
+  4. Pass lambda to forEach/filter via: functionOut [sourceHandle="function"] → forEach/filter (arg1).
+  5. The LAST node in the lambda body chain connects → functionOut(value). Nothing else goes to output from inside the lambda.
 
 ── PATTERN A: pick one enemy and act (no lambda) ──────────────────────────────
 Nodes: si(spellInput,params=["state"]), f-gae(game::getAllEnemies), f-head(list::head),
@@ -264,31 +265,45 @@ Edges — lambda body (state wires FROM si DIRECTLY, NOT through any env port):
   lit-N         → f-gt(arg1)
   f-gt          → f-out(value)          ← lambda return value
 
-── PATTERN C: forEach — apply action to ALL enemies (1-level lambda) ───────────
-(spawnFireball example; for damageEntity forEach, replace inner nodes accordingly)
-Nodes: si, f-gp(game::getPlayer), f-pp(game::getEntityPosition),
-       f-gae(getAllEnemies), f-fe(list::forEach), out,
-       lam(lambdaDef,params=["eid"]),
-       f-ep(game::getEntityPosition), f-sub(vec::subtract), f-norm(vec::normalize),
-       f-sfb(game::spawnFireball), fout(functionOut,lambdaId="lam")
-Edges — setup:
-  si            → f-gp(arg0)            get player eid
-  si            → f-pp(arg0)            state to getEntityPosition
-  f-gp          → f-pp(arg1)            player eid → get player position
-  si            → f-gae(arg0)
-  f-gae         → f-fe(arg0)            enemy list → forEach
-  fout [sourceHandle="function"] → f-fe(arg1)    ← pass lambda
-  f-fe          → out(value)
-Edges — lambda body:
-  si            → f-ep(arg0)            ← state direct (no env port)
-  lam [sourceHandle="param0"] → f-ep(arg1)   ← eid from lambda (NO hyphen)
-  f-ep          → f-sub(arg0)           enemy position
-  f-pp          → f-sub(arg1)           subtract player position → direction
-  f-sub         → f-norm(arg0)          normalize direction
-  si            → f-sfb(arg0)           state to spawnFireball
-  f-pp          → f-sfb(arg1)           spawn point = player position
-  f-norm        → f-sfb(arg2)           normalized direction
-  f-sfb         → fout(value)           ← lambda return value
+── PATTERN C: forEach — fire at ALL enemies (1-level lambda, spawnFireball) ─────
+MANDATORY nodes: lambdaDef + functionOut are BOTH required. No functionOut = broken.
+Node list:
+  si     (spellInput, params=["state"])
+  f-gp   (game::getPlayer)
+  f-pp   (game::getEntityPosition)        ← player position (computed OUTSIDE lambda)
+  f-gae  (game::getAllEnemies)
+  f-fe   (list::forEach)
+  out    (output)
+  lam    (lambdaDef, params=["eid"])      ← ONE param; sourceHandle = "param0"
+  f-ep   (game::getEntityPosition)        ← enemy position (computed INSIDE lambda)
+  f-sub  (vec::subtract)
+  f-norm (vec::normalize)
+  f-sfb  (game::spawnFireball)
+  fout   (functionOut, lambdaId="lam")   ← REQUIRED; lambdaId must match lam's id
+Edges — setup (OUTSIDE lambda):
+  si    → f-gp(arg0)               get player eid
+  si    → f-pp(arg0)               state → getEntityPosition for PLAYER
+  f-gp  → f-pp(arg1)               player eid → position
+  si    → f-gae(arg0)              get all enemies
+  f-gae → f-fe(arg0)               enemy list → forEach
+  fout  [sourceHandle="function"] → f-fe(arg1)   ← THIS is how lambda is passed; arg1 not arg0
+  f-fe  → out(value)               forEach result → spell output
+Edges — lambda body (INSIDE lambda; state from si wires directly, env port unused):
+  si    → f-ep(arg0)               ← state DIRECTLY to getEntityPosition (no env port!)
+  lam   [sourceHandle="param0"] → f-ep(arg1)   ← eid param (NO hyphen in "param0")
+  f-ep  → f-sub(arg0)             enemy position
+  f-pp  → f-sub(arg1)             player position (cross-scope wire is fine)
+  f-sub → f-norm(arg0)            direction vector
+  si    → f-sfb(arg0)             ← state DIRECTLY to spawnFireball
+  f-pp  → f-sfb(arg1)             launch from player position
+  f-norm → f-sfb(arg2)            normalized direction
+  f-sfb → fout(value)             ← lambda return: fout collects the result
+CHECKLIST before outputting (all must be true):
+  ✓ fout node exists with lambdaId="lam"
+  ✓ fout [sourceHandle="function"] → f-fe(arg1)
+  ✓ f-sfb → fout(value)  (lambda body ends here, NOT at out)
+  ✓ f-fe → out(value)    (forEach result ends at spell output)
+  ✓ lam [sourceHandle="param0"] wired to f-ep(arg1)  (NO hyphen)
 
 ── PATTERN D: conditional action on one enemy (if node) ────────────────────────
 Nodes: si, f-gae(getAllEnemies), f-head(list::head),
