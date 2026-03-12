@@ -244,26 +244,36 @@ Edges:
   lit           → f-act(arg2)           damage amount
   f-act         → out(value)
 
-── PATTERN B: filter enemies by condition, pick one, act (1-level lambda) ──────
-Nodes: si, f-gae(getAllEnemies), lam(lambdaDef,params=["eid"]),
-       f-hp(game::getEntityHealth), f-gt(std::cmp::gt), lit-N(literal,30),
-       f-out(functionOut,lambdaId="lam"), f-flt(list::filter),
-       f-head(list::head), f-act(game::damageEntity), lit-amt(literal,100), out
-Edges — main chain:
-  si            → f-gae(arg0)
-  f-gae         → f-flt(arg0)           enemy list → filter
-  f-out [sourceHandle="function"] → f-flt(arg1)    ← pass lambda as predicate
-  f-flt         → f-head(arg0)
-  si            → f-act(arg0)
-  f-head        → f-act(arg1)
-  lit-amt       → f-act(arg2)
-  f-act         → out(value)
-Edges — lambda body (state wires FROM si DIRECTLY, NOT through any env port):
-  si            → f-hp(arg0)            ← state crosses lambda boundary directly
-  lam [sourceHandle="param0"] → f-hp(arg1)   ← lambda's eid param (NO hyphen!)
-  f-hp          → f-gt(arg0)
-  lit-N         → f-gt(arg1)
-  f-gt          → f-out(value)          ← lambda return value
+── PATTERN B: filter enemies by condition, pick first, act (1-level lambda) ─────
+Copy this exactly for "filter then attack" requests (HP threshold, type check, etc).
+{"nodes":[
+  {"id":"si","type":"spellInput","position":{"x":-200,"y":200},"data":{"label":"Game State","params":["state"]}},
+  {"id":"f-gae","type":"dynamicFunction","position":{"x":60,"y":200},"data":{"functionName":"game::getAllEnemies","displayName":"getAllEnemies","namespace":"game","params":["state"]}},
+  {"id":"f-flt","type":"dynamicFunction","position":{"x":300,"y":200},"data":{"functionName":"list::filter","displayName":"filter","namespace":"list","params":["l","pred"]}},
+  {"id":"f-head","type":"dynamicFunction","position":{"x":520,"y":200},"data":{"functionName":"list::head","displayName":"head","namespace":"list","params":["l"]}},
+  {"id":"f-act","type":"dynamicFunction","position":{"x":700,"y":200},"data":{"functionName":"game::damageEntity","displayName":"damageEntity","namespace":"game","params":["state","eid","amount"]}},
+  {"id":"lit-amt","type":"literal","position":{"x":600,"y":320},"data":{"value":100}},
+  {"id":"out","type":"output","position":{"x":940,"y":200},"data":{}},
+  {"id":"lam","type":"lambdaDef","position":{"x":60,"y":420},"data":{"functionName":"predicate","params":["eid"]}},
+  {"id":"f-hp","type":"dynamicFunction","position":{"x":220,"y":500},"data":{"functionName":"game::getEntityHealth","displayName":"getEntityHealth","namespace":"game","params":["state","eid"]}},
+  {"id":"f-gt","type":"dynamicFunction","position":{"x":420,"y":500},"data":{"functionName":"std::cmp::gt","displayName":"> gt","namespace":"std::cmp","params":["a","b"]}},
+  {"id":"lit-thr","type":"literal","position":{"x":320,"y":600},"data":{"value":30}},
+  {"id":"fout","type":"functionOut","position":{"x":620,"y":500},"data":{"lambdaId":"lam"}}
+],"edges":[
+  {"id":"e1","source":"si","target":"f-gae","targetHandle":"arg0"},
+  {"id":"e2","source":"f-gae","target":"f-flt","targetHandle":"arg0"},
+  {"id":"e3","source":"fout","sourceHandle":"function","target":"f-flt","targetHandle":"arg1"},
+  {"id":"e4","source":"f-flt","target":"f-head","targetHandle":"arg0"},
+  {"id":"e5","source":"si","target":"f-act","targetHandle":"arg0"},
+  {"id":"e6","source":"f-head","target":"f-act","targetHandle":"arg1"},
+  {"id":"e7","source":"lit-amt","target":"f-act","targetHandle":"arg2"},
+  {"id":"e8","source":"f-act","target":"out","targetHandle":"value"},
+  {"id":"e9","source":"si","target":"f-hp","targetHandle":"arg0"},
+  {"id":"e10","source":"lam","sourceHandle":"param0","target":"f-hp","targetHandle":"arg1"},
+  {"id":"e11","source":"f-hp","target":"f-gt","targetHandle":"arg0"},
+  {"id":"e12","source":"lit-thr","target":"f-gt","targetHandle":"arg1"},
+  {"id":"e13","source":"f-gt","target":"fout","targetHandle":"value"}
+]}
 
 ── PATTERN C: forEach — damage ALL enemies (simplest forEach) ──────────────────
 Minimum forEach structure. Copy this exactly for "damage/heal all enemies" requests.
