@@ -265,69 +265,68 @@ Edges — lambda body (state wires FROM si DIRECTLY, NOT through any env port):
   lit-N         → f-gt(arg1)
   f-gt          → f-out(value)          ← lambda return value
 
-── PATTERN C: forEach — damage ALL enemies (simplest forEach, no sub-calculations) ──
-This is the MINIMUM correct forEach structure. Study this before Pattern C2.
-Nodes: si(spellInput,params=["state"]), f-gae(game::getAllEnemies), f-fe(list::forEach),
-       lam(lambdaDef,params=["eid"]), f-dmg(game::damageEntity), lit(literal,100),
-       fout(functionOut,lambdaId="lam"), out(output)
-Edges — setup (OUTSIDE lambda):
-  si    → f-gae(arg0)
-  f-gae → f-fe(arg0)                   enemy list → forEach
-  fout  [sourceHandle="function"] → f-fe(arg1)   ← pass lambda to forEach (REQUIRED)
-  f-fe  → out(value)                   ← forEach result is the spell output
-Edges — lambda body (INSIDE lambda):
-  si    → f-dmg(arg0)                  ← state DIRECTLY (no env port)
-  lam   [sourceHandle="param0"] → f-dmg(arg1)    ← eid from lambda param (NO hyphen)
-  lit   → f-dmg(arg2)                  damage amount
-  f-dmg → fout(value)                  ← lambda RETURN (must connect last body node to fout)
-Key data flow: si→f-gae→f-fe→out  AND  fout[function]→f-fe  AND  f-dmg→fout(value)
+── PATTERN C: forEach — damage ALL enemies (simplest forEach) ──────────────────
+Minimum forEach structure. Copy this exactly for "damage/heal all enemies" requests.
+{"nodes":[
+  {"id":"si","type":"spellInput","position":{"x":-200,"y":200},"data":{"label":"Game State","params":["state"]}},
+  {"id":"f-gae","type":"dynamicFunction","position":{"x":60,"y":200},"data":{"functionName":"game::getAllEnemies","displayName":"getAllEnemies","namespace":"game","params":["state"]}},
+  {"id":"f-fe","type":"dynamicFunction","position":{"x":300,"y":200},"data":{"functionName":"list::forEach","displayName":"forEach","namespace":"list","params":["l","f"]}},
+  {"id":"out","type":"output","position":{"x":540,"y":200},"data":{}},
+  {"id":"lam","type":"lambdaDef","position":{"x":60,"y":400},"data":{"functionName":"doAction","params":["eid"]}},
+  {"id":"f-dmg","type":"dynamicFunction","position":{"x":250,"y":400},"data":{"functionName":"game::damageEntity","displayName":"damageEntity","namespace":"game","params":["state","eid","amount"]}},
+  {"id":"lit","type":"literal","position":{"x":100,"y":520},"data":{"value":100}},
+  {"id":"fout","type":"functionOut","position":{"x":480,"y":400},"data":{"lambdaId":"lam"}}
+],"edges":[
+  {"id":"e1","source":"si","target":"f-gae","targetHandle":"arg0"},
+  {"id":"e2","source":"f-gae","target":"f-fe","targetHandle":"arg0"},
+  {"id":"e3","source":"fout","sourceHandle":"function","target":"f-fe","targetHandle":"arg1"},
+  {"id":"e4","source":"f-fe","target":"out","targetHandle":"value"},
+  {"id":"e5","source":"si","target":"f-dmg","targetHandle":"arg0"},
+  {"id":"e6","source":"lam","sourceHandle":"param0","target":"f-dmg","targetHandle":"arg1"},
+  {"id":"e7","source":"lit","target":"f-dmg","targetHandle":"arg2"},
+  {"id":"e8","source":"f-dmg","target":"fout","targetHandle":"value"}
+]}
 
-── PATTERN C2: forEach — fire fireball at ALL enemies (map + forEach, two lambdas) ──
+── PATTERN C2: spawnFireball at ALL enemies (map + forEach, two lambdas) ────────
 Chain: enemies → map(eid→direction) → forEach(dir→spawnFireball) → out
-TWO lambdas required: lam1 converts eid to direction; lam2 fires fireball per direction.
-Nodes:
-  si     (spellInput, params=["state"])
-  f-gp   (game::getPlayer)
-  f-pp   (game::getEntityPosition)         ← player position, computed OUTSIDE both lambdas
-  f-gae  (game::getAllEnemies)
-  f-map  (list::map)
-  f-fe   (list::forEach)
-  out    (output)
-  lam1   (lambdaDef, params=["eid"])       ← Lambda 1: eid → normalized direction
-  f-ep   (game::getEntityPosition)         ← enemy position, INSIDE lam1
-  f-sub  (vec::subtract)
-  f-norm (vec::normalize)
-  f-out1 (functionOut, lambdaId="lam1")   ← REQUIRED for lam1
-  lam2   (lambdaDef, params=["dir"])       ← Lambda 2: dir → spawnFireball
-  f-fb   (game::spawnFireball)
-  f-out2 (functionOut, lambdaId="lam2")   ← REQUIRED for lam2
-Edges — setup (OUTSIDE both lambdas):
-  si     → f-gp(arg0)
-  si     → f-pp(arg0)               player state → getEntityPosition
-  f-gp   → f-pp(arg1)               player eid → player position
-  si     → f-gae(arg0)
-  f-gae  → f-map(arg0)              enemy list → map
-  f-out1 [sourceHandle="function"] → f-map(arg1)    ← pass lam1 to map
-  f-map  → f-fe(arg0)               direction list → forEach
-  f-out2 [sourceHandle="function"] → f-fe(arg1)     ← pass lam2 to forEach
-  f-fe   → out(value)
-Edges — Lambda 1 body (eid → normalized direction toward enemy):
-  si     → f-ep(arg0)               ← state DIRECTLY (no env port)
-  lam1   [sourceHandle="param0"] → f-ep(arg1)    ← eid (NO hyphen)
-  f-ep   → f-sub(arg0)             enemy position
-  f-pp   → f-sub(arg1)             player position (cross-scope is fine)
-  f-sub  → f-norm(arg0)            direction vector
-  f-norm → f-out1(value)           ← lam1 return: normalized direction
-Edges — Lambda 2 body (dir → fire fireball from player toward that direction):
-  si     → f-fb(arg0)              ← state DIRECTLY
-  f-pp   → f-fb(arg1)              player position (cross-scope is fine)
-  lam2   [sourceHandle="param0"] → f-fb(arg2)    ← dir param (NO hyphen)
-  f-fb   → f-out2(value)           ← lam2 return
-CHECKLIST (ALL must be true):
-  ✓ f-out1 exists (lambdaId="lam1") AND f-out2 exists (lambdaId="lam2")
-  ✓ f-out1 [function] → f-map(arg1)   AND   f-out2 [function] → f-fe(arg1)
-  ✓ f-norm → f-out1(value)            AND   f-fb → f-out2(value)
-  ✓ f-fe → out(value)
+Copy this exactly for "fire fireball at all enemies" requests.
+{"nodes":[
+  {"id":"si","type":"spellInput","position":{"x":-200,"y":200},"data":{"label":"Game State","params":["state"]}},
+  {"id":"f-gp","type":"dynamicFunction","position":{"x":60,"y":80},"data":{"functionName":"game::getPlayer","displayName":"getPlayer","namespace":"game","params":["state"]}},
+  {"id":"f-pp","type":"dynamicFunction","position":{"x":250,"y":80},"data":{"functionName":"game::getEntityPosition","displayName":"getEntityPosition","namespace":"game","params":["state","eid"]}},
+  {"id":"f-gae","type":"dynamicFunction","position":{"x":60,"y":200},"data":{"functionName":"game::getAllEnemies","displayName":"getAllEnemies","namespace":"game","params":["state"]}},
+  {"id":"f-map","type":"dynamicFunction","position":{"x":280,"y":200},"data":{"functionName":"list::map","displayName":"map","namespace":"list","params":["l","f"]}},
+  {"id":"f-fe","type":"dynamicFunction","position":{"x":520,"y":200},"data":{"functionName":"list::forEach","displayName":"forEach","namespace":"list","params":["l","f"]}},
+  {"id":"out","type":"output","position":{"x":760,"y":200},"data":{}},
+  {"id":"lam1","type":"lambdaDef","position":{"x":60,"y":440},"data":{"functionName":"toDir","params":["eid"]}},
+  {"id":"f-ep","type":"dynamicFunction","position":{"x":220,"y":520},"data":{"functionName":"game::getEntityPosition","displayName":"getEntityPosition","namespace":"game","params":["state","eid"]}},
+  {"id":"f-sub","type":"dynamicFunction","position":{"x":420,"y":520},"data":{"functionName":"vec::subtract","displayName":"subtract","namespace":"vec","params":["a","b"]}},
+  {"id":"f-norm","type":"dynamicFunction","position":{"x":600,"y":520},"data":{"functionName":"vec::normalize","displayName":"normalize","namespace":"vec","params":["v"]}},
+  {"id":"f-out1","type":"functionOut","position":{"x":760,"y":520},"data":{"lambdaId":"lam1"}},
+  {"id":"lam2","type":"lambdaDef","position":{"x":60,"y":700},"data":{"functionName":"shoot","params":["dir"]}},
+  {"id":"f-fb","type":"dynamicFunction","position":{"x":300,"y":700},"data":{"functionName":"game::spawnFireball","displayName":"spawnFireball","namespace":"game","params":["state","position","direction"]}},
+  {"id":"f-out2","type":"functionOut","position":{"x":560,"y":700},"data":{"lambdaId":"lam2"}}
+],"edges":[
+  {"id":"e1","source":"si","target":"f-gp","targetHandle":"arg0"},
+  {"id":"e2","source":"si","target":"f-pp","targetHandle":"arg0"},
+  {"id":"e3","source":"f-gp","target":"f-pp","targetHandle":"arg1"},
+  {"id":"e4","source":"si","target":"f-gae","targetHandle":"arg0"},
+  {"id":"e5","source":"f-gae","target":"f-map","targetHandle":"arg0"},
+  {"id":"e6","source":"f-out1","sourceHandle":"function","target":"f-map","targetHandle":"arg1"},
+  {"id":"e7","source":"f-map","target":"f-fe","targetHandle":"arg0"},
+  {"id":"e8","source":"f-out2","sourceHandle":"function","target":"f-fe","targetHandle":"arg1"},
+  {"id":"e9","source":"f-fe","target":"out","targetHandle":"value"},
+  {"id":"e10","source":"si","target":"f-ep","targetHandle":"arg0"},
+  {"id":"e11","source":"lam1","sourceHandle":"param0","target":"f-ep","targetHandle":"arg1"},
+  {"id":"e12","source":"f-ep","target":"f-sub","targetHandle":"arg0"},
+  {"id":"e13","source":"f-pp","target":"f-sub","targetHandle":"arg1"},
+  {"id":"e14","source":"f-sub","target":"f-norm","targetHandle":"arg0"},
+  {"id":"e15","source":"f-norm","target":"f-out1","targetHandle":"value"},
+  {"id":"e16","source":"si","target":"f-fb","targetHandle":"arg0"},
+  {"id":"e17","source":"f-pp","target":"f-fb","targetHandle":"arg1"},
+  {"id":"e18","source":"lam2","sourceHandle":"param0","target":"f-fb","targetHandle":"arg2"},
+  {"id":"e19","source":"f-fb","target":"f-out2","targetHandle":"value"}
+]}
 
 ── PATTERN D: conditional action on one enemy (if node) ────────────────────────
 Nodes: si, f-gae(getAllEnemies), f-head(list::head),
