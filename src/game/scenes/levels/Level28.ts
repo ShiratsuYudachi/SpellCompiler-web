@@ -5,6 +5,7 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -74,8 +75,6 @@ levelRegistry.register(Level28Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 	isTarget: boolean    // left zone = true (must kill), right zone = false (protected)
 	penaltyFired: boolean
 }
@@ -85,10 +84,14 @@ export class Level28 extends BaseScene {
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level28' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.penaltyCount = 0
 		this.levelFailed = false
@@ -140,7 +143,7 @@ export class Level28 extends BaseScene {
 		})
 
 		// Draw visual zone divider
-		const divider = this.add.rectangle(480, 320, 4, 560, 0xffff00, 0.3)
+		this.add.rectangle(480, 320, 4, 560, 0xffff00, 0.3)
 		this.add.text(240, 40, '← TARGET ZONE', { fontSize: '14px', color: '#33cc66', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
 		this.add.text(720, 40, 'PROTECTED →', { fontSize: '14px', color: '#ff6666', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
 
@@ -166,17 +169,17 @@ export class Level28 extends BaseScene {
 	protected onLevelUpdate(): void {
 		if (this.levelFailed || this.levelWon) return
 
-		// Fallback penalty for protected enemies
+		// Update alive entities; destroy dead, emit penalty for protected zone if needed
 		this.enemies = this.enemies.filter(ent => {
-			if (!ent.isTarget && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.penaltyFired) {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				if (!ent.isTarget && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
-				ent.marker.destroy()
-				ent.label.destroy()
+				this.visuals.destroy(ent.eid)
 				return false
 			}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
@@ -189,12 +192,9 @@ export class Level28 extends BaseScene {
 
 	private spawnEnemy(x: number, y: number, color: number, hp: number, isTarget: boolean): TrackedEnemy {
 		const size = 22
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
-		const label = this.add.text(x, y - size - 10, isTarget ? 'TARGET' : 'PROT', {
-			fontSize: '10px', color: isTarget ? '#88ffaa' : '#ff8888', stroke: '#000000', strokeThickness: 2,
-		}).setOrigin(0.5)
 		const body = createRectBody(this, `enemy28-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -202,7 +202,17 @@ export class Level28 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEnemy = { eid, body, marker, label, isTarget, penaltyFired: false }
+
+		this.visuals.register(eid, {
+			role: isTarget ? 'target' : 'guard',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+		})
+
+		const tracked: TrackedEnemy = { eid, body, isTarget, penaltyFired: false }
 		this.enemies.push(tracked)
 		return tracked
 	}

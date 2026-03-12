@@ -5,6 +5,8 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
+import type { EntityRole } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -89,8 +91,6 @@ type EnemyRole = 'elite' | 'weak' | 'civilian'
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 	role: EnemyRole
 	penaltyFired: boolean
 	spawnX: number
@@ -103,10 +103,14 @@ export class Level24 extends BaseScene {
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level24' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.civilians = []
 		this.penaltyCount = 0
@@ -202,13 +206,15 @@ export class Level24 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels
-		for (const ent of [...this.enemies, ...this.civilians]) {
-			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				const roleName = ent.role === 'elite' ? 'ELITE' : ent.role === 'weak' ? 'WEAK' : 'CIV'
-				ent.label.setText(`${roleName}(${Math.max(0, Health.current[ent.eid])})`)
+		// Update alive enemies; destroy visuals for dead ones
+		this.enemies = this.enemies.filter(ent => {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-		}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
+		})
 
 		// Clean up dead civilians
 		this.civilians = this.civilians.filter(civ => {
@@ -217,8 +223,7 @@ export class Level24 extends BaseScene {
 					civ.penaltyFired = true
 					this.events.emit('civilian-hit', civ.eid)
 				}
-				civ.marker.destroy()
-				civ.label.destroy()
+				this.visuals.destroy(civ.eid)
 				return false
 			}
 			return true
@@ -231,14 +236,11 @@ export class Level24 extends BaseScene {
 		}
 	}
 
-	private spawnUnit(x: number, y: number, color: number, labelText: string, hp: number, role: EnemyRole): TrackedEnemy {
+	private spawnUnit(x: number, y: number, color: number, _labelText: string, hp: number, role: EnemyRole): TrackedEnemy {
 		const size = role === 'elite' ? 30 : role === 'weak' ? 24 : 18
-		const marker = this.add.circle(x, y, size, color, role === 'civilian' ? 0.5 : 0.75).setStrokeStyle(role === 'elite' ? 4 : 2, color)
-		const label = this.add.text(x, y - size - 12, `${labelText}(${hp})`, {
-			fontSize: '11px', color: role === 'civilian' ? '#aaaaaa' : '#ffffff', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
 		const body = createRectBody(this, `unit24-${role}-${x}`, color, size * 2, size * 2, x, y, role === 'civilian' ? 2 : 5)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -246,7 +248,11 @@ export class Level24 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEnemy = { eid, body, marker, label, role, penaltyFired: false, spawnX: x, spawnY: y }
+
+		const entityRole: EntityRole = role === 'elite' ? 'guard' : role === 'weak' ? 'weak' : 'civilian'
+		this.visuals.register(eid, { role: entityRole, x, y, radius: size, bodyColor: color, maxHP: hp })
+
+		const tracked: TrackedEnemy = { eid, body, role, penaltyFired: false, spawnX: x, spawnY: y }
 		if (role === 'civilian') {
 			this.civilians.push(tracked)
 		} else {

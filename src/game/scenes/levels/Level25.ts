@@ -5,6 +5,7 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -92,17 +93,19 @@ levelRegistry.register(Level25Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 }
 
 export class Level25 extends BaseScene {
 	private enemies: TrackedEnemy[] = []
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level25' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.levelWon = false
 
@@ -149,26 +152,26 @@ export class Level25 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels
-		for (const ent of this.enemies) {
-			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				ent.label.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+		// Update alive enemies; destroy visuals for dead ones
+		this.enemies = this.enemies.filter(ent => {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-		}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
+		})
 
-		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+		if (this.enemies.length === 0) {
 			this.onMissionSuccess()
 		}
 	}
 
 	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
 		const size = 26
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
-		const label = this.add.text(x, y - size - 12, `HP: ${hp}`, {
-			fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
 		const body = createRectBody(this, `enemy25-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -176,7 +179,8 @@ export class Level25 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEnemy = { eid, body, marker, label }
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+		const tracked: TrackedEnemy = { eid, body }
 		this.enemies.push(tracked)
 		return tracked
 	}

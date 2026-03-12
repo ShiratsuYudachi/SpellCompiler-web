@@ -5,6 +5,7 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -168,8 +169,6 @@ levelRegistry.register(Level21Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	hpLabel: Phaser.GameObjects.Text
 	hp: number
 	isCivilian: boolean
 	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
@@ -181,6 +180,7 @@ export class Level21 extends BaseScene {
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() {
 		super({ key: 'Level21' })
@@ -194,6 +194,9 @@ export class Level21 extends BaseScene {
 		this.levelFailed = false
 		this.levelWon = false
 		this.events.removeAllListeners('civilian-hit') // prevent listener accumulation
+
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
 
 		this.showInstruction(
 			'【The Sniper — Part 3: Maximum Threat】\n\n' +
@@ -232,6 +235,7 @@ export class Level21 extends BaseScene {
 		const enemyColors = [0xff3333, 0xff8800, 0xffcc00, 0x33cc33, 0x3399ff]
 
 		let maxHP = -1
+		let supremeColor = 0xff3333
 		for (let i = 0; i < enemyPositions.length; i++) {
 			const pos = enemyPositions[i]
 			const hp = enemyHPs[i]
@@ -241,20 +245,21 @@ export class Level21 extends BaseScene {
 			if (hp > maxHP) {
 				maxHP = hp
 				this.supremeEid = ent.eid
+				supremeColor = color
 			}
 		}
 
-		// Mark the supreme threat visually (pulsing ring)
-		// — deliberately subtle so player still uses fold, not sight-reading
-		const supreme = this.enemies.find(e => e.eid === this.supremeEid)!
-		this.tweens.add({
-			targets: supreme.marker,
-			scaleX: 1.2,
-			scaleY: 1.2,
-			duration: 600,
-			yoyo: true,
-			repeat: -1,
-			ease: 'Sine.easeInOut',
+		// Re-register the supreme enemy with role='target' so it gets the target visual style
+		// (EntityVisualManager's 'target' role already has its own distinct pulse animation)
+		const supremeEnt = this.enemies.find(e => e.eid === this.supremeEid)!
+		this.visuals.destroy(this.supremeEid)
+		this.visuals.register(this.supremeEid, {
+			role: 'target',
+			x: supremeEnt.body.x,
+			y: supremeEnt.body.y,
+			radius: 28,
+			bodyColor: supremeColor,
+			maxHP: maxHP,
 		})
 
 		// Spawn civilians (white, 10 HP)
@@ -300,24 +305,17 @@ export class Level21 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels for enemies (civilians show static "CIVILIAN" text)
-		for (const ent of this.enemies) {
-			if (!ent.isCivilian && this.world.resources.bodies.has(ent.eid) && ent.hpLabel.active) {
-				ent.hpLabel.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
-			}
-		}
-
-		// Fallback civilian penalty detection
+		// Update alive entities; destroy visuals and handle penalties for dead ones
 		this.enemies = this.enemies.filter(ent => {
-			if (ent.isCivilian && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.penaltyFired) {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				if (ent.isCivilian && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
-				ent.marker.destroy()
-				ent.hpLabel.destroy()
-				return false  // remove dead civilian from list
+				this.visuals.destroy(ent.eid)
+				return false
 			}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
@@ -332,21 +330,9 @@ export class Level21 extends BaseScene {
 	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
 		const size = 28
 
-		const marker = this.add
-			.circle(x, y, size, color, 0.7)
-			.setStrokeStyle(3, color)
-
-		const hpLabel = this.add
-			.text(x, y - size - 14, `HP: ${hp}`, {
-				fontSize: '13px',
-				color: '#ffffff',
-				stroke: '#000000',
-				strokeThickness: 3,
-			})
-			.setOrigin(0.5)
-
 		const body = createRectBody(this, `enemy-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
 		body.setImmovable(true)
+		body.setAlpha(0)
 
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
@@ -358,28 +344,18 @@ export class Level21 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		return { eid, body, marker, hpLabel, hp, isCivilian: false, penaltyFired: false }
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+
+		return { eid, body, hp, isCivilian: false, penaltyFired: false }
 	}
 
 	private spawnCivilian(x: number, y: number): TrackedEnemy {
 		const hp = 10
 		const size = 22
 
-		const marker = this.add
-			.circle(x, y, size, 0xdddddd, 0.5)
-			.setStrokeStyle(2, 0xdddddd)
-
-		const hpLabel = this.add
-			.text(x, y - size - 12, 'CIVILIAN', {
-				fontSize: '11px',
-				color: '#aaaaaa',
-				stroke: '#000000',
-				strokeThickness: 2,
-			})
-			.setOrigin(0.5)
-
 		const body = createRectBody(this, `civilian-${x}-${y}`, 0xdddddd, size * 2, size * 2, x, y, 2)
 		body.setImmovable(true)
+		body.setAlpha(0)
 
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
@@ -391,7 +367,9 @@ export class Level21 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		return { eid, body, marker, hpLabel, hp, isCivilian: true, penaltyFired: false }
+		this.visuals.register(eid, { role: 'civilian', x, y, radius: size, bodyColor: 0xdddddd, maxHP: hp })
+
+		return { eid, body, hp, isCivilian: true, penaltyFired: false }
 	}
 
 	/** Fisher-Yates shuffle */

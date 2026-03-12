@@ -5,6 +5,7 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -97,8 +98,6 @@ levelRegistry.register(Level30Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 	role: 'elite' | 'drone'
 }
 
@@ -107,10 +106,14 @@ export class Level30 extends BaseScene {
 	private shieldedEids: Set<number> = new Set()
 	private levelWon: boolean = false
 	private levelFailed: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level30' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.shieldedEids = new Set()
 		this.levelWon = false
@@ -149,12 +152,6 @@ export class Level30 extends BaseScene {
 			if (ent) {
 				this.cameras.main.shake(80, 0.006)
 				this.cameras.main.flash(60, 255, 100, 0)
-				// Brief shield flash on the marker
-				const origColor = 0xff4444
-				ent.marker.setFillStyle(0xffffff, 1)
-				this.time.delayedCall(120, () => {
-					if (ent.marker.active) ent.marker.setFillStyle(origColor, 0.75)
-				})
 				this.setTaskInfo('Combined Assault', [
 					'RED elites: use spawnFireball (shield blocks damageEntity)',
 					'GREY drones: fireballs work too!',
@@ -193,14 +190,14 @@ export class Level30 extends BaseScene {
 	protected onLevelUpdate(): void {
 		if (this.levelWon || this.levelFailed) return
 
-		// Clean up dead enemies
+		// Update HP visuals and clean up dead enemies
 		this.enemies = this.enemies.filter(ent => {
 			if (!this.world.resources.bodies.has(ent.eid)) {
-				ent.marker.destroy()
-				ent.label.destroy()
+				this.visuals.destroy(ent.eid)
 				this.shieldedEids.delete(ent.eid)
 				return false
 			}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
@@ -225,15 +222,9 @@ export class Level30 extends BaseScene {
 		const size = 24
 		const hp = 10
 		const color = 0xff4444
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(4, 0xffaa00)
-		const label = this.add.text(x, y - size - 12, 'ELITE', {
-			fontSize: '11px', color: '#ffaa44', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
-		// Shield icon
-		this.add.text(x, y, '🛡', { fontSize: '14px' }).setOrigin(0.5)
-
 		const body = createRectBody(this, `elite30-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -242,8 +233,18 @@ export class Level30 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
+		this.visuals.register(eid, {
+			role: 'guard',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+			labelText: 'ELITE',
+		})
+
 		this.shieldedEids.add(eid)
-		const tracked: TrackedEnemy = { eid, body, marker, label, role: 'elite' }
+		const tracked: TrackedEnemy = { eid, body, role: 'elite' }
 		this.enemies.push(tracked)
 		return tracked
 	}
@@ -252,13 +253,9 @@ export class Level30 extends BaseScene {
 		const size = 16
 		const hp = 10
 		const color = 0x888888
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(2, color)
-		const label = this.add.text(x, y - size - 10, 'DRONE', {
-			fontSize: '10px', color: '#cccccc', stroke: '#000000', strokeThickness: 2,
-		}).setOrigin(0.5)
-
 		const body = createRectBody(this, `drone30-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -267,7 +264,17 @@ export class Level30 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEnemy = { eid, body, marker, label, role: 'drone' }
+		this.visuals.register(eid, {
+			role: 'weak',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+			labelText: 'DRONE',
+		})
+
+		const tracked: TrackedEnemy = { eid, body, role: 'drone' }
 		this.enemies.push(tracked)
 		return tracked
 	}

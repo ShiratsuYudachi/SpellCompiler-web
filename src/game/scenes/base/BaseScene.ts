@@ -9,6 +9,7 @@ import { LevelProgress } from './LevelProgress'
 import { setEditorContext } from '../../gameInstance'
 import { setupInputEventListeners, cleanupInputEventListeners, emitTickEvent } from '../../systems/inputEventSystem'
 import { eventProcessSystem, processHoldEvents } from '../../systems/eventProcessSystem'
+import { PlayerVisual } from '../../EntityVisual'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
@@ -28,6 +29,9 @@ export abstract class BaseScene extends Phaser.Scene {
 	private tutorialOverlay!: Phaser.GameObjects.Container
 	private controlsPanel!: Phaser.GameObjects.Container
 	private castCountText!: Phaser.GameObjects.Text   // Spell cast count (visible only when level has limit)
+
+	// Player visual (knight helmet)
+	private playerVisual?: PlayerVisual
 
 	// Minimap
 	private minimapContainer!: Phaser.GameObjects.Container
@@ -85,7 +89,18 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.physics.add.collider(playerBody, this.platforms)
 			playerBody.setCollideWorldBounds(true)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
+
+			// Hide the plain blue square; replace with knight helmet visual
+			playerBody.setAlpha(0)
+			this.playerVisual?.destroy()
+			this.playerVisual = new PlayerVisual(this, playerBody.x, playerBody.y)
 		}
+
+		// Clean up playerVisual on scene shutdown / restart
+		this.events.once('shutdown', () => {
+			this.playerVisual?.destroy()
+			this.playerVisual = undefined
+		})
 
 		// Init UI
 		this.initPlayerHUD()
@@ -113,12 +128,18 @@ export abstract class BaseScene extends Phaser.Scene {
 
 	update() {
 		updateGameWorld(this.world, this.game.loop.delta / 1000)
-		
+
 		// Process event system
 		emitTickEvent()
 		eventProcessSystem(this.world)
 		processHoldEvents(this.world)
-		
+
+		// Sync player helmet to physics body position
+		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (playerBody && this.playerVisual) {
+			this.playerVisual.syncTo(playerBody.x, playerBody.y)
+		}
+
 		this.updatePlayerHUD()
 		this.updateCastCountHUD()
 		this.updateMinimap()

@@ -5,6 +5,7 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -126,8 +127,6 @@ levelRegistry.register(Level26Meta)
 interface TrackedEntity {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc | Phaser.GameObjects.Rectangle
-	label: Phaser.GameObjects.Text
 	role: 'fuel' | 'core'
 	initialHP: number
 }
@@ -137,10 +136,14 @@ export class Level26 extends BaseScene {
 	private coreEid: number = -1
 	private requiredDamage: number = 0
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level26' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.entities = []
 		this.coreEid = -1
 		this.requiredDamage = 0
@@ -211,12 +214,15 @@ export class Level26 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update fuel HP labels (core stays "???")
-		for (const ent of this.entities) {
-			if (ent.role === 'fuel' && this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				ent.label.setText(`FUEL HP:${Math.max(0, Health.current[ent.eid])}`)
+		// Update fuel HP visuals; destroy dead fuel visuals (core stays "CORE ???")
+		this.entities = this.entities.filter(ent => {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-		}
+			if (ent.role === 'fuel') this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
+		})
 
 		if (this.coreEid > -1 && !this.world.resources.bodies.has(this.coreEid)) {
 			this.onMissionSuccess()
@@ -226,12 +232,9 @@ export class Level26 extends BaseScene {
 	private spawnFuel(x: number, y: number, hp: number): TrackedEntity {
 		const size = 24
 		const color = 0x3399ff
-		const marker = this.add.circle(x, y, size, color, 0.7).setStrokeStyle(2, color)
-		const label = this.add.text(x, y - size - 12, `FUEL HP:${hp}`, {
-			fontSize: '11px', color: '#88ccff', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
 		const body = createRectBody(this, `fuel26-${x}`, color, size * 2, size * 2, x, y, 3)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -239,7 +242,8 @@ export class Level26 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEntity = { eid, body, marker, label, role: 'fuel', initialHP: hp }
+		this.visuals.register(eid, { role: 'weak', x, y, radius: size, bodyColor: color, maxHP: hp, labelText: 'FUEL' })
+		const tracked: TrackedEntity = { eid, body, role: 'fuel', initialHP: hp }
 		this.entities.push(tracked)
 		return tracked
 	}
@@ -247,14 +251,9 @@ export class Level26 extends BaseScene {
 	private spawnCore(x: number, y: number, hp: number): TrackedEntity {
 		const size = 36
 		const color = 0x222222
-		const marker = this.add.circle(x, y, size, color, 0.9).setStrokeStyle(4, 0xffffff)
-		const label = this.add.text(x, y - size - 14, 'CORE HP:???', {
-			fontSize: '13px', color: '#ffffff', stroke: '#000000', strokeThickness: 4,
-		}).setOrigin(0.5)
-		// Pulsing animation
-		this.tweens.add({ targets: marker, scaleX: 1.1, scaleY: 1.1, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
 		const body = createRectBody(this, 'core26', color, size * 2, size * 2, x, y, 8)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -262,7 +261,8 @@ export class Level26 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEntity = { eid, body, marker, label, role: 'core', initialHP: hp }
+		this.visuals.register(eid, { role: 'target', x, y, radius: size, bodyColor: color, maxHP: hp, labelText: 'CORE ???' })
+		const tracked: TrackedEntity = { eid, body, role: 'core', initialHP: hp }
 		this.entities.push(tracked)
 		return tracked
 	}
