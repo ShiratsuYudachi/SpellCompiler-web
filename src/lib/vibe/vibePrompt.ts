@@ -282,45 +282,52 @@ Edges — lambda body (INSIDE lambda):
   f-dmg → fout(value)                  ← lambda RETURN (must connect last body node to fout)
 Key data flow: si→f-gae→f-fe→out  AND  fout[function]→f-fe  AND  f-dmg→fout(value)
 
-── PATTERN C2: forEach — fire at ALL enemies (complex lambda, spawnFireball) ─────
-MANDATORY nodes: lambdaDef + functionOut are BOTH required. No functionOut = broken.
-Node list:
+── PATTERN C2: forEach — fire fireball at ALL enemies (map + forEach, two lambdas) ──
+Chain: enemies → map(eid→direction) → forEach(dir→spawnFireball) → out
+TWO lambdas required: lam1 converts eid to direction; lam2 fires fireball per direction.
+Nodes:
   si     (spellInput, params=["state"])
   f-gp   (game::getPlayer)
-  f-pp   (game::getEntityPosition)        ← player position (computed OUTSIDE lambda)
+  f-pp   (game::getEntityPosition)         ← player position, computed OUTSIDE both lambdas
   f-gae  (game::getAllEnemies)
+  f-map  (list::map)
   f-fe   (list::forEach)
   out    (output)
-  lam    (lambdaDef, params=["eid"])      ← ONE param; sourceHandle = "param0"
-  f-ep   (game::getEntityPosition)        ← enemy position (computed INSIDE lambda)
+  lam1   (lambdaDef, params=["eid"])       ← Lambda 1: eid → normalized direction
+  f-ep   (game::getEntityPosition)         ← enemy position, INSIDE lam1
   f-sub  (vec::subtract)
   f-norm (vec::normalize)
-  f-sfb  (game::spawnFireball)
-  fout   (functionOut, lambdaId="lam")   ← REQUIRED; lambdaId must match lam's id
-Edges — setup (OUTSIDE lambda):
-  si    → f-gp(arg0)               get player eid
-  si    → f-pp(arg0)               state → getEntityPosition for PLAYER
-  f-gp  → f-pp(arg1)               player eid → position
-  si    → f-gae(arg0)              get all enemies
-  f-gae → f-fe(arg0)               enemy list → forEach
-  fout  [sourceHandle="function"] → f-fe(arg1)   ← THIS is how lambda is passed; arg1 not arg0
-  f-fe  → out(value)               forEach result → spell output
-Edges — lambda body (INSIDE lambda; state from si wires directly, env port unused):
-  si    → f-ep(arg0)               ← state DIRECTLY to getEntityPosition (no env port!)
-  lam   [sourceHandle="param0"] → f-ep(arg1)   ← eid param (NO hyphen in "param0")
-  f-ep  → f-sub(arg0)             enemy position
-  f-pp  → f-sub(arg1)             player position (cross-scope wire is fine)
-  f-sub → f-norm(arg0)            direction vector
-  si    → f-sfb(arg0)             ← state DIRECTLY to spawnFireball
-  f-pp  → f-sfb(arg1)             launch from player position
-  f-norm → f-sfb(arg2)            normalized direction
-  f-sfb → fout(value)             ← lambda return: fout collects the result
-CHECKLIST before outputting Pattern C2 (ALL must be true or the spell is broken):
-  ✓ fout node exists with data.lambdaId="lam"
-  ✓ fout [sourceHandle="function"] → f-fe(arg1)   ← lambda passed to forEach
-  ✓ f-sfb → fout(value)   ← lambda body ends at fout, NOT at out
-  ✓ f-fe  → out(value)    ← forEach result goes to spell output
-  ✓ lam [sourceHandle="param0"] → f-ep(arg1)   ← NO hyphen in "param0"
+  f-out1 (functionOut, lambdaId="lam1")   ← REQUIRED for lam1
+  lam2   (lambdaDef, params=["dir"])       ← Lambda 2: dir → spawnFireball
+  f-fb   (game::spawnFireball)
+  f-out2 (functionOut, lambdaId="lam2")   ← REQUIRED for lam2
+Edges — setup (OUTSIDE both lambdas):
+  si     → f-gp(arg0)
+  si     → f-pp(arg0)               player state → getEntityPosition
+  f-gp   → f-pp(arg1)               player eid → player position
+  si     → f-gae(arg0)
+  f-gae  → f-map(arg0)              enemy list → map
+  f-out1 [sourceHandle="function"] → f-map(arg1)    ← pass lam1 to map
+  f-map  → f-fe(arg0)               direction list → forEach
+  f-out2 [sourceHandle="function"] → f-fe(arg1)     ← pass lam2 to forEach
+  f-fe   → out(value)
+Edges — Lambda 1 body (eid → normalized direction toward enemy):
+  si     → f-ep(arg0)               ← state DIRECTLY (no env port)
+  lam1   [sourceHandle="param0"] → f-ep(arg1)    ← eid (NO hyphen)
+  f-ep   → f-sub(arg0)             enemy position
+  f-pp   → f-sub(arg1)             player position (cross-scope is fine)
+  f-sub  → f-norm(arg0)            direction vector
+  f-norm → f-out1(value)           ← lam1 return: normalized direction
+Edges — Lambda 2 body (dir → fire fireball from player toward that direction):
+  si     → f-fb(arg0)              ← state DIRECTLY
+  f-pp   → f-fb(arg1)              player position (cross-scope is fine)
+  lam2   [sourceHandle="param0"] → f-fb(arg2)    ← dir param (NO hyphen)
+  f-fb   → f-out2(value)           ← lam2 return
+CHECKLIST (ALL must be true):
+  ✓ f-out1 exists (lambdaId="lam1") AND f-out2 exists (lambdaId="lam2")
+  ✓ f-out1 [function] → f-map(arg1)   AND   f-out2 [function] → f-fe(arg1)
+  ✓ f-norm → f-out1(value)            AND   f-fb → f-out2(value)
+  ✓ f-fe → out(value)
 
 ── PATTERN D: conditional action on one enemy (if node) ────────────────────────
 Nodes: si, f-gae(getAllEnemies), f-head(list::head),
