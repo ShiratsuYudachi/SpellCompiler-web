@@ -354,34 +354,40 @@ Edges:
   f-lo          → if-node(else)
   if-node [sourceHandle="result"] → out(value)
 
-── PATTERN E: forEach — different action per enemy based on HP (if inside lambda) ──
-(forEach with an if node INSIDE the lambda body — state wires directly as always)
-Nodes: si, f-gae(getAllEnemies), f-fe(list::forEach), out,
-       lam(lambdaDef,params=["eid"]),
-       f-hp(game::getEntityHealth), lit-thr(literal,50), f-gt(std::cmp::gt),
-       f-hi(game::damageEntity), lit-hi(literal,100),
-       f-lo(game::damageEntity), lit-lo(literal,10),
-       if-n(if), fout(functionOut,lambdaId="lam")
-Edges — setup (outside lambda):
-  si            → f-gae(arg0)
-  f-gae         → f-fe(arg0)             enemy list → forEach
-  fout [sourceHandle="function"] → f-fe(arg1)    ← pass lambda
-  f-fe          → out(value)
-Edges — lambda body (EVERY game:: call needs state wired in from si directly):
-  si            → f-hp(arg0)             ← state crosses lambda boundary directly
-  lam [sourceHandle="param0"] → f-hp(arg1)    ← eid from lambda (NO hyphen)
-  f-hp          → f-gt(arg0)
-  lit-thr       → f-gt(arg1)
-  f-gt          → if-n(condition)
-  si            → f-hi(arg0)             ← state to high-damage action
-  lam [sourceHandle="param0"] → f-hi(arg1)
-  lit-hi        → f-hi(arg2)
-  f-hi          → if-n(then)             ← high-HP branch: big damage
-  si            → f-lo(arg0)             ← state to low-damage action
-  lam [sourceHandle="param0"] → f-lo(arg1)
-  lit-lo        → f-lo(arg2)
-  f-lo          → if-n(else)             ← low-HP branch: small damage
-  if-n [sourceHandle="result"] → fout(value)    ← lambda return value
+── PATTERN E: forEach — tiered damage with if inside lambda ─────────────────────
+Logic: eid → if(hp > 50, deal 200, deal 50). if selects the AMOUNT; one damageEntity call.
+Copy this exactly for "different damage per enemy based on HP" requests.
+{"nodes":[
+  {"id":"si","type":"spellInput","position":{"x":-200,"y":200},"data":{"label":"Game State","params":["state"]}},
+  {"id":"f-gae","type":"dynamicFunction","position":{"x":60,"y":200},"data":{"functionName":"game::getAllEnemies","displayName":"getAllEnemies","namespace":"game","params":["state"]}},
+  {"id":"f-fe","type":"dynamicFunction","position":{"x":300,"y":200},"data":{"functionName":"list::forEach","displayName":"forEach","namespace":"list","params":["l","f"]}},
+  {"id":"out","type":"output","position":{"x":960,"y":200},"data":{}},
+  {"id":"lam","type":"lambdaDef","position":{"x":60,"y":440},"data":{"functionName":"tiered","params":["eid"]}},
+  {"id":"f-hp","type":"dynamicFunction","position":{"x":210,"y":540},"data":{"functionName":"game::getEntityHealth","displayName":"getEntityHealth","namespace":"game","params":["state","eid"]}},
+  {"id":"f-gt","type":"dynamicFunction","position":{"x":400,"y":540},"data":{"functionName":"std::cmp::gt","displayName":"> gt","namespace":"std::cmp","params":["a","b"]}},
+  {"id":"lit-thr","type":"literal","position":{"x":300,"y":650},"data":{"value":50}},
+  {"id":"f-if","type":"if","position":{"x":600,"y":480},"data":{}},
+  {"id":"lit-200","type":"literal","position":{"x":460,"y":390},"data":{"value":200}},
+  {"id":"lit-50","type":"literal","position":{"x":460,"y":570},"data":{"value":50}},
+  {"id":"f-dmg","type":"dynamicFunction","position":{"x":780,"y":480},"data":{"functionName":"game::damageEntity","displayName":"damageEntity","namespace":"game","params":["state","eid","amount"]}},
+  {"id":"f-out","type":"functionOut","position":{"x":980,"y":480},"data":{"lambdaId":"lam"}}
+],"edges":[
+  {"id":"e1","source":"si","target":"f-gae","targetHandle":"arg0"},
+  {"id":"e2","source":"f-gae","target":"f-fe","targetHandle":"arg0"},
+  {"id":"e3","source":"f-out","sourceHandle":"function","target":"f-fe","targetHandle":"arg1"},
+  {"id":"e4","source":"f-fe","target":"out","targetHandle":"value"},
+  {"id":"e5","source":"si","target":"f-hp","targetHandle":"arg0"},
+  {"id":"e6","source":"lam","sourceHandle":"param0","target":"f-hp","targetHandle":"arg1"},
+  {"id":"e7","source":"f-hp","target":"f-gt","targetHandle":"arg0"},
+  {"id":"e8","source":"lit-thr","target":"f-gt","targetHandle":"arg1"},
+  {"id":"e9","source":"f-gt","target":"f-if","targetHandle":"condition"},
+  {"id":"e10","source":"lit-200","target":"f-if","targetHandle":"then"},
+  {"id":"e11","source":"lit-50","target":"f-if","targetHandle":"else"},
+  {"id":"e12","source":"si","target":"f-dmg","targetHandle":"arg0"},
+  {"id":"e13","source":"lam","sourceHandle":"param0","target":"f-dmg","targetHandle":"arg1"},
+  {"id":"e14","source":"f-if","target":"f-dmg","targetHandle":"arg2"},
+  {"id":"e15","source":"f-dmg","target":"f-out","targetHandle":"value"}
+]}
 
 ── PATTERN F: attack the enemy with the lowest HP (list::minBy + 1-level lambda) ──
 (minBy takes the SAME lambda pattern as filter — use it to score each element)
