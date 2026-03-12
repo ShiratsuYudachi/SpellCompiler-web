@@ -265,7 +265,24 @@ Edges — lambda body (state wires FROM si DIRECTLY, NOT through any env port):
   lit-N         → f-gt(arg1)
   f-gt          → f-out(value)          ← lambda return value
 
-── PATTERN C: forEach — fire at ALL enemies (1-level lambda, spawnFireball) ─────
+── PATTERN C: forEach — damage ALL enemies (simplest forEach, no sub-calculations) ──
+This is the MINIMUM correct forEach structure. Study this before Pattern C2.
+Nodes: si(spellInput,params=["state"]), f-gae(game::getAllEnemies), f-fe(list::forEach),
+       lam(lambdaDef,params=["eid"]), f-dmg(game::damageEntity), lit(literal,100),
+       fout(functionOut,lambdaId="lam"), out(output)
+Edges — setup (OUTSIDE lambda):
+  si    → f-gae(arg0)
+  f-gae → f-fe(arg0)                   enemy list → forEach
+  fout  [sourceHandle="function"] → f-fe(arg1)   ← pass lambda to forEach (REQUIRED)
+  f-fe  → out(value)                   ← forEach result is the spell output
+Edges — lambda body (INSIDE lambda):
+  si    → f-dmg(arg0)                  ← state DIRECTLY (no env port)
+  lam   [sourceHandle="param0"] → f-dmg(arg1)    ← eid from lambda param (NO hyphen)
+  lit   → f-dmg(arg2)                  damage amount
+  f-dmg → fout(value)                  ← lambda RETURN (must connect last body node to fout)
+Key data flow: si→f-gae→f-fe→out  AND  fout[function]→f-fe  AND  f-dmg→fout(value)
+
+── PATTERN C2: forEach — fire at ALL enemies (complex lambda, spawnFireball) ─────
 MANDATORY nodes: lambdaDef + functionOut are BOTH required. No functionOut = broken.
 Node list:
   si     (spellInput, params=["state"])
@@ -298,12 +315,12 @@ Edges — lambda body (INSIDE lambda; state from si wires directly, env port unu
   f-pp  → f-sfb(arg1)             launch from player position
   f-norm → f-sfb(arg2)            normalized direction
   f-sfb → fout(value)             ← lambda return: fout collects the result
-CHECKLIST before outputting (all must be true):
-  ✓ fout node exists with lambdaId="lam"
-  ✓ fout [sourceHandle="function"] → f-fe(arg1)
-  ✓ f-sfb → fout(value)  (lambda body ends here, NOT at out)
-  ✓ f-fe → out(value)    (forEach result ends at spell output)
-  ✓ lam [sourceHandle="param0"] wired to f-ep(arg1)  (NO hyphen)
+CHECKLIST before outputting Pattern C2 (ALL must be true or the spell is broken):
+  ✓ fout node exists with data.lambdaId="lam"
+  ✓ fout [sourceHandle="function"] → f-fe(arg1)   ← lambda passed to forEach
+  ✓ f-sfb → fout(value)   ← lambda body ends at fout, NOT at out
+  ✓ f-fe  → out(value)    ← forEach result goes to spell output
+  ✓ lam [sourceHandle="param0"] → f-ep(arg1)   ← NO hyphen in "param0"
 
 ── PATTERN D: conditional action on one enemy (if node) ────────────────────────
 Nodes: si, f-gae(getAllEnemies), f-head(list::head),
