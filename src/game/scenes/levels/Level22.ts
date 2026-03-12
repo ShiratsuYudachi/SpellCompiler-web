@@ -5,33 +5,20 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 22 — 「扫荡令」
+// Level 22 — "Sweep Order"
 //
-// 教学目标：forEach 基础
+// Teaching goal: forEach basics
 //   forEach(getAllEnemies(state), eid → damageEntity(state, eid, 100))
 //
-// 场景：6 个相同 HP 的敌人，玩家锁定中心
-// 问题：damageEntity 只打单个目标——必须遍历所有
+// Setup: 6 enemies with same HP, player locked at center
+// Problem: damageEntity hits one target — must iterate over all
 // ─────────────────────────────────────────────────────────────
 
-export const Level22Meta: LevelMeta = {
-	key: 'Level22',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-all', description: 'Eliminate ALL 6 enemies using forEach', type: 'defeat' }],
-	hints: [
-		'getAllEnemies returns a LIST of all enemies — not just one.',
-		'forEach(list, f) calls f on every element in the list.',
-		'Build a lambda: eid → damageEntity(state, eid, 100)',
-		'Connect the lambda\'s functionOut (function handle) to forEach\'s second argument.',
-	],
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',       type: 'spellInput',      position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			{ id: 'f-gae',    type: 'dynamicFunction',  position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
@@ -54,7 +41,24 @@ export const Level22Meta: LevelMeta = {
 			{ id: 'e7', source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
 			{ id: 'e8', source: 'f-dmg',  target: 'f-out', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level22Meta: LevelMeta = {
+	key: 'Level22',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-all', description: 'Eliminate ALL 6 enemies using forEach', type: 'defeat' }],
+	hints: [
+		'getAllEnemies returns a LIST of all enemies — not just one.',
+		'forEach(list, f) calls f on every element in the list.',
+		'Build a lambda: eid → damageEntity(state, eid, 100)',
+		'Connect the lambda\'s functionOut (function handle) to forEach\'s second argument.',
+	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level22Meta)
@@ -62,19 +66,21 @@ levelRegistry.register(Level22Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 }
 
 export class Level22 extends BaseScene {
 	private enemies: TrackedEnemy[] = []
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level22' }) }
 
 	protected onLevelCreate(): void {
 		this.enemies = []
 		this.levelWon = false
+
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
 
 		this.showInstruction(
 			'【Sweep Order — forEach Basics】\n\n' +
@@ -109,27 +115,27 @@ export class Level22 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels
-		for (const ent of this.enemies) {
-			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				ent.label.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+		// Update visuals for alive enemies; destroy visuals for dead ones
+		this.enemies = this.enemies.filter(ent => {
+			if (this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.update(ent.eid, Health.current[ent.eid])
+				return true
 			}
-		}
+			this.visuals.destroy(ent.eid)
+			return false
+		})
 
 		// Win: all enemies despawned
-		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+		if (this.enemies.length === 0 || (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid)))) {
 			this.onMissionSuccess()
 		}
 	}
 
 	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
 		const size = 26
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
-		const label = this.add.text(x, y - size - 12, `HP: ${hp}`, {
-			fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
 		const body = createRectBody(this, `enemy22-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -137,7 +143,8 @@ export class Level22 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEnemy = { eid, body, marker, label }
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+		const tracked: TrackedEnemy = { eid, body }
 		this.enemies.push(tracked)
 		return tracked
 	}

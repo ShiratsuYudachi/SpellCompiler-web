@@ -60,7 +60,7 @@ export class Level14 extends BaseScene {
 	private plateStatusText!: Phaser.GameObjects.Text
 	private sensorStatusText!: Phaser.GameObjects.Text
 
-	// 传感器切换计时器
+	// Sensor toggle timer
 	private sensorToggleTimer: Phaser.Time.TimerEvent | null = null
 
 	constructor() {
@@ -69,23 +69,23 @@ export class Level14 extends BaseScene {
 
 	protected onLevelCreate(): void {
 		this.showInstruction(
-			'【Level 14: 精密验证】\n\n' +
-			'学习使用 AND 节点组合多个条件。\n\n' +
-			'• 传感器每 3 秒切换一次 ON/OFF\n' +
+			'【Level 14: Precision Check】\n\n' +
+			'Use AND node to combine multiple conditions.\n\n' +
+			'• Sensor toggles ON/OFF every 3 seconds\n' +
 			'• Task 1: RED plate AND sensor ON -> 45°\n' +
 			'• Task 2: YELLOW plate AND sensor OFF -> -45°\n\n' +
-			'提示：And(condition1, condition2)\n\n' +
-			'按 TAB 编辑法术，按 1 发射火球。'
+			'Hint: And(condition1, condition2)\n\n' +
+			'Press TAB to edit spell, 1 to fire.'
 		)
 
-		// 锁定玩家位置
+		// Lock player position
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
 			playerBody.setPosition(150, 288)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// 压力板状态显示
+		// Pressure plate state display
 		this.plateStatusText = this.add.text(20, 80, 'Plate: NONE', {
 			fontSize: '16px',
 			color: '#ffffff',
@@ -93,7 +93,7 @@ export class Level14 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// 传感器状态显示
+		// Sensor state display
 		this.sensorStatusText = this.add.text(20, 110, 'Sensor: ON', {
 			fontSize: '16px',
 			color: '#00ff00',
@@ -101,10 +101,10 @@ export class Level14 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// 初始化传感器状态
+		// Init sensor state
 		this.world.resources.sensorState = true
 
-		// 启动传感器切换计时器
+		// Start sensor toggle timer
 		this.sensorToggleTimer = this.time.addEvent({
 			delay: 3000,
 			callback: () => {
@@ -113,16 +113,16 @@ export class Level14 extends BaseScene {
 			loop: true
 		})
 
-		// Task 1: 红色 + 传感器开启 -> 45°
+		// Task 1: red + sensor ON -> 45°
 		this.createTarget(600, 120, 'Task 1: RED + ON -> 45°', 0xff4444, 'task1-red-sensor', true)
 
-		// Task 2: 黄色 + 传感器关闭 -> -45°
+		// Task 2: yellow + sensor OFF -> -45°
 		this.createTarget(600, 456, 'Task 2: YELLOW + OFF -> -45°', 0xffff44, 'task2-yellow-sensor', false)
 
-		// Task 3: 复杂组合
+		// Task 3: complex combination
 		this.createTarget(800, 288, 'Task 3: Complex Logic', 0x44ff44, 'task3-complex', false)
 
-		// 绑定按键
+		// Bind keys
 		this.input.keyboard?.on('keydown-ONE', () => {
 			this.shootAndCastSpell()
 		})
@@ -132,7 +132,7 @@ export class Level14 extends BaseScene {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// 锁定玩家位置
+		// Lock player position
 		if (playerBody) {
 			const minX = 80
 			const maxX = 280
@@ -144,7 +144,7 @@ export class Level14 extends BaseScene {
 			if (playerBody.y > maxY) playerBody.y = maxY
 		}
 
-		// 更新压力板状态
+		// Update pressure plate state
 		const plateColor = this.world.resources.currentPlateColor
 		this.plateStatusText.setText(`Plate: ${plateColor}`)
 		if (plateColor === 'RED') {
@@ -155,12 +155,12 @@ export class Level14 extends BaseScene {
 			this.plateStatusText.setColor('#ffffff')
 		}
 
-		// 更新传感器状态
+		// Update sensor state
 		const sensorState = this.world.resources.sensorState
 		this.sensorStatusText.setText(`Sensor: ${sensorState ? 'ON' : 'OFF'}`)
 		this.sensorStatusText.setColor(sensorState ? '#00ff00' : '#ff6666')
 
-		// 检测目标销毁
+		// Detect target destroyed
 		this.targets.forEach((target) => {
 			if (!target.destroyed && Health.current[target.eid] <= 0) {
 				target.destroyed = true
@@ -236,7 +236,7 @@ export class Level14 extends BaseScene {
 
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 提示绑定
+		// Hint binding
         console.log('[Level14] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 

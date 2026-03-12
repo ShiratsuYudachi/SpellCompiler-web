@@ -81,17 +81,14 @@ export class Level15 extends BaseScene {
 			'Press TAB to edit spells, press 1 to fire a ball and run your spell.'
 		)
 
-		// 锁定玩家位置（起点坐标：96,96）
+		// Lock player at start (96, 96)
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
 			playerBody.setPosition(96, 96)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// 按你提供的配置创建目标（使用格子中心计算）
-		// T1: 黄板1附近 (grid 2,5) -> (2*64+32, 5*64+32) = (160, 352)
-		// T2: 黄板2附近 (grid 8,1) -> (8*64+32, 1*64+32) = (544, 96)
-		// T3: 终点区域 (grid 13,1) -> (13*64+32, 1*64+32) = (864, 96)
+		// Create targets (grid center). T1 near yellow1 (2,5)=(160,352), T2 (8,1)=(544,96), T3 end (13,1)=(864,96)
 
 		// Phase 1: Angled Rebound (visible)
 		this.createTarget(160, 352, 'Phase 1: Angled Rebound', 0xffcc00, 'T1', true)
@@ -102,7 +99,7 @@ export class Level15 extends BaseScene {
 		// Phase 3: Final Strike (initially hidden)
 		this.createTarget(864, 96, 'Phase 3: Final Strike', 0xffff66, 'T3', false)
 
-		// 绑定按键
+		// Bind keys
 		this.input.keyboard?.on('keydown-ONE', () => {
 			this.shootAndCastSpell()
 		})
@@ -112,10 +109,10 @@ export class Level15 extends BaseScene {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// 限制玩家移动在发射区域（左上起点附近）
+		// Restrict player to launch area (top-left)
 		if (playerBody) {
 			const minX = 64
-			const maxX = 224 // 发射区宽度
+			const maxX = 224 // Launch area width
 			const minY = 64
 			const maxY = 160
 			if (playerBody.x < minX) playerBody.x = minX
@@ -124,7 +121,7 @@ export class Level15 extends BaseScene {
 			if (playerBody.y > maxY) playerBody.y = maxY
 		}
 
-		// 检测目标销毁
+		// Detect target destroyed
 		this.targets.forEach((target) => {
 			if (!target.destroyed && target.eid >= 0 && Health.current[target.eid] <= 0) {
 				target.destroyed = true
@@ -205,7 +202,7 @@ export class Level15 extends BaseScene {
 
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 提示绑定
+		// Hint binding
         console.log('[Level15] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 

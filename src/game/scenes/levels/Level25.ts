@@ -5,36 +5,22 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 25 — 「制导火球」
+// Level 25 — "Guided Fireball"
 //
-// 教学目标：map 基础 — 类型变换 List<eid> → List<Vector2D>
+// Teaching goal: map basics — type transform List<eid> → List<Vector2D>
 //   playerPos = getEntityPosition(state, getPlayer(state))
 //   dirs = map(getAllEnemies(state),
 //              eid → normalize(subtract(getEntityPosition(state, eid), playerPos)))
 //   forEach(dirs, dir → spawnFireball(state, playerPos, dir))
 //
-// 关键：敌人位置每次随机 → 写死方向无效 → 必须动态计算
+// Key: enemy positions random each time → fixed directions fail → must compute dynamically
 // ─────────────────────────────────────────────────────────────
 
-export const Level25Meta: LevelMeta = {
-	key: 'Level25',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'destroy-all', description: 'Destroy all 4 enemies — aim fireballs dynamically', type: 'defeat' }],
-	hints: [
-		'Enemy positions are RANDOMIZED each attempt — hardcoded directions will fail.',
-		'map(list, f) transforms every element: map(enemies, eid → position(eid)) gives positions.',
-		'subtract(enemyPos, playerPos) gives the direction vector from player to enemy.',
-		'normalize(v) makes it a unit vector — safe to pass to spawnFireball.',
-		'Chain: getAllEnemies → map(eid→dir) → forEach(dir→spawnFireball)',
-	],
-	maxSpellCasts: 3,
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',       type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// Get player position
@@ -81,7 +67,25 @@ export const Level25Meta: LevelMeta = {
 			{ id: 'e18', source: 'lam2',  sourceHandle: 'param0', target: 'f-fb',  targetHandle: 'arg2' },
 			{ id: 'e19', source: 'f-fb',  target: 'f-out2',targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level25Meta: LevelMeta = {
+	key: 'Level25',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'destroy-all', description: 'Destroy all 4 enemies — aim fireballs dynamically', type: 'defeat' }],
+	hints: [
+		'Enemy positions are RANDOMIZED each attempt — hardcoded directions will fail.',
+		'map(list, f) transforms every element: map(enemies, eid → position(eid)) gives positions.',
+		'subtract(enemyPos, playerPos) gives the direction vector from player to enemy.',
+		'normalize(v) makes it a unit vector — safe to pass to spawnFireball.',
+		'Chain: getAllEnemies → map(eid→dir) → forEach(dir→spawnFireball)',
+	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level25Meta)
@@ -89,17 +93,19 @@ levelRegistry.register(Level25Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 }
 
 export class Level25 extends BaseScene {
 	private enemies: TrackedEnemy[] = []
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level25' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.levelWon = false
 
@@ -137,7 +143,7 @@ export class Level25 extends BaseScene {
 			const q = quadrants[i]
 			const x = Math.floor(Math.random() * (q.maxX - q.minX)) + q.minX
 			const y = Math.floor(Math.random() * (q.maxY - q.minY)) + q.minY
-			this.spawnEnemy(x, y, colors[i], 40)
+			this.spawnEnemy(x, y, colors[i], 10)
 		}
 	}
 
@@ -146,26 +152,26 @@ export class Level25 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels
-		for (const ent of this.enemies) {
-			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				ent.label.setText(`HP: ${Math.max(0, Health.current[ent.eid])}`)
+		// Update alive enemies; destroy visuals for dead ones
+		this.enemies = this.enemies.filter(ent => {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-		}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
+		})
 
-		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+		if (this.enemies.length === 0) {
 			this.onMissionSuccess()
 		}
 	}
 
 	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
 		const size = 26
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
-		const label = this.add.text(x, y - size - 12, `HP: ${hp}`, {
-			fontSize: '12px', color: '#ffffff', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
 		const body = createRectBody(this, `enemy25-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -173,7 +179,8 @@ export class Level25 extends BaseScene {
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		const tracked: TrackedEnemy = { eid, body, marker, label }
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+		const tracked: TrackedEnemy = { eid, body }
 		this.enemies.push(tracked)
 		return tracked
 	}

@@ -5,36 +5,23 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 29 — 「精准封锁」
+// Level 29 — "Precision Lockdown"
 //
-// 教学目标：空间查询进阶 — getNearbyEnemies 之后必须再 filter
-//   8 个敌人均在 radius 150 范围内，但 4 个是平民（HP=15）
-//   仅靠 getNearbyEnemies 会一次打到所有人
-//   需要叠加 filter(eid → gt(hp(eid), 40)) 精准筛选威胁目标
+// Teaching goal: getNearbyEnemies then filter
+//   8 enemies in radius 150, but 4 are civilians (HP=15)
+//   getNearbyEnemies alone hits everyone
+//   Add filter(eid → gt(hp(eid), 40)) to isolate threats
 //
 //   inRange  = getNearbyEnemies(state, playerPos, 150)
 //   targets  = filter(inRange, eid → gt(getEntityHealth(state, eid), 40))
 //   forEach(targets, eid → damageEntity(state, eid, 100))
 // ─────────────────────────────────────────────────────────────
 
-export const Level29Meta: LevelMeta = {
-	key: 'Level29',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-threats', description: 'Eliminate 4 red threats WITHOUT hitting grey civilians', type: 'defeat' }],
-	hints: [
-		'All 8 enemies are within getNearbyEnemies radius 150 from center.',
-		'getNearbyEnemies does NOT distinguish by type — returns ALL in range!',
-		'Add a filter AFTER getNearbyEnemies: filter(nearby, eid → gt(hp(eid), 40))',
-		'Grey enemies (HP=15) are civilians — hitting them = penalty.',
-		'Solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity)',
-	],
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// getPlayer → getEntityPosition (player pos)
@@ -86,7 +73,24 @@ export const Level29Meta: LevelMeta = {
 			{ id: 'e19', source: 'lit-100', target: 'f-dmg',  targetHandle: 'arg2' },
 			{ id: 'e20', source: 'f-dmg',   target: 'fout-d', targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level29Meta: LevelMeta = {
+	key: 'Level29',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-threats', description: 'Eliminate 4 red threats WITHOUT hitting grey civilians', type: 'defeat' }],
+	hints: [
+		'All 8 enemies are within getNearbyEnemies radius 150 from center.',
+		'getNearbyEnemies does NOT distinguish by type — returns ALL in range!',
+		'Add a filter AFTER getNearbyEnemies: filter(nearby, eid → gt(hp(eid), 40))',
+		'Grey enemies (HP=15) are civilians — hitting them = penalty.',
+		'Solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity)',
+	],
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level29Meta)
@@ -94,8 +98,6 @@ levelRegistry.register(Level29Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 	role: 'threat' | 'civilian'
 	penaltyFired: boolean
 }
@@ -105,10 +107,14 @@ export class Level29 extends BaseScene {
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level29' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.penaltyCount = 0
 		this.levelFailed = false
@@ -193,25 +199,17 @@ export class Level29 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels
-		for (const ent of this.enemies) {
-			const hpLabel = (ent as any).hpLabel as Phaser.GameObjects.Text | undefined
-			if (hpLabel && hpLabel.active && this.world.resources.bodies.has(ent.eid)) {
-				hpLabel.setText(`HP:${Math.max(0, Health.current[ent.eid])}`)
-			}
-		}
-
-		// Fallback penalty detection for civilians
+		// Update alive entities; destroy dead, emit civilian penalty if needed
 		this.enemies = this.enemies.filter(ent => {
-			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.penaltyFired) {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				if (ent.role === 'civilian' && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
-				ent.marker.destroy()
-				ent.label.destroy()
+				this.visuals.destroy(ent.eid)
 				return false
 			}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
@@ -224,20 +222,9 @@ export class Level29 extends BaseScene {
 
 	private spawnEnemy(x: number, y: number, color: number, hp: number, role: 'threat' | 'civilian'): TrackedEnemy {
 		const size = role === 'threat' ? 22 : 16
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
-		const roleLabel = role === 'threat' ? 'THREAT' : 'CIV'
-		const label = this.add.text(x, y - size - 12, roleLabel, {
-			fontSize: '10px',
-			color: role === 'threat' ? '#ff8888' : '#aaaaaa',
-			stroke: '#000000',
-			strokeThickness: 2,
-		}).setOrigin(0.5)
-		const hpLabel = this.add.text(x, y + size + 8, `HP:${hp}`, {
-			fontSize: '9px', color: '#cccccc', stroke: '#000000', strokeThickness: 2,
-		}).setOrigin(0.5)
-
 		const body = createRectBody(this, `enemy29-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -246,11 +233,17 @@ export class Level29 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEnemy = { eid, body, marker, label, role, penaltyFired: false }
-		this.enemies.push(tracked)
+		this.visuals.register(eid, {
+			role: role === 'threat' ? 'target' : 'civilian',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+		})
 
-		// Fade out label when dead - track hpLabel for cleanup
-		;(tracked as any).hpLabel = hpLabel
+		const tracked: TrackedEnemy = { eid, body, role, penaltyFired: false }
+		this.enemies.push(tracked)
 		return tracked
 	}
 

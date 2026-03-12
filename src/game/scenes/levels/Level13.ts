@@ -75,26 +75,26 @@ export class Level13 extends BaseScene {
 		this.resetLevelState()
 
 		this.showInstruction(
-			'【Level 13: 多重制导】\n\n' +
-			'学习使用嵌套 If 实现 Else-If 多分支逻辑。\n\n' +
-			'火球飞行时会经过压力板：\n' +
-			'• getFireballPlateColor() 检测火球位置\n' +
-			'• deflectOnPlate("RED", angle) 在红板偏转\n' +
-			'• deflectOnPlate("YELLOW", angle) 在黄板偏转\n\n' +
-			'Task 1: 火球经过 RED → 向上偏转击中 T1\n' +
-			'Task 2: 火球经过 YELLOW → 不偏转，直行击中 T2\n' +
-			'Task 3: 火球经过 YELLOW → 向上偏转(V字形)击中 T3\n\n' +
-			'按 TAB 编辑法术，按 1 发射火球。'
+			'【Level 13: Multi-Guide】\n\n' +
+			'Use nested If for else-if multi-branch logic.\n\n' +
+			'Fireball passes over pressure plates:\n' +
+			'• getFireballPlateColor() detects fireball position\n' +
+			'• deflectOnPlate("RED", angle) deflect on red plate\n' +
+			'• deflectOnPlate("YELLOW", angle) deflect on yellow plate\n\n' +
+			'Task 1: over RED → deflect up to hit T1\n' +
+			'Task 2: over YELLOW → no deflect, straight to T2\n' +
+			'Task 3: over YELLOW → deflect up (V-shape) to T3\n\n' +
+			'Press TAB to edit spell, 1 to fire.'
 		)
 
-		// 玩家位置
+		// Player position
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (playerBody) {
 			playerBody.setPosition(96, 192)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 		}
 
-		// 玩家压力板状态显示
+		// Player plate state display
 		this.plateStatusText = this.add.text(20, 80, 'Player Plate: NONE', {
 			fontSize: '14px',
 			color: '#ffffff',
@@ -102,7 +102,7 @@ export class Level13 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// 火球压力板状态显示
+		// Fireball plate state display
 		this.fireballPlateText = this.add.text(20, 110, 'Fireball Plate: NONE', {
 			fontSize: '14px',
 			color: '#ffaa33',
@@ -110,31 +110,28 @@ export class Level13 extends BaseScene {
 			padding: { x: 8, y: 4 },
 		}).setScrollFactor(0).setDepth(1000)
 
-		// 创建目标 - 根据用户草图
-		// tileSize=64
-		// RED压力板在 (4, 2) = (288, 160)
-		// YELLOW压力板在 (8, 7) = (544, 480)
+		// Create targets. tileSize=64. RED plate (4,2)=(288,160), YELLOW (8,7)=(544,480)
 
-		// T1: 红板上方区域 (火球从RED偏转后向上飞到这里)
+		// T1: above red plate (fireball deflects at RED, flies up here)
 		this.createTarget(288, 96, 'T1', 0xff4444, 'task1-red-up', true)
 
-		// T2: 右上区域 (火球不触发RED，沿通道向右下飞，不触发YELLOW，继续向右上飞到这里)
+		// T2: upper-right (fireball misses RED, flies right-down, misses YELLOW, continues here)
 		this.createTarget(832, 160, 'T2', 0x44ff44, 'task2-straight', false)
 
-		// T3: YELLOW压力板右侧 (火球从YELLOW偏转后向右上飞，V字形)
+		// T3: right of YELLOW plate (fireball deflects at YELLOW, flies right-up, V-shape)
 		this.createTarget(640, 480, 'T3', 0xffff44, 'task3-yellow-vshape', false)
 
-		// 绑定按键
+		// Bind keys
 		this.input.keyboard?.on('keydown-ONE', () => {
 			this.shootAndCastSpell()
 		})
 
-		// 添加路径提示
+		// Path hints
 		this.addPathHints()
 	}
 
 	private addPathHints(): void {
-		// 红色压力板位置标注 - (4, 2) = (288, 160)
+		// Red plate label (4,2)=(288,160)
 		this.add.text(288, 130, '🔴 RED', {
 			fontSize: '12px',
 			color: '#ff6666',
@@ -142,7 +139,7 @@ export class Level13 extends BaseScene {
 			strokeThickness: 2,
 		}).setOrigin(0.5)
 
-		// 黄色压力板位置标注 - (8, 7) = (544, 480)
+		// Yellow plate label (8,7)=(544,480)
 		this.add.text(544, 450, '🟡 YELLOW', {
 			fontSize: '12px',
 			color: '#ffff66',
@@ -155,7 +152,7 @@ export class Level13 extends BaseScene {
 		const playerEid = this.world.resources.playerEid
 		const playerBody = this.world.resources.bodies.get(playerEid)
 
-		// 限制玩家移动范围（左上角玩家区域）
+		// Limit player to spawn area (top-left)
 		if (playerBody) {
 			const minX = 64
 			const maxX = 240
@@ -167,7 +164,7 @@ export class Level13 extends BaseScene {
 			if (playerBody.y > maxY) playerBody.y = maxY
 		}
 
-		// 更新玩家压力板状态显示
+		// Update player plate state display
 		const plateColor = this.world.resources.currentPlateColor
 		this.plateStatusText.setText(`Player Plate: ${plateColor}`)
 		if (plateColor === 'RED') {
@@ -178,7 +175,7 @@ export class Level13 extends BaseScene {
 			this.plateStatusText.setColor('#ffffff')
 		}
 
-		// 更新火球压力板状态显示
+		// Update fireball plate state display
 		const fireballPlate = this.getActiveFireballPlateColor()
 		this.fireballPlateText.setText(`Fireball Plate: ${fireballPlate}`)
 		if (fireballPlate === 'RED') {
@@ -189,9 +186,9 @@ export class Level13 extends BaseScene {
 			this.fireballPlateText.setColor('#ffaa33')
 		}
 
-		// 检测目标销毁
+		// Detect target destroyed
 		this.targets.forEach((target) => {
-			// 只检查已激活的目标 (eid >= 0)
+			// Only check active targets (eid >= 0)
 			if (target.eid >= 0 && !target.destroyed && Health.current[target.eid] <= 0) {
 				target.destroyed = true
 				target.marker.destroy()
@@ -215,7 +212,7 @@ export class Level13 extends BaseScene {
 	}
 
 	private getActiveFireballPlateColor(): string {
-		// 查找当前活跃的火球并检测其压力板颜色
+		// Find active fireball and detect its plate color
 		for (const [eid, body] of this.world.resources.bodies) {
 			if (FireballStats.speed[eid] !== undefined && body.active) {
 				for (const plate of this.world.resources.pressurePlates) {
@@ -289,8 +286,8 @@ export class Level13 extends BaseScene {
 			})
 		}
 
-		// Task 3 提示
-		this.add.text(480, 50, '⚠️ Task 3: V字形轨迹！\n火球经过YELLOW时向上偏转', {
+		// Task 3 hint
+		this.add.text(480, 50, '⚠️ Task 3: V-shape path!\nDeflect up when fireball is over YELLOW', {
 			fontSize: '12px',
 			color: '#ffff00',
 			stroke: '#000000',
@@ -304,10 +301,10 @@ export class Level13 extends BaseScene {
 		const playerBody = this.world.resources.bodies.get(playerEid)
 		if (!playerBody) return
 
-		// 发射火球（向右）
+		// Fire fireball (right)
 		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
 
-		// 提示绑定
+		// Hint binding
         console.log('[Level13] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
 	}
 
@@ -381,7 +378,7 @@ export class Level13 extends BaseScene {
 
 		let eid = -1
 		if (visible) {
-			// 只有可见目标才注册 ECS 实体（避免隐藏目标被火球击中）
+			// Only visible targets get ECS entity (avoid hidden target being hit)
 			eid = spawnEntity(this.world)
 			this.world.resources.bodies.set(eid, body)
 

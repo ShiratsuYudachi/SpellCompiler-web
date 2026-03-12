@@ -36,7 +36,6 @@ import { Level27 } from './scenes/levels/Level27'
 import { Level28 } from './scenes/levels/Level28'
 import { Level29 } from './scenes/levels/Level29'
 import { Level30 } from './scenes/levels/Level30'
-import { Level31 } from './scenes/levels/Level31'
 import { setGameInstance, setEditorContext } from './gameInstance'
 
 export function Game() {
@@ -95,7 +94,6 @@ export function Game() {
 				Level28,
 				Level29,
 				Level30,
-				Level31,
 			],
 			physics: {
 				default: 'arcade',

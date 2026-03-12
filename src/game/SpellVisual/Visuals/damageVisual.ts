@@ -1,32 +1,32 @@
 /**
- * damageVisual - 伤害命中视觉效果
- * 冲击闪光、冲击波环、能量碎片迸射、浮动伤害数字
- * 风格与 fireballVisual / teleportVisual 保持一致（Phaser tween + 圆形粒子）
+ * damageVisual - Damage hit visual effect
+ * Impact flash, shockwave rings, energy burst, floating damage number
+ * Style aligned with fireballVisual / teleportVisual (Phaser tween + circular particles)
  */
 
 import Phaser from 'phaser';
 
 export interface DamageHitVisualOptions {
-  /** 冲击主色（default: 红色） */
+  /** Impact main color (default: red) */
   color?: number;
-  /** 内层冲击色 */
+  /** Inner impact color */
   innerColor?: number;
-  /** 核心闪光色（最亮） */
+  /** Core flash color (brightest) */
   coreColor?: number;
-  /** 效果半径 */
+  /** Effect radius */
   radius?: number;
-  /** 动画总时长(ms) */
+  /** Total animation duration (ms) */
   duration?: number;
-  /** 迸射粒子数量 */
+  /** Particle count */
   particleCount?: number;
-  /** 是否显示浮动伤害数字 */
+  /** Show floating damage number */
   showNumber?: boolean;
 }
 
 const DEFAULT_OPTIONS: Required<DamageHitVisualOptions> = {
-  color: 0xff3344,       // 红色冲击
-  innerColor: 0xff8844,  // 橙红内层
-  coreColor: 0xffddaa,   // 亮黄白核心闪光
+  color: 0xff3344,       // Red impact
+  innerColor: 0xff8844,  // Orange-red inner
+  coreColor: 0xffddaa,   // Bright yellow-white core
   radius: 22,
   duration: 280,
   particleCount: 7,
@@ -34,12 +34,12 @@ const DEFAULT_OPTIONS: Required<DamageHitVisualOptions> = {
 };
 
 /**
- * 播放伤害命中视觉效果
- * @param scene   Phaser 场景
- * @param x       命中点 X
- * @param y       命中点 Y
- * @param amount  伤害数值（用于浮动数字）
- * @param options 可选配置
+ * Play damage hit visual effect
+ * @param scene   Phaser scene
+ * @param x       hit X
+ * @param y       hit Y
+ * @param amount  damage value (for floating number)
+ * @param options optional config
  */
 export function playDamageHitVisual(
   scene: Phaser.Scene,
@@ -50,27 +50,27 @@ export function playDamageHitVisual(
 ): void {
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
-  // 1. 冲击核心闪光（快速扩散的实心圆）
+  // 1. Impact core flash (fast expanding solid circle)
   createImpactFlash(scene, x, y, opts);
 
-  // 2. 冲击波扩散环
+  // 2. Shockwave rings
   createShockwaveRings(scene, x, y, opts);
 
-  // 3. 能量碎片迸射（向外辐射粒子）
+  // 3. Energy burst (particles radiating outward)
   createEnergyBurst(scene, x, y, opts);
 
-  // 4. 浮动伤害数字
+  // 4. Floating damage number
   if (opts.showNumber && amount > 0) {
     createFloatingDamageNumber(scene, x, y, amount, opts);
   }
 }
 
 // ========================================
-// 内部辅助函数
+// Internal helpers
 // ========================================
 
 /**
- * 冲击核心闪光：双层实心圆，快速扩散消失
+ * Impact core flash: double solid circle, fast expand and fade
  */
 function createImpactFlash(
   scene: Phaser.Scene,
@@ -78,7 +78,7 @@ function createImpactFlash(
   y: number,
   opts: Required<DamageHitVisualOptions>
 ): void {
-  // 白核（最内层）
+  // White core (innermost)
   const core = scene.add.circle(x, y, opts.radius * 0.25, opts.coreColor, 1.0);
   core.setDepth(101);
   scene.tweens.add({
@@ -91,7 +91,7 @@ function createImpactFlash(
     onComplete: () => core.destroy(),
   });
 
-  // 外层红色光晕
+  // Outer red glow
   const glow = scene.add.circle(x, y, opts.radius * 0.5, opts.color, 0.55);
   glow.setDepth(100);
   scene.tweens.add({
@@ -106,7 +106,7 @@ function createImpactFlash(
 }
 
 /**
- * 冲击波扩散环：两道空心环向外扩展
+ * Shockwave rings: two hollow rings expanding outward
  */
 function createShockwaveRings(
   scene: Phaser.Scene,
@@ -137,7 +137,7 @@ function createShockwaveRings(
 }
 
 /**
- * 能量碎片迸射：小粒子从命中点向四周飞散
+ * Energy burst: small particles from hit point outward
  */
 function createEnergyBurst(
   scene: Phaser.Scene,
@@ -148,7 +148,7 @@ function createEnergyBurst(
   const colors = [opts.color, opts.innerColor, opts.coreColor];
 
   for (let i = 0; i < opts.particleCount; i++) {
-    // 均匀分布 + 随机扰动，避免完全对称显得机械
+    // Even distribution + random offset to avoid overly mechanical look
     const angle = (Math.PI * 2 / opts.particleCount) * i + (Math.random() - 0.5) * 0.5;
     const dist  = opts.radius * (1.1 + Math.random() * 0.9);
     const size  = 2.5 + Math.random() * 2.5;
@@ -172,8 +172,8 @@ function createEnergyBurst(
 }
 
 /**
- * 浮动伤害数字："-X" 从命中点上方飘起并淡出
- * 带一层黑色阴影增强可读性
+ * Floating damage number: "-X" rises from hit point and fades
+ * Black shadow for readability
  */
 function createFloatingDamageNumber(
   scene: Phaser.Scene,
@@ -185,9 +185,9 @@ function createFloatingDamageNumber(
   const label = `-${amount}`;
   const startY = y - 14;
   const floatDist = 30 + Math.random() * 10;
-  const drift = (Math.random() - 0.5) * 12; // 轻微水平偏移，多个伤害数字不重叠
+  const drift = (Math.random() - 0.5) * 12; // Slight horizontal offset so multiple numbers don't overlap
 
-  // 阴影层
+  // Shadow layer
   const shadow = scene.add
     .text(x + 1, startY + 1, label, {
       fontSize: '15px',
@@ -198,7 +198,7 @@ function createFloatingDamageNumber(
     .setDepth(101)
     .setAlpha(0.55);
 
-  // 主数字
+  // Main number
   const text = scene.add
     .text(x, startY, label, {
       fontSize: '15px',

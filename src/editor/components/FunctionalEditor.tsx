@@ -11,6 +11,8 @@ import ReactFlow, {
 	addEdge,
 	useReactFlow,
 	ReactFlowProvider,
+	useNodesState,
+	useEdgesState,
 	type Connection,
 	type Edge,
 	type Node,
@@ -40,13 +42,16 @@ import type { EventBinding } from '../../game/events/EventQueue'
 import { getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
 import { updateSpellInCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
-import { upsertSpell } from '../utils/spellStorage'
+import { upsertSpell, loadSpell } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
 import { SpellInputNode } from './nodes/SpellInputNode'
 import { AddEventPanel } from './AddEventPanel'
 import { EventListPanel } from './EventListPanel'
 import { useEditorClipboard } from './hooks/useEditorClipboard'
 import { useEditorShortcut } from './hooks/useEditorShortcut'
+import { VibePanel } from './VibePanel'
+import { vibeBuild, vibeAsk, MOCK_MODEL_ID, type LevelContext } from '../../lib/vibe/vibeApi'
+import type { LevelMeta } from '../../game/levels/LevelRegistry'
 
 // Define node types
 const nodeTypes = {
@@ -72,6 +77,7 @@ export type FunctionalEditorProps = {
 	backButtonText?: string
 	isLibraryMode?: boolean
 	onBeforeExit?: () => void
+	levelMeta?: LevelMeta
 }
 
 const defaultNewFlow: FlowSnapshot = {
@@ -109,13 +115,21 @@ function bumpNodeIdCounterFromNodes(nodes: Node[]) {
 
 type FlowState = { nodes: Node[]; edges: Edge[] };
 
-// Uncontrolled mode: React Flow manages nodes/edges internally during drag - no parent re-renders.
-// We only sync to our undo history on explicit actions (drag stop, add, delete, connect).
+// Controlled nodes/edges so that setNodes/setEdges (e.g. from Vibe Build) reliably update the view.
 function EditorContent(props: FunctionalEditorProps) {
 	const isLibraryMode = props.isLibraryMode ?? Boolean(props.onExit && props.initialSpellId !== null)
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
-	const defaultNodes = useMemo(() => startingFlow?.nodes || defaultNewFlow.nodes, [startingFlow]);
-	const defaultEdges = useMemo(() => startingFlow?.edges || defaultNewFlow.edges, [startingFlow]);
+	const initialNodes = useMemo(() => startingFlow?.nodes ?? defaultNewFlow.nodes, [startingFlow]);
+	const initialEdges = useMemo(() => startingFlow?.edges ?? defaultNewFlow.edges, [startingFlow]);
+
+	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+	// Sync to initial flow when opening a different spell
+	useEffect(() => {
+		setNodes(initialNodes);
+		setEdges(initialEdges);
+	}, [initialNodes, initialEdges, setNodes, setEdges]);
 
 	// Custom undo/redo - sync with React Flow instance, no state updates during drag
 	const pastRef = useRef<FlowState[]>([]);
@@ -124,7 +138,7 @@ function EditorContent(props: FunctionalEditorProps) {
 	const historyAllowedRef = useRef(false);
 	const [hasUserActed, setHasUserActed] = useState(false);
 
-	const { setNodes, setEdges, getNodes, getEdges, screenToFlowPosition, getNode, toObject } = useReactFlow();
+	const { getNodes, getEdges, screenToFlowPosition, getNode, toObject } = useReactFlow();
 
 	const pushUndo = useCallback(() => {
 		const nodes = getNodes();
@@ -198,6 +212,41 @@ function EditorContent(props: FunctionalEditorProps) {
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
 	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'failed' | null>(null);
 
+	const VIBE_PANEL_WIDTH_KEY = 'spellcompiler-vibe-panel-width';
+	const [vibePanelWidth, setVibePanelWidth] = useState(() => {
+		try {
+			const w = parseInt(localStorage.getItem(VIBE_PANEL_WIDTH_KEY) ?? '', 10);
+			if (Number.isFinite(w) && w >= 200 && w <= 600) return w;
+		} catch { /* ignore */ }
+		return 320;
+	});
+	const vibeResizeStartRef = useRef<{ startX: number; startW: number } | null>(null);
+
+	const onVibeResizeStart = useCallback((e: React.MouseEvent) => {
+		e.preventDefault();
+		vibeResizeStartRef.current = { startX: e.clientX, startW: vibePanelWidth };
+		const onMove = (ev: MouseEvent) => {
+			const r = vibeResizeStartRef.current;
+			if (!r) return;
+			const delta = r.startX - ev.clientX;
+			const next = Math.max(200, Math.min(600, r.startW + delta));
+			vibeResizeStartRef.current = { startX: ev.clientX, startW: next };
+			setVibePanelWidth(next);
+			try { localStorage.setItem(VIBE_PANEL_WIDTH_KEY, String(next)); } catch { /* ignore */ }
+		};
+		const onUp = () => {
+			vibeResizeStartRef.current = null;
+			document.removeEventListener('mousemove', onMove);
+			document.removeEventListener('mouseup', onUp);
+			document.body.style.cursor = '';
+			document.body.style.userSelect = '';
+		};
+		document.addEventListener('mousemove', onMove);
+		document.addEventListener('mouseup', onUp);
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
+	}, [vibePanelWidth]);
+
 	const generateNodeId = useCallback(() => `node-${nodeIdCounter++}`, []);
 
 	// Subscribe to editor context changes and load workflow (ONLY in game mode)
@@ -221,22 +270,35 @@ function EditorContent(props: FunctionalEditorProps) {
 
 			setEditorContext(context);
 
-			// Load workflow from scene config default
+			// Load workflow: prefer user's saved working copy; fall back to level template
 			console.log('[Editor] Game mode: loading workflow for sceneKey:', newSceneKey)
 
 			try {
-				// Always load from scene config
 				const config = newSceneKey ? levelRegistry.get(newSceneKey) : null;
-				const templateNodes = config?.initialSpellWorkflow?.nodes || [];
-				const templateEdges = config?.initialSpellWorkflow?.edges || [];
 
-				console.log('[Editor] Game mode: loading default workflow, nodes:', templateNodes.length)
-				setNodes(templateNodes);
-				setEdges(templateEdges);
+				// Check if player has a saved working copy for this scene
+				const sceneSpellId = newSceneKey ? `scene-spell-${newSceneKey}` : null;
+				const savedSpell = sceneSpellId ? loadSpell(sceneSpellId) : null;
+
+				const nodesToLoad = savedSpell
+					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.nodes ?? [])
+					: (config?.initialSpellWorkflow?.nodes ?? []);
+				const edgesToLoad = savedSpell
+					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.edges ?? [])
+					: (config?.initialSpellWorkflow?.edges ?? []);
+
+				console.log('[Editor] Game mode: loading workflow, nodes:', nodesToLoad.length, savedSpell ? '(from saved copy)' : '(from template)')
+				setNodes(nodesToLoad);
+				setEdges(edgesToLoad);
+
+				// Adopt stable spell ID so auto-save targets the same slot
+				if (sceneSpellId) {
+					setSpellId(sceneSpellId);
+				}
 
 				// Update nodeIdCounter to avoid conflicts
 				let maxId = nodeIdCounter;
-				templateNodes.forEach((node: Node) => {
+				nodesToLoad.forEach((node: Node) => {
 					const match = node.id.match(/-(\d+)$/);
 					if (match) {
 						const num = parseInt(match[1], 10);
@@ -257,8 +319,9 @@ function EditorContent(props: FunctionalEditorProps) {
 	}, [editorContext, workflowLoaded, isLibraryMode, setNodes, setEdges]);
 
 	// Auto-save: trigger on flow changes (saveTrigger incremented by drag stop, add, delete, connect)
+	// Runs in both library mode and scene-config mode (whenever spellId is set)
 	useEffect(() => {
-		if (!isLibraryMode || !spellId) return
+		if (!spellId) return
 		const timeoutId = setTimeout(() => {
 			try {
 				const nodes = getNodes();
@@ -269,14 +332,14 @@ function EditorContent(props: FunctionalEditorProps) {
 			}
 		}, 1000);
 		return () => clearTimeout(timeoutId);
-	}, [saveTrigger, isLibraryMode, spellId, spellName, getNodes, getEdges]);
+	}, [saveTrigger, spellId, spellName, getNodes, getEdges]);
 	useEffect(() => {
 		if (!startingFlow) return
 		bumpNodeIdCounterFromNodes(startingFlow.nodes)
 	}, [startingFlow])
 
 	const forceSave = useCallback(() => {
-		if (!isLibraryMode || !spellId) return;
+		if (!spellId) return;
 		try {
 			const nodes = getNodes();
 			const edges = getEdges();
@@ -284,7 +347,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		} catch (err) {
 			console.error('[Editor] Force save failed:', err);
 		}
-	}, [isLibraryMode, spellId, spellName, getNodes, getEdges]);
+	}, [spellId, spellName, getNodes, getEdges]);
 
 	// Save on component unmount
 	useEffect(() => {
@@ -451,9 +514,13 @@ function EditorContent(props: FunctionalEditorProps) {
 		onRedo: redo,
 	});
 
-	// Add function node from menu and connect
+	// Add function node from menu and connect. Position from pane/handle menu (menuState) or right-click context menu (contextMenu).
 	const addFunctionNodeFromMenu = (funcInfo: FunctionInfo) => {
-		if (!menuState) return;
+		const screenPosition = menuState?.position ?? contextMenu?.position;
+		const sourceNodeId = menuState?.sourceNodeId;
+		const sourceHandleId = menuState?.sourceHandleId;
+		if (!screenPosition && !sourceNodeId) return;
+
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
 		pushUndo();
@@ -474,8 +541,8 @@ function EditorContent(props: FunctionalEditorProps) {
 			: undefined;
 
 		// If from handle click, position relative to source node
-		if (menuState.sourceNodeId) {
-			const sourceNode = getNode(menuState.sourceNodeId);
+		if (sourceNodeId) {
+			const sourceNode = getNode(sourceNodeId);
 			if (!sourceNode) return;
 
 			const newNode: Node = {
@@ -497,16 +564,17 @@ function EditorContent(props: FunctionalEditorProps) {
 			if (isVariadic || funcInfo.params.length > 0) {
 				const newEdge: Edge = {
 					id: `e-${Date.now()}`,
-					source: menuState.sourceNodeId,
-					sourceHandle: menuState.sourceHandleId!,
+					source: sourceNodeId,
+					sourceHandle: sourceHandleId!,
 					target: newNodeId,
 					targetHandle: 'arg0'
 				};
 				setEdges((eds) => [...eds, newEdge]);
 			}
 		} else {
-			// From context menu, position at menu location
-			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+			// From pane click or right-click context menu: position at menu location
+			if (!screenPosition) return;
+			const flowPos = screenToFlowPosition({ x: screenPosition.x, y: screenPosition.y });
 
 			const newNode: Node = {
 				id: newNodeId,
@@ -527,11 +595,16 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		triggerSave();
 		setMenuState(null);
+		setContextMenu(null);
 	};
 
-	// Add basic node from menu and connect
+	// Add basic node from menu. Position from pane/handle menu (menuState) or right-click context menu (contextMenu).
 	const addBasicNodeFromMenu = (type: 'literal' | 'if' | 'output' | 'lambdaDef' | 'customFunction' | 'applyFunc' | 'vector' | 'spellInput') => {
-		if (!menuState) return;
+		const screenPosition = menuState?.position ?? contextMenu?.position;
+		const sourceNodeId = menuState?.sourceNodeId;
+		const sourceHandleId = menuState?.sourceHandleId;
+		if (!screenPosition && !sourceNodeId) return;
+
 		historyAllowedRef.current = true;
 		setHasUserActed(true);
 		pushUndo();
@@ -542,6 +615,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (allowedNodeTypes && !allowedNodeTypes.includes(type)) {
 			setError(`Node type "${type}" is not allowed in this level.`)
 			setMenuState(null)
+			setContextMenu(null)
 			return
 		}
 
@@ -568,8 +642,8 @@ function EditorContent(props: FunctionalEditorProps) {
 		};
 
 		// If from handle click, position relative to source node
-		if (menuState.sourceNodeId) {
-			const sourceNode = getNode(menuState.sourceNodeId);
+		if (sourceNodeId) {
+			const sourceNode = getNode(sourceNodeId);
 			if (!sourceNode) return;
 
 			const newNode: Node = {
@@ -601,15 +675,16 @@ function EditorContent(props: FunctionalEditorProps) {
 			};
 			const newEdge: Edge = {
 				id: `e-${Date.now()}`,
-				source: menuState.sourceNodeId,
-				sourceHandle: menuState.sourceHandleId!,
+				source: sourceNodeId,
+				sourceHandle: sourceHandleId!,
 				target: newNodeId,
 				targetHandle: getTargetHandle()
 			};
 			setEdges((eds) => [...eds, newEdge]);
 		} else {
-			// From context menu, position at menu location
-			const flowPos = screenToFlowPosition({ x: menuState.position.x, y: menuState.position.y });
+			// From pane click or right-click context menu: position at menu location
+			if (!screenPosition) return;
+			const flowPos = screenToFlowPosition({ x: screenPosition.x, y: screenPosition.y });
 
 			const newNode: Node = {
 				id: newNodeId,
@@ -635,6 +710,7 @@ function EditorContent(props: FunctionalEditorProps) {
 
 		triggerSave();
 		setMenuState(null);
+		setContextMenu(null);
 	};
 
 	// Evaluate the workflow
@@ -729,6 +805,138 @@ function EditorContent(props: FunctionalEditorProps) {
 			setError(err instanceof Error ? err.message : String(err));
 		}
 	};
+
+	// Vibe: frontend-only OpenRouter API; full graph is always sent for Build so model can return complete updated graph (in-place).
+	// useMemo so the object reference is stable — avoids unnecessary useCallback rebuilds on every render.
+	const levelContext: LevelContext | undefined = useMemo(() =>
+		props.levelMeta ? {
+			key: props.levelMeta.key,
+			objectives: props.levelMeta.objectives,
+			hints: props.levelMeta.hints,
+			allowedNodeTypes: props.levelMeta.allowedNodeTypes,
+			maxSpellCasts: props.levelMeta.maxSpellCasts,
+			editorRestrictions: props.levelMeta.editorRestrictions,
+		} : undefined,
+	[props.levelMeta]);
+
+	const handleVibeGenerate = useCallback(async (userText: string, apiKey?: string, model?: string, options?: { isFullRegen?: boolean }) => {
+		const isFullRegen = options?.isFullRegen ?? false;
+		console.log('[Vibe] handleVibeGenerate', { model, hasKey: !!apiKey?.trim(), level: levelContext?.key, isFullRegen });
+		const useMock = model === MOCK_MODEL_ID;
+		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
+		const currentNodes = getNodes();
+		const currentEdges = getEdges();
+		// Full regen: don't pass current graph; inject answerSpellWorkflow as structural reference
+		const graphOptions = isFullRegen ? undefined : { nodes: currentNodes, edges: currentEdges };
+		const effectiveLevelContext = isFullRegen && levelContext && props.levelMeta?.answerSpellWorkflow
+			? { ...levelContext, referenceSolution: props.levelMeta.answerSpellWorkflow }
+			: levelContext;
+		console.log('[Vibe] Calling vibeBuild...');
+		const { nodes, edges, summary } = await vibeBuild(userText, apiKey ?? '', model, graphOptions, effectiveLevelContext);
+		console.log('[Vibe] vibeBuild done', { nodes: nodes?.length, edges: edges?.length, hasSummary: !!summary });
+		return {
+			nodes: nodes as Node[],
+			edges: edges as Edge[],
+			wasUpdate: true, // always replace existing graph
+			prevNodeCount: isFullRegen ? 0 : currentNodes.length,
+			prevEdgeCount: isFullRegen ? 0 : currentEdges.length,
+			summary,
+		};
+	}, [getNodes, getEdges, levelContext, props.levelMeta]);
+
+	const handleVibeAsk = useCallback(async (userText: string, apiKey?: string, model?: string) => {
+		const useMock = model === MOCK_MODEL_ID;
+		if (!useMock && !apiKey?.trim()) throw new Error('API key is required.');
+		const nodes = getNodes();
+		const edges = getEdges();
+		return vibeAsk(userText, nodes, edges, apiKey ?? '', model, levelContext);
+	}, [getNodes, getEdges, levelContext]);
+
+	const applyVibeFlow = useCallback((
+		vibeNodes: Node[],
+		vibeEdges: Edge[],
+		options?: { replace?: boolean }
+	) => {
+		historyAllowedRef.current = true;
+		setHasUserActed(true);
+		pushUndo();
+
+		if (options?.replace) {
+			// Replace entire graph (e.g. "update the spell") — normalize so ReactFlow never gets invalid shape
+			const normNodes: Node[] = vibeNodes.map((n, i) => ({
+				...n,
+				id: typeof n.id === 'string' ? n.id : `node-${i}`,
+				type: (typeof n.type === 'string' ? n.type : 'literal') as Node['type'],
+				position: typeof n.position === 'object' && n.position != null && 'x' in n.position && 'y' in n.position
+					? { x: Number((n.position as { x: number }).x) || 0, y: Number((n.position as { y: number }).y) || 0 }
+					: { x: 0, y: 0 },
+				data: (n.data && typeof n.data === 'object' ? n.data : {}) as Record<string, unknown>,
+				selected: false,
+			}));
+			const normEdges: Edge[] = vibeEdges.map((e, i) => ({
+				...e,
+				id: typeof e.id === 'string' ? e.id : `e-${i}`,
+				source: String(e.source ?? ''),
+				target: String(e.target ?? ''),
+				selected: false,
+			}));
+			setNodes(normNodes);
+			setEdges(normEdges);
+			bumpNodeIdCounterFromNodes(normNodes);
+		} else {
+			// Merge new nodes into existing graph (e.g. empty canvas or "add something")
+			const existingNodes = getNodes();
+			const existingEdges = getEdges();
+			const prefix = `vibe-${Date.now()}-`;
+			const idMap = new Map<string, string>();
+			const existingOutput = existingNodes.find((n) => n.type === 'output');
+
+			for (const n of vibeNodes) {
+				if (n.type === 'output' && existingOutput) {
+					idMap.set(n.id, existingOutput.id);
+				} else {
+					idMap.set(n.id, prefix + n.id);
+				}
+			}
+
+			const existingMaxX = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.x)) : 0;
+			const existingMaxY = existingNodes.length ? Math.max(...existingNodes.map((n) => n.position.y)) : 0;
+			const vibeMinX = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.x)) : 0;
+			const vibeMinY = vibeNodes.length ? Math.min(...vibeNodes.map((n) => n.position.y)) : 0;
+			const offsetX = existingMaxX + 120 - vibeMinX;
+			const offsetY = existingMaxY + 80 - vibeMinY;
+
+			const newNodes: Node[] = vibeNodes
+				.filter((n) => !(n.type === 'output' && existingOutput))
+				.map((n) => ({
+					...n,
+					id: idMap.get(n.id) ?? n.id,
+					position: { x: n.position.x + offsetX, y: n.position.y + offsetY },
+				}));
+
+			const newEdges: Edge[] = vibeEdges.map((e) => ({
+				...e,
+				id: prefix + (e.id || `e-${e.source}-${e.target}`),
+				source: idMap.get(e.source) ?? e.source,
+				target: idMap.get(e.target) ?? e.target,
+			}));
+
+			const existingWithoutOutputIncoming = existingOutput
+				? existingEdges.filter((e) => e.target !== existingOutput.id)
+				: existingEdges;
+			const mergedNodes = [...existingNodes, ...newNodes];
+			const mergedEdges = [...existingWithoutOutputIncoming, ...newEdges];
+			setNodes(mergedNodes);
+			setEdges(mergedEdges);
+			bumpNodeIdCounterFromNodes(mergedNodes);
+		}
+
+		triggerSave();
+		setEvaluationResult(null);
+		setCurrentAST(null);
+		setCurrentFunctions([]);
+		setError(null);
+	}, [getNodes, getEdges, setNodes, setEdges, pushUndo, triggerSave]);
 
 	// Import workflow from JSON file
 	const handleImport = () => {
@@ -857,19 +1065,23 @@ function EditorContent(props: FunctionalEditorProps) {
 				</Paper>
 			)}
 
-			{/* Main content area */}
-			<div className="flex-1 relative">
+			{/* Main content area: flow (left) + resizable vibe panel (right); force LTR so panel stays right */}
+			<div className="flex-1 flex flex-nowrap min-h-0 w-full overflow-hidden" style={{ flexDirection: 'row', direction: 'ltr' }}>
+				{/* Flow canvas - takes remaining space on the left */}
+				<div className="flex-1 min-w-0 relative flex flex-col overflow-hidden" style={{ order: 1 }}>
 				{/* React Flow editor - focusable so keyboard shortcuts work after clicking canvas */}
 				<div
-					className="w-full h-full outline-none"
+					className="w-full h-full outline-none flex-1 min-h-0"
 					tabIndex={0}
 					onContextMenu={onEditorAreaContextMenu}
 					onClick={onEditorAreaClick}
 				>
 					<ReactFlow
 						key={props.initialSpellId ?? 'new'}
-						defaultNodes={defaultNodes}
-						defaultEdges={defaultEdges}
+						nodes={nodes}
+						edges={edges}
+						onNodesChange={onNodesChange}
+						onEdgesChange={onEdgesChange}
 						onPaneClick={onPaneClick}
 						onNodeContextMenu={onNodeContextMenu}
 						onEdgeContextMenu={onEdgeContextMenu}
@@ -895,7 +1107,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						<MiniMap />
 					</ReactFlow>
 				</div>
-			</div>
+				</div>
 
 		{/* Node Selection Menu */}
 		{menuState && menuState.show && (
@@ -932,7 +1144,30 @@ function EditorContent(props: FunctionalEditorProps) {
 				onClose={() => setContextMenu(null)}
 			/>
 		)}
-	</div>
+				{/* Right side: resize handle + Vibe panel (fixed on the right, drag to resize) */}
+				<div className="flex shrink-0 flex-row h-full" style={{ width: 4 + vibePanelWidth, order: 2, marginLeft: 'auto' }}>
+					<div
+						role="separator"
+						aria-label="Resize Vibe panel"
+						onMouseDown={onVibeResizeStart}
+						className="shrink-0 w-1 cursor-col-resize bg-gray-300 hover:bg-blue-400 active:bg-blue-500 transition-colors self-stretch"
+						style={{ minWidth: 4 }}
+					/>
+					<aside
+						className="shrink-0 h-full border-l border-gray-200 bg-gray-50 flex flex-col overflow-hidden"
+						style={{ width: vibePanelWidth, minWidth: vibePanelWidth }}
+					>
+						<div className="p-2 flex-1 min-h-0 flex flex-col overflow-auto">
+							<VibePanel
+								onGenerate={handleVibeGenerate}
+								onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
+								onAsk={handleVibeAsk}
+								hasExistingNodes={nodes.length > 0}
+							/>
+						</div>
+					</aside>
+				</div>
+			</div>
 
 	{/* Event List Modal */}
 	<Modal
@@ -973,6 +1208,7 @@ function EditorContent(props: FunctionalEditorProps) {
             }}
         />
 	</Modal>
+			</div>
 	</EditorProvider>
 	);
 }

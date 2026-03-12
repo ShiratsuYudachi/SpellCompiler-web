@@ -1,16 +1,16 @@
 /**
- * 地形类型定义
+ * Terrain type definitions
  */
 
 export enum TerrainType {
-	EMPTY = 0,     // 空地
-	WALL = 1,      // 墙壁（实心碰撞）
-	PLATFORM = 2,  // 平台（可跳上）
-	HAZARD = 3,    // 危险区（扣血）
-	OBJECTIVE = 4, // 目标点（任务点）
-	PRESSURE_PLATE_RED = 5,    // 红色压力板
-	PRESSURE_PLATE_YELLOW = 6, // 黄色压力板
-	SENSOR = 7,    // 感应器
+	EMPTY = 0,     // Empty
+	WALL = 1,      // Wall (solid collision)
+	PLATFORM = 2,  // Platform (can jump on)
+	HAZARD = 3,    // Hazard (damage)
+	OBJECTIVE = 4, // Objective (task point)
+	PRESSURE_PLATE_RED = 5,    // Red pressure plate
+	PRESSURE_PLATE_YELLOW = 6, // Yellow pressure plate
+	SENSOR = 7,    // Sensor
 }
 
 export interface ObjectiveConfig {
@@ -19,8 +19,8 @@ export interface ObjectiveConfig {
 	type: 'collect' | 'defeat' | 'spell' | 'reach'
 	target?: any
 	completed?: boolean
-	prerequisite?: string // 前置任务ID（完成此任务后才显示）
-	visible?: boolean // 是否可见
+	prerequisite?: string // Prerequisite objective ID (shown after completed)
+	visible?: boolean // Whether visible
 }
 
 export interface TerrainStyle {

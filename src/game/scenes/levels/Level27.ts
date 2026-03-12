@@ -5,38 +5,24 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 27 — 「精准打击」
+// Level 27 — "Precision Strike"
 //
-// 教学目标：filter + map + forEach 完整组合（单管道）
+// Teaching goal: filter + map + forEach pipeline
 //   threats = filter(getAllEnemies(state), eid → gt(hp(eid), 5))
 //   dirs    = map(threats, eid → normalize(subtract(pos(eid), playerPos)))
 //   forEach(dirs, dir → spawnFireball(state, playerPos, dir))
 //
-// 场景：4个红色威胁（HP=10，位于正方向N/S/E/W）
-//       4个灰色平民（HP=5，位于斜方向NE/NW/SE/SW）
-// 机制：不使用 filter 直接开火 → 全部8个方向都有火球 → 平民被波及 → 惩罚
-//       正确 filter 后只有4个正方向火球 → 平民安全
-// 火球伤害=10，威胁HP=10：一发秒杀；平民HP=5：也是一发秒（触发惩罚）
+// Setup: 4 red threats (HP=10, N/S/E/W) + 4 gray civilians (HP=5, NE/NW/SE/SW)
+// Mechanic: no filter → fire in all 8 directions → civilians hit → penalty
+//           correct filter → only 4 cardinal fireballs → civilians safe
+// Fireball damage=10; threat HP=10: one-shot; civilian HP=5: one-shot (penalty)
 // ─────────────────────────────────────────────────────────────
 
-export const Level27Meta: LevelMeta = {
-	key: 'Level27',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-threats', description: 'Destroy 4 red threats — filter before firing!', type: 'defeat' }],
-	hints: [
-		'RED enemies (HP=10, N/S/E/W) = threats — must kill with fireballs.',
-		'GREY enemies (HP=5, diagonal) = civilians — penalty if hit!',
-		'getAllEnemies returns ALL 8 — you MUST filter first.',
-		'filter(enemies, eid → gt(hp(eid), 5)) keeps only threats (HP=10 > 5).',
-		'Then: map(threats, eid → normalize(pos(eid)−playerPos)) → forEach(spawnFireball)',
-	],
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// player position
@@ -101,7 +87,24 @@ export const Level27Meta: LevelMeta = {
 			// forEach → output
 			{ id: 'e26', source: 'f-fe',   target: 'out',    targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level27Meta: LevelMeta = {
+	key: 'Level27',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-threats', description: 'Destroy 4 red threats — filter before firing!', type: 'defeat' }],
+	hints: [
+		'RED enemies (HP=10, N/S/E/W) = threats — must kill with fireballs.',
+		'GREY enemies (HP=5, diagonal) = civilians — penalty if hit!',
+		'getAllEnemies returns ALL 8 — you MUST filter first.',
+		'filter(enemies, eid → gt(hp(eid), 5)) keeps only threats (HP=10 > 5).',
+		'Then: map(threats, eid → normalize(pos(eid)−playerPos)) → forEach(spawnFireball)',
+	],
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level27Meta)
@@ -111,8 +114,6 @@ type EnemyRole = 'threat' | 'civilian'
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 	role: EnemyRole
 	penaltyFired: boolean
 }
@@ -122,10 +123,14 @@ export class Level27 extends BaseScene {
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level27' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.penaltyCount = 0
 		this.levelFailed = false
@@ -205,24 +210,17 @@ export class Level27 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update HP labels
-		for (const ent of this.enemies) {
-			if (this.world.resources.bodies.has(ent.eid) && ent.label.active) {
-				ent.label.setText(`HP:${Math.max(0, Health.current[ent.eid])}`)
-			}
-		}
-
-		// Detect dead civilians → penalty
+		// Update alive entities; destroy dead, emit civilian penalty if needed
 		this.enemies = this.enemies.filter(ent => {
-			if (ent.role === 'civilian' && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.penaltyFired) {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				if (ent.role === 'civilian' && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
-				ent.marker.destroy()
-				ent.label.destroy()
+				this.visuals.destroy(ent.eid)
 				return false
 			}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
@@ -235,24 +233,9 @@ export class Level27 extends BaseScene {
 
 	private spawnEnemy(x: number, y: number, color: number, hp: number, role: EnemyRole): TrackedEnemy {
 		const size = role === 'threat' ? 28 : 18
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(3, color)
-		if (role === 'threat') {
-			this.tweens.add({ targets: marker, alpha: 0.5, duration: 700, yoyo: true, repeat: -1 })
-		}
-		const label = this.add.text(x, y - size - 12, `HP:${hp}`, {
-			fontSize: '11px',
-			color: role === 'threat' ? '#ff8888' : '#aaaaaa',
-			stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
-		const roleTag = this.add.text(x, y + size + 8,
-			role === 'threat' ? 'THREAT' : 'CIV', {
-				fontSize: '9px',
-				color: role === 'threat' ? '#ff6666' : '#888888',
-				stroke: '#000000', strokeThickness: 2,
-			}).setOrigin(0.5)
-
 		const body = createRectBody(this, `enemy27-${role}-${x}-${y}`, color, size * 2, size * 2, x, y, role === 'threat' ? 5 : 2)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -261,9 +244,16 @@ export class Level27 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEnemy = { eid, body, marker, label, role, penaltyFired: false }
-		// Store roleTag for cleanup
-		;(tracked as any).roleTag = roleTag
+		this.visuals.register(eid, {
+			role: role === 'threat' ? 'target' : 'civilian',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+		})
+
+		const tracked: TrackedEnemy = { eid, body, role, penaltyFired: false }
 		this.enemies.push(tracked)
 		return tracked
 	}

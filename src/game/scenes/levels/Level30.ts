@@ -5,17 +5,18 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 30 — 「复合清场」（组合关卡 I）
+// Level 30 — "Compound Clear" (combo level I)
 //
-// 教学目标：综合运用 forEach + spawnFireball（无脚手架）
-//   场景：4 个盾卫（HP=10，红，上半区）+ 4 个无人机（HP=10，灰，下半区）
+// Teaching goal: forEach + spawnFireball (no scaffold)
+//   Setup: 4 shield guards (HP=10, red, upper) + 4 drones (HP=10, gray, lower)
 //
-//   盾卫受 onDamage 保护：直接 damageEntity 会被反弹（HP 恢复）
-//     → 必须用 spawnFireball（方向型攻击）才能击破
-//   无人机：同样用 spawnFireball（fireball 不触发 onDamage，直接扣血）
+//   Shield guards have onDamage protection: direct damageEntity is reflected (HP restored)
+//     → must use spawnFireball (directional attack) to break
+//   Drones: same spawnFireball (fireball does not trigger onDamage, direct damage)
 //
 //   Solution:
 //     playerPos = getEntityPosition(state, getPlayer(state))
@@ -24,27 +25,10 @@ import type Phaser from 'phaser'
 //         normalize(subtract(getEntityPosition(state, eid), playerPos)))
 //     )
 //
-// 模板已提供完整施法流程；直接按 SPACE 施法即可通关。
+// Template provides full cast flow; press SPACE to cast and clear.
 // ─────────────────────────────────────────────────────────────
 
-export const Level30Meta: LevelMeta = {
-	key: 'Level30',
-	playerSpawnX: 480,
-	playerSpawnY: 320,
-	tileSize: 80,
-	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using spawnFireball', type: 'defeat' }],
-	hints: [
-		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
-		'Use spawnFireball(state, position, direction) to bypass the shield.',
-		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
-		'GREY drones (HP=10, BOTTOM): fireballs work on them too — same approach.',
-		'Use forEach on getAllEnemies → spawnFireball toward each enemy.',
-	],
-	// Template: forEach all enemies → spawnFireball toward each.
-	// Fireballs deal 10 dmg and bypass the elite shield (only damageEntity is blocked).
-	// Both elites (HP=10) and drones (HP=10) die in one fireball hit. One cast clears all.
-	initialSpellWorkflow: {
+const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
 			{ id: 'si',     type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			// Player position
@@ -86,7 +70,27 @@ export const Level30Meta: LevelMeta = {
 			{ id: 'e15', source: 'f-norm',target: 'f-sfb', targetHandle: 'arg2' },
 			{ id: 'e16', source: 'f-sfb', target: 'fout',  targetHandle: 'value' },
 		],
-	},
+	};
+
+export const Level30Meta: LevelMeta = {
+	key: 'Level30',
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using spawnFireball', type: 'defeat' }],
+	hints: [
+		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
+		'Use spawnFireball(state, position, direction) to bypass the shield.',
+		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
+		'GREY drones (HP=10, BOTTOM): fireballs work on them too — same approach.',
+		'Use forEach on getAllEnemies → spawnFireball toward each enemy.',
+	],
+	// Template: forEach all enemies → spawnFireball toward each.
+	// Fireballs deal 10 dmg and bypass the elite shield (only damageEntity is blocked).
+	// Both elites (HP=10) and drones (HP=10) die in one fireball hit. One cast clears all.
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level30Meta)
@@ -94,8 +98,6 @@ levelRegistry.register(Level30Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
 	role: 'elite' | 'drone'
 }
 
@@ -104,10 +106,14 @@ export class Level30 extends BaseScene {
 	private shieldedEids: Set<number> = new Set()
 	private levelWon: boolean = false
 	private levelFailed: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level30' }) }
 
 	protected onLevelCreate(): void {
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.enemies = []
 		this.shieldedEids = new Set()
 		this.levelWon = false
@@ -146,12 +152,6 @@ export class Level30 extends BaseScene {
 			if (ent) {
 				this.cameras.main.shake(80, 0.006)
 				this.cameras.main.flash(60, 255, 100, 0)
-				// Brief shield flash on the marker
-				const origColor = 0xff4444
-				ent.marker.setFillStyle(0xffffff, 1)
-				this.time.delayedCall(120, () => {
-					if (ent.marker.active) ent.marker.setFillStyle(origColor, 0.75)
-				})
 				this.setTaskInfo('Combined Assault', [
 					'RED elites: use spawnFireball (shield blocks damageEntity)',
 					'GREY drones: fireballs work too!',
@@ -190,14 +190,14 @@ export class Level30 extends BaseScene {
 	protected onLevelUpdate(): void {
 		if (this.levelWon || this.levelFailed) return
 
-		// Clean up dead enemies
+		// Update HP visuals and clean up dead enemies
 		this.enemies = this.enemies.filter(ent => {
 			if (!this.world.resources.bodies.has(ent.eid)) {
-				ent.marker.destroy()
-				ent.label.destroy()
+				this.visuals.destroy(ent.eid)
 				this.shieldedEids.delete(ent.eid)
 				return false
 			}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
@@ -222,15 +222,9 @@ export class Level30 extends BaseScene {
 		const size = 24
 		const hp = 10
 		const color = 0xff4444
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(4, 0xffaa00)
-		const label = this.add.text(x, y - size - 12, 'ELITE', {
-			fontSize: '11px', color: '#ffaa44', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
-		// Shield icon
-		this.add.text(x, y, '🛡', { fontSize: '14px' }).setOrigin(0.5)
-
 		const body = createRectBody(this, `elite30-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -239,8 +233,18 @@ export class Level30 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
+		this.visuals.register(eid, {
+			role: 'guard',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+			labelText: 'ELITE',
+		})
+
 		this.shieldedEids.add(eid)
-		const tracked: TrackedEnemy = { eid, body, marker, label, role: 'elite' }
+		const tracked: TrackedEnemy = { eid, body, role: 'elite' }
 		this.enemies.push(tracked)
 		return tracked
 	}
@@ -249,13 +253,9 @@ export class Level30 extends BaseScene {
 		const size = 16
 		const hp = 10
 		const color = 0x888888
-		const marker = this.add.circle(x, y, size, color, 0.75).setStrokeStyle(2, color)
-		const label = this.add.text(x, y - size - 10, 'DRONE', {
-			fontSize: '10px', color: '#cccccc', stroke: '#000000', strokeThickness: 2,
-		}).setOrigin(0.5)
-
 		const body = createRectBody(this, `drone30-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
@@ -264,7 +264,17 @@ export class Level30 extends BaseScene {
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEnemy = { eid, body, marker, label, role: 'drone' }
+		this.visuals.register(eid, {
+			role: 'weak',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+			labelText: 'DRONE',
+		})
+
+		const tracked: TrackedEnemy = { eid, body, role: 'drone' }
 		this.enemies.push(tracked)
 		return tracked
 	}
