@@ -6,124 +6,72 @@ import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
-import type { EntityRole } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 20 — "Precision Guidance"
+// Level 20 — "Precision Lockdown"
 //
-// Teaching goal:
-//   getAllEnemies → filter( and(gt(hp, 25), lt(hp, 60)) )
-//                → head → damageEntity
+// Teaching goal: getNearbyEnemies then filter
+//   8 enemies in radius 150, but 4 are civilians (HP=15)
+//   getNearbyEnemies alone hits everyone
+//   Add filter(eid → gt(hp(eid), 40)) to isolate threats
 //
-// New concept: logic::and combines two conditions to narrow the filter
-//
-// Setup (HP designed so a single threshold cannot isolate the target):
-//   4 civilians (white, 10 HP) — do not hit
-//   3 weak (gray, 18 HP) — can miss-hit, no score
-//   3 heavy (purple, 75 HP) — can miss-hit, no score
-//   1 target (orange, 40 HP) — must kill
-//
-// Only and(gt(hp,25), lt(hp,60)) isolates the 40 HP target
+//   inRange  = getNearbyEnemies(state, playerPos, 150)
+//   targets  = filter(inRange, eid → gt(getEntityHealth(state, eid), 40))
+//   forEach(targets, eid → damageEntity(state, eid, 100))
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
-			// ── Main chain ──────────────────────────────────────────
-			{
-				id: 'si',
-				type: 'spellInput',
-				position: { x: -200, y: 200 },
-				data: { label: 'Game State', params: ['state'] },
-			},
-			{
-				id: 'f-gae',
-				type: 'dynamicFunction',
-				position: { x: 60, y: 200 },
-				data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] },
-			},
-			{
-				id: 'f-filter',
-				type: 'dynamicFunction',
-				position: { x: 280, y: 200 },
-				data: { functionName: 'list::filter', displayName: 'filter', namespace: 'list', params: ['l', 'pred'] },
-			},
-			{
-				id: 'f-head',
-				type: 'dynamicFunction',
-				position: { x: 500, y: 130 },
-				data: { functionName: 'list::head', displayName: 'head', namespace: 'list', params: ['l'] },
-			},
-			{
-				id: 'f-dmg',
-				type: 'dynamicFunction',
-				position: { x: 680, y: 200 },
-				data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] },
-			},
-			{ id: 'lit-100', type: 'literal', position: { x: 500, y: 300 }, data: { value: 100 } },
-			{ id: 'out', type: 'output', position: { x: 900, y: 200 }, data: { label: 'Output' } },
-
-			// ── Lambda: isMedium(eid) → and(hp>25, hp<60) ──────────
-			{
-				id: 'lam',
-				type: 'lambdaDef',
-				position: { x: 60, y: 440 },
-				data: { functionName: 'isMedium', params: ['eid'] },
-			},
-			{
-				id: 'f-out',
-				type: 'functionOut',
-				position: { x: 680, y: 510 },
-				data: { lambdaId: 'lam' },
-			},
-			// Shared health query (two outgoing edges → f-gt and f-lt)
-			{
-				id: 'f-health',
-				type: 'dynamicFunction',
-				position: { x: 200, y: 510 },
-				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
-			},
-			{
-				id: 'f-gt',
-				type: 'dynamicFunction',
-				position: { x: 390, y: 450 },
-				data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] },
-			},
-			{ id: 'lit-25', type: 'literal', position: { x: 200, y: 440 }, data: { value: 25 } },
-			{
-				id: 'f-lt',
-				type: 'dynamicFunction',
-				position: { x: 390, y: 570 },
-				data: { functionName: 'std::cmp::lt', displayName: '< lt', namespace: 'std::cmp', params: ['a', 'b'] },
-			},
-			{ id: 'lit-60', type: 'literal', position: { x: 200, y: 590 }, data: { value: 60 } },
-			{
-				id: 'f-and',
-				type: 'dynamicFunction',
-				position: { x: 550, y: 510 },
-				data: { functionName: 'std::logic::and', displayName: 'and', namespace: 'std::logic', params: ['a', 'b'] },
-			},
+			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			// getPlayer → getEntityPosition (player pos)
+			{ id: 'f-gp',    type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',    type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			// getNearbyEnemies
+			{ id: 'f-nne',   type: 'dynamicFunction', position: { x:  260, y: 200 }, data: { functionName: 'game::getNearbyEnemies', displayName: 'getNearbyEnemies',  namespace: 'game', params: ['state', 'position', 'radius'] } },
+			{ id: 'lit-r',   type: 'literal',         position: { x:  100, y: 300 }, data: { value: 150 } },
+			// filter: only HP > 40 (threats)
+			{ id: 'f-filt',  type: 'dynamicFunction', position: { x:  500, y: 200 }, data: { functionName: 'list::filter',           displayName: 'filter(threats)',   namespace: 'list', params: ['l', 'pred'] } },
+			{ id: 'lam-p',   type: 'lambdaDef',       position: { x:  340, y: 400 }, data: { functionName: 'isThreat', params: ['eid'] } },
+			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  480, y: 460 }, data: { functionName: 'game::getEntityHealth',  displayName: 'getEntityHealth',   namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gt',    type: 'dynamicFunction', position: { x:  650, y: 460 }, data: { functionName: 'std::cmp::gt',           displayName: '> gt',              namespace: 'std::cmp', params: ['a', 'b'] } },
+			{ id: 'lit-40',  type: 'literal',         position: { x:  530, y: 570 }, data: { value: 40 } },
+			{ id: 'fout-p',  type: 'functionOut',     position: { x:  820, y: 400 }, data: { lambdaId: 'lam-p' } },
+			// forEach: damage threats
+			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  760, y: 200 }, data: { functionName: 'list::forEach',          displayName: 'forEach',           namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',     type: 'output',          position: { x: 1000, y: 200 }, data: { label: 'Output' } },
+			{ id: 'lam-d',   type: 'lambdaDef',       position: { x:  580, y: 680 }, data: { functionName: 'hit', params: ['eid'] } },
+			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  740, y: 740 }, data: { functionName: 'game::damageEntity',     displayName: 'damageEntity',      namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'lit-100', type: 'literal',         position: { x:  640, y: 840 }, data: { value: 100 } },
+			{ id: 'fout-d',  type: 'functionOut',     position: { x:  960, y: 680 }, data: { lambdaId: 'lam-d' } },
 		],
 		edges: [
-			// Main chain
-			{ id: 'e1', source: 'si',      target: 'f-gae',    targetHandle: 'arg0' },
-			{ id: 'e2', source: 'f-gae',   target: 'f-filter', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'f-out',   sourceHandle: 'function', target: 'f-filter', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'f-filter',target: 'f-head',   targetHandle: 'arg0' },
-			{ id: 'e5', source: 'si',      target: 'f-dmg',    targetHandle: 'arg0' },
-			{ id: 'e6', source: 'f-head',  target: 'f-dmg',    targetHandle: 'arg1' },
-			{ id: 'e7', source: 'lit-100', target: 'f-dmg',    targetHandle: 'arg2' },
-			{ id: 'e8', source: 'f-dmg',   target: 'out',      targetHandle: 'value' },
-			// Lambda body
-			{ id: 'e9',  source: 'si',  target: 'f-health', targetHandle: 'arg0' },
-			{ id: 'e10', source: 'lam', sourceHandle: 'param0', target: 'f-health', targetHandle: 'arg1' },
-			{ id: 'e11', source: 'f-health', target: 'f-gt', targetHandle: 'arg0' },
-			{ id: 'e12', source: 'lit-25',   target: 'f-gt', targetHandle: 'arg1' },
-			{ id: 'e13', source: 'f-health', target: 'f-lt', targetHandle: 'arg0' },
-			{ id: 'e14', source: 'lit-60',   target: 'f-lt', targetHandle: 'arg1' },
-			{ id: 'e15', source: 'f-gt',  target: 'f-and', targetHandle: 'arg0' },
-			{ id: 'e16', source: 'f-lt',  target: 'f-and', targetHandle: 'arg1' },
-			{ id: 'e17', source: 'f-and', target: 'f-out', targetHandle: 'value' },
+			// getPlayer → getEntityPosition
+			{ id: 'e1',  source: 'si',      target: 'f-gp',   targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',      target: 'f-pp',   targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',    target: 'f-pp',   targetHandle: 'arg1' },
+			// getNearbyEnemies
+			{ id: 'e4',  source: 'si',      target: 'f-nne',  targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-pp',    target: 'f-nne',  targetHandle: 'arg1' },
+			{ id: 'e6',  source: 'lit-r',   target: 'f-nne',  targetHandle: 'arg2' },
+			// filter
+			{ id: 'e7',  source: 'f-nne',   target: 'f-filt', targetHandle: 'arg0' },
+			{ id: 'e8',  source: 'fout-p',  sourceHandle: 'function', target: 'f-filt', targetHandle: 'arg1' },
+			// forEach
+			{ id: 'e9',  source: 'f-filt',  target: 'f-fe',   targetHandle: 'arg0' },
+			{ id: 'e10', source: 'fout-d',  sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e11', source: 'f-fe',    target: 'out',    targetHandle: 'value' },
+			// predicate lambda body
+			{ id: 'e12', source: 'si',      target: 'f-hp',   targetHandle: 'arg0' },
+			{ id: 'e13', source: 'lam-p',   sourceHandle: 'param0', target: 'f-hp', targetHandle: 'arg1' },
+			{ id: 'e14', source: 'f-hp',    target: 'f-gt',   targetHandle: 'arg0' },
+			{ id: 'e15', source: 'lit-40',  target: 'f-gt',   targetHandle: 'arg1' },
+			{ id: 'e16', source: 'f-gt',    target: 'fout-p', targetHandle: 'value' },
+			// damage lambda body
+			{ id: 'e17', source: 'si',      target: 'f-dmg',  targetHandle: 'arg0' },
+			{ id: 'e18', source: 'lam-d',   sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e19', source: 'lit-100', target: 'f-dmg',  targetHandle: 'arg2' },
+			{ id: 'e20', source: 'f-dmg',   target: 'fout-d', targetHandle: 'value' },
 		],
 	};
 
@@ -133,228 +81,183 @@ export const Level20Meta: LevelMeta = {
 	playerSpawnY: 320,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	objectives: [
-		{
-			id: 'kill-target',
-			description: 'Eliminate the orange Target only — use a double-condition filter (AND)',
-			type: 'defeat',
-		},
-	],
+	objectives: [{ id: 'clear-threats', description: 'Eliminate 4 red threats WITHOUT hitting grey civilians', type: 'defeat' }],
 	hints: [
-		'A single threshold cannot isolate the orange target (40 HP).',
-		'Hint: civilians are 10 HP, weak enemies 18 HP, guards 75 HP, target 40 HP.',
-		'You need: filter(eid → and(gt(health, 25), lt(health, 60)))',
-		'logic::and takes two booleans and returns true only if BOTH are true.',
+		'All 8 enemies are within getNearbyEnemies radius 150 from center.',
+		'getNearbyEnemies does NOT distinguish by type — returns ALL in range!',
+		'Add a filter AFTER getNearbyEnemies: filter(nearby, eid → gt(hp(eid), 40))',
+		'Grey enemies (HP=15) are civilians — hitting them = penalty.',
+		'Solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity)',
 	],
-	maxSpellCasts: 3,
 	initialSpellWorkflow: _answer,
 	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level20Meta)
 
-// ── Entity tracking ───────────────────────────────────────────────────────────
-
-interface TrackedEntity {
+interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	role: 'civilian' | 'weak' | 'guard' | 'target'
+	role: 'threat' | 'civilian'
 	penaltyFired: boolean
 }
 
-// ── Scene ─────────────────────────────────────────────────────────────────────
-
 export class Level20 extends BaseScene {
-	private entities: TrackedEntity[] = []
-	private targetEid: number = -1
+	private enemies: TrackedEnemy[] = []
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
-
-	/** Visual layer manager — owns all Phaser display objects for entities. */
 	private visuals!: EntityVisualManager
 
-	constructor() {
-		super({ key: 'Level20' })
-	}
+	constructor() { super({ key: 'Level20' }) }
 
 	protected onLevelCreate(): void {
-		// ── Reset state ──────────────────────────────────────────────────────
-		this.entities     = []
-		this.targetEid    = -1
-		this.penaltyCount = 0
-		this.levelFailed  = false
-		this.levelWon     = false
-		this.events.removeAllListeners('civilian-hit')
-
-		// Destroy previous visual manager if this is a restart
 		if (this.visuals) this.visuals.destroyAll()
 		this.visuals = new EntityVisualManager(this)
 
-		// ── Instructions ─────────────────────────────────────────────────────
-		this.showInstruction(
-			'【The Sniper — Part 2: Double Filter】\n\n' +
-			'The orange Target (40 HP) hides among:\n' +
-			'  • White civilians (10 HP) — DO NOT TOUCH\n' +
-			'  • Grey weak enemies (18 HP) — not your goal\n' +
-			'  • Purple heavy guards (75 HP) — not your goal\n\n' +
-			'One threshold is NOT enough. Combine two conditions with and().\n' +
-			'Press SPACE to cast your spell.'
-		)
+		this.enemies = []
+		this.penaltyCount = 0
+		this.levelFailed = false
+		this.levelWon = false
+		this.events.removeAllListeners('civilian-hit')
 
-		this.setTaskInfo('Precision Strike', [
-			'Kill the Orange Target (40 HP)',
-			'Civilians protected — 3 hits = failure',
-			`Penalties: 0 / 3`,
-		])
-
-		// Lock player at centre
+		// Lock player at center
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setPosition(480, 320)
 
-		// ── Spawn civilians (white, 10 HP) ───────────────────────────────────
-		const civilianPositions = [
-			{ x: 160, y: 200 }, { x: 800, y: 200 },
-			{ x: 160, y: 450 }, { x: 800, y: 450 },
-		]
-		for (const pos of civilianPositions) {
-			this.spawnUnit(pos.x, pos.y, 0xdddddd, 10, 'civilian')
+		const cx = 480, cy = 320, R = 130
+
+		// 4 red threats at cardinal angles (0°, 90°, 180°, 270°) — HP=80
+		const threatAngles = [0, 90, 180, 270]
+		for (const deg of threatAngles) {
+			const rad = (deg * Math.PI) / 180
+			const x = Math.round(cx + R * Math.cos(rad))
+			const y = Math.round(cy + R * Math.sin(rad))
+			this.spawnEnemy(x, y, 0xff4444, 80, 'threat')
 		}
 
-		// ── Spawn weak enemies (grey, 18 HP) ─────────────────────────────────
-		const weakPositions = [
-			{ x: 280, y: 180 }, { x: 480, y: 160 }, { x: 680, y: 180 },
-		]
-		for (const pos of weakPositions) {
-			this.spawnUnit(pos.x, pos.y, 0x888888, 18, 'weak')
+		// 4 grey civilians at diagonal angles (45°, 135°, 225°, 315°) — HP=15
+		const civAngles = [45, 135, 225, 315]
+		for (const deg of civAngles) {
+			const rad = (deg * Math.PI) / 180
+			const x = Math.round(cx + R * Math.cos(rad))
+			const y = Math.round(cy + R * Math.sin(rad))
+			this.spawnEnemy(x, y, 0x888888, 15, 'civilian')
 		}
 
-		// ── Spawn heavy guards (purple, 75 HP) ───────────────────────────────
-		const guardPositions = [
-			{ x: 240, y: 450 }, { x: 480, y: 480 }, { x: 720, y: 450 },
-		]
-		for (const pos of guardPositions) {
-			this.spawnUnit(pos.x, pos.y, 0x9900cc, 75, 'guard')
-		}
-
-		// ── Spawn the target (orange, 40 HP) ─────────────────────────────────
-		const target = this.spawnUnit(480, 290, 0xff8800, 40, 'target')
-		this.targetEid = target.eid
-
-		// ── Register civilian EIDs for damage-event hook ──────────────────────
-		const civilianEids = new Set(this.entities.filter(e => e.role === 'civilian').map(e => e.eid))
-		this.world.resources.levelData!['civilianEids'] = civilianEids
+		// Register grey enemies as civilians for penalty
+		const civEids = new Set(this.enemies.filter(e => e.role === 'civilian').map(e => e.eid))
+		this.world.resources.levelData!['civilianEids'] = civEids
 
 		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
 			if (typeof eid === 'number') {
-				const ent = this.entities.find(e => e.eid === eid)
+				const ent = this.enemies.find(e => e.eid === eid)
 				if (ent) ent.penaltyFired = true
 			}
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
-			this.cameras.main.flash(150, 255, 80, 0)
-			this.setTaskInfo('Precision Strike', [
-				'Kill the Orange Target (40 HP)',
-				'Civilians protected — 3 hits = failure',
+			this.cameras.main.flash(150, 255, 50, 50)
+			this.setTaskInfo('Precision Lockdown', [
+				'Destroy RED threats (HP=80) ONLY',
+				'GREY civilians (HP=15) = protected',
 				`Penalties: ${this.penaltyCount} / 3`,
 			])
-			if (this.penaltyCount >= 3) {
-				this.onMissionFail()
-			} else {
-				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3 — Refine your filter!`)
-			}
+			if (this.penaltyCount >= 3) this.onMissionFail()
 		})
+
+		// Visual: circle outline + center dot
+		this.add.circle(cx, cy, R, 0x4444ff, 0).setStrokeStyle(2, 0x4444bb, 0.5)
+		this.add.circle(cx, cy, 6, 0xffffff, 0.6)
+		this.add.text(cx, cy + R + 20, `radius = 150`, {
+			fontSize: '11px', color: '#8888ff', stroke: '#000000', strokeThickness: 2,
+		}).setOrigin(0.5)
+
+		this.showInstruction(
+			'【Precision Lockdown — Spatial + Filter】\n\n' +
+			'8 enemies arranged in a circle — ALL within radius 150.\n' +
+			'RED (cardinal) = threats (HP=80) — must eliminate.\n' +
+			'GREY (diagonal) = civilians (HP=15) — penalty on hit!\n\n' +
+			'getNearbyEnemies returns EVERYONE in range.\n' +
+			'You must FILTER the result:\n' +
+			'  filter(nearby, eid → gt(getEntityHealth(state, eid), 40))\n\n' +
+			'Then forEach(threats, eid → damageEntity(state, eid, 100))\n\n' +
+			'Press SPACE to cast.'
+		)
+
+		this.setTaskInfo('Precision Lockdown', [
+			'Destroy RED threats (HP=80) ONLY',
+			'GREY civilians (HP=15) = protected',
+			`Penalties: 0 / 3`,
+		])
 	}
 
 	protected onLevelUpdate(): void {
 		if (this.levelFailed || this.levelWon) return
 
-		// Lock player
+		// Lock player at center
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// ── Per-entity update / death detection ──────────────────────────────
-		const dead: TrackedEntity[] = []
-
-		for (const ent of this.entities) {
-			if (this.world.resources.bodies.has(ent.eid)) {
-				// Alive — refresh HP ring and label
-				this.visuals.update(ent.eid, Health.current[ent.eid])
-			} else {
-				// Dead — fire civilian penalty if applicable
+		// Update alive entities; destroy dead, emit civilian penalty if needed
+		this.enemies = this.enemies.filter(ent => {
+			if (!this.world.resources.bodies.has(ent.eid)) {
 				if (ent.role === 'civilian' && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
-				dead.push(ent)
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-		}
+			this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
+		})
 
-		// Remove dead entities from tracking and destroy their visuals
-		for (const ent of dead) {
-			this.visuals.destroy(ent.eid)
-			this.entities.splice(this.entities.indexOf(ent), 1)
-		}
-
-		// ── Win condition ─────────────────────────────────────────────────────
-		if (this.targetEid !== -1 && !this.world.resources.bodies.has(this.targetEid)) {
+		// Win: all threats dead
+		const threats = this.enemies.filter(e => e.role === 'threat')
+		if (threats.length > 0 && threats.every(e => !this.world.resources.bodies.has(e.eid))) {
 			this.onMissionSuccess()
 		}
 	}
 
-	// ── Spawn helper ──────────────────────────────────────────────────────────
-
-	private spawnUnit(
-		x: number, y: number,
-		color: number, hp: number,
-		role: TrackedEntity['role'],
-	): TrackedEntity {
-		const radius = role === 'target' ? 34 : role === 'guard' ? 30 : 24
-
-		// Physics body
-		const body = createRectBody(
-			this, `unit-${role}-${x}`, color,
-			radius * 2, radius * 2, x, y,
-			role === 'civilian' ? 2 : 5
-		)
+	private spawnEnemy(x: number, y: number, color: number, hp: number, role: 'threat' | 'civilian'): TrackedEnemy {
+		const size = role === 'threat' ? 22 : 16
+		const body = createRectBody(this, `enemy20-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
-		body.setAlpha(0)          // physics hitbox stays, square texture hidden
-
-		// ECS entity
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
-		Health.max[eid]     = hp
+		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		// Visuals (all layers handed to EntityVisualManager)
 		this.visuals.register(eid, {
-			role:      role as EntityRole,
-			x, y,
-			radius,
+			role: role === 'threat' ? 'target' : 'civilian',
+			x,
+			y,
+			radius: size,
 			bodyColor: color,
-			maxHP:     hp,
+			maxHP: hp,
 		})
 
-		const tracked: TrackedEntity = { eid, body, role, penaltyFired: false }
-		this.entities.push(tracked)
+		const tracked: TrackedEnemy = { eid, body, role, penaltyFired: false }
+		this.enemies.push(tracked)
 		return tracked
 	}
-
-	// ── Win / Fail handlers ───────────────────────────────────────────────────
 
 	private onMissionSuccess(): void {
 		if (this.levelWon) return
 		this.levelWon = true
 		this.cameras.main.flash(400, 0, 255, 100)
-		this.completeObjectiveById('kill-target')
+		this.completeObjectiveById('clear-threats')
 		this.showInstruction(
-			'Target eliminated!\n\n' +
-			`Civilian penalties: ${this.penaltyCount}/3\n` +
-			'and(gt(hp, 25), lt(hp, 60)) — double filter mastered!'
+			'Threats eliminated!\n\n' +
+			'KEY INSIGHT: getNearbyEnemies + filter = precision spatial query.\n\n' +
+			'You cannot rely on proximity alone — sometimes the battlefield mixes\n' +
+			'targets and civilians at the same distance.\n\n' +
+			'Always compose: spatial query → type filter → action.'
 		)
 	}
 
@@ -364,8 +267,9 @@ export class Level20 extends BaseScene {
 		this.cameras.main.shake(400, 0.025)
 		this.cameras.main.flash(300, 255, 0, 0)
 		this.showInstruction(
-			'MISSION FAILED — Too many civilian casualties.\n\n' +
-			'Your filter must exclude HP ≤ 10.\n' +
+			'MISSION FAILED — Too many civilians hit.\n\n' +
+			'getNearbyEnemies returns ALL enemies in range — including civilians.\n' +
+			'Add filter(nearby, eid → gt(hp(eid), 40)) to select only threats.\n\n' +
 			'Restarting in 3 seconds…'
 		)
 		this.time.delayedCall(3000, () => this.scene.restart())
