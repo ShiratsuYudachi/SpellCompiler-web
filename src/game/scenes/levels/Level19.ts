@@ -9,62 +9,85 @@ import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 19 — "Close Clear"
+// Level 20 — "Precision Lockdown"
 //
-// Teaching goal: spatial query — getNearbyEnemies by distance
-//   playerPos = getEntityPosition(state, getPlayer(state))
-//   nearby = getNearbyEnemies(state, playerPos, 150)
-//   forEach(nearby, eid → damageEntity(state, eid, 100))
+// Teaching goal: getNearbyEnemies then filter
+//   8 enemies in radius 150, but 4 are civilians (HP=15)
+//   getNearbyEnemies alone hits everyone
+//   Add filter(eid → gt(hp(eid), 40)) to isolate threats
 //
-// Key: player must move to the right position before casting; position is part of the solution
+//   inRange  = getNearbyEnemies(state, playerPos, 150)
+//   targets  = filter(inRange, eid → gt(getEntityHealth(state, eid), 40))
+//   forEach(targets, eid → damageEntity(state, eid, 100))
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
-			{ id: 'si',    type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
-			{ id: 'f-gp',  type: 'dynamicFunction', position: { x:   60, y:  80 }, data: { functionName: 'game::getPlayer',          displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
-			{ id: 'f-pp',  type: 'dynamicFunction', position: { x:  260, y:  80 }, data: { functionName: 'game::getEntityPosition',   displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-nne', type: 'dynamicFunction', position: { x:  260, y: 200 }, data: { functionName: 'game::getNearbyEnemies',    displayName: 'getNearbyEnemies',  namespace: 'game', params: ['state', 'position', 'radius'] } },
-			{ id: 'lit-r', type: 'literal',         position: { x:  100, y: 290 }, data: { value: 150 } },
-			{ id: 'f-fe',  type: 'dynamicFunction', position: { x:  520, y: 200 }, data: { functionName: 'list::forEach',             displayName: 'forEach',           namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'out',   type: 'output',          position: { x:  760, y: 200 }, data: { label: 'Output' } },
-			// Lambda
-			{ id: 'lam',   type: 'lambdaDef',       position: { x:   60, y: 420 }, data: { functionName: 'hit', params: ['eid'] } },
-			{ id: 'f-dmg', type: 'dynamicFunction', position: { x:  250, y: 420 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
-			{ id: 'lit-100',type: 'literal',        position: { x:  100, y: 520 }, data: { value: 100 } },
-			{ id: 'f-out', type: 'functionOut',     position: { x:  480, y: 420 }, data: { lambdaId: 'lam' } },
+			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			// getPlayer → getEntityPosition (player pos)
+			{ id: 'f-gp',    type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',    type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			// getNearbyEnemies
+			{ id: 'f-nne',   type: 'dynamicFunction', position: { x:  260, y: 200 }, data: { functionName: 'game::getNearbyEnemies', displayName: 'getNearbyEnemies',  namespace: 'game', params: ['state', 'position', 'radius'] } },
+			{ id: 'lit-r',   type: 'literal',         position: { x:  100, y: 300 }, data: { value: 150 } },
+			// filter: only HP > 40 (threats)
+			{ id: 'f-filt',  type: 'dynamicFunction', position: { x:  500, y: 200 }, data: { functionName: 'list::filter',           displayName: 'filter(threats)',   namespace: 'list', params: ['l', 'pred'] } },
+			{ id: 'lam-p',   type: 'lambdaDef',       position: { x:  340, y: 400 }, data: { functionName: 'isThreat', params: ['eid'] } },
+			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  480, y: 460 }, data: { functionName: 'game::getEntityHealth',  displayName: 'getEntityHealth',   namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gt',    type: 'dynamicFunction', position: { x:  650, y: 460 }, data: { functionName: 'std::cmp::gt',           displayName: '> gt',              namespace: 'std::cmp', params: ['a', 'b'] } },
+			{ id: 'lit-40',  type: 'literal',         position: { x:  530, y: 570 }, data: { value: 40 } },
+			{ id: 'fout-p',  type: 'functionOut',     position: { x:  820, y: 400 }, data: { lambdaId: 'lam-p' } },
+			// forEach: damage threats
+			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  760, y: 200 }, data: { functionName: 'list::forEach',          displayName: 'forEach',           namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',     type: 'output',          position: { x: 1000, y: 200 }, data: { label: 'Output' } },
+			{ id: 'lam-d',   type: 'lambdaDef',       position: { x:  580, y: 680 }, data: { functionName: 'hit', params: ['eid'] } },
+			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  740, y: 740 }, data: { functionName: 'game::damageEntity',     displayName: 'damageEntity',      namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'lit-100', type: 'literal',         position: { x:  640, y: 840 }, data: { value: 100 } },
+			{ id: 'fout-d',  type: 'functionOut',     position: { x:  960, y: 680 }, data: { lambdaId: 'lam-d' } },
 		],
 		edges: [
-			{ id: 'e1', source: 'si',     target: 'f-gp',  targetHandle: 'arg0' },
-			{ id: 'e2', source: 'si',     target: 'f-pp',  targetHandle: 'arg0' },
-			{ id: 'e3', source: 'f-gp',   target: 'f-pp',  targetHandle: 'arg1' },
-			{ id: 'e4', source: 'si',     target: 'f-nne', targetHandle: 'arg0' },
-			{ id: 'e5', source: 'f-pp',   target: 'f-nne', targetHandle: 'arg1' },
-			{ id: 'e6', source: 'lit-r',  target: 'f-nne', targetHandle: 'arg2' },
-			{ id: 'e7', source: 'f-nne',  target: 'f-fe',  targetHandle: 'arg0' },
-			{ id: 'e8', source: 'f-out',  sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
-			{ id: 'e9', source: 'f-fe',   target: 'out',   targetHandle: 'value' },
-			// lambda body
-			{ id: 'e10',source: 'si',     target: 'f-dmg', targetHandle: 'arg0' },
-			{ id: 'e11',source: 'lam',    sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
-			{ id: 'e12',source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
-			{ id: 'e13',source: 'f-dmg',  target: 'f-out', targetHandle: 'value' },
+			// getPlayer → getEntityPosition
+			{ id: 'e1',  source: 'si',      target: 'f-gp',   targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',      target: 'f-pp',   targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',    target: 'f-pp',   targetHandle: 'arg1' },
+			// getNearbyEnemies
+			{ id: 'e4',  source: 'si',      target: 'f-nne',  targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-pp',    target: 'f-nne',  targetHandle: 'arg1' },
+			{ id: 'e6',  source: 'lit-r',   target: 'f-nne',  targetHandle: 'arg2' },
+			// filter
+			{ id: 'e7',  source: 'f-nne',   target: 'f-filt', targetHandle: 'arg0' },
+			{ id: 'e8',  source: 'fout-p',  sourceHandle: 'function', target: 'f-filt', targetHandle: 'arg1' },
+			// forEach
+			{ id: 'e9',  source: 'f-filt',  target: 'f-fe',   targetHandle: 'arg0' },
+			{ id: 'e10', source: 'fout-d',  sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e11', source: 'f-fe',    target: 'out',    targetHandle: 'value' },
+			// predicate lambda body
+			{ id: 'e12', source: 'si',      target: 'f-hp',   targetHandle: 'arg0' },
+			{ id: 'e13', source: 'lam-p',   sourceHandle: 'param0', target: 'f-hp', targetHandle: 'arg1' },
+			{ id: 'e14', source: 'f-hp',    target: 'f-gt',   targetHandle: 'arg0' },
+			{ id: 'e15', source: 'lit-40',  target: 'f-gt',   targetHandle: 'arg1' },
+			{ id: 'e16', source: 'f-gt',    target: 'fout-p', targetHandle: 'value' },
+			// damage lambda body
+			{ id: 'e17', source: 'si',      target: 'f-dmg',  targetHandle: 'arg0' },
+			{ id: 'e18', source: 'lam-d',   sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e19', source: 'lit-100', target: 'f-dmg',  targetHandle: 'arg2' },
+			{ id: 'e20', source: 'f-dmg',   target: 'fout-d', targetHandle: 'value' },
 		],
 	};
 
 export const Level19Meta: LevelMeta = {
 	key: 'Level19',
-	playerSpawnX: 190,
-	playerSpawnY: 300,
+	playerSpawnX: 480,
+	playerSpawnY: 320,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-left', description: 'Eliminate only the LEFT zone enemies (5 targets)', type: 'defeat' }],
+	objectives: [{ id: 'clear-threats', description: 'Eliminate 4 red threats WITHOUT hitting grey civilians', type: 'defeat' }],
 	hints: [
-		'Two groups: LEFT zone (targets) and RIGHT zone (protected).',
-		'getNearbyEnemies(state, position, radius) returns only enemies within range.',
-		'Move your player near the LEFT group, then cast.',
-		'getEntityPosition(state, getPlayer(state)) gives your current position.',
-		'Hitting right-zone enemies = penalty (3 = failure).',
+		'All 8 enemies are within getNearbyEnemies radius 150 from center.',
+		'getNearbyEnemies does NOT distinguish by type — returns ALL in range!',
+		'Add a filter AFTER getNearbyEnemies: filter(nearby, eid → gt(hp(eid), 40))',
+		'Grey enemies (HP=15) are civilians — hitting them = penalty.',
+		'Solution: getNearbyEnemies → filter(HP>40) → forEach(damageEntity)',
 	],
 	initialSpellWorkflow: _answer,
 	answerSpellWorkflow: _answer,
@@ -75,7 +98,7 @@ levelRegistry.register(Level19Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	isTarget: boolean    // left zone = true (must kill), right zone = false (protected)
+	role: 'threat' | 'civilian'
 	penaltyFired: boolean
 }
 
@@ -98,32 +121,33 @@ export class Level19 extends BaseScene {
 		this.levelWon = false
 		this.events.removeAllListeners('civilian-hit')
 
+		// Lock player at center
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (pb) pb.setPosition(190, 300)
+		if (pb) pb.setPosition(480, 320)
 
-		// Left zone: targets (green, must eliminate)
-		// All clustered within ~140px of (190, 300) so one cast covers them all
-		// x=120 minimum to avoid wall boundary physics issues (wall edge at x=80)
-		const leftPositions = [
-			{ x: 120, y: 220 },  // dist from (190,300) ≈ 94
-			{ x: 120, y: 380 },  // dist ≈ 94
-			{ x: 200, y: 160 },  // dist ≈ 140
-			{ x: 200, y: 440 },  // dist ≈ 140
-			{ x: 280, y: 300 },  // dist ≈ 90
-		]
-		for (const pos of leftPositions) {
-			this.spawnEnemy(pos.x, pos.y, 0x33cc66, 50, true)
+		const cx = 480, cy = 320, R = 130
+
+		// 4 red threats at cardinal angles (0°, 90°, 180°, 270°) — HP=80
+		const threatAngles = [0, 90, 180, 270]
+		for (const deg of threatAngles) {
+			const rad = (deg * Math.PI) / 180
+			const x = Math.round(cx + R * Math.cos(rad))
+			const y = Math.round(cy + R * Math.sin(rad))
+			this.spawnEnemy(x, y, 0xff4444, 80, 'threat')
 		}
 
-		// Right zone: protected enemies (red, penalty on hit)
-		const rightPositions = [{ x: 840, y: 160 }, { x: 740, y: 280 }, { x: 840, y: 400 }, { x: 660, y: 160 }, { x: 680, y: 440 }]
-		for (const pos of rightPositions) {
-			this.spawnEnemy(pos.x, pos.y, 0xff4444, 50, false)
+		// 4 grey civilians at diagonal angles (45°, 135°, 225°, 315°) — HP=15
+		const civAngles = [45, 135, 225, 315]
+		for (const deg of civAngles) {
+			const rad = (deg * Math.PI) / 180
+			const x = Math.round(cx + R * Math.cos(rad))
+			const y = Math.round(cy + R * Math.sin(rad))
+			this.spawnEnemy(x, y, 0x888888, 15, 'civilian')
 		}
 
-		// Register right-zone as "civilians" for penalty purposes
-		const protectedEids = new Set(this.enemies.filter(e => !e.isTarget).map(e => e.eid))
-		this.world.resources.levelData!['civilianEids'] = protectedEids
+		// Register grey enemies as civilians for penalty
+		const civEids = new Set(this.enemies.filter(e => e.role === 'civilian').map(e => e.eid))
+		this.world.resources.levelData!['civilianEids'] = civEids
 
 		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
@@ -134,34 +158,36 @@ export class Level19 extends BaseScene {
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 50, 50)
-			this.setTaskInfo('Close Range Clear', [
-				'Eliminate LEFT zone (green) enemies only',
-				'Hitting RIGHT zone = penalty',
+			this.setTaskInfo('Precision Lockdown', [
+				'Destroy RED threats (HP=80) ONLY',
+				'GREY civilians (HP=15) = protected',
 				`Penalties: ${this.penaltyCount} / 3`,
 			])
 			if (this.penaltyCount >= 3) this.onMissionFail()
 		})
 
-		// Draw visual zone divider
-		this.add.rectangle(480, 320, 4, 560, 0xffff00, 0.3)
-		this.add.text(240, 40, '← TARGET ZONE', { fontSize: '14px', color: '#33cc66', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
-		this.add.text(720, 40, 'PROTECTED →', { fontSize: '14px', color: '#ff6666', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
+		// Visual: circle outline + center dot
+		this.add.circle(cx, cy, R, 0x4444ff, 0).setStrokeStyle(2, 0x4444bb, 0.5)
+		this.add.circle(cx, cy, 6, 0xffffff, 0.6)
+		this.add.text(cx, cy + R + 20, `radius = 150`, {
+			fontSize: '11px', color: '#8888ff', stroke: '#000000', strokeThickness: 2,
+		}).setOrigin(0.5)
 
 		this.showInstruction(
-			'【Close Range Clear — Spatial Query Basics】\n\n' +
-			'GREEN enemies (LEFT) = your targets.\n' +
-			'RED enemies (RIGHT) = protected — hitting them = penalty.\n\n' +
-			'getNearbyEnemies returns only enemies within a given radius.\n\n' +
-			'You start near the LEFT cluster. Cast:\n' +
-			'  getNearbyEnemies(state, playerPos, 150)\n\n' +
-			'All 5 green enemies are within range — press SPACE to clear them!\n' +
-			'Your position determines what gets returned.\n\n' +
+			'【Precision Lockdown — Spatial + Filter】\n\n' +
+			'8 enemies arranged in a circle — ALL within radius 150.\n' +
+			'RED (cardinal) = threats (HP=80) — must eliminate.\n' +
+			'GREY (diagonal) = civilians (HP=15) — penalty on hit!\n\n' +
+			'getNearbyEnemies returns EVERYONE in range.\n' +
+			'You must FILTER the result:\n' +
+			'  filter(nearby, eid → gt(getEntityHealth(state, eid), 40))\n\n' +
+			'Then forEach(threats, eid → damageEntity(state, eid, 100))\n\n' +
 			'Press SPACE to cast.'
 		)
 
-		this.setTaskInfo('Close Range Clear', [
-			'Eliminate LEFT zone (green) enemies only',
-			'Hitting RIGHT zone = penalty (3 = fail)',
+		this.setTaskInfo('Precision Lockdown', [
+			'Destroy RED threats (HP=80) ONLY',
+			'GREY civilians (HP=15) = protected',
 			`Penalties: 0 / 3`,
 		])
 	}
@@ -169,10 +195,14 @@ export class Level19 extends BaseScene {
 	protected onLevelUpdate(): void {
 		if (this.levelFailed || this.levelWon) return
 
-		// Update alive entities; destroy dead, emit penalty for protected zone if needed
+		// Lock player at center
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setVelocity(0, 0)
+
+		// Update alive entities; destroy dead, emit civilian penalty if needed
 		this.enemies = this.enemies.filter(ent => {
 			if (!this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.isTarget && !ent.penaltyFired) {
+				if (ent.role === 'civilian' && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
@@ -183,16 +213,16 @@ export class Level19 extends BaseScene {
 			return true
 		})
 
-		// Win: all left-zone targets dead
-		const targets = this.enemies.filter(e => e.isTarget)
-		if (targets.length > 0 && targets.every(e => !this.world.resources.bodies.has(e.eid))) {
+		// Win: all threats dead
+		const threats = this.enemies.filter(e => e.role === 'threat')
+		if (threats.length > 0 && threats.every(e => !this.world.resources.bodies.has(e.eid))) {
 			this.onMissionSuccess()
 		}
 	}
 
-	private spawnEnemy(x: number, y: number, color: number, hp: number, isTarget: boolean): TrackedEnemy {
-		const size = 22
-		const body = createRectBody(this, `enemy19-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
+	private spawnEnemy(x: number, y: number, color: number, hp: number, role: 'threat' | 'civilian'): TrackedEnemy {
+		const size = role === 'threat' ? 22 : 16
+		const body = createRectBody(this, `enemy20-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
 		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
@@ -204,7 +234,7 @@ export class Level19 extends BaseScene {
 		Health.current[eid] = hp
 
 		this.visuals.register(eid, {
-			role: isTarget ? 'target' : 'guard',
+			role: role === 'threat' ? 'target' : 'civilian',
 			x,
 			y,
 			radius: size,
@@ -212,7 +242,7 @@ export class Level19 extends BaseScene {
 			maxHP: hp,
 		})
 
-		const tracked: TrackedEnemy = { eid, body, isTarget, penaltyFired: false }
+		const tracked: TrackedEnemy = { eid, body, role, penaltyFired: false }
 		this.enemies.push(tracked)
 		return tracked
 	}
@@ -221,12 +251,13 @@ export class Level19 extends BaseScene {
 		if (this.levelWon) return
 		this.levelWon = true
 		this.cameras.main.flash(400, 0, 255, 100)
-		this.completeObjectiveById('clear-left')
+		this.completeObjectiveById('clear-threats')
 		this.showInstruction(
-			'Left zone cleared!\n\n' +
-			'getNearbyEnemies — mastered!\n\n' +
-			'Spatial queries filter by DISTANCE rather than HP.\n' +
-			'Your position becomes part of the spell logic.'
+			'Threats eliminated!\n\n' +
+			'KEY INSIGHT: getNearbyEnemies + filter = precision spatial query.\n\n' +
+			'You cannot rely on proximity alone — sometimes the battlefield mixes\n' +
+			'targets and civilians at the same distance.\n\n' +
+			'Always compose: spatial query → type filter → action.'
 		)
 	}
 
@@ -235,7 +266,12 @@ export class Level19 extends BaseScene {
 		this.levelFailed = true
 		this.cameras.main.shake(400, 0.025)
 		this.cameras.main.flash(300, 255, 0, 0)
-		this.showInstruction('MISSION FAILED — Too many protected enemies hit.\n\nMove closer to the green group before casting.\nRestarting in 3 seconds…')
+		this.showInstruction(
+			'MISSION FAILED — Too many civilians hit.\n\n' +
+			'getNearbyEnemies returns ALL enemies in range — including civilians.\n' +
+			'Add filter(nearby, eid → gt(hp(eid), 40)) to select only threats.\n\n' +
+			'Restarting in 3 seconds…'
+		)
 		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }

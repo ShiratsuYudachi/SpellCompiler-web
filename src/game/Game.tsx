@@ -12,6 +12,7 @@ import { Level1 } from './scenes/levels/Level1'
 import { Level2 } from './scenes/levels/Level2'
 import { Level3 } from './scenes/levels/Level3'
 import { Level4 } from './scenes/levels/Level4'
+import { Level5 } from './scenes/levels/Level5'
 import { Level6 } from './scenes/levels/Level6'
 import { Level7 } from './scenes/levels/Level7'
 import { Level8 } from './scenes/levels/Level8'
@@ -27,7 +28,6 @@ import { Level17 } from './scenes/levels/Level17'
 import { Level18 } from './scenes/levels/Level18'
 import { Level19 } from './scenes/levels/Level19'
 import { Level20 } from './scenes/levels/Level20'
-import { Level21 } from './scenes/levels/Level21'
 import { setGameInstance, setEditorContext } from './gameInstance'
 
 export function Game() {
@@ -62,6 +62,7 @@ export function Game() {
 				Level2,
 				Level3,
 				Level4,
+				Level5,
 				Level6,
 				Level7,
 				Level8,
@@ -77,7 +78,6 @@ export function Game() {
 				Level18,
 				Level19,
 				Level20,
-				Level21,
 			],
 			physics: {
 				default: 'arcade',
@@ -202,7 +202,7 @@ export function Game() {
 			completedLevelRef.current = 0
 
 			// Start next level
-			if (nextLevel <= 21) {
+			if (nextLevel <= 20) {
 				gameRef.current.scene.start(`Level${nextLevel}`)
 			} else {
 				gameRef.current.scene.start('MainInterface')

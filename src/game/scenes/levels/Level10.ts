@@ -5,17 +5,26 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
+import type { EntityRole } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 10 — "Only Hit the Red One"
+// Level 11 — "Precision Guidance"
 //
 // Teaching goal:
-//   getAllEnemies → filter(eid → health(eid) > threshold)
+//   getAllEnemies → filter( and(gt(hp, 25), lt(hp, 60)) )
 //                → head → damageEntity
 //
-// Setup: 5 civilians (white, 10 HP) + 1 Boss (red, 80 HP)
-// Rule: Hitting a civilian = +1 penalty; 3 penalties → mission fail and reset
+// New concept: logic::and combines two conditions to narrow the filter
+//
+// Setup (HP designed so a single threshold cannot isolate the target):
+//   4 civilians (white, 10 HP) — do not hit
+//   3 weak (gray, 18 HP) — can miss-hit, no score
+//   3 heavy (purple, 75 HP) — can miss-hit, no score
+//   1 target (orange, 40 HP) — must kill
+//
+// Only and(gt(hp,25), lt(hp,60)) isolates the 40 HP target
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {
@@ -54,32 +63,46 @@ const _answer: { nodes: any[]; edges: any[] } = {
 			{ id: 'lit-100', type: 'literal', position: { x: 500, y: 300 }, data: { value: 100 } },
 			{ id: 'out', type: 'output', position: { x: 900, y: 200 }, data: { label: 'Output' } },
 
-			// ── Lambda: isTarget(eid) → health(eid) > 30 ───────────
+			// ── Lambda: isMedium(eid) → and(hp>25, hp<60) ──────────
 			{
 				id: 'lam',
 				type: 'lambdaDef',
-				position: { x: 60, y: 420 },
-				data: { functionName: 'isTarget', params: ['eid'] },
+				position: { x: 60, y: 440 },
+				data: { functionName: 'isMedium', params: ['eid'] },
 			},
 			{
 				id: 'f-out',
 				type: 'functionOut',
-				position: { x: 500, y: 490 },
+				position: { x: 680, y: 510 },
 				data: { lambdaId: 'lam' },
 			},
+			// Shared health query (two outgoing edges → f-gt and f-lt)
 			{
 				id: 'f-health',
 				type: 'dynamicFunction',
-				position: { x: 200, y: 490 },
+				position: { x: 200, y: 510 },
 				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
 			},
 			{
 				id: 'f-gt',
 				type: 'dynamicFunction',
-				position: { x: 370, y: 490 },
+				position: { x: 390, y: 450 },
 				data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] },
 			},
-			{ id: 'lit-30', type: 'literal', position: { x: 200, y: 580 }, data: { value: 30 } },
+			{ id: 'lit-25', type: 'literal', position: { x: 200, y: 440 }, data: { value: 25 } },
+			{
+				id: 'f-lt',
+				type: 'dynamicFunction',
+				position: { x: 390, y: 570 },
+				data: { functionName: 'std::cmp::lt', displayName: '< lt', namespace: 'std::cmp', params: ['a', 'b'] },
+			},
+			{ id: 'lit-60', type: 'literal', position: { x: 200, y: 590 }, data: { value: 60 } },
+			{
+				id: 'f-and',
+				type: 'dynamicFunction',
+				position: { x: 550, y: 510 },
+				data: { functionName: 'std::logic::and', displayName: 'and', namespace: 'std::logic', params: ['a', 'b'] },
+			},
 		],
 		edges: [
 			// Main chain
@@ -95,8 +118,12 @@ const _answer: { nodes: any[]; edges: any[] } = {
 			{ id: 'e9',  source: 'si',  target: 'f-health', targetHandle: 'arg0' },
 			{ id: 'e10', source: 'lam', sourceHandle: 'param0', target: 'f-health', targetHandle: 'arg1' },
 			{ id: 'e11', source: 'f-health', target: 'f-gt', targetHandle: 'arg0' },
-			{ id: 'e12', source: 'lit-30',   target: 'f-gt', targetHandle: 'arg1' },
-			{ id: 'e13', source: 'f-gt',     target: 'f-out', targetHandle: 'value' },
+			{ id: 'e12', source: 'lit-25',   target: 'f-gt', targetHandle: 'arg1' },
+			{ id: 'e13', source: 'f-health', target: 'f-lt', targetHandle: 'arg0' },
+			{ id: 'e14', source: 'lit-60',   target: 'f-lt', targetHandle: 'arg1' },
+			{ id: 'e15', source: 'f-gt',  target: 'f-and', targetHandle: 'arg0' },
+			{ id: 'e16', source: 'f-lt',  target: 'f-and', targetHandle: 'arg1' },
+			{ id: 'e17', source: 'f-and', target: 'f-out', targetHandle: 'value' },
 		],
 	};
 
@@ -108,19 +135,17 @@ export const Level10Meta: LevelMeta = {
 	mapData: createRoom(12, 8),
 	objectives: [
 		{
-			id: 'kill-boss',
-			description: 'Eliminate the Target (red): filter by HP, then attack with damageEntity',
+			id: 'kill-target',
+			description: 'Eliminate the orange Target only — use a double-condition filter (AND)',
 			type: 'defeat',
 		},
 	],
 	hints: [
-		'getAllEnemies returns ALL entities — civilians included.',
-		'Use filter with a lambda: eid → getEntityHealth(state, eid) > 30',
-		'Then head to pick the first match, then damageEntity(state, eid, 100)',
+		'A single threshold cannot isolate the orange target (40 HP).',
+		'Hint: civilians are 10 HP, weak enemies 18 HP, guards 75 HP, target 40 HP.',
+		'You need: filter(eid → and(gt(health, 25), lt(health, 60)))',
+		'logic::and takes two booleans and returns true only if BOTH are true.',
 	],
-	// Complete solution spell:
-	//   getAllEnemies → filter(isTarget) → head → damageEntity(state, _, 100)
-	//   isTarget = lambda(eid) { getEntityHealth(state, eid) > 30 }
 	maxSpellCasts: 3,
 	initialSpellWorkflow: _answer,
 	answerSpellWorkflow: _answer,
@@ -128,77 +153,98 @@ export const Level10Meta: LevelMeta = {
 
 levelRegistry.register(Level10Meta)
 
-// ─── Entity tracking ──────────────────────────────────────────
+// ── Entity tracking ───────────────────────────────────────────────────────────
+
 interface TrackedEntity {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
-	isCivilian: boolean
-	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
+	role: 'civilian' | 'weak' | 'guard' | 'target'
+	penaltyFired: boolean
 }
+
+// ── Scene ─────────────────────────────────────────────────────────────────────
 
 export class Level10 extends BaseScene {
 	private entities: TrackedEntity[] = []
-	private bossEid: number = -1
+	private targetEid: number = -1
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+
+	/** Visual layer manager — owns all Phaser display objects for entities. */
+	private visuals!: EntityVisualManager
 
 	constructor() {
 		super({ key: 'Level10' })
 	}
 
 	protected onLevelCreate(): void {
-		// ── Reset all state for clean restart (scene.restart reuses the instance) ──
-		this.entities = []
-		this.bossEid = -1
+		// ── Reset state ──────────────────────────────────────────────────────
+		this.entities     = []
+		this.targetEid    = -1
 		this.penaltyCount = 0
-		this.levelFailed = false
-		this.levelWon = false
-		this.events.removeAllListeners('civilian-hit') // prevent listener accumulation
+		this.levelFailed  = false
+		this.levelWon     = false
+		this.events.removeAllListeners('civilian-hit')
 
+		// Destroy previous visual manager if this is a restart
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
+		// ── Instructions ─────────────────────────────────────────────────────
 		this.showInstruction(
-			'【The Sniper — Part 1】\n\n' +
-			'A Target (RED) is hiding among Civilians (WHITE).\n' +
-			'Use filter to isolate the target by HP, then attack it.\n\n' +
-			'• Press SPACE to cast your spell\n' +
-			'• Hitting a civilian = 1 penalty  (3 = mission failure)\n' +
-			'• Open editor with TAB to build your filter lambda'
+			'【The Sniper — Part 2: Double Filter】\n\n' +
+			'The orange Target (40 HP) hides among:\n' +
+			'  • White civilians (10 HP) — DO NOT TOUCH\n' +
+			'  • Grey weak enemies (18 HP) — not your goal\n' +
+			'  • Purple heavy guards (75 HP) — not your goal\n\n' +
+			'One threshold is NOT enough. Combine two conditions with and().\n' +
+			'Press SPACE to cast your spell.'
 		)
 
-		this.setTaskInfo(
-			'Sniper Mission',
-			['Eliminate the Target (red circle)', 'Do NOT hit civilians (white circles)', 'Penalties: 0 / 3']
-		)
+		this.setTaskInfo('Precision Strike', [
+			'Kill the Orange Target (40 HP)',
+			'Civilians protected — 3 hits = failure',
+			`Penalties: 0 / 3`,
+		])
 
-		// Lock player in place — this is a pure spell-casting puzzle
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (playerBody) {
-			playerBody.setPosition(480, 320)
-		}
+		// Lock player at centre
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setPosition(480, 320)
 
-		// Spawn civilians (white, 10 HP) — random scatter
+		// ── Spawn civilians (white, 10 HP) ───────────────────────────────────
 		const civilianPositions = [
-			{ x: 160, y: 200 }, { x: 320, y: 160 }, { x: 720, y: 160 },
-			{ x: 800, y: 360 }, { x: 480, y: 490 },
+			{ x: 160, y: 200 }, { x: 800, y: 200 },
+			{ x: 160, y: 450 }, { x: 800, y: 450 },
 		]
 		for (const pos of civilianPositions) {
-			this.spawnUnit(pos.x, pos.y, 0xdddddd, 'CIVILIAN', 10, true)
+			this.spawnUnit(pos.x, pos.y, 0xdddddd, 10, 'civilian')
 		}
 
-		// Spawn Boss (red, 80 HP) — slightly offset from center
-		const bossPos = { x: 480, y: 160 }
-		const boss = this.spawnUnit(bossPos.x, bossPos.y, 0xff3333, 'TARGET', 80, false)
-		this.bossEid = boss.eid
+		// ── Spawn weak enemies (grey, 18 HP) ─────────────────────────────────
+		const weakPositions = [
+			{ x: 280, y: 180 }, { x: 480, y: 160 }, { x: 680, y: 180 },
+		]
+		for (const pos of weakPositions) {
+			this.spawnUnit(pos.x, pos.y, 0x888888, 18, 'weak')
+		}
 
-		// Register civilian eids in levelData so damageEntity can fire penalty events
-		const civilianEids = new Set(this.entities.filter(e => e.isCivilian).map(e => e.eid))
+		// ── Spawn heavy guards (purple, 75 HP) ───────────────────────────────
+		const guardPositions = [
+			{ x: 240, y: 450 }, { x: 480, y: 480 }, { x: 720, y: 450 },
+		]
+		for (const pos of guardPositions) {
+			this.spawnUnit(pos.x, pos.y, 0x9900cc, 75, 'guard')
+		}
+
+		// ── Spawn the target (orange, 40 HP) ─────────────────────────────────
+		const target = this.spawnUnit(480, 290, 0xff8800, 40, 'target')
+		this.targetEid = target.eid
+
+		// ── Register civilian EIDs for damage-event hook ──────────────────────
+		const civilianEids = new Set(this.entities.filter(e => e.role === 'civilian').map(e => e.eid))
 		this.world.resources.levelData!['civilianEids'] = civilianEids
-		this.world.resources.levelData!['scene'] = this
 
-		// Listen for civilian-hit events fired from damageEntity (via levelData hook)
-		// eid is passed so we can mark the entity as penalized → prevents fallback double-count
 		this.events.on('civilian-hit', (eid?: number) => {
 			if (this.levelFailed || this.levelWon) return
 			if (typeof eid === 'number') {
@@ -208,26 +254,15 @@ export class Level10 extends BaseScene {
 			this.penaltyCount++
 			this.cameras.main.shake(180, 0.012)
 			this.cameras.main.flash(150, 255, 80, 0)
-			this.setTaskInfo(
-				'Sniper Mission',
-				[
-					'Eliminate the Target (red circle)',
-					'Do NOT hit civilians (white circles)',
-					`Penalties: ${this.penaltyCount} / 3`,
-				]
-			)
+			this.setTaskInfo('Precision Strike', [
+				'Kill the Orange Target (40 HP)',
+				'Civilians protected — 3 hits = failure',
+				`Penalties: ${this.penaltyCount} / 3`,
+			])
 			if (this.penaltyCount >= 3) {
 				this.onMissionFail()
 			} else {
-				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3 — Fix your filter!`)
-			}
-		})
-
-		// SPACE to cast bound spell
-		this.input.keyboard?.on('keydown-SPACE', () => {
-			if (!this.levelFailed && !this.levelWon) {
-				// The event system handles bound spells; emit a tick so any onKeyPressed binding fires
-				// Player binds their spell to SPACE in the editor
+				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3 — Refine your filter!`)
 			}
 		})
 	}
@@ -236,84 +271,91 @@ export class Level10 extends BaseScene {
 		if (this.levelFailed || this.levelWon) return
 
 		// Lock player
-		const playerEid = this.world.resources.playerEid
-		const pb = this.world.resources.bodies.get(playerEid)
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Detect civilian deaths (body removed by deathSystem)
-		// Use entity-level penaltyFired flag (NOT Phaser DataManager) to avoid
-		// double-counting: after marker.destroy() the DataManager is recreated each
-		// frame, making getData() return undefined repeatedly and firing extra penalties.
-		this.entities = this.entities.filter(ent => {
-			if (ent.isCivilian && !this.world.resources.bodies.has(ent.eid)) {
-				if (!ent.penaltyFired) {
+		// ── Per-entity update / death detection ──────────────────────────────
+		const dead: TrackedEntity[] = []
+
+		for (const ent of this.entities) {
+			if (this.world.resources.bodies.has(ent.eid)) {
+				// Alive — refresh HP ring and label
+				this.visuals.update(ent.eid, Health.current[ent.eid])
+			} else {
+				// Dead — fire civilian penalty if applicable
+				if (ent.role === 'civilian' && !ent.penaltyFired) {
 					ent.penaltyFired = true
 					this.events.emit('civilian-hit', ent.eid)
 				}
-				ent.marker.destroy()
-				ent.label.destroy()
-				return false  // remove dead civilian from list
+				dead.push(ent)
 			}
-			return true
-		})
+		}
 
-		// Win condition: boss despawned (killed by damageEntity + deathSystem)
-		if (!this.world.resources.bodies.has(this.bossEid)) {
+		// Remove dead entities from tracking and destroy their visuals
+		for (const ent of dead) {
+			this.visuals.destroy(ent.eid)
+			this.entities.splice(this.entities.indexOf(ent), 1)
+		}
+
+		// ── Win condition ─────────────────────────────────────────────────────
+		if (this.targetEid !== -1 && !this.world.resources.bodies.has(this.targetEid)) {
 			this.onMissionSuccess()
 		}
 	}
 
-	// ── Helpers ──────────────────────────────────────────────────
+	// ── Spawn helper ──────────────────────────────────────────────────────────
 
 	private spawnUnit(
 		x: number, y: number,
-		color: number, labelText: string,
-		hp: number, isCivilian: boolean
+		color: number, hp: number,
+		role: TrackedEntity['role'],
 	): TrackedEntity {
-		const size = isCivilian ? 28 : 36
+		const radius = role === 'target' ? 34 : role === 'guard' ? 30 : 24
 
-		const marker = this.add
-			.circle(x, y, size, color, isCivilian ? 0.55 : 0.75)
-			.setStrokeStyle(isCivilian ? 2 : 4, color)
-
-		const label = this.add
-			.text(x, y - size - 14, labelText, {
-				fontSize: isCivilian ? '12px' : '14px',
-				color: isCivilian ? '#cccccc' : '#ff6666',
-				stroke: '#000000',
-				strokeThickness: 3,
-			})
-			.setOrigin(0.5)
-
-		const body = createRectBody(this, `unit-${labelText}-${x}`, color, size * 2, size * 2, x, y, isCivilian ? 2 : 5)
+		// Physics body
+		const body = createRectBody(
+			this, `unit-${role}-${x}`, color,
+			radius * 2, radius * 2, x, y,
+			role === 'civilian' ? 2 : 5
+		)
 		body.setImmovable(true)
+		body.setAlpha(0)          // physics hitbox stays, square texture hidden
 
+		// ECS entity
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
-
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
-
-		Health.max[eid] = hp
+		Health.max[eid]     = hp
 		Health.current[eid] = hp
 
-		const tracked: TrackedEntity = { eid, body, marker, label, isCivilian, penaltyFired: false }
+		// Visuals (all layers handed to EntityVisualManager)
+		this.visuals.register(eid, {
+			role:      role as EntityRole,
+			x, y,
+			radius,
+			bodyColor: color,
+			maxHP:     hp,
+		})
+
+		const tracked: TrackedEntity = { eid, body, role, penaltyFired: false }
 		this.entities.push(tracked)
 		return tracked
 	}
+
+	// ── Win / Fail handlers ───────────────────────────────────────────────────
 
 	private onMissionSuccess(): void {
 		if (this.levelWon) return
 		this.levelWon = true
 		this.cameras.main.flash(400, 0, 255, 100)
-		this.completeObjectiveById('kill-boss')
+		this.completeObjectiveById('kill-target')
 		this.showInstruction(
 			'Target eliminated!\n\n' +
 			`Civilian penalties: ${this.penaltyCount}/3\n` +
-			'filter → head → damageEntity — mastered!'
+			'and(gt(hp, 25), lt(hp, 60)) — double filter mastered!'
 		)
-		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
 	}
 
 	private onMissionFail(): void {
@@ -323,7 +365,7 @@ export class Level10 extends BaseScene {
 		this.cameras.main.flash(300, 255, 0, 0)
 		this.showInstruction(
 			'MISSION FAILED — Too many civilian casualties.\n\n' +
-			'Check your filter condition: it must exclude HP ≤ 10.\n' +
+			'Your filter must exclude HP ≤ 10.\n' +
 			'Restarting in 3 seconds…'
 		)
 		this.time.delayedCall(3000, () => this.scene.restart())
