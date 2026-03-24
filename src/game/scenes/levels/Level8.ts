@@ -10,6 +10,11 @@ import { Health } from '../../components'
 import { Velocity } from '../../components'
 import { createRoom } from '../../utils/levelUtils'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { flowToIR } from '../../../editor/utils/flowToIR'
+import { updateSpellInCache } from '../../systems/eventProcessSystem'
+import { eventQueue } from '../../events/EventQueue'
+
+const LEVEL8_SPELL_ID = '__level8_auto_spell'
 
 // Solution only (Level 6 style): if(all lights same, teleport, 0) → Output. Player cannot move otherwise.
 const level8InitialWorkflow = {
@@ -45,7 +50,6 @@ const level8InitialWorkflow = {
 		{ id: 'light-1', type: 'dynamicFunction', position: { x: 80, y: 60 }, data: { functionName: 'game::getLightColor', displayName: 'getLightColor', namespace: 'game', params: ['state', 'id'] } },
 		{ id: 'light-2', type: 'dynamicFunction', position: { x: 80, y: 200 }, data: { functionName: 'game::getLightColor', displayName: 'getLightColor', namespace: 'game', params: ['state', 'id'] } },
 		{ id: 'light-3', type: 'dynamicFunction', position: { x: 80, y: 340 }, data: { functionName: 'game::getLightColor', displayName: 'getLightColor', namespace: 'game', params: ['state', 'id'] } },
-		{ id: 'lit-0', type: 'literal', position: { x: 540, y: 320 }, data: { value: 0 } },
 		{ id: 'lit-1', type: 'literal', position: { x: -80, y: 60 }, data: { value: 1 } },
 		{ id: 'lit-2', type: 'literal', position: { x: -80, y: 200 }, data: { value: 2 } },
 		{ id: 'lit-3', type: 'literal', position: { x: -80, y: 340 }, data: { value: 3 } },
@@ -69,7 +73,7 @@ const level8InitialWorkflow = {
 		{ id: 'e16', source: 'eq-23', target: 'and-lights', targetHandle: 'arg1' },
 		{ id: 'e17', source: 'and-lights', target: 'if-safe', targetHandle: 'condition' },
 		{ id: 'e18', source: 'func-teleport', target: 'if-safe', targetHandle: 'then' },
-		{ id: 'e19', source: 'lit-0', target: 'if-safe', targetHandle: 'else' },
+		{ id: 'e19', source: 'si', target: 'if-safe', targetHandle: 'else' },
 		{ id: 'e20', source: 'if-safe', target: 'out', targetHandle: 'value' },
 	],
 }
@@ -95,12 +99,21 @@ export const Level8Meta: LevelMeta = {
 		'Change the vector (dx, dy) and cast only when all 3 lights match to reach the green goal.',
 	],
 	initialSpellWorkflow: level8InitialWorkflow,
+	answerSpellWorkflow: level8InitialWorkflow,
 }
 
 levelRegistry.register(Level8Meta)
 
+const LIGHT_COLORS: Record<string, { fill: number; glow: number }> = {
+	green:  { fill: 0x44ee66, glow: 0x00ff44 },
+	red:    { fill: 0xff3333, glow: 0xff0000 },
+	yellow: { fill: 0xffdd00, glow: 0xffbb00 },
+}
+
 interface Light {
-	sprite: Phaser.GameObjects.Image
+	circle: Phaser.GameObjects.Arc       // filled circle
+	glowRing: Phaser.GameObjects.Arc     // outer glow ring
+	label: Phaser.GameObjects.Text       // "1" / "2" / "3"
 	lastChangeTime: number
 	ID: number
 	color: 'green' | 'red' | 'yellow'
@@ -108,8 +121,9 @@ interface Light {
 
 export class Level8 extends BaseScene {
 	private Lights: Light[] = []
-	private lightChangeInterval: number = 400
-	private goalCollector: Phaser.Physics.Arcade.Image | null = null
+	private lightChangeInterval: number = 600
+	private goalX = 850
+	private goalY = 288
 	private playerLastX: number = 0
 	private playerLastY: number = 0
 	private levelCompleted = false
@@ -118,16 +132,9 @@ export class Level8 extends BaseScene {
 		super({ key: 'Level8' })
 	}
 
-	preload() {
-		this.load.spritesheet('green_light', '/assets/level9/green_light.png', { frameWidth: 32, frameHeight: 32 })
-		this.load.spritesheet('red_light', '/assets/level9/red_light.png', { frameWidth: 32, frameHeight: 32 })
-		this.load.spritesheet('yellow_light', '/assets/level9/yellow_light.png', { frameWidth: 32, frameHeight: 32 })
-	}
-
 	protected onLevelCreate(): void {
 		this.Lights = []
 		this.levelCompleted = false
-		this.goalCollector = null
 
 		const playerEid = this.world.resources.playerEid
 		Health.max[playerEid] = 100
@@ -147,22 +154,50 @@ export class Level8 extends BaseScene {
 		this.world.resources.levelData = { ...this.world.resources.levelData, lights: this.Lights }
 		this.createGoal()
 
+		// Auto-compile the initial spell and bind it to SPACE so the player can cast
+		// without needing to manually save + bind in the editor.
+		try {
+			const spell = flowToIR(level8InitialWorkflow.nodes as any, level8InitialWorkflow.edges as any)
+			updateSpellInCache(LEVEL8_SPELL_ID, spell)
+			// Remove any leftover binding first, then add fresh
+			eventQueue.removeBinding(LEVEL8_SPELL_ID)
+			eventQueue.addBinding({
+				id: LEVEL8_SPELL_ID,
+				eventName: 'onKeyPressed',
+				keyOrButton: ' ',
+				spellId: LEVEL8_SPELL_ID,
+				triggerMode: 'press',
+			})
+		} catch (e) {
+			console.error('[Level8] Failed to pre-compile spell:', e)
+		}
+
 		this.showInstruction(
 			'【Level 8: Reach Goal】\n\n' +
-			'You cannot move except by casting the spell. TAB = editor.\n\n' +
-			'• Lights 1, 2, 3 change color. Moving when not all same = damage. Only cast when getLightColor(1)==getLightColor(2) and getLightColor(2)==getLightColor(3).\n' +
-			'• Build: if(and(eq(L1,L2), eq(L2,L3)), teleportRelative(getPlayer(), offset), 0). Change vector and cast when all match to reach the green goal.'
+			'Press SPACE to cast the spell. You cannot move otherwise.\n\n' +
+			'• Three lights cycle colors. You take damage if you move while they differ.\n' +
+			'• The spell only teleports you when all 3 lights match — wait for that moment, then press SPACE.\n' +
+			'• TAB = editor (you can study or modify the spell there).'
 		)
-		this.setTaskInfo('Reach Goal', ['if(all lights same, teleportRelative(getPlayer(), vector), 0); cast when match'])
+		this.setTaskInfo('Reach Goal', ['Wait for all 3 lights to match, then press SPACE to cast'])
 	}
 
 	private createLight(x: number, y: number) {
-		const initialColor = Math.random() < 0.33 ? 'green' : Math.random() < 0.66 ? 'red' : 'yellow'
-		const lightSprite = this.add.image(x, y, initialColor + '_light')
+		const colors: Array<'green' | 'red' | 'yellow'> = ['green', 'red', 'yellow']
+		const initialColor = colors[Math.floor(Math.random() * 3)]
+		const { fill, glow } = LIGHT_COLORS[initialColor]
+		const id = this.Lights.length + 1
+
+		const glowRing = this.add.circle(x, y, 26, glow, 0.25)
+		const circle   = this.add.circle(x, y, 18, fill, 1).setStrokeStyle(2, 0xffffff, 0.6)
+		const label    = this.add.text(x, y + 32, String(id), {
+			fontSize: '14px', color: '#ffffff', fontStyle: 'bold',
+		}).setOrigin(0.5, 0)
+
 		const light: Light = {
-			sprite: lightSprite,
+			circle, glowRing, label,
 			lastChangeTime: this.time.now,
-			ID: this.Lights.length + 1,
+			ID: id,
 			color: initialColor,
 		}
 		this.Lights.push(light)
@@ -170,29 +205,19 @@ export class Level8 extends BaseScene {
 	}
 
 	private changeLightColor(light: Light) {
-		if (!light.sprite?.active || !this.time) return
-		const color = Math.random() < 0.33 ? 'green' : Math.random() < 0.66 ? 'red' : 'yellow'
-		light.sprite.setTexture(color + '_light')
+		if (!light.circle?.active || !this.time) return
+		const colors: Array<'green' | 'red' | 'yellow'> = ['green', 'red', 'yellow']
+		const color = colors[Math.floor(Math.random() * 3)]
+		const { fill, glow } = LIGHT_COLORS[color]
+		light.circle.setFillStyle(fill, 1)
+		light.glowRing.setFillStyle(glow, 0.25)
 		light.color = color
 		light.lastChangeTime = this.time.now
 		if (this.world.resources.levelData) this.world.resources.levelData.lights = this.Lights
 	}
 
 	private createGoal() {
-		const goalX = 850
-		const goalY = 288
-		this.add.circle(goalX, goalY, 30, 0x00ff00, 0.4).setStrokeStyle(2, 0x00ff00)
-		this.goalCollector = this.physics.add.image(goalX, goalY, '').setVisible(false).setSize(60, 60)
-		this.physics.add.overlap(
-			this.world.resources.bodies.get(this.world.resources.playerEid)!,
-			this.goalCollector,
-			() => {
-				if (!this.levelCompleted) {
-					this.levelCompleted = true
-					this.onAllObjectivesComplete()
-				}
-			}
-		)
+		this.add.circle(this.goalX, this.goalY, 30, 0x00ff00, 0.4).setStrokeStyle(2, 0x00ff00)
 	}
 
 	private getLightColorById(id: number): 'green' | 'red' | 'yellow' | null {
@@ -212,7 +237,7 @@ export class Level8 extends BaseScene {
 
 		if (!this.time) return
 		const currentTime = this.time.now
-		this.Lights = this.Lights.filter((l) => l.sprite && l.sprite.active)
+		this.Lights = this.Lights.filter((l) => l.circle && l.circle.active)
 		if (this.world.resources.levelData) this.world.resources.levelData.lights = this.Lights
 		this.Lights.forEach((light) => {
 			if (currentTime - light.lastChangeTime >= this.lightChangeInterval) this.changeLightColor(light)
@@ -221,6 +246,14 @@ export class Level8 extends BaseScene {
 		if (!playerBody || this.levelCompleted) return
 		const currentX = playerBody.x
 		const currentY = playerBody.y
+
+		// Direct position check — more reliable than physics overlap after a teleport
+		if (Math.abs(currentX - this.goalX) < 50 && Math.abs(currentY - this.goalY) < 50) {
+			this.levelCompleted = true
+			this.onAllObjectivesComplete()
+			return
+		}
+
 		const hasMoved =
 			Math.abs(currentX - this.playerLastX) > 1 ||
 			Math.abs(currentY - this.playerLastY) > 1 ||

@@ -37,7 +37,7 @@ export function LiteralNode({ data }: NodeProps) {
 				type="text"
 				value={typeof value === 'string' ? value : String(value)}
 				onChange={(e) => handleChange(e.target.value)}
-				className="w-full px-2 py-1 text-sm border border-green-300 rounded focus:outline-none focus:border-green-500"
+				className="nodrag w-full px-2 py-1 text-sm border border-green-300 rounded focus:outline-none focus:border-green-500"
 				placeholder="Number or string..."
 			/>
 

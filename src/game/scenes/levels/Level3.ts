@@ -6,6 +6,31 @@ import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { eventQueue } from '../../events/EventQueue'
 
+const level3SpellWorkflow = {
+	nodes: [
+		{ id: 'si', type: 'spellInput', position: { x: -120, y: 200 }, data: { label: 'Game State', params: ['state', 'bulletEid'] } },
+		{
+			id: 'func-teleport',
+			type: 'dynamicFunction',
+			position: { x: 280, y: 200 },
+			data: {
+				functionName: 'game::teleportRelative',
+				displayName: 'teleportRelative',
+				namespace: 'game',
+				params: ['state', 'entity', 'offset'],
+			},
+		},
+		{ id: 'func-vector', type: 'vector', position: { x: 80, y: 340 }, data: { x: 0, y: -600 } },
+		{ id: 'output-1', type: 'output', position: { x: 560, y: 200 }, data: { label: 'Output' } },
+	],
+	edges: [
+		{ id: 'e1', source: 'si', sourceHandle: 'param-0', target: 'func-teleport', targetHandle: 'arg0' },
+		{ id: 'e2', source: 'si', sourceHandle: 'param-1', target: 'func-teleport', targetHandle: 'arg1' },
+		{ id: 'e3', source: 'func-vector', target: 'func-teleport', targetHandle: 'arg2' },
+		{ id: 'e4', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
+	],
+}
+
 export const Level3Meta: LevelMeta = {
 	key: 'Level3',
 	playerSpawnX: 480,
@@ -21,53 +46,13 @@ export const Level3Meta: LevelMeta = {
 			type: 'spell',
 		},
 	],
-
-	initialSpellWorkflow: {
-		nodes: [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 700, y: 220 },
-				data: { label: 'Output' },
-			},
-			{
-				id: 'func-teleport',
-				type: 'dynamicFunction',
-				position: { x: 420, y: 200 },
-				data: {
-					functionName: 'game::teleportRelative',
-					displayName: 'teleportRelative',
-					namespace: 'game',
-					params: ['state', 'entity', 'offset'],
-				},
-			},
-			{
-				id: 'func-getPlayer',
-				type: 'dynamicFunction',
-				position: { x: 140, y: 120 },
-				data: {
-					functionName: 'game::getPlayer',
-					displayName: 'getPlayer',
-					namespace: 'game',
-					params: ['state'],
-				},
-			},
-			{ id: 'spell-input', type: 'spellInput', position: { x: -100, y: 150 }, data: { label: 'Game State', params: ['state'] } },
-			{
-				id: 'func-vector',
-				type: 'vector',
-				position: { x: 140, y: 240 },
-				data: { x: 0, y: 0 },
-			},
-		],
-		edges: [
-			{ id: 'e1', source: 'func-teleport', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'spell-input', target: 'func-teleport', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'func-vector', target: 'func-teleport', targetHandle: 'arg2' },
-			{ id: 'e5', source: 'spell-input', target: 'func-getPlayer', targetHandle: 'arg0' },
-		],
-	},
+	hints: [
+		'The onBulletNear event passes (state, bulletEid). Your spell receives both as parameters.',
+		'Use teleportRelative(state, bulletEid, offset) to fling the bullet out of the battle zone.',
+		'A large offset like (0, -600) sends the bullet straight up and out. Bind the spell to onBulletNear.',
+	],
+	initialSpellWorkflow: level3SpellWorkflow,
+	answerSpellWorkflow: level3SpellWorkflow,
 }
 
 levelRegistry.register(Level3Meta)
@@ -113,11 +98,10 @@ export class Level3 extends BaseScene {
 			'Enter the central battle zone to begin!\n\n' +
 			'Fast bullets will attack you.\n' +
 			'Goal: Survive for 10 seconds.\n\n' +
-			'• Press TAB to open Event Bindings panel\n' +
-			'• Create an "onBulletNear" event handler\n' +
-			'• When bullet approaches, teleport away!\n\n' +
-			'Tip: You can also try teleporting the bullet,\n' +
-			'or even reversing its direction!'
+			'• Press TAB to open the spell editor\n' +
+			'• The spell receives (state, bulletEid) — teleport the bullet away!\n' +
+			'• Bind it to the "onBulletNear" event\n\n' +
+			'Tip: Change the vector offset to send bullets far out of the zone.'
 		)
 
 		// Create central battle zone (surrounded by walls)

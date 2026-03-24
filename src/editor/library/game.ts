@@ -271,11 +271,17 @@ export function registerGameFunctions(evaluator: Evaluator) {
 			const body = manager.world.resources.bodies.get(entity);
 			if (body) {
 				const scene = manager.world.resources.scene;
+				const newX = body.x + offsetX;
+				const newY = body.y + offsetY;
 				// Play teleport visual effect at destination
-				playTeleport(scene, body.x + offsetX, body.y + offsetY);
+				playTeleport(scene, newX, newY);
 
-				body.x += offsetX;
-				body.y += offsetY;
+				// Use physics body reset so both the arcade Body and the
+				// game object move together. Setting image.x directly only
+				// updates the display position; the physics engine reverts it
+				// on the next postUpdate, so the teleport would appear to snap back.
+				const arcadeBody = body.body as Phaser.Physics.Arcade.Body;
+				arcadeBody.reset(newX, newY);
 			}
 
 			return state;

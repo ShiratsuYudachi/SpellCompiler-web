@@ -56,6 +56,7 @@ export const Level7Meta: LevelMeta = {
 		'Then head, then throwBallToGate(state, index). Cast once per throw — lightest first, then next lightest, etc.',
 	],
 	initialSpellWorkflow: level7InitialWorkflow,
+	answerSpellWorkflow: level7InitialWorkflow,
 }
 
 levelRegistry.register(Level7Meta)

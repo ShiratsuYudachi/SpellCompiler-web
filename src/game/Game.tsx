@@ -79,6 +79,14 @@ export function Game() {
 				Level19,
 				Level20,
 			],
+			input: {
+				mouse: {
+					preventDefaultDown: false,
+					preventDefaultUp: false,
+					preventDefaultMove: false,
+					preventDefaultWheel: false,
+				},
+			},
 			physics: {
 				default: 'arcade',
 				arcade: {
