@@ -1,249 +1,331 @@
-/**
- * Level 9 — Reach Goal (Level 6/19 style)
- *
- * Goal: Reach the goal. You cannot move except by spell. Three lights change; moving when NOT all same = damage.
- * Solution: if(and(eq(L1,L2), eq(L2,L3)), teleportRelative(getPlayer(), offset), 0). Cast when all 3 lights match.
- */
-
+import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
-import { Health } from '../../components'
-import { Velocity } from '../../components'
-import { createRoom } from '../../utils/levelUtils'
+import { spawnEntity } from '../../gameWorld'
+import { Health, Sprite, Enemy } from '../../components'
+import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+import type Phaser from 'phaser'
 
-// Solution only (Level 6 style): if(all lights same, teleport, 0) → Output. Player cannot move otherwise.
-const level9InitialWorkflow = {
-	nodes: [
-		{ id: 'si', type: 'spellInput', position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
-		{
-			id: 'func-teleport',
-			type: 'dynamicFunction',
-			position: { x: 520, y: 200 },
-			data: {
-				functionName: 'game::teleportRelative',
-				displayName: 'teleportRelative',
-				namespace: 'game',
-				params: ['state', 'entity', 'offset'],
-				parameterModes: {
-					offset: {
-						current: 'vector',
-						options: [
-							{ mode: 'vector', label: 'Vector', params: ['offset'] },
-							{ mode: 'literal-xy', label: 'Literal (dx, dy)', params: ['dx', 'dy'] },
-						],
-					},
-				},
+// ─────────────────────────────────────────────────────────────
+// Level 10 — "Only Hit the Red One"
+//
+// Teaching goal:
+//   getAllEnemies → filter(eid → health(eid) > threshold)
+//                → head → damageEntity
+//
+// Setup: 5 civilians (white, 10 HP) + 1 Boss (red, 80 HP)
+// Rule: Hitting a civilian = +1 penalty; 3 penalties → mission fail and reset
+// ─────────────────────────────────────────────────────────────
+
+const _answer: { nodes: any[]; edges: any[] } = {
+		nodes: [
+			// ── Main chain ──────────────────────────────────────────
+			{
+				id: 'si',
+				type: 'spellInput',
+				position: { x: -200, y: 200 },
+				data: { label: 'Game State', params: ['state'] },
 			},
-		},
-		{ id: 'func-getPlayer', type: 'dynamicFunction', position: { x: 200, y: 120 }, data: { functionName: 'game::getPlayer', displayName: 'getPlayer', namespace: 'game', params: ['state'] } },
-		{ id: 'func-vector', type: 'vector', position: { x: 200, y: 280 }, data: { x: 754, y: 0 } },
-		{ id: 'out', type: 'output', position: { x: 920, y: 200 }, data: { label: 'Output' } },
-		{ id: 'if-safe', type: 'if', position: { x: 740, y: 200 }, data: {} },
-		{ id: 'and-lights', type: 'dynamicFunction', position: { x: 540, y: 200 }, data: { functionName: 'std::logic::and', displayName: 'and', namespace: 'std::logic', params: ['a', 'b'] } },
-		{ id: 'eq-12', type: 'dynamicFunction', position: { x: 340, y: 100 }, data: { functionName: 'std::cmp::eq', displayName: 'eq', namespace: 'std::cmp', params: ['a', 'b'] } },
-		{ id: 'eq-23', type: 'dynamicFunction', position: { x: 340, y: 300 }, data: { functionName: 'std::cmp::eq', displayName: 'eq', namespace: 'std::cmp', params: ['a', 'b'] } },
-		{ id: 'light-1', type: 'dynamicFunction', position: { x: 80, y: 60 }, data: { functionName: 'game::getLightColor', displayName: 'getLightColor', namespace: 'game', params: ['state', 'id'] } },
-		{ id: 'light-2', type: 'dynamicFunction', position: { x: 80, y: 200 }, data: { functionName: 'game::getLightColor', displayName: 'getLightColor', namespace: 'game', params: ['state', 'id'] } },
-		{ id: 'light-3', type: 'dynamicFunction', position: { x: 80, y: 340 }, data: { functionName: 'game::getLightColor', displayName: 'getLightColor', namespace: 'game', params: ['state', 'id'] } },
-		{ id: 'lit-0', type: 'literal', position: { x: 540, y: 320 }, data: { value: 0 } },
-		{ id: 'lit-1', type: 'literal', position: { x: -80, y: 60 }, data: { value: 1 } },
-		{ id: 'lit-2', type: 'literal', position: { x: -80, y: 200 }, data: { value: 2 } },
-		{ id: 'lit-3', type: 'literal', position: { x: -80, y: 340 }, data: { value: 3 } },
-	],
-	edges: [
-		{ id: 'e1', source: 'si', target: 'func-teleport', targetHandle: 'arg0' },
-		{ id: 'e2', source: 'si', target: 'func-getPlayer', targetHandle: 'arg0' },
-		{ id: 'e3', source: 'func-getPlayer', target: 'func-teleport', targetHandle: 'arg1' },
-		{ id: 'e4', source: 'func-vector', target: 'func-teleport', targetHandle: 'arg2' },
-		{ id: 'e5', source: 'si', target: 'light-1', targetHandle: 'arg0' },
-		{ id: 'e6', source: 'si', target: 'light-2', targetHandle: 'arg0' },
-		{ id: 'e7', source: 'si', target: 'light-3', targetHandle: 'arg0' },
-		{ id: 'e8', source: 'lit-1', target: 'light-1', targetHandle: 'arg1' },
-		{ id: 'e9', source: 'lit-2', target: 'light-2', targetHandle: 'arg1' },
-		{ id: 'e10', source: 'lit-3', target: 'light-3', targetHandle: 'arg1' },
-		{ id: 'e11', source: 'light-1', target: 'eq-12', targetHandle: 'arg0' },
-		{ id: 'e12', source: 'light-2', target: 'eq-12', targetHandle: 'arg1' },
-		{ id: 'e13', source: 'light-2', target: 'eq-23', targetHandle: 'arg0' },
-		{ id: 'e14', source: 'light-3', target: 'eq-23', targetHandle: 'arg1' },
-		{ id: 'e15', source: 'eq-12', target: 'and-lights', targetHandle: 'arg0' },
-		{ id: 'e16', source: 'eq-23', target: 'and-lights', targetHandle: 'arg1' },
-		{ id: 'e17', source: 'and-lights', target: 'if-safe', targetHandle: 'condition' },
-		{ id: 'e18', source: 'func-teleport', target: 'if-safe', targetHandle: 'then' },
-		{ id: 'e19', source: 'lit-0', target: 'if-safe', targetHandle: 'else' },
-		{ id: 'e20', source: 'if-safe', target: 'out', targetHandle: 'value' },
-	],
-}
+			{
+				id: 'f-gae',
+				type: 'dynamicFunction',
+				position: { x: 60, y: 200 },
+				data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] },
+			},
+			{
+				id: 'f-filter',
+				type: 'dynamicFunction',
+				position: { x: 280, y: 200 },
+				data: { functionName: 'list::filter', displayName: 'filter', namespace: 'list', params: ['l', 'pred'] },
+			},
+			{
+				id: 'f-head',
+				type: 'dynamicFunction',
+				position: { x: 500, y: 130 },
+				data: { functionName: 'list::head', displayName: 'head', namespace: 'list', params: ['l'] },
+			},
+			{
+				id: 'f-dmg',
+				type: 'dynamicFunction',
+				position: { x: 680, y: 200 },
+				data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] },
+			},
+			{ id: 'lit-100', type: 'literal', position: { x: 500, y: 300 }, data: { value: 100 } },
+			{ id: 'out', type: 'output', position: { x: 900, y: 200 }, data: { label: 'Output' } },
+
+			// ── Lambda: isTarget(eid) → health(eid) > 30 ───────────
+			{
+				id: 'lam',
+				type: 'lambdaDef',
+				position: { x: 60, y: 420 },
+				data: { functionName: 'isTarget', params: ['eid'] },
+			},
+			{
+				id: 'f-out',
+				type: 'functionOut',
+				position: { x: 500, y: 490 },
+				data: { lambdaId: 'lam' },
+			},
+			{
+				id: 'f-health',
+				type: 'dynamicFunction',
+				position: { x: 200, y: 490 },
+				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
+			},
+			{
+				id: 'f-gt',
+				type: 'dynamicFunction',
+				position: { x: 370, y: 490 },
+				data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] },
+			},
+			{ id: 'lit-30', type: 'literal', position: { x: 200, y: 580 }, data: { value: 30 } },
+		],
+		edges: [
+			// Main chain
+			{ id: 'e1', source: 'si',      target: 'f-gae',    targetHandle: 'arg0' },
+			{ id: 'e2', source: 'f-gae',   target: 'f-filter', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'f-out',   sourceHandle: 'function', target: 'f-filter', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'f-filter',target: 'f-head',   targetHandle: 'arg0' },
+			{ id: 'e5', source: 'si',      target: 'f-dmg',    targetHandle: 'arg0' },
+			{ id: 'e6', source: 'f-head',  target: 'f-dmg',    targetHandle: 'arg1' },
+			{ id: 'e7', source: 'lit-100', target: 'f-dmg',    targetHandle: 'arg2' },
+			{ id: 'e8', source: 'f-dmg',   target: 'out',      targetHandle: 'value' },
+			// Lambda body
+			{ id: 'e9',  source: 'si',  target: 'f-health', targetHandle: 'arg0' },
+			{ id: 'e10', source: 'lam', sourceHandle: 'param0', target: 'f-health', targetHandle: 'arg1' },
+			{ id: 'e11', source: 'f-health', target: 'f-gt', targetHandle: 'arg0' },
+			{ id: 'e12', source: 'lit-30',   target: 'f-gt', targetHandle: 'arg1' },
+			{ id: 'e13', source: 'f-gt',     target: 'f-out', targetHandle: 'value' },
+		],
+	};
 
 export const Level9Meta: LevelMeta = {
 	key: 'Level9',
-	playerSpawnX: 96,
-	playerSpawnY: 288,
-	mapData: createRoom(15, 9),
-	tileSize: 64,
-	editorRestrictions: /^(game::getLightColor|game::teleportRelative|game::getPlayer|std::cmp::eq|std::logic::and)$/,
-	allowedNodeTypes: ['spellInput', 'dynamicFunction', 'vector', 'literal', 'if', 'output'],
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
 	objectives: [
 		{
-			id: 'reach-goal',
-			description: 'Reach the goal; only teleport when all 3 lights show the same color',
-			type: 'reach',
+			id: 'kill-boss',
+			description: 'Eliminate the Target (red): filter by HP, then attack with damageEntity',
+			type: 'defeat',
 		},
 	],
 	hints: [
-		'You cannot move except by casting the spell. Lights 1, 2, 3 change color; moving when they differ = damage.',
-		'Use getLightColor(state, 1), (2), (3); eq(L1,L2) and eq(L2,L3); then if(condition, teleportRelative(getPlayer(), offset), 0).',
-		'Change the vector (dx, dy) and cast only when all 3 lights match to reach the green goal.',
+		'getAllEnemies returns ALL entities — civilians included.',
+		'Use filter with a lambda: eid → getEntityHealth(state, eid) > 30',
+		'Then head to pick the first match, then damageEntity(state, eid, 100)',
 	],
-	initialSpellWorkflow: level9InitialWorkflow,
+	// Complete solution spell:
+	//   getAllEnemies → filter(isTarget) → head → damageEntity(state, _, 100)
+	//   isTarget = lambda(eid) { getEntityHealth(state, eid) > 30 }
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level9Meta)
 
-interface Light {
-	sprite: Phaser.GameObjects.Image
-	lastChangeTime: number
-	ID: number
-	color: 'green' | 'red' | 'yellow'
+// ─── Entity tracking ──────────────────────────────────────────
+interface TrackedEntity {
+	eid: number
+	body: Phaser.Physics.Arcade.Image
+	marker: Phaser.GameObjects.Arc
+	label: Phaser.GameObjects.Text
+	isCivilian: boolean
+	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
 }
 
 export class Level9 extends BaseScene {
-	private Lights: Light[] = []
-	private lightChangeInterval: number = 400
-	private goalCollector: Phaser.Physics.Arcade.Image | null = null
-	private playerLastX: number = 0
-	private playerLastY: number = 0
-	private levelCompleted = false
+	private entities: TrackedEntity[] = []
+	private bossEid: number = -1
+	private penaltyCount: number = 0
+	private levelFailed: boolean = false
+	private levelWon: boolean = false
 
 	constructor() {
 		super({ key: 'Level9' })
 	}
 
-	preload() {
-		this.load.spritesheet('green_light', '/assets/level9/green_light.png', { frameWidth: 32, frameHeight: 32 })
-		this.load.spritesheet('red_light', '/assets/level9/red_light.png', { frameWidth: 32, frameHeight: 32 })
-		this.load.spritesheet('yellow_light', '/assets/level9/yellow_light.png', { frameWidth: 32, frameHeight: 32 })
-	}
-
 	protected onLevelCreate(): void {
-		this.Lights = []
-		this.levelCompleted = false
-		this.goalCollector = null
-
-		const playerEid = this.world.resources.playerEid
-		Health.max[playerEid] = 100
-		Health.current[playerEid] = 100
-
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (playerBody) {
-			playerBody.setPosition(96, 288)
-			this.playerLastX = playerBody.x
-			this.playerLastY = playerBody.y
-		}
-
-		this.createLight(520, 180)
-		this.createLight(620, 280)
-		this.createLight(720, 180)
-
-		this.world.resources.levelData = { ...this.world.resources.levelData, lights: this.Lights }
-		this.createGoal()
+		// ── Reset all state for clean restart (scene.restart reuses the instance) ──
+		this.entities = []
+		this.bossEid = -1
+		this.penaltyCount = 0
+		this.levelFailed = false
+		this.levelWon = false
+		this.events.removeAllListeners('civilian-hit') // prevent listener accumulation
 
 		this.showInstruction(
-			'【Level 9: Reach Goal】\n\n' +
-			'You cannot move except by casting the spell. TAB = editor.\n\n' +
-			'• Lights 1, 2, 3 change color. Moving when not all same = damage. Only cast when getLightColor(1)==getLightColor(2) and getLightColor(2)==getLightColor(3).\n' +
-			'• Build: if(and(eq(L1,L2), eq(L2,L3)), teleportRelative(getPlayer(), offset), 0). Change vector and cast when all match to reach the green goal.'
+			'【The Sniper — Part 1】\n\n' +
+			'A Target (RED) is hiding among Civilians (WHITE).\n' +
+			'Use filter to isolate the target by HP, then attack it.\n\n' +
+			'• Press SPACE to cast your spell\n' +
+			'• Hitting a civilian = 1 penalty  (3 = mission failure)\n' +
+			'• Open editor with TAB to build your filter lambda'
 		)
-		this.setTaskInfo('Reach Goal', ['if(all lights same, teleportRelative(getPlayer(), vector), 0); cast when match'])
-	}
 
-	private createLight(x: number, y: number) {
-		const initialColor = Math.random() < 0.33 ? 'green' : Math.random() < 0.66 ? 'red' : 'yellow'
-		const lightSprite = this.add.image(x, y, initialColor + '_light')
-		const light: Light = {
-			sprite: lightSprite,
-			lastChangeTime: this.time.now,
-			ID: this.Lights.length + 1,
-			color: initialColor,
+		this.setTaskInfo(
+			'Sniper Mission',
+			['Eliminate the Target (red circle)', 'Do NOT hit civilians (white circles)', 'Penalties: 0 / 3']
+		)
+
+		// Lock player in place — this is a pure spell-casting puzzle
+		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (playerBody) {
+			playerBody.setPosition(480, 320)
 		}
-		this.Lights.push(light)
-		if (this.world.resources.levelData) this.world.resources.levelData.lights = this.Lights
-	}
 
-	private changeLightColor(light: Light) {
-		if (!light.sprite?.active || !this.time) return
-		const color = Math.random() < 0.33 ? 'green' : Math.random() < 0.66 ? 'red' : 'yellow'
-		light.sprite.setTexture(color + '_light')
-		light.color = color
-		light.lastChangeTime = this.time.now
-		if (this.world.resources.levelData) this.world.resources.levelData.lights = this.Lights
-	}
+		// Spawn civilians (white, 10 HP) — random scatter
+		const civilianPositions = [
+			{ x: 160, y: 200 }, { x: 320, y: 160 }, { x: 720, y: 160 },
+			{ x: 800, y: 360 }, { x: 480, y: 490 },
+		]
+		for (const pos of civilianPositions) {
+			this.spawnUnit(pos.x, pos.y, 0xdddddd, 'CIVILIAN', 10, true)
+		}
 
-	private createGoal() {
-		const goalX = 850
-		const goalY = 288
-		this.add.circle(goalX, goalY, 30, 0x00ff00, 0.4).setStrokeStyle(2, 0x00ff00)
-		this.goalCollector = this.physics.add.image(goalX, goalY, '').setVisible(false).setSize(60, 60)
-		this.physics.add.overlap(
-			this.world.resources.bodies.get(this.world.resources.playerEid)!,
-			this.goalCollector,
-			() => {
-				if (!this.levelCompleted) {
-					this.levelCompleted = true
-					this.onAllObjectivesComplete()
-				}
+		// Spawn Boss (red, 80 HP) — slightly offset from center
+		const bossPos = { x: 480, y: 160 }
+		const boss = this.spawnUnit(bossPos.x, bossPos.y, 0xff3333, 'TARGET', 80, false)
+		this.bossEid = boss.eid
+
+		// Register civilian eids in levelData so damageEntity can fire penalty events
+		const civilianEids = new Set(this.entities.filter(e => e.isCivilian).map(e => e.eid))
+		this.world.resources.levelData!['civilianEids'] = civilianEids
+		this.world.resources.levelData!['scene'] = this
+
+		// Listen for civilian-hit events fired from damageEntity (via levelData hook)
+		// eid is passed so we can mark the entity as penalized → prevents fallback double-count
+		this.events.on('civilian-hit', (eid?: number) => {
+			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.entities.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
 			}
-		)
-	}
+			this.penaltyCount++
+			this.cameras.main.shake(180, 0.012)
+			this.cameras.main.flash(150, 255, 80, 0)
+			this.setTaskInfo(
+				'Sniper Mission',
+				[
+					'Eliminate the Target (red circle)',
+					'Do NOT hit civilians (white circles)',
+					`Penalties: ${this.penaltyCount} / 3`,
+				]
+			)
+			if (this.penaltyCount >= 3) {
+				this.onMissionFail()
+			} else {
+				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3 — Fix your filter!`)
+			}
+		})
 
-	private getLightColorById(id: number): 'green' | 'red' | 'yellow' | null {
-		const light = this.Lights.find((l) => l.ID === id)
-		return light ? light.color : null
+		// SPACE to cast bound spell
+		this.input.keyboard?.on('keydown-SPACE', () => {
+			if (!this.levelFailed && !this.levelWon) {
+				// The event system handles bound spells; emit a tick so any onKeyPressed binding fires
+				// Player binds their spell to SPACE in the editor
+			}
+		})
 	}
 
 	protected onLevelUpdate(): void {
-		// Movement only via spell (same as Level 1)
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (playerBody && !this.levelCompleted) {
-			playerBody.setVelocity(0, 0)
-			Velocity.x[playerEid] = 0
-			Velocity.y[playerEid] = 0
-		}
+		if (this.levelFailed || this.levelWon) return
 
-		if (!this.time) return
-		const currentTime = this.time.now
-		this.Lights = this.Lights.filter((l) => l.sprite && l.sprite.active)
-		if (this.world.resources.levelData) this.world.resources.levelData.lights = this.Lights
-		this.Lights.forEach((light) => {
-			if (currentTime - light.lastChangeTime >= this.lightChangeInterval) this.changeLightColor(light)
+		// Lock player
+		const playerEid = this.world.resources.playerEid
+		const pb = this.world.resources.bodies.get(playerEid)
+		if (pb) pb.setVelocity(0, 0)
+
+		// Detect civilian deaths (body removed by deathSystem)
+		// Use entity-level penaltyFired flag (NOT Phaser DataManager) to avoid
+		// double-counting: after marker.destroy() the DataManager is recreated each
+		// frame, making getData() return undefined repeatedly and firing extra penalties.
+		this.entities = this.entities.filter(ent => {
+			if (ent.isCivilian && !this.world.resources.bodies.has(ent.eid)) {
+				if (!ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
+				}
+				ent.marker.destroy()
+				ent.label.destroy()
+				return false  // remove dead civilian from list
+			}
+			return true
 		})
 
-		if (!playerBody || this.levelCompleted) return
-		const currentX = playerBody.x
-		const currentY = playerBody.y
-		const hasMoved =
-			Math.abs(currentX - this.playerLastX) > 1 ||
-			Math.abs(currentY - this.playerLastY) > 1 ||
-			Math.abs(Velocity.x[playerEid]) > 0.1 ||
-			Math.abs(Velocity.y[playerEid]) > 0.1
-		if (hasMoved && this.Lights.length >= 3) {
-			const c1 = this.getLightColorById(1)
-			const c2 = this.getLightColorById(2)
-			const c3 = this.getLightColorById(3)
-			const allSame = c1 && c2 && c3 && c1 === c2 && c2 === c3
-			if (!allSame) {
-				const damage = 5
-				const currentHealth = Health.current[playerEid] ?? 100
-				Health.current[playerEid] = Math.max(0, currentHealth - damage)
-				playerBody.setTint(0xff0000)
-				this.time.delayedCall(100, () => { if (playerBody.active) playerBody.clearTint() })
-				if (Health.current[playerEid] <= 0) {
-					this.showInstruction('You died! Only move when all 3 lights match. Restarting...')
-					this.time.delayedCall(1500, () => this.scene.restart())
-				}
-			}
+		// Win condition: boss despawned (killed by damageEntity + deathSystem)
+		if (!this.world.resources.bodies.has(this.bossEid)) {
+			this.onMissionSuccess()
 		}
-		this.playerLastX = currentX
-		this.playerLastY = currentY
+	}
+
+	// ── Helpers ──────────────────────────────────────────────────
+
+	private spawnUnit(
+		x: number, y: number,
+		color: number, labelText: string,
+		hp: number, isCivilian: boolean
+	): TrackedEntity {
+		const size = isCivilian ? 28 : 36
+
+		const marker = this.add
+			.circle(x, y, size, color, isCivilian ? 0.55 : 0.75)
+			.setStrokeStyle(isCivilian ? 2 : 4, color)
+
+		const label = this.add
+			.text(x, y - size - 14, labelText, {
+				fontSize: isCivilian ? '12px' : '14px',
+				color: isCivilian ? '#cccccc' : '#ff6666',
+				stroke: '#000000',
+				strokeThickness: 3,
+			})
+			.setOrigin(0.5)
+
+		const body = createRectBody(this, `unit-${labelText}-${x}`, color, size * 2, size * 2, x, y, isCivilian ? 2 : 5)
+		body.setImmovable(true)
+
+		const eid = spawnEntity(this.world)
+		this.world.resources.bodies.set(eid, body)
+
+		addComponent(this.world, eid, Sprite)
+		addComponent(this.world, eid, Enemy)
+		addComponent(this.world, eid, Health)
+
+		Health.max[eid] = hp
+		Health.current[eid] = hp
+
+		const tracked: TrackedEntity = { eid, body, marker, label, isCivilian, penaltyFired: false }
+		this.entities.push(tracked)
+		return tracked
+	}
+
+	private onMissionSuccess(): void {
+		if (this.levelWon) return
+		this.levelWon = true
+		this.cameras.main.flash(400, 0, 255, 100)
+		this.completeObjectiveById('kill-boss')
+		this.showInstruction(
+			'Target eliminated!\n\n' +
+			`Civilian penalties: ${this.penaltyCount}/3\n` +
+			'filter → head → damageEntity — mastered!'
+		)
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
+	}
+
+	private onMissionFail(): void {
+		if (this.levelFailed) return
+		this.levelFailed = true
+		this.cameras.main.shake(400, 0.025)
+		this.cameras.main.flash(300, 255, 0, 0)
+		this.showInstruction(
+			'MISSION FAILED — Too many civilian casualties.\n\n' +
+			'Check your filter condition: it must exclude HP ≤ 10.\n' +
+			'Restarting in 3 seconds…'
+		)
+		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }

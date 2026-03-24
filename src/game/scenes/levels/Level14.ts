@@ -6,17 +6,21 @@ import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
+import type { EntityRole } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 14 — "Precise Dose"
+// Level 15 — "Tiered Strike"
 //
-// Teaching goal: forEach advanced — query same eid twice inside lambda
-//   forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))
+// Teaching goal: forEach with if inside lambda
+//   forEach(enemies,
+//     eid → if hp(eid) > 50
+//           then damageEntity(state, eid, 200)
+//           else damageEntity(state, eid, 50))
 //
-// Setup: 5 enemies with different HP (random order)
-// Constraint: total damage must not exceed 120% of total HP (else overkill warning)
-// Key insight: eid is both target and argument to getEntityHealth
+// Setup: 4 elites (red, HP=80) + 4 minions (gray, HP=20) + 3 civilians (white, HP=5)
+// Mechanic: civilians next to minions; 200+ on minion → splash → hits civilians
+//           50 on elite → cannot kill (HP 80 > 50)
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {
@@ -24,25 +28,40 @@ const _answer: { nodes: any[]; edges: any[] } = {
 			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
 			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
 			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach',      displayName: 'forEach',       namespace: 'list', params: ['l', 'f'] } },
-			{ id: 'out',     type: 'output',          position: { x:  560, y: 200 }, data: { label: 'Output' } },
-			// Lambda
-			{ id: 'lam',     type: 'lambdaDef',       position: { x:   60, y: 430 }, data: { functionName: 'precise', params: ['eid'] } },
-			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  220, y: 520 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
-			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  420, y: 430 }, data: { functionName: 'game::damageEntity',   displayName: 'damageEntity',   namespace: 'game', params: ['state', 'eid', 'amount'] } },
-			{ id: 'f-out',   type: 'functionOut',     position: { x:  660, y: 430 }, data: { lambdaId: 'lam' } },
+			{ id: 'out',     type: 'output',          position: { x:  960, y: 200 }, data: { label: 'Output' } },
+			// Lambda — tiered(eid): amount = if(hp>50, 200, 50); damageEntity(state, eid, amount)
+			{ id: 'lam',     type: 'lambdaDef',       position: { x:   60, y: 440 }, data: { functionName: 'tiered', params: ['eid'] } },
+			// hp → gt(hp, 50) → condition
+			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  210, y: 540 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-gt',    type: 'dynamicFunction', position: { x:  400, y: 540 }, data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] } },
+			{ id: 'lit-thr', type: 'literal',         position: { x:  300, y: 650 }, data: { value: 50 } },
+			// if selects AMOUNT (pure values, no side effects)
+			{ id: 'f-if',    type: 'if',              position: { x:  600, y: 480 }, data: {} },
+			{ id: 'lit-200', type: 'literal',         position: { x:  460, y: 390 }, data: { value: 200 } },
+			{ id: 'lit-50',  type: 'literal',         position: { x:  460, y: 570 }, data: { value: 50 } },
+			// single damageEntity call with the chosen amount
+			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  780, y: 480 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'f-out',   type: 'functionOut',     position: { x:  980, y: 480 }, data: { lambdaId: 'lam' } },
 		],
 		edges: [
-			{ id: 'e1', source: 'si',    target: 'f-gae', targetHandle: 'arg0' },
-			{ id: 'e2', source: 'f-gae', target: 'f-fe',  targetHandle: 'arg0' },
-			{ id: 'e3', source: 'f-out', sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'f-fe',  target: 'out',   targetHandle: 'value' },
-			// Lambda body
-			{ id: 'e5', source: 'si',   target: 'f-hp',  targetHandle: 'arg0' },
-			{ id: 'e6', source: 'lam',  sourceHandle: 'param0', target: 'f-hp',  targetHandle: 'arg1' },
-			{ id: 'e7', source: 'si',   target: 'f-dmg', targetHandle: 'arg0' },
-			{ id: 'e8', source: 'lam',  sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
-			{ id: 'e9', source: 'f-hp', target: 'f-dmg', targetHandle: 'arg2' },
-			{ id: 'e10',source: 'f-dmg',target: 'f-out', targetHandle: 'value' },
+			{ id: 'e1',  source: 'si',      target: 'f-gae',  targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'f-gae',   target: 'f-fe',   targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-out',   sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e4',  source: 'f-fe',    target: 'out',    targetHandle: 'value' },
+			// lambda body: hp check
+			{ id: 'e5',  source: 'si',      target: 'f-hp',   targetHandle: 'arg0' },
+			{ id: 'e6',  source: 'lam',     sourceHandle: 'param0', target: 'f-hp',  targetHandle: 'arg1' },
+			{ id: 'e7',  source: 'f-hp',    target: 'f-gt',   targetHandle: 'arg0' },
+			{ id: 'e8',  source: 'lit-thr', target: 'f-gt',   targetHandle: 'arg1' },
+			// if picks the amount value
+			{ id: 'e9',  source: 'f-gt',    target: 'f-if',   targetHandle: 'condition' },
+			{ id: 'e10', source: 'lit-200', target: 'f-if',   targetHandle: 'then' },
+			{ id: 'e11', source: 'lit-50',  target: 'f-if',   targetHandle: 'else' },
+			// single damage call
+			{ id: 'e12', source: 'si',      target: 'f-dmg',  targetHandle: 'arg0' },
+			{ id: 'e13', source: 'lam',     sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e14', source: 'f-if',    target: 'f-dmg',  targetHandle: 'arg2' },
+			{ id: 'e15', source: 'f-dmg',   target: 'f-out',  targetHandle: 'value' },
 		],
 	};
 
@@ -52,30 +71,36 @@ export const Level14Meta: LevelMeta = {
 	playerSpawnY: 320,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	objectives: [{ id: 'clear-precise', description: 'Eliminate all enemies — deal damage equal to each one\'s HP', type: 'defeat' }],
+	objectives: [{ id: 'clear-tiered', description: 'Eliminate ALL enemies — use if to choose damage per target', type: 'defeat' }],
 	hints: [
-		'getEntityHealth(state, eid) returns the current HP of an entity.',
-		'Inside a lambda, you already have eid — use it to query HP!',
-		'forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))',
-		'Overkill (total damage > 120% of total HP) = mission failure.',
+		'Elites (red, 80 HP) need ≥ 100 damage. Weak (grey, 20 HP) need ≤ 60 — or nearby civilian gets splashed!',
+		'Use if to SELECT the amount first, then call damageEntity ONCE with that amount.',
+		'  amount = if(gt(hp(eid), 50), 200, 50)',
+		'  damageEntity(state, eid, amount)',
+		'std::cmp::gt(a, b) returns true when a > b.',
 	],
-	maxSpellCasts: 1,
+	maxSpellCasts: 3,
 	initialSpellWorkflow: _answer,
 	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level14Meta)
 
+type EnemyRole = 'elite' | 'weak' | 'civilian'
+
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	initialHP: number
+	role: EnemyRole
+	penaltyFired: boolean
+	spawnX: number
+	spawnY: number
 }
 
 export class Level14 extends BaseScene {
 	private enemies: TrackedEnemy[] = []
-	private totalHPRequired: number = 0
-	private totalDamageDealt: number = 0
+	private civilians: TrackedEnemy[] = []
+	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
 	private visuals!: EntityVisualManager
@@ -83,54 +108,97 @@ export class Level14 extends BaseScene {
 	constructor() { super({ key: 'Level14' }) }
 
 	protected onLevelCreate(): void {
-		this.enemies = []
-		this.totalHPRequired = 0
-		this.totalDamageDealt = 0
-		this.levelFailed = false
-		this.levelWon = false
-
 		if (this.visuals) this.visuals.destroyAll()
 		this.visuals = new EntityVisualManager(this)
 
+		this.enemies = []
+		this.civilians = []
+		this.penaltyCount = 0
+		this.levelFailed = false
+		this.levelWon = false
+		this.events.removeAllListeners('civilian-hit')
+
 		this.showInstruction(
-			'【Precise Dosage — forEach Advanced】\n\n' +
-			'Five enemies, each with a DIFFERENT HP value.\n\n' +
-			'Challenge: total damage dealt must not exceed 120% of total HP.\n' +
-			'A fixed damageEntity(eid, 999) will trigger overkill!\n\n' +
-			'Key insight: inside the lambda you already have eid.\n' +
-			'Use it AGAIN with getEntityHealth(state, eid) to get the exact HP.\n\n' +
-			'forEach(enemies,\n  eid → damageEntity(state, eid, getEntityHealth(state, eid)))\n\n' +
+			'【Tiered Strike — forEach Expert】\n\n' +
+			'Elites (RED, 80 HP): deal 200 damage — 50 won\'t finish them!\n' +
+			'Weak (GREY, 20 HP): deal 50 damage — 200 SPLASHES the civilian!\n\n' +
+			'Civilians (WHITE) stand next to weak enemies. 3 penalties = failure.\n\n' +
+			'Key: use if to SELECT the amount, then call damageEntity ONCE:\n' +
+			'  amount = if(gt(hp(eid), 50), 200, 50)\n' +
+			'  damageEntity(state, eid, amount)\n\n' +
 			'Press SPACE to cast.'
 		)
 
-		this.setTaskInfo('Precise Dosage', [
-			'Eliminate all 5 enemies',
-			'Overkill limit: total damage ≤ 120% of total HP',
-			'Use getEntityHealth inside the lambda',
+		this.setTaskInfo('Tiered Strike', [
+			'Eliminate ALL 8 enemies (4 elite + 4 weak)',
+			'Overkill splash hurts civilians — 3 = failure',
+			'Penalties: 0 / 3',
 		])
 
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setPosition(480, 320)
 
-		const hpValues = this.shuffleArray([20, 35, 55, 70, 90])
-		const positions = [
-			{ x: 180, y: 180 }, { x: 480, y: 140 }, { x: 780, y: 180 },
-			{ x: 260, y: 460 }, { x: 700, y: 460 },
-		]
-
-		for (let i = 0; i < positions.length; i++) {
-			const ent = this.spawnEnemy(positions[i].x, positions[i].y, hpValues[i])
-			this.totalHPRequired += hpValues[i]
+		// Elites (red, 80 HP) — spaced far from civilians
+		const elitePositions = [{ x: 160, y: 160 }, { x: 800, y: 160 }, { x: 160, y: 480 }, { x: 800, y: 480 }]
+		for (const pos of elitePositions) {
+			this.spawnUnit(pos.x, pos.y, 0xff3333, 'ELITE', 80, 'elite')
 		}
 
-		// Register onDamage hook to track total damage dealt
+		// Weak enemies (grey, 20 HP) — each paired with a civilian at close offset
+		const weakAndCivPairs = [
+			{ wx: 380, wy: 180, cx: 320, cy: 180 },
+			{ wx: 580, wy: 180, cx: 640, cy: 180 },
+			{ wx: 340, wy: 460, cx: 280, cy: 460 },
+			{ wx: 620, wy: 460, cx: 680, cy: 460 },
+		]
+		for (const pair of weakAndCivPairs) {
+			this.spawnUnit(pair.wx, pair.wy, 0x888888, 'WEAK', 20, 'weak')
+			this.spawnUnit(pair.cx, pair.cy, 0xdddddd, 'CIV', 5, 'civilian')
+		}
+
+		// Register civilians for damage-event hook
+		const civilianEids = new Set(this.civilians.map(c => c.eid))
+		this.world.resources.levelData!['civilianEids'] = civilianEids
+
+		// onDamage hook: if a weak enemy takes > 60 damage, splash nearest civilian
 		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
-			const ent = this.enemies.find(e => e.eid === eid)
-			if (ent) {
-				const actualDamage = Math.min(amount, Health.current[eid] + amount) // cap at remaining HP
-				this.totalDamageDealt += actualDamage
+			const ent = this.enemies.find(e => e.eid === eid && e.role === 'weak')
+			if (ent && amount > 60) {
+				// Find nearest alive civilian within 100px
+				const entBody = this.world.resources.bodies.get(eid)
+				if (!entBody) return
+				const near = this.civilians.find(civ => {
+					if (!this.world.resources.bodies.has(civ.eid)) return false
+					const civBody = this.world.resources.bodies.get(civ.eid)!
+					const dx = civBody.x - entBody.x
+					const dy = civBody.y - entBody.y
+					return Math.sqrt(dx * dx + dy * dy) < 100
+				})
+				if (near && !near.penaltyFired) {
+					near.penaltyFired = true
+					this.events.emit('civilian-hit', near.eid)
+				}
 			}
 		}
+
+		this.events.on('civilian-hit', (eid?: number) => {
+			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const civ = this.civilians.find(c => c.eid === eid)
+				if (civ) civ.penaltyFired = true
+			}
+			this.penaltyCount++
+			this.cameras.main.shake(180, 0.012)
+			this.cameras.main.flash(150, 255, 80, 0)
+			this.setTaskInfo('Tiered Strike', [
+				'Eliminate ALL 8 enemies (4 elite + 4 weak)',
+				'Overkill splash hurts civilians — 3 = failure',
+				`Penalties: ${this.penaltyCount} / 3`,
+			])
+			if (this.penaltyCount >= 3) {
+				this.onMissionFail()
+			}
+		})
 	}
 
 	protected onLevelUpdate(): void {
@@ -138,77 +206,82 @@ export class Level14 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
 
-		// Update / clean up entity visuals
+		// Update alive enemies; destroy visuals for dead ones
 		this.enemies = this.enemies.filter(ent => {
-			if (this.world.resources.bodies.has(ent.eid)) {
-				this.visuals.update(ent.eid, Health.current[ent.eid])
-				return true
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-			this.visuals.destroy(ent.eid)   // remove dead entity's circle
-			return false
+			this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
 		})
 
-		// Overkill check
-		if (this.totalDamageDealt > this.totalHPRequired * 1.2 && this.totalDamageDealt > 0) {
-			this.onMissionFail('Overkill! Total damage too high.')
-			return
-		}
+		// Clean up dead civilians
+		this.civilians = this.civilians.filter(civ => {
+			if (!this.world.resources.bodies.has(civ.eid)) {
+				if (!civ.penaltyFired) {
+					civ.penaltyFired = true
+					this.events.emit('civilian-hit', civ.eid)
+				}
+				this.visuals.destroy(civ.eid)
+				return false
+			}
+			return true
+		})
 
-		// Win: all enemies dead
-		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+		// Win: all enemies (elites + weak) dead
+		const combatants = this.enemies.filter(e => e.role !== 'civilian')
+		if (combatants.length > 0 && combatants.every(e => !this.world.resources.bodies.has(e.eid))) {
 			this.onMissionSuccess()
 		}
 	}
 
-	private spawnEnemy(x: number, y: number, hp: number): TrackedEnemy {
-		const size = 26
-		const color = 0xff6600
-		const body = createRectBody(this, `enemy14-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
+	private spawnUnit(x: number, y: number, color: number, _labelText: string, hp: number, role: EnemyRole): TrackedEnemy {
+		const size = role === 'elite' ? 30 : role === 'weak' ? 24 : 18
+		const body = createRectBody(this, `unit15-${role}-${x}`, color, size * 2, size * 2, x, y, role === 'civilian' ? 2 : 5)
 		body.setImmovable(true)
 		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Enemy)
+		if (role !== 'civilian') addComponent(this.world, eid, Enemy)  // civilians NOT in getAllEnemies
 		addComponent(this.world, eid, Health)
 		Health.max[eid] = hp
 		Health.current[eid] = hp
-		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
-		const tracked: TrackedEnemy = { eid, body, initialHP: hp }
-		this.enemies.push(tracked)
-		return tracked
-	}
 
-	private shuffleArray(arr: number[]): number[] {
-		const a = [...arr]
-		for (let i = a.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[a[i], a[j]] = [a[j], a[i]]
+		const entityRole: EntityRole = role === 'elite' ? 'guard' : role === 'weak' ? 'weak' : 'civilian'
+		this.visuals.register(eid, { role: entityRole, x, y, radius: size, bodyColor: color, maxHP: hp })
+
+		const tracked: TrackedEnemy = { eid, body, role, penaltyFired: false, spawnX: x, spawnY: y }
+		if (role === 'civilian') {
+			this.civilians.push(tracked)
+		} else {
+			this.enemies.push(tracked)
 		}
-		return a
+		return tracked
 	}
 
 	private onMissionSuccess(): void {
 		if (this.levelWon) return
 		this.levelWon = true
 		this.cameras.main.flash(400, 0, 255, 100)
-		this.completeObjectiveById('clear-precise')
+		this.completeObjectiveById('clear-tiered')
 		this.showInstruction(
-			'Precise Dosage — cleared!\n\n' +
-			`Total damage: ${Math.round(this.totalDamageDealt)} / ${this.totalHPRequired} required\n\n` +
-			'Key insight: eid inside a lambda can be used MULTIPLE TIMES\n' +
-			'both as the target AND as the query parameter.'
+			'Tiered Strike — cleared!\n\n' +
+			`Civilian penalties: ${this.penaltyCount}/3\n\n` +
+			'if inside forEach — mastered!\n' +
+			'The if node lets one lambda handle heterogeneous targets.'
 		)
 	}
 
-	private onMissionFail(reason: string): void {
+	private onMissionFail(): void {
 		if (this.levelFailed) return
 		this.levelFailed = true
 		this.cameras.main.shake(400, 0.025)
-		this.cameras.main.flash(300, 255, 80, 0)
+		this.cameras.main.flash(300, 255, 0, 0)
 		this.showInstruction(
-			`MISSION FAILED — ${reason}\n\n` +
-			'Replace the fixed damage amount with getEntityHealth(state, eid).\n' +
+			'MISSION FAILED — Too many civilian casualties.\n\n' +
+			'Reduce damage for weak enemies: use if hp > 50 then 200 else 50.\n' +
 			'Restarting in 3 seconds…'
 		)
 		this.time.delayedCall(3000, () => this.scene.restart())
