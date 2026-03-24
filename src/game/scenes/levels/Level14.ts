@@ -1,322 +1,216 @@
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
-import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
+import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
+import type Phaser from 'phaser'
+
+// ─────────────────────────────────────────────────────────────
+// Level 14 — "Precise Dose"
+//
+// Teaching goal: forEach advanced — query same eid twice inside lambda
+//   forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))
+//
+// Setup: 5 enemies with different HP (random order)
+// Constraint: total damage must not exceed 120% of total HP (else overkill warning)
+// Key insight: eid is both target and argument to getEntityHealth
+// ─────────────────────────────────────────────────────────────
+
+const _answer: { nodes: any[]; edges: any[] } = {
+		nodes: [
+			{ id: 'si',      type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			{ id: 'f-gae',   type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-fe',    type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach',      displayName: 'forEach',       namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',     type: 'output',          position: { x:  560, y: 200 }, data: { label: 'Output' } },
+			// Lambda
+			{ id: 'lam',     type: 'lambdaDef',       position: { x:   60, y: 430 }, data: { functionName: 'precise', params: ['eid'] } },
+			{ id: 'f-hp',    type: 'dynamicFunction', position: { x:  220, y: 520 }, data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-dmg',   type: 'dynamicFunction', position: { x:  420, y: 430 }, data: { functionName: 'game::damageEntity',   displayName: 'damageEntity',   namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'f-out',   type: 'functionOut',     position: { x:  660, y: 430 }, data: { lambdaId: 'lam' } },
+		],
+		edges: [
+			{ id: 'e1', source: 'si',    target: 'f-gae', targetHandle: 'arg0' },
+			{ id: 'e2', source: 'f-gae', target: 'f-fe',  targetHandle: 'arg0' },
+			{ id: 'e3', source: 'f-out', sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'f-fe',  target: 'out',   targetHandle: 'value' },
+			// Lambda body
+			{ id: 'e5', source: 'si',   target: 'f-hp',  targetHandle: 'arg0' },
+			{ id: 'e6', source: 'lam',  sourceHandle: 'param0', target: 'f-hp',  targetHandle: 'arg1' },
+			{ id: 'e7', source: 'si',   target: 'f-dmg', targetHandle: 'arg0' },
+			{ id: 'e8', source: 'lam',  sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e9', source: 'f-hp', target: 'f-dmg', targetHandle: 'arg2' },
+			{ id: 'e10',source: 'f-dmg',target: 'f-out', targetHandle: 'value' },
+		],
+	};
 
 export const Level14Meta: LevelMeta = {
 	key: 'Level14',
-	playerSpawnX: 150,
-	playerSpawnY: 288,
-	tileSize: 64,
-	mapData: [
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-precise', description: 'Eliminate all enemies — deal damage equal to each one\'s HP', type: 'defeat' }],
+	hints: [
+		'getEntityHealth(state, eid) returns the current HP of an entity.',
+		'Inside a lambda, you already have eid — use it to query HP!',
+		'forEach(enemies, eid → damageEntity(state, eid, getEntityHealth(state, eid)))',
+		'Overkill (total damage > 120% of total HP) = mission failure.',
 	],
-	objectives: [
-		{
-			id: 'task1-red-sensor',
-			description: 'Task 1: RED plate AND sensor ON -> deflect 45°',
-			type: 'defeat',
-		},
-		{
-			id: 'task2-yellow-sensor',
-			description: 'Task 2: YELLOW plate AND sensor OFF -> deflect -45°',
-			type: 'defeat',
-			prerequisite: 'task1-red-sensor',
-		},
-		{
-			id: 'task3-complex',
-			description: 'Task 3: Combined logic with timing',
-			type: 'defeat',
-			prerequisite: 'task2-yellow-sensor',
-		},
-	],
+	maxSpellCasts: 1,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level14Meta)
 
-interface TargetInfo {
+interface TrackedEnemy {
 	eid: number
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
-	destroyed: boolean
-	taskId: string
+	body: Phaser.Physics.Arcade.Image
+	initialHP: number
 }
 
 export class Level14 extends BaseScene {
-	private targets: TargetInfo[] = []
-	private task2Unlocked = false
-	private task3Unlocked = false
+	private enemies: TrackedEnemy[] = []
+	private totalHPRequired: number = 0
+	private totalDamageDealt: number = 0
+	private levelFailed: boolean = false
+	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
-	private plateStatusText!: Phaser.GameObjects.Text
-	private sensorStatusText!: Phaser.GameObjects.Text
-
-	// Sensor toggle timer
-	private sensorToggleTimer: Phaser.Time.TimerEvent | null = null
-
-	constructor() {
-		super({ key: 'Level14' })
-	}
+	constructor() { super({ key: 'Level14' }) }
 
 	protected onLevelCreate(): void {
+		this.enemies = []
+		this.totalHPRequired = 0
+		this.totalDamageDealt = 0
+		this.levelFailed = false
+		this.levelWon = false
+
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.showInstruction(
-			'【Level 14: Precision Check】\n\n' +
-			'Use AND node to combine multiple conditions.\n\n' +
-			'• Sensor toggles ON/OFF every 3 seconds\n' +
-			'• Task 1: RED plate AND sensor ON -> 45°\n' +
-			'• Task 2: YELLOW plate AND sensor OFF -> -45°\n\n' +
-			'Hint: And(condition1, condition2)\n\n' +
-			'Press TAB to edit spell, 1 to fire.'
+			'【Precise Dosage — forEach Advanced】\n\n' +
+			'Five enemies, each with a DIFFERENT HP value.\n\n' +
+			'Challenge: total damage dealt must not exceed 120% of total HP.\n' +
+			'A fixed damageEntity(eid, 999) will trigger overkill!\n\n' +
+			'Key insight: inside the lambda you already have eid.\n' +
+			'Use it AGAIN with getEntityHealth(state, eid) to get the exact HP.\n\n' +
+			'forEach(enemies,\n  eid → damageEntity(state, eid, getEntityHealth(state, eid)))\n\n' +
+			'Press SPACE to cast.'
 		)
 
-		// Lock player position
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (playerBody) {
-			playerBody.setPosition(150, 288)
-			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
+		this.setTaskInfo('Precise Dosage', [
+			'Eliminate all 5 enemies',
+			'Overkill limit: total damage ≤ 120% of total HP',
+			'Use getEntityHealth inside the lambda',
+		])
+
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setPosition(480, 320)
+
+		const hpValues = this.shuffleArray([20, 35, 55, 70, 90])
+		const positions = [
+			{ x: 180, y: 180 }, { x: 480, y: 140 }, { x: 780, y: 180 },
+			{ x: 260, y: 460 }, { x: 700, y: 460 },
+		]
+
+		for (let i = 0; i < positions.length; i++) {
+			const ent = this.spawnEnemy(positions[i].x, positions[i].y, hpValues[i])
+			this.totalHPRequired += hpValues[i]
 		}
 
-		// Pressure plate state display
-		this.plateStatusText = this.add.text(20, 80, 'Plate: NONE', {
-			fontSize: '16px',
-			color: '#ffffff',
-			backgroundColor: '#333333',
-			padding: { x: 8, y: 4 },
-		}).setScrollFactor(0).setDepth(1000)
-
-		// Sensor state display
-		this.sensorStatusText = this.add.text(20, 110, 'Sensor: ON', {
-			fontSize: '16px',
-			color: '#00ff00',
-			backgroundColor: '#333333',
-			padding: { x: 8, y: 4 },
-		}).setScrollFactor(0).setDepth(1000)
-
-		// Init sensor state
-		this.world.resources.sensorState = true
-
-		// Start sensor toggle timer
-		this.sensorToggleTimer = this.time.addEvent({
-			delay: 3000,
-			callback: () => {
-				this.world.resources.sensorState = !this.world.resources.sensorState
-			},
-			loop: true
-		})
-
-		// Task 1: red + sensor ON -> 45°
-		this.createTarget(600, 120, 'Task 1: RED + ON -> 45°', 0xff4444, 'task1-red-sensor', true)
-
-		// Task 2: yellow + sensor OFF -> -45°
-		this.createTarget(600, 456, 'Task 2: YELLOW + OFF -> -45°', 0xffff44, 'task2-yellow-sensor', false)
-
-		// Task 3: complex combination
-		this.createTarget(800, 288, 'Task 3: Complex Logic', 0x44ff44, 'task3-complex', false)
-
-		// Bind keys
-		this.input.keyboard?.on('keydown-ONE', () => {
-			this.shootAndCastSpell()
-		})
+		// Register onDamage hook to track total damage dealt
+		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
+			const ent = this.enemies.find(e => e.eid === eid)
+			if (ent) {
+				const actualDamage = Math.min(amount, Health.current[eid] + amount) // cap at remaining HP
+				this.totalDamageDealt += actualDamage
+			}
+		}
 	}
 
 	protected onLevelUpdate(): void {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
+		if (this.levelFailed || this.levelWon) return
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setVelocity(0, 0)
 
-		// Lock player position
-		if (playerBody) {
-			const minX = 80
-			const maxX = 280
-			const minY = 100
-			const maxY = 476
-			if (playerBody.x < minX) playerBody.x = minX
-			if (playerBody.x > maxX) playerBody.x = maxX
-			if (playerBody.y < minY) playerBody.y = minY
-			if (playerBody.y > maxY) playerBody.y = maxY
-		}
-
-		// Update pressure plate state
-		const plateColor = this.world.resources.currentPlateColor
-		this.plateStatusText.setText(`Plate: ${plateColor}`)
-		if (plateColor === 'RED') {
-			this.plateStatusText.setColor('#ff6666')
-		} else if (plateColor === 'YELLOW') {
-			this.plateStatusText.setColor('#ffff66')
-		} else {
-			this.plateStatusText.setColor('#ffffff')
-		}
-
-		// Update sensor state
-		const sensorState = this.world.resources.sensorState
-		this.sensorStatusText.setText(`Sensor: ${sensorState ? 'ON' : 'OFF'}`)
-		this.sensorStatusText.setColor(sensorState ? '#00ff00' : '#ff6666')
-
-		// Detect target destroyed
-		this.targets.forEach((target) => {
-			if (!target.destroyed && Health.current[target.eid] <= 0) {
-				target.destroyed = true
-				target.marker.destroy()
-				target.label.destroy()
-
-				if (target.taskId === 'task1-red-sensor') {
-					this.completeObjectiveById('task1-red-sensor')
-					this.unlockTask2()
-					this.cameras.main.flash(200, 255, 0, 0)
-				} else if (target.taskId === 'task2-yellow-sensor') {
-					this.completeObjectiveById('task2-yellow-sensor')
-					this.unlockTask3()
-					this.cameras.main.flash(200, 255, 255, 0)
-				} else if (target.taskId === 'task3-complex') {
-					this.completeObjectiveById('task3-complex')
-					this.stopSensorToggle()
-					this.cameras.main.flash(200, 0, 255, 0)
-				}
+		// Update / clean up entity visuals
+		this.enemies = this.enemies.filter(ent => {
+			if (this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.update(ent.eid, Health.current[ent.eid])
+				return true
 			}
+			this.visuals.destroy(ent.eid)   // remove dead entity's circle
+			return false
 		})
-	}
 
-	private unlockTask2() {
-		if (this.task2Unlocked) return
-		this.task2Unlocked = true
+		// Overkill check
+		if (this.totalDamageDealt > this.totalHPRequired * 1.2 && this.totalDamageDealt > 0) {
+			this.onMissionFail('Overkill! Total damage too high.')
+			return
+		}
 
-		const task2Target = this.targets.find(t => t.taskId === 'task2-yellow-sensor')
-		if (task2Target) {
-			task2Target.marker.setVisible(true)
-			task2Target.label.setVisible(true)
-
-			this.tweens.add({
-				targets: [task2Target.marker, task2Target.label],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
+		// Win: all enemies dead
+		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+			this.onMissionSuccess()
 		}
 	}
 
-	private unlockTask3() {
-		if (this.task3Unlocked) return
-		this.task3Unlocked = true
-
-		const task3Target = this.targets.find(t => t.taskId === 'task3-complex')
-		if (task3Target) {
-			task3Target.marker.setVisible(true)
-			task3Target.label.setVisible(true)
-
-			this.tweens.add({
-				targets: [task3Target.marker, task3Target.label],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
-		}
-	}
-
-	private stopSensorToggle() {
-		if (this.sensorToggleTimer) {
-			this.sensorToggleTimer.destroy()
-			this.sensorToggleTimer = null
-		}
-	}
-
-	private shootAndCastSpell() {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (!playerBody) return
-
-		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
-
-		// Hint binding
-        console.log('[Level14] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
-	}
-
-	private spawnFireball(x: number, y: number, dirX: number, dirY: number) {
-		const key = 'fireball'
-		if (!this.textures.exists(key)) {
-			const g = this.add.graphics()
-			g.fillStyle(0xffaa33, 1)
-			g.fillCircle(6, 6, 6)
-			g.generateTexture(key, 12, 12)
-			g.destroy()
-		}
-
-		const body = this.physics.add.image(x, y, key)
-		body.setDepth(20)
-
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
-
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Fireball)
-		addComponent(this.world, eid, Velocity)
-		addComponent(this.world, eid, Owner)
-		addComponent(this.world, eid, Direction)
-		addComponent(this.world, eid, FireballStats)
-		addComponent(this.world, eid, Lifetime)
-
-		const playerEid = this.world.resources.playerEid
-		Owner.eid[eid] = playerEid
-
-		Direction.x[eid] = dirX
-		Direction.y[eid] = dirY
-
-		FireballStats.speed[eid] = 220
-		FireballStats.damage[eid] = 50
-		FireballStats.hitRadius[eid] = 20
-		FireballStats.initialX[eid] = x
-		FireballStats.initialY[eid] = y
-		FireballStats.pendingDeflection[eid] = 0
-		FireballStats.deflectAtTime[eid] = 0
-		FireballStats.deflectOnPlateColor[eid] = 0
-		FireballStats.deflectOnPlateAngle[eid] = 0
-		FireballStats.plateDeflected[eid] = 0
-
-		Lifetime.bornAt[eid] = Date.now()
-		Lifetime.lifetimeMs[eid] = 5000
-
-		Velocity.x[eid] = dirX * FireballStats.speed[eid]
-		Velocity.y[eid] = dirY * FireballStats.speed[eid]
-
-		return eid
-	}
-
-	private createTarget(x: number, y: number, labelText: string, color: number, taskId: string, visible: boolean) {
-		const marker = this.add.circle(x, y, 25, color, 0.6).setStrokeStyle(3, color)
-		marker.setVisible(visible)
-
-		const label = this.add.text(x, y - 45, labelText, {
-			fontSize: '14px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 3,
-			backgroundColor: '#333333aa',
-			padding: { x: 6, y: 3 },
-		}).setOrigin(0.5)
-		label.setVisible(visible)
-
-		const body = createRectBody(this, `target-${taskId}`, color, 50, 50, x, y, 3)
+	private spawnEnemy(x: number, y: number, hp: number): TrackedEnemy {
+		const size = 26
+		const color = 0xff6600
+		const body = createRectBody(this, `enemy14-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
 		body.setImmovable(true)
-
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
-
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
+		Health.max[eid] = hp
+		Health.current[eid] = hp
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+		const tracked: TrackedEnemy = { eid, body, initialHP: hp }
+		this.enemies.push(tracked)
+		return tracked
+	}
 
-		Health.max[eid] = 10
-		Health.current[eid] = 10
+	private shuffleArray(arr: number[]): number[] {
+		const a = [...arr]
+		for (let i = a.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[a[i], a[j]] = [a[j], a[i]]
+		}
+		return a
+	}
 
-		this.targets.push({ eid, marker, label, destroyed: false, taskId })
+	private onMissionSuccess(): void {
+		if (this.levelWon) return
+		this.levelWon = true
+		this.cameras.main.flash(400, 0, 255, 100)
+		this.completeObjectiveById('clear-precise')
+		this.showInstruction(
+			'Precise Dosage — cleared!\n\n' +
+			`Total damage: ${Math.round(this.totalDamageDealt)} / ${this.totalHPRequired} required\n\n` +
+			'Key insight: eid inside a lambda can be used MULTIPLE TIMES\n' +
+			'both as the target AND as the query parameter.'
+		)
+	}
+
+	private onMissionFail(reason: string): void {
+		if (this.levelFailed) return
+		this.levelFailed = true
+		this.cameras.main.shake(400, 0.025)
+		this.cameras.main.flash(300, 255, 80, 0)
+		this.showInstruction(
+			`MISSION FAILED — ${reason}\n\n` +
+			'Replace the fixed damage amount with getEntityHealth(state, eid).\n' +
+			'Restarting in 3 seconds…'
+		)
+		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }

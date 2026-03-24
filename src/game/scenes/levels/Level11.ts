@@ -1,316 +1,373 @@
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
-import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
+import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
+import type { EntityRole } from '../../EntityVisual'
+import type Phaser from 'phaser'
+
+// ─────────────────────────────────────────────────────────────
+// Level 11 — "Precision Guidance"
+//
+// Teaching goal:
+//   getAllEnemies → filter( and(gt(hp, 25), lt(hp, 60)) )
+//                → head → damageEntity
+//
+// New concept: logic::and combines two conditions to narrow the filter
+//
+// Setup (HP designed so a single threshold cannot isolate the target):
+//   4 civilians (white, 10 HP) — do not hit
+//   3 weak (gray, 18 HP) — can miss-hit, no score
+//   3 heavy (purple, 75 HP) — can miss-hit, no score
+//   1 target (orange, 40 HP) — must kill
+//
+// Only and(gt(hp,25), lt(hp,60)) isolates the 40 HP target
+// ─────────────────────────────────────────────────────────────
+
+const _answer: { nodes: any[]; edges: any[] } = {
+		nodes: [
+			// ── Main chain ──────────────────────────────────────────
+			{
+				id: 'si',
+				type: 'spellInput',
+				position: { x: -200, y: 200 },
+				data: { label: 'Game State', params: ['state'] },
+			},
+			{
+				id: 'f-gae',
+				type: 'dynamicFunction',
+				position: { x: 60, y: 200 },
+				data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] },
+			},
+			{
+				id: 'f-filter',
+				type: 'dynamicFunction',
+				position: { x: 280, y: 200 },
+				data: { functionName: 'list::filter', displayName: 'filter', namespace: 'list', params: ['l', 'pred'] },
+			},
+			{
+				id: 'f-head',
+				type: 'dynamicFunction',
+				position: { x: 500, y: 130 },
+				data: { functionName: 'list::head', displayName: 'head', namespace: 'list', params: ['l'] },
+			},
+			{
+				id: 'f-dmg',
+				type: 'dynamicFunction',
+				position: { x: 680, y: 200 },
+				data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] },
+			},
+			{ id: 'lit-100', type: 'literal', position: { x: 500, y: 300 }, data: { value: 100 } },
+			{ id: 'out', type: 'output', position: { x: 900, y: 200 }, data: { label: 'Output' } },
+
+			// ── Lambda: isMedium(eid) → and(hp>25, hp<60) ──────────
+			{
+				id: 'lam',
+				type: 'lambdaDef',
+				position: { x: 60, y: 440 },
+				data: { functionName: 'isMedium', params: ['eid'] },
+			},
+			{
+				id: 'f-out',
+				type: 'functionOut',
+				position: { x: 680, y: 510 },
+				data: { lambdaId: 'lam' },
+			},
+			// Shared health query (two outgoing edges → f-gt and f-lt)
+			{
+				id: 'f-health',
+				type: 'dynamicFunction',
+				position: { x: 200, y: 510 },
+				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
+			},
+			{
+				id: 'f-gt',
+				type: 'dynamicFunction',
+				position: { x: 390, y: 450 },
+				data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] },
+			},
+			{ id: 'lit-25', type: 'literal', position: { x: 200, y: 440 }, data: { value: 25 } },
+			{
+				id: 'f-lt',
+				type: 'dynamicFunction',
+				position: { x: 390, y: 570 },
+				data: { functionName: 'std::cmp::lt', displayName: '< lt', namespace: 'std::cmp', params: ['a', 'b'] },
+			},
+			{ id: 'lit-60', type: 'literal', position: { x: 200, y: 590 }, data: { value: 60 } },
+			{
+				id: 'f-and',
+				type: 'dynamicFunction',
+				position: { x: 550, y: 510 },
+				data: { functionName: 'std::logic::and', displayName: 'and', namespace: 'std::logic', params: ['a', 'b'] },
+			},
+		],
+		edges: [
+			// Main chain
+			{ id: 'e1', source: 'si',      target: 'f-gae',    targetHandle: 'arg0' },
+			{ id: 'e2', source: 'f-gae',   target: 'f-filter', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'f-out',   sourceHandle: 'function', target: 'f-filter', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'f-filter',target: 'f-head',   targetHandle: 'arg0' },
+			{ id: 'e5', source: 'si',      target: 'f-dmg',    targetHandle: 'arg0' },
+			{ id: 'e6', source: 'f-head',  target: 'f-dmg',    targetHandle: 'arg1' },
+			{ id: 'e7', source: 'lit-100', target: 'f-dmg',    targetHandle: 'arg2' },
+			{ id: 'e8', source: 'f-dmg',   target: 'out',      targetHandle: 'value' },
+			// Lambda body
+			{ id: 'e9',  source: 'si',  target: 'f-health', targetHandle: 'arg0' },
+			{ id: 'e10', source: 'lam', sourceHandle: 'param0', target: 'f-health', targetHandle: 'arg1' },
+			{ id: 'e11', source: 'f-health', target: 'f-gt', targetHandle: 'arg0' },
+			{ id: 'e12', source: 'lit-25',   target: 'f-gt', targetHandle: 'arg1' },
+			{ id: 'e13', source: 'f-health', target: 'f-lt', targetHandle: 'arg0' },
+			{ id: 'e14', source: 'lit-60',   target: 'f-lt', targetHandle: 'arg1' },
+			{ id: 'e15', source: 'f-gt',  target: 'f-and', targetHandle: 'arg0' },
+			{ id: 'e16', source: 'f-lt',  target: 'f-and', targetHandle: 'arg1' },
+			{ id: 'e17', source: 'f-and', target: 'f-out', targetHandle: 'value' },
+		],
+	};
 
 export const Level11Meta: LevelMeta = {
 	key: 'Level11',
-	playerSpawnX: 96,
-	playerSpawnY: 288,
-	tileSize: 64,
-	mapData: [
-		// 15 cols x 9 rows = 960x576; layout: player | wall1+gap | zone1 | wall2 | zone2 | wall3 | zone3
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // Upper gap
-		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1], // Wall1 gap
-		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // Player row
-		[1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], // Wall2 gap
-		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1],
-		[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1], // Lower gap
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-	],
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
 	objectives: [
 		{
-			id: 'task1-corridor',
-			description: 'Task 1: Deflect 30° up through corridor (delay=400ms)',
+			id: 'kill-target',
+			description: 'Eliminate the orange Target only — use a double-condition filter (AND)',
 			type: 'defeat',
-		},
-		{
-			id: 'task2-deep',
-			description: 'Task 2: Deflect -30° down to deep target (delay=800ms)',
-			type: 'defeat',
-			prerequisite: 'task1-corridor',
-		},
-		{
-			id: 'task3-cover',
-			description: 'Task 3: Deflect 15° to hit shielded target (delay=600ms)',
-			type: 'defeat',
-			prerequisite: 'task2-deep',
 		},
 	],
-	initialSpellWorkflow: {
-		nodes: [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 600, y: 250 },
-				data: { label: 'Output' },
-			},
-			{
-				id: 'func-deflect',
-				type: 'dynamicFunction',
-				position: { x: 340, y: 230 },
-				data: {
-					functionName: 'game::deflectAfterTime',
-					displayName: 'deflectAfterTime',
-					namespace: 'game',
-					params: ['angle', 'delayMs'],
-				},
-			},
-			{ id: 'lit-angle', type: 'literal', position: { x: 100, y: 200 }, data: { value: 30 } },
-			{ id: 'lit-delay', type: 'literal', position: { x: 100, y: 280 }, data: { value: 400 } },
-		],
-		edges: [
-			{ id: 'e1', source: 'func-deflect', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'lit-angle', target: 'func-deflect', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'lit-delay', target: 'func-deflect', targetHandle: 'arg1' },
-		],
-	},
+	hints: [
+		'A single threshold cannot isolate the orange target (40 HP).',
+		'Hint: civilians are 10 HP, weak enemies 18 HP, guards 75 HP, target 40 HP.',
+		'You need: filter(eid → and(gt(health, 25), lt(health, 60)))',
+		'logic::and takes two booleans and returns true only if BOTH are true.',
+	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level11Meta)
 
-interface TargetInfo {
+// ── Entity tracking ───────────────────────────────────────────────────────────
+
+interface TrackedEntity {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
-	destroyed: boolean
-	taskId: string
+	role: 'civilian' | 'weak' | 'guard' | 'target'
+	penaltyFired: boolean
 }
 
+// ── Scene ─────────────────────────────────────────────────────────────────────
+
 export class Level11 extends BaseScene {
-	private targets: TargetInfo[] = []
-	private task2Unlocked = false
-	private task3Unlocked = false
+	private entities: TrackedEntity[] = []
+	private targetEid: number = -1
+	private penaltyCount: number = 0
+	private levelFailed: boolean = false
+	private levelWon: boolean = false
+
+	/** Visual layer manager — owns all Phaser display objects for entities. */
+	private visuals!: EntityVisualManager
 
 	constructor() {
 		super({ key: 'Level11' })
 	}
 
 	protected onLevelCreate(): void {
+		// ── Reset state ──────────────────────────────────────────────────────
+		this.entities     = []
+		this.targetEid    = -1
+		this.penaltyCount = 0
+		this.levelFailed  = false
+		this.levelWon     = false
+		this.events.removeAllListeners('civilian-hit')
+
+		// Destroy previous visual manager if this is a restart
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
+		// ── Instructions ─────────────────────────────────────────────────────
 		this.showInstruction(
-			'【Level 11: Deflection Intro】\n\n' +
-			'Use deflectAfterTime(angle, delayMs) to deflect the fireball.\n\n' +
-			'• angle: deflection angle (positive = up, negative = down)\n' +
-			'• delayMs: delay in milliseconds\n\n' +
-			'Fireball speed = 250 px/s\n' +
-			'Fireball disappears on wall hit!\n\n' +
-			'Press TAB to edit spell.\n' +
-			'Press 1 to fire and cast.'
+			'【The Sniper — Part 2: Double Filter】\n\n' +
+			'The orange Target (40 HP) hides among:\n' +
+			'  • White civilians (10 HP) — DO NOT TOUCH\n' +
+			'  • Grey weak enemies (18 HP) — not your goal\n' +
+			'  • Purple heavy guards (75 HP) — not your goal\n\n' +
+			'One threshold is NOT enough. Combine two conditions with and().\n' +
+			'Press SPACE to cast your spell.'
 		)
 
-		// Lock player to left area
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (playerBody) {
-			playerBody.setPosition(96, 288)
-			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
+		this.setTaskInfo('Precision Strike', [
+			'Kill the Orange Target (40 HP)',
+			'Civilians protected — 3 hits = failure',
+			`Penalties: 0 / 3`,
+		])
+
+		// Lock player at centre
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setPosition(480, 320)
+
+		// ── Spawn civilians (white, 10 HP) ───────────────────────────────────
+		const civilianPositions = [
+			{ x: 160, y: 200 }, { x: 800, y: 200 },
+			{ x: 160, y: 450 }, { x: 800, y: 450 },
+		]
+		for (const pos of civilianPositions) {
+			this.spawnUnit(pos.x, pos.y, 0xdddddd, 10, 'civilian')
 		}
 
-		// Target positions from layout: 15x9, tileSize=64
-		// Player at x=96; wall1 at x=256 (row3 gap), wall2 at x=512 (row5 gap), wall3 at x=768 (row3 gap)
-
-		// Task 1: target past first wall via upper gap (row=3, x~384)
-		// Fireball: 30° up, delay 400ms
-		this.createTarget(384, 160, 'Task 1: 30°, 400ms', 0x00ff00, 'task1-corridor', true)
-
-		// Task 2: target past second wall via lower gap (row=5, x~640); -30° down, delay 800ms
-		this.createTarget(640, 416, 'Task 2: -30°, 800ms', 0xffaa00, 'task2-deep', false)
-
-		// Task 3: farthest target; 15° up, delay 600ms; past third wall
-		this.createTarget(864, 224, 'Task 3: 15°, 600ms', 0xff00ff, 'task3-cover', false)
-
-		// Bind key '1' to fire and cast
-		this.input.keyboard?.on('keydown-ONE', () => {
-			this.shootAndCastSpell()
-		})
-	}
-
-	protected onLevelUpdate(): void {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-
-		// Lock player to left area
-		if (playerBody) {
-			const minX = 64
-			const maxX = 192 // In front of first wall
-			const minY = 96
-			const maxY = 480
-			if (playerBody.x < minX) playerBody.x = minX
-			if (playerBody.x > maxX) playerBody.x = maxX
-			if (playerBody.y < minY) playerBody.y = minY
-			if (playerBody.y > maxY) playerBody.y = maxY
+		// ── Spawn weak enemies (grey, 18 HP) ─────────────────────────────────
+		const weakPositions = [
+			{ x: 280, y: 180 }, { x: 480, y: 160 }, { x: 680, y: 180 },
+		]
+		for (const pos of weakPositions) {
+			this.spawnUnit(pos.x, pos.y, 0x888888, 18, 'weak')
 		}
 
-		// Detect target destroyed
-		this.targets.forEach((target) => {
-			if (!target.destroyed && Health.current[target.eid] <= 0) {
-				target.destroyed = true
-				target.marker.destroy()
-				target.label.destroy()
-				target.body.destroy()
+		// ── Spawn heavy guards (purple, 75 HP) ───────────────────────────────
+		const guardPositions = [
+			{ x: 240, y: 450 }, { x: 480, y: 480 }, { x: 720, y: 450 },
+		]
+		for (const pos of guardPositions) {
+			this.spawnUnit(pos.x, pos.y, 0x9900cc, 75, 'guard')
+		}
 
-				// Complete task and unlock next
-				if (target.taskId === 'task1-corridor') {
-					this.completeObjectiveById('task1-corridor')
-					this.unlockTask2()
-					this.cameras.main.flash(200, 0, 255, 0)
-				} else if (target.taskId === 'task2-deep') {
-					this.completeObjectiveById('task2-deep')
-					this.unlockTask3()
-					this.cameras.main.flash(200, 255, 165, 0)
-				} else if (target.taskId === 'task3-cover') {
-					this.completeObjectiveById('task3-cover')
-					this.cameras.main.flash(200, 255, 0, 255)
-				}
+		// ── Spawn the target (orange, 40 HP) ─────────────────────────────────
+		const target = this.spawnUnit(480, 290, 0xff8800, 40, 'target')
+		this.targetEid = target.eid
+
+		// ── Register civilian EIDs for damage-event hook ──────────────────────
+		const civilianEids = new Set(this.entities.filter(e => e.role === 'civilian').map(e => e.eid))
+		this.world.resources.levelData!['civilianEids'] = civilianEids
+
+		this.events.on('civilian-hit', (eid?: number) => {
+			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.entities.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
+			this.penaltyCount++
+			this.cameras.main.shake(180, 0.012)
+			this.cameras.main.flash(150, 255, 80, 0)
+			this.setTaskInfo('Precision Strike', [
+				'Kill the Orange Target (40 HP)',
+				'Civilians protected — 3 hits = failure',
+				`Penalties: ${this.penaltyCount} / 3`,
+			])
+			if (this.penaltyCount >= 3) {
+				this.onMissionFail()
+			} else {
+				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3 — Refine your filter!`)
 			}
 		})
 	}
 
-	private unlockTask2() {
-		if (this.task2Unlocked) return
-		this.task2Unlocked = true
+	protected onLevelUpdate(): void {
+		if (this.levelFailed || this.levelWon) return
 
-		// Show Task 2 target (including body)
-		const task2Target = this.targets.find(t => t.taskId === 'task2-deep')
-		if (task2Target) {
-			task2Target.marker.setVisible(true)
-			task2Target.label.setVisible(true)
-			task2Target.body.setVisible(true)
+		// Lock player
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setVelocity(0, 0)
 
-			// Spawn animation
-			this.tweens.add({
-				targets: [task2Target.marker, task2Target.label, task2Target.body],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
+		// ── Per-entity update / death detection ──────────────────────────────
+		const dead: TrackedEntity[] = []
+
+		for (const ent of this.entities) {
+			if (this.world.resources.bodies.has(ent.eid)) {
+				// Alive — refresh HP ring and label
+				this.visuals.update(ent.eid, Health.current[ent.eid])
+			} else {
+				// Dead — fire civilian penalty if applicable
+				if (ent.role === 'civilian' && !ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
+				}
+				dead.push(ent)
+			}
+		}
+
+		// Remove dead entities from tracking and destroy their visuals
+		for (const ent of dead) {
+			this.visuals.destroy(ent.eid)
+			this.entities.splice(this.entities.indexOf(ent), 1)
+		}
+
+		// ── Win condition ─────────────────────────────────────────────────────
+		if (this.targetEid !== -1 && !this.world.resources.bodies.has(this.targetEid)) {
+			this.onMissionSuccess()
 		}
 	}
 
-	private unlockTask3() {
-		if (this.task3Unlocked) return
-		this.task3Unlocked = true
+	// ── Spawn helper ──────────────────────────────────────────────────────────
 
-		// Show Task 3 target (including body)
-		const task3Target = this.targets.find(t => t.taskId === 'task3-cover')
-		if (task3Target) {
-			task3Target.marker.setVisible(true)
-			task3Target.label.setVisible(true)
-			task3Target.body.setVisible(true)
+	private spawnUnit(
+		x: number, y: number,
+		color: number, hp: number,
+		role: TrackedEntity['role'],
+	): TrackedEntity {
+		const radius = role === 'target' ? 34 : role === 'guard' ? 30 : 24
 
-			// Spawn animation
-			this.tweens.add({
-				targets: [task3Target.marker, task3Target.label, task3Target.body],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
-		}
-	}
-
-	private shootAndCastSpell() {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (!playerBody) return
-
-		// 1. Fire fireball (fixed right)
-		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
-
-		// 2. Hint binding
-        console.log('[Level11] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
-	}
-
-	private spawnFireball(x: number, y: number, dirX: number, dirY: number) {
-		// Ensure fireball texture exists
-		const key = 'fireball'
-		if (!this.textures.exists(key)) {
-			const g = this.add.graphics()
-			g.fillStyle(0xffaa33, 1)
-			g.fillCircle(6, 6, 6)
-			g.generateTexture(key, 12, 12)
-			g.destroy()
-		}
-
-		// Create physics body
-		const body = this.physics.add.image(x, y, key)
-		body.setDepth(20)
-
-		// Create ECS entity
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
-
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Fireball)
-		addComponent(this.world, eid, Velocity)
-		addComponent(this.world, eid, Owner)
-		addComponent(this.world, eid, Direction)
-		addComponent(this.world, eid, FireballStats)
-		addComponent(this.world, eid, Lifetime)
-
-		const playerEid = this.world.resources.playerEid
-		Owner.eid[eid] = playerEid
-
-		Direction.x[eid] = dirX
-		Direction.y[eid] = dirY
-
-		FireballStats.speed[eid] = 250
-		FireballStats.damage[eid] = 50
-		FireballStats.hitRadius[eid] = 20
-		FireballStats.initialX[eid] = x
-		FireballStats.initialY[eid] = y
-		FireballStats.pendingDeflection[eid] = 0
-		FireballStats.deflectAtTime[eid] = 0
-		// Plate-based deflection (initialized to 0)
-		FireballStats.deflectOnPlateColor[eid] = 0
-		FireballStats.deflectOnPlateAngle[eid] = 0
-		FireballStats.plateDeflected[eid] = 0
-
-		// Extend lifetime (5s) to traverse terrain
-		Lifetime.bornAt[eid] = Date.now()
-		Lifetime.lifetimeMs[eid] = 5000
-
-		Velocity.x[eid] = dirX * FireballStats.speed[eid]
-		Velocity.y[eid] = dirY * FireballStats.speed[eid]
-
-		return eid
-	}
-
-	private createTarget(x: number, y: number, labelText: string, color: number, taskId: string, visible: boolean) {
-		// Create visual marker
-		const marker = this.add.circle(x, y, 25, color, 0.6).setStrokeStyle(3, color)
-		marker.setVisible(visible)
-
-		const label = this.add.text(x, y - 45, labelText, {
-			fontSize: '14px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 3,
-			backgroundColor: '#333333aa',
-			padding: { x: 6, y: 3 },
-		}).setOrigin(0.5)
-		label.setVisible(visible)
-
-		// Create enemy entity (body visibility follows visible)
-		const body = createRectBody(this, `target-${taskId}`, color, 50, 50, x, y, 3)
+		// Physics body
+		const body = createRectBody(
+			this, `unit-${role}-${x}`, color,
+			radius * 2, radius * 2, x, y,
+			role === 'civilian' ? 2 : 5
+		)
 		body.setImmovable(true)
-		body.setVisible(visible) // Hidden task body stays hidden
+		body.setAlpha(0)          // physics hitbox stays, square texture hidden
 
+		// ECS entity
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
-
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
+		Health.max[eid]     = hp
+		Health.current[eid] = hp
 
-		Health.max[eid] = 10
-		Health.current[eid] = 10
+		// Visuals (all layers handed to EntityVisualManager)
+		this.visuals.register(eid, {
+			role:      role as EntityRole,
+			x, y,
+			radius,
+			bodyColor: color,
+			maxHP:     hp,
+		})
 
-		this.targets.push({ eid, body, marker, label, destroyed: false, taskId })
+		const tracked: TrackedEntity = { eid, body, role, penaltyFired: false }
+		this.entities.push(tracked)
+		return tracked
+	}
+
+	// ── Win / Fail handlers ───────────────────────────────────────────────────
+
+	private onMissionSuccess(): void {
+		if (this.levelWon) return
+		this.levelWon = true
+		this.cameras.main.flash(400, 0, 255, 100)
+		this.completeObjectiveById('kill-target')
+		this.showInstruction(
+			'Target eliminated!\n\n' +
+			`Civilian penalties: ${this.penaltyCount}/3\n` +
+			'and(gt(hp, 25), lt(hp, 60)) — double filter mastered!'
+		)
+	}
+
+	private onMissionFail(): void {
+		if (this.levelFailed) return
+		this.levelFailed = true
+		this.cameras.main.shake(400, 0.025)
+		this.cameras.main.flash(300, 255, 0, 0)
+		this.showInstruction(
+			'MISSION FAILED — Too many civilian casualties.\n\n' +
+			'Your filter must exclude HP ≤ 10.\n' +
+			'Restarting in 3 seconds…'
+		)
+		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }

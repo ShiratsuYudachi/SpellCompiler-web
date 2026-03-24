@@ -9,131 +9,66 @@ import { EntityVisualManager } from '../../EntityVisual'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
-// Level 21 — "Greatest Threat"
+// Level 21 — "Compound Clear" (combo level I)
 //
-// Teaching goal: use fold to find argmax (entity with highest HP)
+// Teaching goal: forEach + spawnFireball (no scaffold)
+//   Setup: 4 shield guards (HP=10, red, upper) + 4 drones (HP=10, gray, lower)
 //
-//   fold(
-//     getAllEnemies(state),
-//     -1,                                       ← sentinel
-//     (best, eid) →
-//       if getEntityHealth(state,eid) > getEntityHealth(state,best)
-//       then eid
-//       else best
-//   )  →  damageEntity(state, result, 200)
+//   Shield guards have onDamage protection: direct damageEntity is reflected (HP restored)
+//     → must use spawnFireball (directional attack) to break
+//   Drones: same spawnFireball (fireball does not trigger onDamage, direct damage)
 //
-// Why filter is not enough:
-//   Each load, 5 enemies get random HP. Player cannot use a fixed
-//   threshold to find the highest-HP one — must use fold.
+//   Solution:
+//     playerPos = getEntityPosition(state, getPlayer(state))
+//     forEach(getAllEnemies(state), eid →
+//       spawnFireball(state, playerPos,
+//         normalize(subtract(getEntityPosition(state, eid), playerPos)))
+//     )
 //
-// Setup:
-//   5 enemies (random HP 20–115; highest is target)
-//   4 civilians (white, 10 HP; do not hit)
-//   Win only when the highest-HP enemy dies
+// Template provides full cast flow; press SPACE to cast and clear.
 // ─────────────────────────────────────────────────────────────
 
 const _answer: { nodes: any[]; edges: any[] } = {
 		nodes: [
-			// ── Main chain ──────────────────────────────────────────
-			{
-				id: 'si',
-				type: 'spellInput',
-				position: { x: -180, y: 220 },
-				data: { label: 'Game State', params: ['state'] },
-			},
-			{
-				id: 'f-gae',
-				type: 'dynamicFunction',
-				position: { x: 60, y: 220 },
-				data: {
-					functionName: 'game::getAllEnemies',
-					displayName: 'getAllEnemies',
-					namespace: 'game',
-					params: ['state'],
-				},
-			},
-			{
-				id: 'f-fold',
-				type: 'dynamicFunction',
-				position: { x: 320, y: 200 },
-				data: {
-					functionName: 'list::fold',
-					displayName: 'fold',
-					namespace: 'list',
-					params: ['l', 'init', 'f'],
-				},
-			},
-			{ id: 'lit-neg1', type: 'literal', position: { x: 100, y: 380 }, data: { value: -1 } },
-			{
-				id: 'f-dmg',
-				type: 'dynamicFunction',
-				position: { x: 600, y: 200 },
-				data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] },
-			},
-			{ id: 'lit-200', type: 'literal', position: { x: 420, y: 380 }, data: { value: 200 } },
-			{ id: 'out', type: 'output', position: { x: 860, y: 220 }, data: { label: 'Output' } },
-
-			// ── Lambda: findMax(best, eid) → if hp(eid)>hp(best) then eid else best ──
-			{
-				id: 'lam',
-				type: 'lambdaDef',
-				position: { x: 60, y: 500 },
-				data: { functionName: 'findMax', params: ['best', 'eid'] },
-			},
-			{
-				id: 'f-out',
-				type: 'functionOut',
-				position: { x: 760, y: 600 },
-				data: { lambdaId: 'lam' },
-			},
-			// getEntityHealth for the current eid candidate
-			{
-				id: 'f-health-eid',
-				type: 'dynamicFunction',
-				position: { x: 240, y: 480 },
-				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
-			},
-			// getEntityHealth for the current best accumulator
-			{
-				id: 'f-health-best',
-				type: 'dynamicFunction',
-				position: { x: 240, y: 630 },
-				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
-			},
-			{
-				id: 'f-gt',
-				type: 'dynamicFunction',
-				position: { x: 450, y: 550 },
-				data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] },
-			},
-			{
-				id: 'f-if',
-				type: 'if',
-				position: { x: 610, y: 570 },
-				data: {},
-			},
+			{ id: 'si',     type: 'spellInput',     position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			// Player position
+			{ id: 'f-gp',  type: 'dynamicFunction', position: { x:   60, y:  60 }, data: { functionName: 'game::getPlayer',        displayName: 'getPlayer',         namespace: 'game', params: ['state'] } },
+			{ id: 'f-pp',  type: 'dynamicFunction', position: { x:  260, y:  60 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			// getAllEnemies → forEach → out
+			{ id: 'f-gae', type: 'dynamicFunction', position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-fe',  type: 'dynamicFunction', position: { x:  300, y: 200 }, data: { functionName: 'list::forEach', displayName: 'forEach', namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',   type: 'output',           position: { x:  540, y: 200 }, data: { label: 'Output' } },
+			// Lambda: hit(eid) — spawnFireball toward enemy
+			{ id: 'lam',   type: 'lambdaDef',        position: { x:   60, y: 420 }, data: { functionName: 'hit', params: ['eid'] } },
+			// Enemy position → direction vector
+			{ id: 'f-ep',  type: 'dynamicFunction', position: { x:  200, y: 500 }, data: { functionName: 'game::getEntityPosition', displayName: 'getEntityPosition', namespace: 'game', params: ['state', 'eid'] } },
+			{ id: 'f-sub', type: 'dynamicFunction', position: { x:  400, y: 500 }, data: { functionName: 'vec::subtract',  displayName: 'subtract', namespace: 'vec', params: ['a', 'b'] } },
+			{ id: 'f-norm',type: 'dynamicFunction', position: { x:  600, y: 500 }, data: { functionName: 'vec::normalize', displayName: 'normalize', namespace: 'vec', params: ['v'] } },
+			// spawnFireball: state, player position, normalized direction
+			{ id: 'f-sfb', type: 'dynamicFunction', position: { x:  640, y: 580 }, data: { functionName: 'game::spawnFireball', displayName: 'spawnFireball', namespace: 'game', params: ['state', 'position', 'direction'] } },
+			{ id: 'fout',  type: 'functionOut',      position: { x:  880, y: 420 }, data: { lambdaId: 'lam' } },
 		],
 		edges: [
-			// Main chain
-			{ id: 'e1', source: 'si',       target: 'f-gae',  targetHandle: 'arg0' },
-			{ id: 'e2', source: 'f-gae',    target: 'f-fold', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'lit-neg1', target: 'f-fold', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'f-out',    sourceHandle: 'function', target: 'f-fold', targetHandle: 'arg2' },
-			{ id: 'e5', source: 'si',       target: 'f-dmg',  targetHandle: 'arg0' },
-			{ id: 'e6', source: 'f-fold',   target: 'f-dmg',  targetHandle: 'arg1' },
-			{ id: 'e7', source: 'lit-200',  target: 'f-dmg',  targetHandle: 'arg2' },
-			{ id: 'e8', source: 'f-dmg',    target: 'out',    targetHandle: 'value' },
-			// Lambda body
-			{ id: 'e9',  source: 'si',           target: 'f-health-eid',  targetHandle: 'arg0' },
-			{ id: 'e10', source: 'lam',          sourceHandle: 'param1',  target: 'f-health-eid',  targetHandle: 'arg1' },
-			{ id: 'e11', source: 'si',           target: 'f-health-best', targetHandle: 'arg0' },
-			{ id: 'e12', source: 'lam',          sourceHandle: 'param0',  target: 'f-health-best', targetHandle: 'arg1' },
-			{ id: 'e13', source: 'f-health-eid', target: 'f-gt', targetHandle: 'arg0' },
-			{ id: 'e14', source: 'f-health-best',target: 'f-gt', targetHandle: 'arg1' },
-			{ id: 'e15', source: 'f-gt',         target: 'f-if', targetHandle: 'condition' },
-			{ id: 'e16', source: 'lam',          sourceHandle: 'param1', target: 'f-if', targetHandle: 'then' },
-			{ id: 'e17', source: 'lam',          sourceHandle: 'param0', target: 'f-if', targetHandle: 'else' },
-			{ id: 'e18', source: 'f-if',         target: 'f-out', targetHandle: 'value' },
+			// Player position
+			{ id: 'e1',  source: 'si',     target: 'f-gp',  targetHandle: 'arg0' },
+			{ id: 'e2',  source: 'si',     target: 'f-pp',  targetHandle: 'arg0' },
+			{ id: 'e3',  source: 'f-gp',  target: 'f-pp',  targetHandle: 'arg1' },
+			// getAllEnemies → forEach → out
+			{ id: 'e4',  source: 'si',     target: 'f-gae', targetHandle: 'arg0' },
+			{ id: 'e5',  source: 'f-gae', target: 'f-fe',  targetHandle: 'arg0' },
+			{ id: 'e6',  source: 'fout',  sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e7',  source: 'f-fe',  target: 'out',   targetHandle: 'value' },
+			// Lambda body — enemy position → direction
+			{ id: 'e8',  source: 'si',    target: 'f-ep',  targetHandle: 'arg0' },
+			{ id: 'e9',  source: 'lam',   sourceHandle: 'param0', target: 'f-ep', targetHandle: 'arg1' },
+			{ id: 'e10', source: 'f-ep',  target: 'f-sub', targetHandle: 'arg0' },
+			{ id: 'e11', source: 'f-pp',  target: 'f-sub', targetHandle: 'arg1' },
+			{ id: 'e12', source: 'f-sub', target: 'f-norm',targetHandle: 'arg0' },
+			// spawnFireball: state directly, player position, normalized direction
+			{ id: 'e13', source: 'si',    target: 'f-sfb', targetHandle: 'arg0' },
+			{ id: 'e14', source: 'f-pp',  target: 'f-sfb', targetHandle: 'arg1' },
+			{ id: 'e15', source: 'f-norm',target: 'f-sfb', targetHandle: 'arg2' },
+			{ id: 'e16', source: 'f-sfb', target: 'fout',  targetHandle: 'value' },
 		],
 	};
 
@@ -143,23 +78,17 @@ export const Level21Meta: LevelMeta = {
 	playerSpawnY: 320,
 	tileSize: 80,
 	mapData: createRoom(12, 8),
-	objectives: [
-		{
-			id: 'kill-strongest',
-			description: 'Destroy the entity with the HIGHEST HP — use fold to find the maximum',
-			type: 'defeat',
-		},
-	],
+	objectives: [{ id: 'clear-all', description: 'Eliminate all 8 enemies using spawnFireball', type: 'defeat' }],
 	hints: [
-		'Enemy HP values are randomized every attempt — no fixed threshold works.',
-		'Use fold(list, -1, (best,eid) → if hp(eid)>hp(best) then eid else best)',
-		'getEntityHealth(state, -1) returns -1, so the first real enemy always wins.',
-		'After fold you have the eid of the strongest enemy — pass it to damageEntity.',
+		'RED elites (HP=10, TOP): damageEntity is BLOCKED by their shield!',
+		'Use spawnFireball(state, position, direction) to bypass the shield.',
+		'Compute direction: normalize(subtract(getEntityPosition(state, eid), playerPos))',
+		'GREY drones (HP=10, BOTTOM): fireballs work on them too — same approach.',
+		'Use forEach on getAllEnemies → spawnFireball toward each enemy.',
 	],
-	// Complete solution spell:
-	//   fold(getAllEnemies(state), -1, findMax)  →  damageEntity(state, result, 200)
-	//   findMax = lambda(best, eid) { if hp(eid) > hp(best) then eid else best }
-	maxSpellCasts: 3,
+	// Template: forEach all enemies → spawnFireball toward each.
+	// Fireballs deal 10 dmg and bypass the elite shield (only damageEntity is blocked).
+	// Both elites (HP=10) and drones (HP=10) die in one fireball hit. One cast clears all.
 	initialSpellWorkflow: _answer,
 	answerSpellWorkflow: _answer,
 }
@@ -169,244 +98,200 @@ levelRegistry.register(Level21Meta)
 interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	hp: number
-	isCivilian: boolean
-	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
+	role: 'elite' | 'drone'
 }
 
 export class Level21 extends BaseScene {
 	private enemies: TrackedEnemy[] = []
-	private supremeEid: number = -1   // entity with max HP — the win target
-	private penaltyCount: number = 0
-	private levelFailed: boolean = false
+	private shieldedEids: Set<number> = new Set()
 	private levelWon: boolean = false
+	private levelFailed: boolean = false
 	private visuals!: EntityVisualManager
 
-	constructor() {
-		super({ key: 'Level21' })
-	}
+	constructor() { super({ key: 'Level21' }) }
 
 	protected onLevelCreate(): void {
-		// ── Reset all state for clean restart (scene.restart reuses the instance) ──
-		this.enemies = []
-		this.supremeEid = -1
-		this.penaltyCount = 0
-		this.levelFailed = false
-		this.levelWon = false
-		this.events.removeAllListeners('civilian-hit') // prevent listener accumulation
-
 		if (this.visuals) this.visuals.destroyAll()
 		this.visuals = new EntityVisualManager(this)
 
+		this.enemies = []
+		this.shieldedEids = new Set()
+		this.levelWon = false
+		this.levelFailed = false
+
+		// 4 red elites (HP=10) in top half — shielded, need fireballs
+		const elitePositions = [
+			{ x: 160, y: 140 }, { x: 360, y: 130 },
+			{ x: 580, y: 140 }, { x: 780, y: 130 },
+		]
+		for (const pos of elitePositions) {
+			this.spawnElite(pos.x, pos.y)
+		}
+
+		// 4 grey drones (HP=10) in bottom half — also killed by fireballs
+		const dronePositions = [
+			{ x: 200, y: 460 }, { x: 400, y: 470 },
+			{ x: 600, y: 460 }, { x: 800, y: 470 },
+		]
+		for (const pos of dronePositions) {
+			this.spawnDrone(pos.x, pos.y)
+		}
+
+		// All enemies can be hit by fireballs.
+		// Elites have a SHIELD (onDamage hook) that blocks damageEntity — only fireballs work on them.
+		// Drones have no shield — both damageEntity and fireballs work.
+
+		// onDamage hook: shield elites from direct damageEntity
+		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
+			if (!this.shieldedEids.has(eid)) return
+			// Restore HP — shield deflects the hit
+			const newHp = Math.min(Health.current[eid] + amount, Health.max[eid])
+			Health.current[eid] = newHp
+			// Visual feedback
+			const ent = this.enemies.find(e => e.eid === eid)
+			if (ent) {
+				this.cameras.main.shake(80, 0.006)
+				this.cameras.main.flash(60, 255, 100, 0)
+				this.setTaskInfo('Combined Assault', [
+					'RED elites: use spawnFireball (shield blocks damageEntity)',
+					'GREY drones: fireballs work too!',
+					'Shield deflected — use fireballs for red enemies!',
+				])
+			}
+		}
+
+		// Visual zone divider
+		this.add.rectangle(480, 320, 960, 2, 0xffffff, 0.15)
+		this.add.text(480, 68, '— TOP ZONE: ELITES (shield) —', {
+			fontSize: '13px', color: '#ff8888', stroke: '#000000', strokeThickness: 3,
+		}).setOrigin(0.5)
+		this.add.text(480, 570, '— BOTTOM ZONE: DRONES —', {
+			fontSize: '13px', color: '#aaaaaa', stroke: '#000000', strokeThickness: 3,
+		}).setOrigin(0.5)
+
 		this.showInstruction(
-			'【The Sniper — Part 3: Maximum Threat】\n\n' +
-			'Enemy HP values are RANDOMIZED — a fixed filter will not work.\n' +
-			'You must find the entity with the HIGHEST HP using fold.\n\n' +
-			'fold(list, -1, (best, eid) →\n' +
-			'  if hp(eid) > hp(best) then eid else best)\n\n' +
-			'• Civilians (white, 10 HP) — DO NOT HIT  (3 hits = failure)\n' +
-			'• Enemies (colored) — HP shown on screen\n' +
-			'• Only killing the STRONGEST enemy completes the mission.\n\n' +
-			'Press SPACE to cast your spell.'
+			'【Combined Assault — Synthesis I】\n\n' +
+			'RED elites (HP=10, TOP): Their SHIELD blocks damageEntity!\n' +
+			'  → Must use spawnFireball(state, position, direction) to bypass.\n' +
+			'  Direction = normalize(subtract(enemyPos, playerPos))\n\n' +
+			'GREY drones (HP=10, BOTTOM): Fireballs also work on them!\n\n' +
+			'Use forEach + spawnFireball for ALL enemies:\n' +
+			'  getAllEnemies → forEach → spawnFireball toward each\n\n' +
+			'Press SPACE to cast.'
 		)
 
-		this.setTaskInfo('Maximum Threat', [
-			'Destroy the enemy with the HIGHEST HP',
-			'Use fold to find the maximum',
-			'Civilians protected — 3 hits = failure',
+		this.setTaskInfo('Combined Assault', [
+			'RED elites: use spawnFireball (shield blocks damageEntity)',
+			'GREY drones: fireballs work too!',
+			`Remaining: ${this.enemies.length} / 8`,
 		])
-
-		// Lock player
-		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (pb) pb.setPosition(480, 320)
-
-		// Randomize 5 enemy HP values — ensure one is clearly dominant
-		const enemyHPs = this.shuffleHPs([115, 80, 55, 35, 20])
-
-		const enemyPositions = [
-			{ x: 200, y: 200 },
-			{ x: 480, y: 160 },
-			{ x: 760, y: 200 },
-			{ x: 280, y: 450 },
-			{ x: 680, y: 450 },
-		]
-
-		// Color palette for enemies (excluding white/grey reserved for civilians)
-		const enemyColors = [0xff3333, 0xff8800, 0xffcc00, 0x33cc33, 0x3399ff]
-
-		let maxHP = -1
-		let supremeColor = 0xff3333
-		for (let i = 0; i < enemyPositions.length; i++) {
-			const pos = enemyPositions[i]
-			const hp = enemyHPs[i]
-			const color = enemyColors[i]
-			const ent = this.spawnEnemy(pos.x, pos.y, color, hp)
-			this.enemies.push(ent)
-			if (hp > maxHP) {
-				maxHP = hp
-				this.supremeEid = ent.eid
-				supremeColor = color
-			}
-		}
-
-		// Re-register the supreme enemy with role='target' so it gets the target visual style
-		// (EntityVisualManager's 'target' role already has its own distinct pulse animation)
-		const supremeEnt = this.enemies.find(e => e.eid === this.supremeEid)!
-		this.visuals.destroy(this.supremeEid)
-		this.visuals.register(this.supremeEid, {
-			role: 'target',
-			x: supremeEnt.body.x,
-			y: supremeEnt.body.y,
-			radius: 28,
-			bodyColor: supremeColor,
-			maxHP: maxHP,
-		})
-
-		// Spawn civilians (white, 10 HP)
-		const civilianPositions = [
-			{ x: 160, y: 320 }, { x: 800, y: 320 },
-			{ x: 480, y: 320 }, { x: 340, y: 280 },
-		]
-		for (const pos of civilianPositions) {
-			const ent = this.spawnCivilian(pos.x, pos.y)
-			this.enemies.push(ent)
-		}
-
-		// Register civilians for damage-event hook
-		const civilianEids = new Set(this.enemies.filter(e => e.isCivilian).map(e => e.eid))
-		this.world.resources.levelData!['civilianEids'] = civilianEids
-
-		this.events.on('civilian-hit', (eid?: number) => {
-			if (this.levelFailed || this.levelWon) return
-			if (typeof eid === 'number') {
-				const ent = this.enemies.find(e => e.eid === eid)
-				if (ent) ent.penaltyFired = true
-			}
-			this.penaltyCount++
-			this.cameras.main.shake(180, 0.012)
-			this.cameras.main.flash(150, 255, 80, 0)
-			this.setTaskInfo('Maximum Threat', [
-				'Destroy the enemy with the HIGHEST HP',
-				'Use fold to find the maximum',
-				`Penalties: ${this.penaltyCount} / 3`,
-			])
-			if (this.penaltyCount >= 3) {
-				this.onMissionFail()
-			} else {
-				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3\nRefine your fold — civilians are eid < threshold…`)
-			}
-		})
 	}
 
 	protected onLevelUpdate(): void {
-		if (this.levelFailed || this.levelWon) return
+		if (this.levelWon || this.levelFailed) return
 
-		// Lock player
-		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (pb) pb.setVelocity(0, 0)
-
-		// Update alive entities; destroy visuals and handle penalties for dead ones
+		// Update HP visuals and clean up dead enemies
 		this.enemies = this.enemies.filter(ent => {
 			if (!this.world.resources.bodies.has(ent.eid)) {
-				if (ent.isCivilian && !ent.penaltyFired) {
-					ent.penaltyFired = true
-					this.events.emit('civilian-hit', ent.eid)
-				}
 				this.visuals.destroy(ent.eid)
+				this.shieldedEids.delete(ent.eid)
 				return false
 			}
 			this.visuals.update(ent.eid, Health.current[ent.eid])
 			return true
 		})
 
-		// Win: supreme threat despawned
-		if (!this.world.resources.bodies.has(this.supremeEid)) {
+		// Update task info
+		const alive = this.enemies.length
+		if (alive > 0) {
+			const elites = this.enemies.filter(e => e.role === 'elite').length
+			const drones = this.enemies.filter(e => e.role === 'drone').length
+			this.setTaskInfo('Combined Assault', [
+				`Elites remaining: ${elites} / 4`,
+				`Drones remaining: ${drones} / 4`,
+			])
+		}
+
+		// Win condition: all dead
+		if (this.enemies.length === 0) {
 			this.onMissionSuccess()
 		}
 	}
 
-	// ── Helpers ──────────────────────────────────────────────────
-
-	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
-		const size = 28
-
-		const body = createRectBody(this, `enemy-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
-		body.setImmovable(true)
-		body.setAlpha(0)
-
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
-
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Enemy)
-		addComponent(this.world, eid, Health)
-
-		Health.max[eid] = hp
-		Health.current[eid] = hp
-
-		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
-
-		return { eid, body, hp, isCivilian: false, penaltyFired: false }
-	}
-
-	private spawnCivilian(x: number, y: number): TrackedEnemy {
+	private spawnElite(x: number, y: number): TrackedEnemy {
+		const size = 24
 		const hp = 10
-		const size = 22
-
-		const body = createRectBody(this, `civilian-${x}-${y}`, 0xdddddd, size * 2, size * 2, x, y, 2)
+		const color = 0xff4444
+		const body = createRectBody(this, `elite21-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
 		body.setImmovable(true)
 		body.setAlpha(0)
-
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
-
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
-
 		Health.max[eid] = hp
 		Health.current[eid] = hp
 
-		this.visuals.register(eid, { role: 'civilian', x, y, radius: size, bodyColor: 0xdddddd, maxHP: hp })
+		this.visuals.register(eid, {
+			role: 'guard',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+			labelText: 'ELITE',
+		})
 
-		return { eid, body, hp, isCivilian: true, penaltyFired: false }
+		this.shieldedEids.add(eid)
+		const tracked: TrackedEnemy = { eid, body, role: 'elite' }
+		this.enemies.push(tracked)
+		return tracked
 	}
 
-	/** Fisher-Yates shuffle */
-	private shuffleHPs(arr: number[]): number[] {
-		const a = [...arr]
-		for (let i = a.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[a[i], a[j]] = [a[j], a[i]]
-		}
-		return a
+	private spawnDrone(x: number, y: number): TrackedEnemy {
+		const size = 16
+		const hp = 10
+		const color = 0x888888
+		const body = createRectBody(this, `drone21-${x}-${y}`, color, size * 2, size * 2, x, y, 4)
+		body.setImmovable(true)
+		body.setAlpha(0)
+		const eid = spawnEntity(this.world)
+		this.world.resources.bodies.set(eid, body)
+		addComponent(this.world, eid, Sprite)
+		addComponent(this.world, eid, Enemy)
+		addComponent(this.world, eid, Health)
+		Health.max[eid] = hp
+		Health.current[eid] = hp
+
+		this.visuals.register(eid, {
+			role: 'weak',
+			x,
+			y,
+			radius: size,
+			bodyColor: color,
+			maxHP: hp,
+			labelText: 'DRONE',
+		})
+
+		const tracked: TrackedEnemy = { eid, body, role: 'drone' }
+		this.enemies.push(tracked)
+		return tracked
 	}
 
 	private onMissionSuccess(): void {
 		if (this.levelWon) return
 		this.levelWon = true
 		this.cameras.main.flash(500, 0, 255, 100)
-		this.completeObjectiveById('kill-strongest')
+		this.completeObjectiveById('clear-all')
 		this.showInstruction(
-			'Supreme Threat eliminated!\n\n' +
-			`Civilian penalties: ${this.penaltyCount}/3\n\n` +
-			'fold as argmax — mastered!\n' +
-			'The trilogy is complete.'
+			'All enemies eliminated!\n\n' +
+			'SYNTHESIS COMPLETE:\n' +
+			'  forEach — iterated over all enemies\n' +
+			'  getEntityPosition — located each enemy\n' +
+			'  normalize + subtract — computed attack directions\n' +
+			'  spawnFireball — bypassed elite shield, killed all targets\n\n' +
+			'One more challenge awaits — the final trial!'
 		)
-		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
-	}
-
-	private onMissionFail(): void {
-		if (this.levelFailed) return
-		this.levelFailed = true
-		this.cameras.main.shake(400, 0.025)
-		this.cameras.main.flash(300, 255, 0, 0)
-		this.showInstruction(
-			'MISSION FAILED — Too many civilian casualties.\n\n' +
-			'Your fold must not return civilian eids.\n' +
-			'Remember: getEntityHealth(state, eid) > getEntityHealth(state, best)\n' +
-			'Restarting in 3 seconds…'
-		)
-		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }

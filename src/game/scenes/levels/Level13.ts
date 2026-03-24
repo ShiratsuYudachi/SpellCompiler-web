@@ -1,395 +1,164 @@
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
-import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
+import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
+import type Phaser from 'phaser'
+
+// ─────────────────────────────────────────────────────────────
+// Level 13 — "Sweep Order"
+//
+// Teaching goal: forEach basics
+//   forEach(getAllEnemies(state), eid → damageEntity(state, eid, 100))
+//
+// Setup: 6 enemies with same HP, player locked at center
+// Problem: damageEntity hits one target — must iterate over all
+// ─────────────────────────────────────────────────────────────
+
+const _answer: { nodes: any[]; edges: any[] } = {
+		nodes: [
+			{ id: 'si',       type: 'spellInput',      position: { x: -200, y: 200 }, data: { label: 'Game State', params: ['state'] } },
+			{ id: 'f-gae',    type: 'dynamicFunction',  position: { x:   60, y: 200 }, data: { functionName: 'game::getAllEnemies', displayName: 'getAllEnemies', namespace: 'game', params: ['state'] } },
+			{ id: 'f-fe',     type: 'dynamicFunction',  position: { x:  300, y: 200 }, data: { functionName: 'list::forEach',      displayName: 'forEach',       namespace: 'list', params: ['l', 'f'] } },
+			{ id: 'out',      type: 'output',           position: { x:  540, y: 200 }, data: { label: 'Output' } },
+			// Lambda body
+			{ id: 'lam',      type: 'lambdaDef',        position: { x:   60, y: 420 }, data: { functionName: 'doAction', params: ['eid'] } },
+			{ id: 'f-dmg',    type: 'dynamicFunction',  position: { x:  250, y: 420 }, data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] } },
+			{ id: 'lit-100',  type: 'literal',          position: { x:  100, y: 540 }, data: { value: 100 } },
+			{ id: 'f-out',    type: 'functionOut',      position: { x:  480, y: 420 }, data: { lambdaId: 'lam' } },
+		],
+		edges: [
+			{ id: 'e1', source: 'si',     target: 'f-gae', targetHandle: 'arg0' },
+			{ id: 'e2', source: 'f-gae',  target: 'f-fe',  targetHandle: 'arg0' },
+			{ id: 'e3', source: 'f-out',  sourceHandle: 'function', target: 'f-fe', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'f-fe',   target: 'out',   targetHandle: 'value' },
+			// Lambda body edges
+			{ id: 'e5', source: 'si',     target: 'f-dmg', targetHandle: 'arg0' },
+			{ id: 'e6', source: 'lam',    sourceHandle: 'param0', target: 'f-dmg', targetHandle: 'arg1' },
+			{ id: 'e7', source: 'lit-100',target: 'f-dmg', targetHandle: 'arg2' },
+			{ id: 'e8', source: 'f-dmg',  target: 'f-out', targetHandle: 'value' },
+		],
+	};
 
 export const Level13Meta: LevelMeta = {
 	key: 'Level13',
-	playerSpawnX: 96,
-	playerSpawnY: 192,
-	tileSize: 64,
-	mapData: [
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		[1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1],
-		[1, 0, 0, 0, 5, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1],
-		[1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-		[1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 6, 0, 0, 1, 1, 1, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
+	objectives: [{ id: 'clear-all', description: 'Eliminate ALL 6 enemies using forEach', type: 'defeat' }],
+	hints: [
+		'getAllEnemies returns a LIST of all enemies — not just one.',
+		'forEach(list, f) calls f on every element in the list.',
+		'Build a lambda: eid → damageEntity(state, eid, 100)',
+		'Connect the lambda\'s functionOut (function handle) to forEach\'s second argument.',
 	],
-	objectives: [
-		{
-			id: 'task1-red-up',
-			description: 'Task 1: IF fireball on RED -> deflect UP (-45°)',
-			type: 'defeat',
-		},
-		{
-			id: 'task2-straight',
-			description: 'Task 2: ELSE IF fireball on YELLOW -> do nothing, hit T2',
-			type: 'defeat',
-			prerequisite: 'task1-red-up',
-		},
-		{
-			id: 'task3-yellow-vshape',
-			description: 'Task 3: ELSE IF fireball on YELLOW -> deflect UP (-60°) for V-shape',
-			type: 'defeat',
-			prerequisite: 'task2-straight',
-		},
-	],
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level13Meta)
 
-interface TargetInfo {
+interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
-	destroyed: boolean
-	taskId: string
 }
 
 export class Level13 extends BaseScene {
-	private targets: TargetInfo[] = []
-	private task2Unlocked = false
-	private task3Unlocked = false
+	private enemies: TrackedEnemy[] = []
+	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
-	private plateStatusText!: Phaser.GameObjects.Text
-	private fireballPlateText!: Phaser.GameObjects.Text
-
-	constructor() {
-		super({ key: 'Level13' })
-	}
-
-	private resetLevelState(): void {
-		this.targets = []
-		this.task2Unlocked = false
-		this.task3Unlocked = false
-	}
+	constructor() { super({ key: 'Level13' }) }
 
 	protected onLevelCreate(): void {
-		this.resetLevelState()
+		this.enemies = []
+		this.levelWon = false
+
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
 
 		this.showInstruction(
-			'【Level 13: Multi-Guide】\n\n' +
-			'Use nested If for else-if multi-branch logic.\n\n' +
-			'Fireball passes over pressure plates:\n' +
-			'• getFireballPlateColor() detects fireball position\n' +
-			'• deflectOnPlate("RED", angle) deflect on red plate\n' +
-			'• deflectOnPlate("YELLOW", angle) deflect on yellow plate\n\n' +
-			'Task 1: over RED → deflect up to hit T1\n' +
-			'Task 2: over YELLOW → no deflect, straight to T2\n' +
-			'Task 3: over YELLOW → deflect up (V-shape) to T3\n\n' +
-			'Press TAB to edit spell, 1 to fire.'
+			'【Sweep Order — forEach Basics】\n\n' +
+			'Six enemies stand in your way. A single spell must eliminate them ALL.\n\n' +
+			'getAllEnemies returns a LIST — not just one enemy.\n' +
+			'forEach(list, f) calls f on every element in the list.\n\n' +
+			'The pre-built spell is already correct:\n' +
+			'  forEach(enemies, eid → damageEntity(state, eid, 100))\n\n' +
+			'Press SPACE to cast and watch it work, then try modifying it.'
 		)
 
-		// Player position
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (playerBody) {
-			playerBody.setPosition(96, 192)
-			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
+		this.setTaskInfo('Sweep Order', [
+			'Eliminate ALL 6 enemies',
+			'Use forEach to hit each one',
+			'One spell cast, six targets',
+		])
+
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setPosition(480, 320)
+
+		const positions = [
+			{ x: 160, y: 160 }, { x: 480, y: 140 }, { x: 800, y: 160 },
+			{ x: 160, y: 480 }, { x: 480, y: 500 }, { x: 800, y: 480 },
+		]
+		for (const pos of positions) {
+			this.spawnEnemy(pos.x, pos.y, 0xee4444, 50)
 		}
-
-		// Player plate state display
-		this.plateStatusText = this.add.text(20, 80, 'Player Plate: NONE', {
-			fontSize: '14px',
-			color: '#ffffff',
-			backgroundColor: '#333333',
-			padding: { x: 8, y: 4 },
-		}).setScrollFactor(0).setDepth(1000)
-
-		// Fireball plate state display
-		this.fireballPlateText = this.add.text(20, 110, 'Fireball Plate: NONE', {
-			fontSize: '14px',
-			color: '#ffaa33',
-			backgroundColor: '#333333',
-			padding: { x: 8, y: 4 },
-		}).setScrollFactor(0).setDepth(1000)
-
-		// Create targets. tileSize=64. RED plate (4,2)=(288,160), YELLOW (8,7)=(544,480)
-
-		// T1: above red plate (fireball deflects at RED, flies up here)
-		this.createTarget(288, 96, 'T1', 0xff4444, 'task1-red-up', true)
-
-		// T2: upper-right (fireball misses RED, flies right-down, misses YELLOW, continues here)
-		this.createTarget(832, 160, 'T2', 0x44ff44, 'task2-straight', false)
-
-		// T3: right of YELLOW plate (fireball deflects at YELLOW, flies right-up, V-shape)
-		this.createTarget(640, 480, 'T3', 0xffff44, 'task3-yellow-vshape', false)
-
-		// Bind keys
-		this.input.keyboard?.on('keydown-ONE', () => {
-			this.shootAndCastSpell()
-		})
-
-		// Path hints
-		this.addPathHints()
-	}
-
-	private addPathHints(): void {
-		// Red plate label (4,2)=(288,160)
-		this.add.text(288, 130, '🔴 RED', {
-			fontSize: '12px',
-			color: '#ff6666',
-			stroke: '#000000',
-			strokeThickness: 2,
-		}).setOrigin(0.5)
-
-		// Yellow plate label (8,7)=(544,480)
-		this.add.text(544, 450, '🟡 YELLOW', {
-			fontSize: '12px',
-			color: '#ffff66',
-			stroke: '#000000',
-			strokeThickness: 2,
-		}).setOrigin(0.5)
 	}
 
 	protected onLevelUpdate(): void {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
+		if (this.levelWon) return
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setVelocity(0, 0)
 
-		// Limit player to spawn area (top-left)
-		if (playerBody) {
-			const minX = 64
-			const maxX = 240
-			const minY = 64
-			const maxY = 240
-			if (playerBody.x < minX) playerBody.x = minX
-			if (playerBody.x > maxX) playerBody.x = maxX
-			if (playerBody.y < minY) playerBody.y = minY
-			if (playerBody.y > maxY) playerBody.y = maxY
-		}
-
-		// Update player plate state display
-		const plateColor = this.world.resources.currentPlateColor
-		this.plateStatusText.setText(`Player Plate: ${plateColor}`)
-		if (plateColor === 'RED') {
-			this.plateStatusText.setColor('#ff6666')
-		} else if (plateColor === 'YELLOW') {
-			this.plateStatusText.setColor('#ffff66')
-		} else {
-			this.plateStatusText.setColor('#ffffff')
-		}
-
-		// Update fireball plate state display
-		const fireballPlate = this.getActiveFireballPlateColor()
-		this.fireballPlateText.setText(`Fireball Plate: ${fireballPlate}`)
-		if (fireballPlate === 'RED') {
-			this.fireballPlateText.setColor('#ff6666')
-		} else if (fireballPlate === 'YELLOW') {
-			this.fireballPlateText.setColor('#ffff66')
-		} else {
-			this.fireballPlateText.setColor('#ffaa33')
-		}
-
-		// Detect target destroyed
-		this.targets.forEach((target) => {
-			// Only check active targets (eid >= 0)
-			if (target.eid >= 0 && !target.destroyed && Health.current[target.eid] <= 0) {
-				target.destroyed = true
-				target.marker.destroy()
-				target.label.destroy()
-				target.body.destroy()
-
-				if (target.taskId === 'task1-red-up') {
-					this.completeObjectiveById('task1-red-up')
-					this.unlockTask2()
-					this.cameras.main.flash(200, 255, 0, 0)
-				} else if (target.taskId === 'task2-straight') {
-					this.completeObjectiveById('task2-straight')
-					this.unlockTask3()
-					this.cameras.main.flash(200, 0, 255, 0)
-				} else if (target.taskId === 'task3-yellow-vshape') {
-					this.completeObjectiveById('task3-yellow-vshape')
-					this.cameras.main.flash(200, 255, 255, 0)
-				}
+		// Update visuals for alive enemies; destroy visuals for dead ones
+		this.enemies = this.enemies.filter(ent => {
+			if (this.world.resources.bodies.has(ent.eid)) {
+				this.visuals.update(ent.eid, Health.current[ent.eid])
+				return true
 			}
+			this.visuals.destroy(ent.eid)
+			return false
 		})
-	}
 
-	private getActiveFireballPlateColor(): string {
-		// Find active fireball and detect its plate color
-		for (const [eid, body] of this.world.resources.bodies) {
-			if (FireballStats.speed[eid] !== undefined && body.active) {
-				for (const plate of this.world.resources.pressurePlates) {
-					const bounds = plate.rect.getBounds()
-					if (body.x > bounds.left && body.x < bounds.right &&
-						body.y > bounds.top && body.y < bounds.bottom) {
-						return plate.color
-					}
-				}
-			}
+		// Win: all enemies despawned
+		if (this.enemies.length === 0 || (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid)))) {
+			this.onMissionSuccess()
 		}
-		return 'NONE'
 	}
 
-	private activateTarget(target: TargetInfo): void {
-		if (target.eid >= 0) return
-
+	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
+		const size = 26
+		const body = createRectBody(this, `enemy13-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
+		body.setImmovable(true)
+		body.setAlpha(0)
 		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, target.body)
-
+		this.world.resources.bodies.set(eid, body)
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
-
-		Health.max[eid] = 10
-		Health.current[eid] = 10
-
-		target.eid = eid
+		Health.max[eid] = hp
+		Health.current[eid] = hp
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+		const tracked: TrackedEnemy = { eid, body }
+		this.enemies.push(tracked)
+		return tracked
 	}
 
-	private unlockTask2(): void {
-		if (this.task2Unlocked) return
-		this.task2Unlocked = true
-
-		const task2Target = this.targets.find(t => t.taskId === 'task2-straight')
-		if (task2Target) {
-			task2Target.marker.setVisible(true)
-			task2Target.label.setVisible(true)
-			task2Target.body.setVisible(true)
-
-			this.activateTarget(task2Target)
-
-			this.tweens.add({
-				targets: [task2Target.marker, task2Target.label, task2Target.body],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
-		}
-	}
-
-	private unlockTask3(): void {
-		if (this.task3Unlocked) return
-		this.task3Unlocked = true
-
-		const task3Target = this.targets.find(t => t.taskId === 'task3-yellow-vshape')
-		if (task3Target) {
-			task3Target.marker.setVisible(true)
-			task3Target.label.setVisible(true)
-			task3Target.body.setVisible(true)
-
-			this.activateTarget(task3Target)
-
-			this.tweens.add({
-				targets: [task3Target.marker, task3Target.label, task3Target.body],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
-		}
-
-		// Task 3 hint
-		this.add.text(480, 50, '⚠️ Task 3: V-shape path!\nDeflect up when fireball is over YELLOW', {
-			fontSize: '12px',
-			color: '#ffff00',
-			stroke: '#000000',
-			strokeThickness: 2,
-			align: 'center',
-		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(1000)
-	}
-
-	private shootAndCastSpell(): void {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (!playerBody) return
-
-		// Fire fireball (right)
-		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
-
-		// Hint binding
-        console.log('[Level13] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
-	}
-
-	private spawnFireball(x: number, y: number, dirX: number, dirY: number): number {
-		const key = 'fireball'
-		if (!this.textures.exists(key)) {
-			const g = this.add.graphics()
-			g.fillStyle(0xffaa33, 1)
-			g.fillCircle(6, 6, 6)
-			g.generateTexture(key, 12, 12)
-			g.destroy()
-		}
-
-		const body = this.physics.add.image(x, y, key)
-		body.setDepth(20)
-
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
-
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Fireball)
-		addComponent(this.world, eid, Velocity)
-		addComponent(this.world, eid, Owner)
-		addComponent(this.world, eid, Direction)
-		addComponent(this.world, eid, FireballStats)
-		addComponent(this.world, eid, Lifetime)
-
-		const playerEid = this.world.resources.playerEid
-		Owner.eid[eid] = playerEid
-
-		Direction.x[eid] = dirX
-		Direction.y[eid] = dirY
-
-		FireballStats.speed[eid] = 180
-		FireballStats.damage[eid] = 50
-		FireballStats.hitRadius[eid] = 20
-		FireballStats.initialX[eid] = x
-		FireballStats.initialY[eid] = y
-		FireballStats.pendingDeflection[eid] = 0
-		FireballStats.deflectAtTime[eid] = 0
-		FireballStats.deflectOnPlateColor[eid] = 0
-		FireballStats.deflectOnPlateAngle[eid] = 0
-		FireballStats.plateDeflected[eid] = 0
-
-		Lifetime.bornAt[eid] = Date.now()
-		Lifetime.lifetimeMs[eid] = 8000
-
-		Velocity.x[eid] = dirX * FireballStats.speed[eid]
-		Velocity.y[eid] = dirY * FireballStats.speed[eid]
-
-		return eid
-	}
-
-	private createTarget(x: number, y: number, labelText: string, color: number, taskId: string, visible: boolean): void {
-		const marker = this.add.circle(x, y, 25, color, 0.6).setStrokeStyle(3, color)
-		marker.setVisible(visible)
-
-		const label = this.add.text(x, y - 45, labelText, {
-			fontSize: '14px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 3,
-			backgroundColor: '#333333aa',
-			padding: { x: 6, y: 3 },
-		}).setOrigin(0.5)
-		label.setVisible(visible)
-
-		const body = createRectBody(this, `target-${taskId}`, color, 50, 50, x, y, 3)
-		body.setImmovable(true)
-		body.setVisible(visible)
-
-		let eid = -1
-		if (visible) {
-			// Only visible targets get ECS entity (avoid hidden target being hit)
-			eid = spawnEntity(this.world)
-			this.world.resources.bodies.set(eid, body)
-
-			addComponent(this.world, eid, Sprite)
-			addComponent(this.world, eid, Enemy)
-			addComponent(this.world, eid, Health)
-
-			Health.max[eid] = 10
-			Health.current[eid] = 10
-		}
-
-		this.targets.push({ eid, body, marker, label, destroyed: false, taskId })
+	private onMissionSuccess(): void {
+		if (this.levelWon) return
+		this.levelWon = true
+		this.cameras.main.flash(400, 0, 255, 100)
+		this.completeObjectiveById('clear-all')
+		this.showInstruction(
+			'All enemies eliminated!\n\n' +
+			'forEach — mastered!\n\n' +
+			'forEach(list, f) applies f to EVERY element.\n' +
+			'Perfect for side-effect operations like dealing damage.'
+		)
 	}
 }

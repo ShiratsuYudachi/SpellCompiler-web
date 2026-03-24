@@ -49,6 +49,7 @@ export class LevelSelectInterface extends Phaser.Scene {
 		this.container = this.add.container(0, 80)
 
 		// ── Full level list (skip missing 5 and 10) ──────────────────────
+		// Full level list (skip missing 5 and 10)
 		const levels: LevelEntry[] = [
 			// Chapter 1: Basics
 			{ num: 1,  key: 'Level1',  name: 'Move',         category: 'Basics' },
@@ -59,32 +60,23 @@ export class LevelSelectInterface extends Phaser.Scene {
 			{ num: 7,  key: 'Level7',  name: 'Heavy Ball',   category: 'Basics' },
 			{ num: 8,  key: 'Level8',  name: 'Sort & Throw', category: 'Basics' },
 			{ num: 9,  key: 'Level9',  name: 'Reach Goal',   category: 'Basics' },
-			// Chapter 2: Deflection
-			{ num: 11, key: 'Level11', name: 'Deflect I',    category: 'Deflection' },
-			{ num: 12, key: 'Level12', name: 'Deflect II',   category: 'Deflection' },
-			{ num: 13, key: 'Level13', name: 'Deflect III',  category: 'Deflection' },
-			{ num: 14, key: 'Level14', name: 'Logic Gate',   category: 'Deflection' },
-			{ num: 15, key: 'Level15', name: 'Angled Rebound',category: 'Deflection' },
-			{ num: 16, key: 'Level16', name: 'Boss Battle',  category: 'Deflection' },
-			{ num: 17, key: 'Level17', name: 'Combat',       category: 'Deflection' },
-			{ num: 18, key: 'Level18', name: 'Conditions',   category: 'Deflection' },
-			// Chapter 3: Filter intro
-			{ num: 19, key: 'Level19', name: 'Only Red',     category: 'Filter' },
-			{ num: 20, key: 'Level20', name: 'Guided Strike',category: 'Filter' },
-			{ num: 21, key: 'Level21', name: 'Max Threat',   category: 'Filter' },
-			// Chapter 4: forEach
-			{ num: 22, key: 'Level22', name: 'Sweep',        category: 'forEach' },
-			{ num: 23, key: 'Level23', name: 'Precision',    category: 'forEach' },
-			{ num: 24, key: 'Level24', name: 'Strike',       category: 'forEach' },
-			// Chapter 5: map
-			{ num: 25, key: 'Level25', name: 'Guided Balls', category: 'map' },
-			{ num: 26, key: 'Level26', name: 'Reactor',      category: 'map' },
-			{ num: 27, key: 'Level27', name: 'Classified',   category: 'map' },
-			// Chapter 6: Spatial query
-			{ num: 28, key: 'Level28', name: 'Close Sweep',  category: 'Spatial' },
-			{ num: 29, key: 'Level29', name: 'Lockdown',     category: 'Spatial' },
-			// Chapter 7: Combination
-			{ num: 30, key: 'Level30', name: 'Combo I',      category: 'Combo' },
+			// Chapter 2: Filter intro
+			{ num: 10, key: 'Level10', name: 'Only Red',     category: 'Filter' },
+			{ num: 11, key: 'Level11', name: 'Guided Strike',category: 'Filter' },
+			{ num: 12, key: 'Level12', name: 'Max Threat',   category: 'Filter' },
+			// Chapter 3: forEach
+			{ num: 13, key: 'Level13', name: 'Sweep',        category: 'forEach' },
+			{ num: 14, key: 'Level14', name: 'Precision',    category: 'forEach' },
+			{ num: 15, key: 'Level15', name: 'Strike',       category: 'forEach' },
+			// Chapter 4: map
+			{ num: 16, key: 'Level16', name: 'Guided Balls', category: 'map' },
+			{ num: 17, key: 'Level17', name: 'Reactor',      category: 'map' },
+			{ num: 18, key: 'Level18', name: 'Classified',   category: 'map' },
+			// Chapter 5: Spatial query
+			{ num: 19, key: 'Level19', name: 'Close Sweep',  category: 'Spatial' },
+			{ num: 20, key: 'Level20', name: 'Lockdown',     category: 'Spatial' },
+			// Chapter 6: Combination
+			{ num: 21, key: 'Level21', name: 'Combo I',      category: 'Combo' },
 		]
 
 		const cols = 4

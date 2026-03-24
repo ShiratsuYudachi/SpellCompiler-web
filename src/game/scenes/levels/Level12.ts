@@ -1,437 +1,338 @@
 import { addComponent } from 'bitecs'
 import { BaseScene } from '../base/BaseScene'
 import { spawnEntity } from '../../gameWorld'
-import { Velocity, Health, Sprite, Enemy, Fireball, Owner, Direction, FireballStats, Lifetime } from '../../components'
+import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { createRoom } from '../../utils/levelUtils'
+import { EntityVisualManager } from '../../EntityVisual'
+import type Phaser from 'phaser'
+
+// ─────────────────────────────────────────────────────────────
+// Level 12 — "Greatest Threat"
+//
+// Teaching goal: use fold to find argmax (entity with highest HP)
+//
+//   fold(
+//     getAllEnemies(state),
+//     -1,                                       ← sentinel
+//     (best, eid) →
+//       if getEntityHealth(state,eid) > getEntityHealth(state,best)
+//       then eid
+//       else best
+//   )  →  damageEntity(state, result, 200)
+//
+// Why filter is not enough:
+//   Each load, 5 enemies get random HP. Player cannot use a fixed
+//   threshold to find the highest-HP one — must use fold.
+//
+// Setup:
+//   5 enemies (random HP 20–115; highest is target)
+//   4 civilians (white, 10 HP; do not hit)
+//   Win only when the highest-HP enemy dies
+// ─────────────────────────────────────────────────────────────
+
+const _answer: { nodes: any[]; edges: any[] } = {
+		nodes: [
+			// ── Main chain ──────────────────────────────────────────
+			{
+				id: 'si',
+				type: 'spellInput',
+				position: { x: -180, y: 220 },
+				data: { label: 'Game State', params: ['state'] },
+			},
+			{
+				id: 'f-gae',
+				type: 'dynamicFunction',
+				position: { x: 60, y: 220 },
+				data: {
+					functionName: 'game::getAllEnemies',
+					displayName: 'getAllEnemies',
+					namespace: 'game',
+					params: ['state'],
+				},
+			},
+			{
+				id: 'f-fold',
+				type: 'dynamicFunction',
+				position: { x: 320, y: 200 },
+				data: {
+					functionName: 'list::fold',
+					displayName: 'fold',
+					namespace: 'list',
+					params: ['l', 'init', 'f'],
+				},
+			},
+			{ id: 'lit-neg1', type: 'literal', position: { x: 100, y: 380 }, data: { value: -1 } },
+			{
+				id: 'f-dmg',
+				type: 'dynamicFunction',
+				position: { x: 600, y: 200 },
+				data: { functionName: 'game::damageEntity', displayName: 'damageEntity', namespace: 'game', params: ['state', 'eid', 'amount'] },
+			},
+			{ id: 'lit-200', type: 'literal', position: { x: 420, y: 380 }, data: { value: 200 } },
+			{ id: 'out', type: 'output', position: { x: 860, y: 220 }, data: { label: 'Output' } },
+
+			// ── Lambda: findMax(best, eid) → if hp(eid)>hp(best) then eid else best ──
+			{
+				id: 'lam',
+				type: 'lambdaDef',
+				position: { x: 60, y: 500 },
+				data: { functionName: 'findMax', params: ['best', 'eid'] },
+			},
+			{
+				id: 'f-out',
+				type: 'functionOut',
+				position: { x: 760, y: 600 },
+				data: { lambdaId: 'lam' },
+			},
+			// getEntityHealth for the current eid candidate
+			{
+				id: 'f-health-eid',
+				type: 'dynamicFunction',
+				position: { x: 240, y: 480 },
+				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
+			},
+			// getEntityHealth for the current best accumulator
+			{
+				id: 'f-health-best',
+				type: 'dynamicFunction',
+				position: { x: 240, y: 630 },
+				data: { functionName: 'game::getEntityHealth', displayName: 'getEntityHealth', namespace: 'game', params: ['state', 'eid'] },
+			},
+			{
+				id: 'f-gt',
+				type: 'dynamicFunction',
+				position: { x: 450, y: 550 },
+				data: { functionName: 'std::cmp::gt', displayName: '> gt', namespace: 'std::cmp', params: ['a', 'b'] },
+			},
+			{
+				id: 'f-if',
+				type: 'if',
+				position: { x: 610, y: 570 },
+				data: {},
+			},
+		],
+		edges: [
+			// Main chain
+			{ id: 'e1', source: 'si',       target: 'f-gae',  targetHandle: 'arg0' },
+			{ id: 'e2', source: 'f-gae',    target: 'f-fold', targetHandle: 'arg0' },
+			{ id: 'e3', source: 'lit-neg1', target: 'f-fold', targetHandle: 'arg1' },
+			{ id: 'e4', source: 'f-out',    sourceHandle: 'function', target: 'f-fold', targetHandle: 'arg2' },
+			{ id: 'e5', source: 'si',       target: 'f-dmg',  targetHandle: 'arg0' },
+			{ id: 'e6', source: 'f-fold',   target: 'f-dmg',  targetHandle: 'arg1' },
+			{ id: 'e7', source: 'lit-200',  target: 'f-dmg',  targetHandle: 'arg2' },
+			{ id: 'e8', source: 'f-dmg',    target: 'out',    targetHandle: 'value' },
+			// Lambda body
+			{ id: 'e9',  source: 'si',           target: 'f-health-eid',  targetHandle: 'arg0' },
+			{ id: 'e10', source: 'lam',          sourceHandle: 'param1',  target: 'f-health-eid',  targetHandle: 'arg1' },
+			{ id: 'e11', source: 'si',           target: 'f-health-best', targetHandle: 'arg0' },
+			{ id: 'e12', source: 'lam',          sourceHandle: 'param0',  target: 'f-health-best', targetHandle: 'arg1' },
+			{ id: 'e13', source: 'f-health-eid', target: 'f-gt', targetHandle: 'arg0' },
+			{ id: 'e14', source: 'f-health-best',target: 'f-gt', targetHandle: 'arg1' },
+			{ id: 'e15', source: 'f-gt',         target: 'f-if', targetHandle: 'condition' },
+			{ id: 'e16', source: 'lam',          sourceHandle: 'param1', target: 'f-if', targetHandle: 'then' },
+			{ id: 'e17', source: 'lam',          sourceHandle: 'param0', target: 'f-if', targetHandle: 'else' },
+			{ id: 'e18', source: 'f-if',         target: 'f-out', targetHandle: 'value' },
+		],
+	};
 
 export const Level12Meta: LevelMeta = {
 	key: 'Level12',
-	playerSpawnX: 96,
-	playerSpawnY: 288,
-	tileSize: 64,
-	mapData: [
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-	],
+	playerSpawnX: 480,
+	playerSpawnY: 320,
+	tileSize: 80,
+	mapData: createRoom(12, 8),
 	objectives: [
 		{
-			id: 'task1-left',
-			description: 'Task 1: Stand on RED, deflect -35° to hit LEFT target',
+			id: 'kill-strongest',
+			description: 'Destroy the entity with the HIGHEST HP — use fold to find the maximum',
 			type: 'defeat',
-		},
-		{
-			id: 'task2-right',
-			description: 'Task 2: Stand on RED, deflect 35° to hit RIGHT target',
-			type: 'defeat',
-			prerequisite: 'task1-left',
-		},
-		{
-			id: 'task3-split',
-			description: 'Task 3: Split test - one code, hit BOTH targets',
-			type: 'defeat',
-			prerequisite: 'task2-right',
 		},
 	],
-	initialSpellWorkflow: {
-		nodes: [
-			{
-				id: 'output-1',
-				type: 'output',
-				position: { x: 600, y: 250 },
-				data: { label: 'Output' },
-			},
-			{
-				id: 'func-conditional',
-				type: 'dynamicFunction',
-				position: { x: 300, y: 230 },
-				data: {
-					functionName: 'game::conditionalDeflectOnPlate',
-					displayName: 'conditionalDeflectOnPlate',
-					namespace: 'game',
-					params: ['plateColor', 'trueAngle', 'falseAngle', 'delayMs'],
-				},
-			},
-			{ id: 'lit-red', type: 'literal', position: { x: 50, y: 150 }, data: { value: 'RED' } },
-			{ id: 'lit-angle-deflect', type: 'literal', position: { x: 50, y: 220 }, data: { value: -35 } },
-			{ id: 'lit-angle-straight', type: 'literal', position: { x: 50, y: 290 }, data: { value: 0 } },
-			{ id: 'lit-delay', type: 'literal', position: { x: 50, y: 360 }, data: { value: 500 } },
-		],
-		edges: [
-			{ id: 'e1', source: 'func-conditional', target: 'output-1', targetHandle: 'value' },
-			{ id: 'e2', source: 'lit-red', target: 'func-conditional', targetHandle: 'arg0' },
-			{ id: 'e3', source: 'lit-angle-deflect', target: 'func-conditional', targetHandle: 'arg1' },
-			{ id: 'e4', source: 'lit-angle-straight', target: 'func-conditional', targetHandle: 'arg2' },
-			{ id: 'e5', source: 'lit-delay', target: 'func-conditional', targetHandle: 'arg3' },
-		],
-	},
+	hints: [
+		'Enemy HP values are randomized every attempt — no fixed threshold works.',
+		'Use fold(list, -1, (best,eid) → if hp(eid)>hp(best) then eid else best)',
+		'getEntityHealth(state, -1) returns -1, so the first real enemy always wins.',
+		'After fold you have the eid of the strongest enemy — pass it to damageEntity.',
+	],
+	// Complete solution spell:
+	//   fold(getAllEnemies(state), -1, findMax)  →  damageEntity(state, result, 200)
+	//   findMax = lambda(best, eid) { if hp(eid) > hp(best) then eid else best }
+	maxSpellCasts: 3,
+	initialSpellWorkflow: _answer,
+	answerSpellWorkflow: _answer,
 }
 
 levelRegistry.register(Level12Meta)
 
-interface TargetInfo {
+interface TrackedEnemy {
 	eid: number
 	body: Phaser.Physics.Arcade.Image
-	marker: Phaser.GameObjects.Arc
-	label: Phaser.GameObjects.Text
-	destroyed: boolean
-	taskId: string
+	hp: number
+	isCivilian: boolean
+	penaltyFired: boolean  // tracks whether civilian-hit was already counted (avoids double-count after marker.destroy)
 }
 
 export class Level12 extends BaseScene {
-	private targets: TargetInfo[] = []
-	private task2Unlocked = false
-	private task3Unlocked = false
-
-	// Energy shield - hollow (two halves, gap in middle)
-	private shieldTop: Phaser.GameObjects.Rectangle | null = null
-	private shieldBottom: Phaser.GameObjects.Rectangle | null = null
-	private shieldTopBounds: Phaser.Geom.Rectangle | null = null
-	private shieldBottomBounds: Phaser.Geom.Rectangle | null = null
-
-	// Pressure plate state display
-	private plateStatusText!: Phaser.GameObjects.Text
-
-	// Task 3 count
-	private task3TargetsDestroyed = 0
+	private enemies: TrackedEnemy[] = []
+	private supremeEid: number = -1   // entity with max HP — the win target
+	private penaltyCount: number = 0
+	private levelFailed: boolean = false
+	private levelWon: boolean = false
+	private visuals!: EntityVisualManager
 
 	constructor() {
 		super({ key: 'Level12' })
 	}
 
-	// Reset level state (on level enter)
-	private resetLevelState(): void {
-		this.targets = []
-		this.task2Unlocked = false
-		this.task3Unlocked = false
-		this.task3TargetsDestroyed = 0
-		this.shieldTop = null
-		this.shieldBottom = null
-		this.shieldTopBounds = null
-		this.shieldBottomBounds = null
-	}
-
 	protected onLevelCreate(): void {
-		// Reset state when entering level
-		this.resetLevelState()
+		// ── Reset all state for clean restart (scene.restart reuses the instance) ──
+		this.enemies = []
+		this.supremeEid = -1
+		this.penaltyCount = 0
+		this.levelFailed = false
+		this.levelWon = false
+		this.events.removeAllListeners('civilian-hit') // prevent listener accumulation
+
+		if (this.visuals) this.visuals.destroyAll()
+		this.visuals = new EntityVisualManager(this)
+
 		this.showInstruction(
-			'【Level 12: Safe Split】\n\n' +
-			'Use If node for conditional branching.\n\n' +
-			'• getPlayerPlateColor(): get color of pressure plate under player\n' +
-			'• If(condition, trueValue, falseValue)\n\n' +
-			'Logic:\n' +
-			'IF (on red plate) { deflect to bypass shield }\n' +
-			'ELSE { go straight }\n\n' +
-			'The shield blocks fireballs from the front!\n\n' +
-			'Press TAB to edit spell, 1 to fire.'
+			'【The Sniper — Part 3: Maximum Threat】\n\n' +
+			'Enemy HP values are RANDOMIZED — a fixed filter will not work.\n' +
+			'You must find the entity with the HIGHEST HP using fold.\n\n' +
+			'fold(list, -1, (best, eid) →\n' +
+			'  if hp(eid) > hp(best) then eid else best)\n\n' +
+			'• Civilians (white, 10 HP) — DO NOT HIT  (3 hits = failure)\n' +
+			'• Enemies (colored) — HP shown on screen\n' +
+			'• Only killing the STRONGEST enemy completes the mission.\n\n' +
+			'Press SPACE to cast your spell.'
 		)
 
-		// Lock player position
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (playerBody) {
-			playerBody.setPosition(96, 288)
-			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
+		this.setTaskInfo('Maximum Threat', [
+			'Destroy the enemy with the HIGHEST HP',
+			'Use fold to find the maximum',
+			'Civilians protected — 3 hits = failure',
+		])
+
+		// Lock player
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setPosition(480, 320)
+
+		// Randomize 5 enemy HP values — ensure one is clearly dominant
+		const enemyHPs = this.shuffleHPs([115, 80, 55, 35, 20])
+
+		const enemyPositions = [
+			{ x: 200, y: 200 },
+			{ x: 480, y: 160 },
+			{ x: 760, y: 200 },
+			{ x: 280, y: 450 },
+			{ x: 680, y: 450 },
+		]
+
+		// Color palette for enemies (excluding white/grey reserved for civilians)
+		const enemyColors = [0xff3333, 0xff8800, 0xffcc00, 0x33cc33, 0x3399ff]
+
+		let maxHP = -1
+		let supremeColor = 0xff3333
+		for (let i = 0; i < enemyPositions.length; i++) {
+			const pos = enemyPositions[i]
+			const hp = enemyHPs[i]
+			const color = enemyColors[i]
+			const ent = this.spawnEnemy(pos.x, pos.y, color, hp)
+			this.enemies.push(ent)
+			if (hp > maxHP) {
+				maxHP = hp
+				this.supremeEid = ent.eid
+				supremeColor = color
+			}
 		}
 
-		// Create pressure plate state display
-		this.plateStatusText = this.add.text(20, 80, 'Plate: NONE', {
-			fontSize: '16px',
-			color: '#ffffff',
-			backgroundColor: '#333333',
-			padding: { x: 8, y: 4 },
-		}).setScrollFactor(0).setDepth(1000)
+		// Re-register the supreme enemy with role='target' so it gets the target visual style
+		// (EntityVisualManager's 'target' role already has its own distinct pulse animation)
+		const supremeEnt = this.enemies.find(e => e.eid === this.supremeEid)!
+		this.visuals.destroy(this.supremeEid)
+		this.visuals.register(this.supremeEid, {
+			role: 'target',
+			x: supremeEnt.body.x,
+			y: supremeEnt.body.y,
+			radius: 28,
+			bodyColor: supremeColor,
+			maxHP: maxHP,
+		})
 
-		// Energy shield - hollow (two halves, gap for fireball); x=544
-		const shieldX = 544
-		const shieldWidth = 20
-		const gapHeight = 80 // Center gap
-		const shieldHeight = 80 // Each half
+		// Spawn civilians (white, 10 HP)
+		const civilianPositions = [
+			{ x: 160, y: 320 }, { x: 800, y: 320 },
+			{ x: 480, y: 320 }, { x: 340, y: 280 },
+		]
+		for (const pos of civilianPositions) {
+			const ent = this.spawnCivilian(pos.x, pos.y)
+			this.enemies.push(ent)
+		}
 
-		// Upper half
-		this.shieldTop = this.add.rectangle(shieldX, 288 - gapHeight / 2 - shieldHeight / 2, shieldWidth, shieldHeight, 0x00ffff, 0.7)
-		this.shieldTop.setStrokeStyle(3, 0x00ffff)
-		this.shieldTopBounds = this.shieldTop.getBounds()
+		// Register civilians for damage-event hook
+		const civilianEids = new Set(this.enemies.filter(e => e.isCivilian).map(e => e.eid))
+		this.world.resources.levelData!['civilianEids'] = civilianEids
 
-		// Lower half
-		this.shieldBottom = this.add.rectangle(shieldX, 288 + gapHeight / 2 + shieldHeight / 2, shieldWidth, shieldHeight, 0x00ffff, 0.7)
-		this.shieldBottom.setStrokeStyle(3, 0x00ffff)
-		this.shieldBottomBounds = this.shieldBottom.getBounds()
-
-		// Shield label
-		this.add.text(shieldX, 288 - gapHeight / 2 - shieldHeight - 15, '⚡ Shield', {
-			fontSize: '12px',
-			color: '#00ffff',
-			stroke: '#000000',
-			strokeThickness: 2,
-		}).setOrigin(0.5)
-
-		// Gap indicator
-		this.add.text(shieldX, 288, '→', {
-			fontSize: '16px',
-			color: '#00ffff',
-			stroke: '#000000',
-			strokeThickness: 2,
-		}).setOrigin(0.5)
-
-		// Target positions: tileSize=64, map 15x9; shield at x=544, targets behind
-
-		// Task 1: upper target (behind shield); fireball through gap, deflect -35° up
-		this.createTarget(750, 128, 'Task 1: UP', 0xff4444, 'task1-left', true)
-
-		// Task 2: lower target (behind shield), initially hidden; deflect +35° down
-		this.createTarget(750, 448, 'Task 2: DOWN', 0x44ff44, 'task2-right', false)
-
-		// Task 3: two targets at once, initially hidden; one deflect on plate, one straight off plate
-		this.createTarget(820, 160, 'Task 3-A: Deflect', 0xffaa00, 'task3-deflect', false)
-		this.createTarget(820, 360, 'Task 3-B: Straight', 0xffaa00, 'task3-straight', false)
-
-		// Bind key '1' to fire and cast
-		this.input.keyboard?.on('keydown-ONE', () => {
-			this.shootAndCastSpell()
+		this.events.on('civilian-hit', (eid?: number) => {
+			if (this.levelFailed || this.levelWon) return
+			if (typeof eid === 'number') {
+				const ent = this.enemies.find(e => e.eid === eid)
+				if (ent) ent.penaltyFired = true
+			}
+			this.penaltyCount++
+			this.cameras.main.shake(180, 0.012)
+			this.cameras.main.flash(150, 255, 80, 0)
+			this.setTaskInfo('Maximum Threat', [
+				'Destroy the enemy with the HIGHEST HP',
+				'Use fold to find the maximum',
+				`Penalties: ${this.penaltyCount} / 3`,
+			])
+			if (this.penaltyCount >= 3) {
+				this.onMissionFail()
+			} else {
+				this.showInstruction(`FRIENDLY FIRE! ${this.penaltyCount}/3\nRefine your fold — civilians are eid < threshold…`)
+			}
 		})
 	}
 
 	protected onLevelUpdate(): void {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
+		if (this.levelFailed || this.levelWon) return
 
-		// Lock player to left area (can step on plates or not)
-		if (playerBody) {
-			const minX = 64
-			const maxX = 280 // In front of shield
-			const minY = 96
-			const maxY = 480
-			if (playerBody.x < minX) playerBody.x = minX
-			if (playerBody.x > maxX) playerBody.x = maxX
-			if (playerBody.y < minY) playerBody.y = minY
-			if (playerBody.y > maxY) playerBody.y = maxY
-		}
+		// Lock player
+		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
+		if (pb) pb.setVelocity(0, 0)
 
-		// Update pressure plate state display
-		const plateColor = this.world.resources.currentPlateColor
-		this.plateStatusText.setText(`Plate: ${plateColor}`)
-		if (plateColor === 'RED') {
-			this.plateStatusText.setColor('#ff6666')
-		} else {
-			this.plateStatusText.setColor('#ffffff')
-		}
-
-		// Check fireball vs shield collision
-		this.checkShieldCollision()
-
-		// Detect target destroyed
-		this.targets.forEach((target) => {
-			if (!target.destroyed && Health.current[target.eid] <= 0) {
-				target.destroyed = true
-				target.marker.destroy()
-				target.label.destroy()
-				target.body.destroy()
-
-				// Complete corresponding task
-				if (target.taskId === 'task1-left') {
-					this.completeObjectiveById('task1-left')
-					this.unlockTask2()
-					this.cameras.main.flash(200, 255, 0, 0)
-				} else if (target.taskId === 'task2-right') {
-					this.completeObjectiveById('task2-right')
-					this.unlockTask3()
-					this.cameras.main.flash(200, 0, 255, 0)
-				} else if (target.taskId === 'task3-deflect' || target.taskId === 'task3-straight') {
-					this.task3TargetsDestroyed++
-					this.cameras.main.flash(200, 255, 165, 0)
-
-					// Task 3 complete when both targets destroyed
-					if (this.task3TargetsDestroyed >= 2) {
-						this.completeObjectiveById('task3-split')
-					}
+		// Update alive entities; destroy visuals and handle penalties for dead ones
+		this.enemies = this.enemies.filter(ent => {
+			if (!this.world.resources.bodies.has(ent.eid)) {
+				if (ent.isCivilian && !ent.penaltyFired) {
+					ent.penaltyFired = true
+					this.events.emit('civilian-hit', ent.eid)
 				}
+				this.visuals.destroy(ent.eid)
+				return false
 			}
-		})
-	}
-
-	private unlockTask2() {
-		if (this.task2Unlocked) return
-		this.task2Unlocked = true
-
-		const task2Target = this.targets.find(t => t.taskId === 'task2-right')
-		if (task2Target) {
-			task2Target.marker.setVisible(true)
-			task2Target.label.setVisible(true)
-			task2Target.body.setVisible(true)
-
-			this.tweens.add({
-				targets: [task2Target.marker, task2Target.label, task2Target.body],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
-		}
-	}
-
-	private unlockTask3() {
-		if (this.task3Unlocked) return
-		this.task3Unlocked = true
-
-		// Task 3: no shield change; hollow design allows straight pass
-
-		// Show Task 3 targets
-		const task3Targets = this.targets.filter(t => t.taskId.startsWith('task3-'))
-		console.log('[Level12] unlockTask3: showing targets ->', task3Targets.map(t => t.taskId))
-		task3Targets.forEach(target => {
-			target.marker.setVisible(true)
-			target.label.setVisible(true)
-			target.body.setVisible(true)
-
-			this.tweens.add({
-				targets: [target.marker, target.label, target.body],
-				alpha: { from: 0, to: 1 },
-				scale: { from: 0.5, to: 1 },
-				duration: 500,
-				ease: 'Back.easeOut'
-			})
+			this.visuals.update(ent.eid, Health.current[ent.eid])
+			return true
 		})
 
-		// Task 3 rule hint
-		this.add.text(480, 50, '⚠️ Task 3: Hit both targets with one spell!\nFirst shot: on plate deflect; second: off plate straight', {
-			fontSize: '12px',
-			color: '#ffaa00',
-			stroke: '#000000',
-			strokeThickness: 2,
-			align: 'center',
-		}).setOrigin(0.5, 0).setScrollFactor(0).setDepth(1000)
-	}
-
-	private checkShieldCollision() {
-		// Check upper shield
-		if (this.shieldTop && this.shieldTopBounds) {
-			this.shieldTopBounds = this.shieldTop.getBounds()
-			this.checkCollisionWithShieldPart(this.shieldTopBounds)
-		}
-
-		// Check lower shield
-		if (this.shieldBottom && this.shieldBottomBounds) {
-			this.shieldBottomBounds = this.shieldBottom.getBounds()
-			this.checkCollisionWithShieldPart(this.shieldBottomBounds)
+		// Win: supreme threat despawned
+		if (!this.world.resources.bodies.has(this.supremeEid)) {
+			this.onMissionSuccess()
 		}
 	}
 
-	private checkCollisionWithShieldPart(bounds: Phaser.Geom.Rectangle) {
-		// Check all fireballs
-		this.world.resources.bodies.forEach((body, eid) => {
-			// Is it a fireball?
-			if (FireballStats.speed[eid] === undefined) return
+	// ── Helpers ──────────────────────────────────────────────────
 
-			if (
-				body.x > bounds.left &&
-				body.x < bounds.right &&
-				body.y > bounds.top &&
-				body.y < bounds.bottom
-			) {
-				// Fireball blocked by shield
-				body.destroy()
-				this.world.resources.bodies.delete(eid)
+	private spawnEnemy(x: number, y: number, color: number, hp: number): TrackedEnemy {
+		const size = 28
 
-				// Show block effect
-				const flash = this.add.circle(body.x, body.y, 20, 0x00ffff, 0.8)
-				this.tweens.add({
-					targets: flash,
-					alpha: 0,
-					scale: 2,
-					duration: 300,
-					onComplete: () => flash.destroy()
-				})
-			}
-		})
-	}
-
-	private shootAndCastSpell() {
-		const playerEid = this.world.resources.playerEid
-		const playerBody = this.world.resources.bodies.get(playerEid)
-		if (!playerBody) return
-
-		// 1. Fire fireball (fixed right)
-		this.spawnFireball(playerBody.x + 20, playerBody.y, 1, 0)
-
-		// 2. Hint binding
-        console.log('[Level12] Fireball spawned. Ensure you have bound a spell to "onKeyPressed: 1"!')
-	}
-
-	private spawnFireball(x: number, y: number, dirX: number, dirY: number) {
-		const key = 'fireball'
-		if (!this.textures.exists(key)) {
-			const g = this.add.graphics()
-			g.fillStyle(0xffaa33, 1)
-			g.fillCircle(6, 6, 6)
-			g.generateTexture(key, 12, 12)
-			g.destroy()
-		}
-
-		const body = this.physics.add.image(x, y, key)
-		body.setDepth(20)
-
-		const eid = spawnEntity(this.world)
-		this.world.resources.bodies.set(eid, body)
-
-		addComponent(this.world, eid, Sprite)
-		addComponent(this.world, eid, Fireball)
-		addComponent(this.world, eid, Velocity)
-		addComponent(this.world, eid, Owner)
-		addComponent(this.world, eid, Direction)
-		addComponent(this.world, eid, FireballStats)
-		addComponent(this.world, eid, Lifetime)
-
-		const playerEid = this.world.resources.playerEid
-		Owner.eid[eid] = playerEid
-
-		Direction.x[eid] = dirX
-		Direction.y[eid] = dirY
-
-		FireballStats.speed[eid] = 220
-		FireballStats.damage[eid] = 50
-		FireballStats.hitRadius[eid] = 20
-		FireballStats.initialX[eid] = x
-		FireballStats.initialY[eid] = y
-		FireballStats.pendingDeflection[eid] = 0
-		FireballStats.deflectAtTime[eid] = 0
-		FireballStats.deflectOnPlateColor[eid] = 0
-		FireballStats.deflectOnPlateAngle[eid] = 0
-		FireballStats.plateDeflected[eid] = 0
-
-		Lifetime.bornAt[eid] = Date.now()
-		Lifetime.lifetimeMs[eid] = 5000
-
-		Velocity.x[eid] = dirX * FireballStats.speed[eid]
-		Velocity.y[eid] = dirY * FireballStats.speed[eid]
-
-		return eid
-	}
-
-	private createTarget(x: number, y: number, labelText: string, color: number, taskId: string, visible: boolean) {
-		const marker = this.add.circle(x, y, 25, color, 0.6).setStrokeStyle(3, color)
-		marker.setVisible(visible)
-
-		const label = this.add.text(x, y - 45, labelText, {
-			fontSize: '14px',
-			color: '#ffffff',
-			stroke: '#000000',
-			strokeThickness: 3,
-			backgroundColor: '#333333aa',
-			padding: { x: 6, y: 3 },
-		}).setOrigin(0.5)
-		label.setVisible(visible)
-
-		// Create enemy entity (body visibility follows visible)
-		const body = createRectBody(this, `target-${taskId}`, color, 50, 50, x, y, 3)
+		const body = createRectBody(this, `enemy-${x}-${y}`, color, size * 2, size * 2, x, y, 5)
 		body.setImmovable(true)
-		body.setVisible(visible)
+		body.setAlpha(0)
 
 		const eid = spawnEntity(this.world)
 		this.world.resources.bodies.set(eid, body)
@@ -440,9 +341,72 @@ export class Level12 extends BaseScene {
 		addComponent(this.world, eid, Enemy)
 		addComponent(this.world, eid, Health)
 
-		Health.max[eid] = 10
-		Health.current[eid] = 10
+		Health.max[eid] = hp
+		Health.current[eid] = hp
 
-		this.targets.push({ eid, body, marker, label, destroyed: false, taskId })
+		this.visuals.register(eid, { role: 'enemy', x, y, radius: size, bodyColor: color, maxHP: hp })
+
+		return { eid, body, hp, isCivilian: false, penaltyFired: false }
+	}
+
+	private spawnCivilian(x: number, y: number): TrackedEnemy {
+		const hp = 10
+		const size = 22
+
+		const body = createRectBody(this, `civilian-${x}-${y}`, 0xdddddd, size * 2, size * 2, x, y, 2)
+		body.setImmovable(true)
+		body.setAlpha(0)
+
+		const eid = spawnEntity(this.world)
+		this.world.resources.bodies.set(eid, body)
+
+		addComponent(this.world, eid, Sprite)
+		addComponent(this.world, eid, Enemy)
+		addComponent(this.world, eid, Health)
+
+		Health.max[eid] = hp
+		Health.current[eid] = hp
+
+		this.visuals.register(eid, { role: 'civilian', x, y, radius: size, bodyColor: 0xdddddd, maxHP: hp })
+
+		return { eid, body, hp, isCivilian: true, penaltyFired: false }
+	}
+
+	/** Fisher-Yates shuffle */
+	private shuffleHPs(arr: number[]): number[] {
+		const a = [...arr]
+		for (let i = a.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[a[i], a[j]] = [a[j], a[i]]
+		}
+		return a
+	}
+
+	private onMissionSuccess(): void {
+		if (this.levelWon) return
+		this.levelWon = true
+		this.cameras.main.flash(500, 0, 255, 100)
+		this.completeObjectiveById('kill-strongest')
+		this.showInstruction(
+			'Supreme Threat eliminated!\n\n' +
+			`Civilian penalties: ${this.penaltyCount}/3\n\n` +
+			'fold as argmax — mastered!\n' +
+			'The trilogy is complete.'
+		)
+		// Navigation is handled by the Victory UI (Next Level / Replay / Menu buttons)
+	}
+
+	private onMissionFail(): void {
+		if (this.levelFailed) return
+		this.levelFailed = true
+		this.cameras.main.shake(400, 0.025)
+		this.cameras.main.flash(300, 255, 0, 0)
+		this.showInstruction(
+			'MISSION FAILED — Too many civilian casualties.\n\n' +
+			'Your fold must not return civilian eids.\n' +
+			'Remember: getEntityHealth(state, eid) > getEntityHealth(state, best)\n' +
+			'Restarting in 3 seconds…'
+		)
+		this.time.delayedCall(3000, () => this.scene.restart())
 	}
 }
