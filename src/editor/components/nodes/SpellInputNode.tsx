@@ -227,6 +227,7 @@ export const SpellInputNode = memo(({ id, data }: { id: string; data: SpellInput
 						onChange={(e) => setNewParamName(e.target.value)}
 						onKeyPress={(e) => e.key === 'Enter' && handleAddParam()}
 						placeholder="param name"
+						className="nodrag"
 						style={{
 							flex: 1,
 							padding: '4px 6px',

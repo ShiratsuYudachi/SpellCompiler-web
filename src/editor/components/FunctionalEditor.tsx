@@ -435,6 +435,11 @@ function EditorContent(props: FunctionalEditorProps) {
 	const onEditorAreaClick = useCallback((e: React.MouseEvent) => {
 		setMenuState(null);
 		setContextMenu(null);
+		// Don't steal focus from input/textarea elements inside nodes
+		const target = e.target as HTMLElement;
+		if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.closest('[contenteditable="true"]')) {
+			return;
+		}
 		(e.currentTarget as HTMLElement).focus();
 	}, []);
 

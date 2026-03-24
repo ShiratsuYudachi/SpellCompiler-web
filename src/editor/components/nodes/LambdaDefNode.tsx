@@ -75,7 +75,7 @@ export function LambdaDefNode({ id, data }: NodeProps<LambdaDefNodeData>) {
 				value={functionName}
 				onChange={(e) => handleNameChange(e.target.value)}
 				placeholder="lambda name"
-				className="w-full text-base font-semibold bg-transparent border-none outline-none mb-3 px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
+				className="nodrag w-full text-base font-semibold bg-transparent border-none outline-none mb-3 px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
 			/>
 
 			{/* Parameters */}
@@ -94,7 +94,7 @@ export function LambdaDefNode({ id, data }: NodeProps<LambdaDefNodeData>) {
 							value={param}
 							onChange={(e) => handleParamNameChange(i, e.target.value)}
 							placeholder={`param${i + 1}`}
-							className="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-gray-50 focus:bg-gray-50"
+							className="nodrag flex-1 text-sm text-gray-700 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-gray-50 focus:bg-gray-50"
 						/>
 
 						{/* Delete Button */}
@@ -132,7 +132,7 @@ export function LambdaDefNode({ id, data }: NodeProps<LambdaDefNodeData>) {
 						}
 					}}
 					placeholder="+ Add Param"
-					className="flex-1 text-sm text-purple-500 placeholder-purple-400 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
+					className="nodrag flex-1 text-sm text-purple-500 placeholder-purple-400 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
 				/>
 				</div>
 			

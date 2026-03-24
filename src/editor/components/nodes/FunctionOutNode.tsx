@@ -34,7 +34,7 @@ export function FunctionOutNode({ id, data }: NodeProps<FunctionOutNodeData>) {
 				value={lambdaId}
 				onChange={(e) => handleLambdaIdChange(e.target.value)}
 				placeholder="lambda node id"
-				className="w-full text-xs text-gray-600 bg-transparent border-none outline-none mb-2 px-1 py-0.5 rounded hover:bg-indigo-50 focus:bg-indigo-100 text-center"
+				className="nodrag w-full text-xs text-gray-600 bg-transparent border-none outline-none mb-2 px-1 py-0.5 rounded hover:bg-indigo-50 focus:bg-indigo-100 text-center"
 			/>
 
 			{/* Input handle for return value (left) */}

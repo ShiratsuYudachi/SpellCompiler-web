@@ -42,7 +42,7 @@ export function VectorNode({ data }: NodeProps) {
 					type="number"
 					value={x}
 					onChange={(e) => handleXChange(e.target.value)}
-					className="w-full px-2 py-1 text-sm border border-teal-300 rounded focus:outline-none focus:border-teal-500"
+					className="nodrag w-full px-2 py-1 text-sm border border-teal-300 rounded focus:outline-none focus:border-teal-500"
 					placeholder="X coordinate"
 					step="any"
 				/>
@@ -55,7 +55,7 @@ export function VectorNode({ data }: NodeProps) {
 					type="number"
 					value={y}
 					onChange={(e) => handleYChange(e.target.value)}
-					className="w-full px-2 py-1 text-sm border border-teal-300 rounded focus:outline-none focus:border-teal-500"
+					className="nodrag w-full px-2 py-1 text-sm border border-teal-300 rounded focus:outline-none focus:border-teal-500"
 					placeholder="Y coordinate"
 					step="any"
 				/>

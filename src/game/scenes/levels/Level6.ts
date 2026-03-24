@@ -56,6 +56,7 @@ export const Level6Meta: LevelMeta = {
 		'Then head to get the first (only) heaviest index, then throwBallToGate(state, index). Cast the spell.',
 	],
 	initialSpellWorkflow: level6InitialWorkflow,
+	answerSpellWorkflow: level6InitialWorkflow,
 }
 
 levelRegistry.register(Level6Meta)

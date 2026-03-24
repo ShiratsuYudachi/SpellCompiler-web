@@ -58,6 +58,7 @@ export const Level5Meta: LevelMeta = {
 		'Then head to get the first (only) safe index, then openChest(state, index). Cast the spell to open the treasure chest.',
 	],
 	initialSpellWorkflow: level5InitialWorkflow,
+	answerSpellWorkflow: level5InitialWorkflow,
 }
 
 levelRegistry.register(Level5Meta)
