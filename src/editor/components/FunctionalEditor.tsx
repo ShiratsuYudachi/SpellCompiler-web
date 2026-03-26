@@ -118,6 +118,20 @@ type FlowState = { nodes: Node[]; edges: Edge[] };
 // Controlled nodes/edges so that setNodes/setEdges (e.g. from Vibe Build) reliably update the view.
 function EditorContent(props: FunctionalEditorProps) {
 	const isLibraryMode = props.isLibraryMode ?? Boolean(props.onExit && props.initialSpellId !== null)
+	const editorShortcutsHint = useMemo(() => {
+		const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform)
+		const mod = mac ? '⌘' : 'Ctrl'
+		const parts = [
+			'Pan: drag empty canvas',
+			'Box select: Shift+drag',
+			`Copy/Paste: ${mod}+C / ${mod}+V`,
+			'Delete: Backspace',
+			`Undo/Redo: ${mod}+Z / ${mod}+Shift+Z`,
+			`Add node: right click`,
+		]
+		if (!isLibraryMode) parts.push('Tab: return to game')
+		return parts.join(' · ')
+	}, [isLibraryMode])
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
 	const initialNodes = useMemo(() => startingFlow?.nodes ?? defaultNewFlow.nodes, [startingFlow]);
 	const initialEdges = useMemo(() => startingFlow?.edges ?? defaultNewFlow.edges, [startingFlow]);
@@ -1041,6 +1055,12 @@ function EditorContent(props: FunctionalEditorProps) {
 			</div>
 		</Paper>
 
+		<Paper shadow="xs" px="md" py="xs" className="border-b bg-gray-50">
+			<Text size="xs" c="dimmed" style={{ lineHeight: 1.55 }}>
+				{editorShortcutsHint}
+			</Text>
+		</Paper>
+
 			{/* Header - Row 2: AST and Results */}
 			{(currentAST || error || evaluationResult !== null) && (
 				<Paper shadow="sm" p="md" className="border-b">
@@ -1106,9 +1126,10 @@ function EditorContent(props: FunctionalEditorProps) {
 					panOnScroll={true}
 					zoomOnScroll={true}
 					zoomOnPinch={true}
+					// Default RF behaviour: left-drag on empty pane = pan. Shift+drag on pane = selection box.
+					// Click/drag on nodes & edges = select (elementsSelectable). Cmd/Ctrl+click = add to selection.
 					panOnDrag={true}
 					selectionOnDrag={false}
-						// Better UX
 						minZoom={0.1}
 						maxZoom={4}
 					>
@@ -1172,7 +1193,6 @@ function EditorContent(props: FunctionalEditorProps) {
 								onGenerate={handleVibeGenerate}
 								onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
 								onAsk={handleVibeAsk}
-								hasExistingNodes={nodes.length > 0}
 							/>
 						</div>
 					</aside>
