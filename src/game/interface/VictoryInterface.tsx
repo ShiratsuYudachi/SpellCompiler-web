@@ -1,4 +1,4 @@
-import { CSS_FONT_STACK } from '../ui/inGameTextStyle'
+import { crispDomTextRootStyle, CSS_FONT_STACK } from '../ui/inGameTextStyle'
 
 interface VictoryInterfaceProps {
 	level: number
@@ -15,13 +15,13 @@ export function VictoryInterface({ level, onNextLevel, onReplay, onMainMenu }: V
 			style={{
 				position: 'absolute',
 				inset: 0,
-				fontFamily: CSS_FONT_STACK,
 				background: 'rgba(0, 0, 0, 0.88)',
 				backdropFilter: 'blur(6px)',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
 				zIndex: 10,
+				...crispDomTextRootStyle,
 			}}
 		>
 			<div

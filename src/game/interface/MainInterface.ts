@@ -1,15 +1,9 @@
 import Phaser from 'phaser'
-import {
-	menuButtonLabelStyle,
-	menuFooterHintStyle,
-	menuMainTitleStyle,
-	menuSubtitleStyle,
-	menuVersionStyle,
-} from '../ui/inGameTextStyle'
+import { GameEvents } from '../events'
 import { drawArcaneMenuBackground } from '../ui/menuVisuals'
 
 /**
- * MainInterface - Main menu interface (pure UI)
+ * Main menu — background only; labels/buttons are React DOM (MainMenuOverlay) for Pause-like sharp text.
  */
 export class MainInterface extends Phaser.Scene {
 	constructor() {
@@ -19,49 +13,10 @@ export class MainInterface extends Phaser.Scene {
 	create() {
 		this.cameras.main.setBackgroundColor('#0a0e14')
 		drawArcaneMenuBackground(this)
+		this.game.events.emit(GameEvents.uiMainMenu, { visible: true })
 
-		// Title
-		this.add.text(480, 150, 'SPELL COMPILER', menuMainTitleStyle()).setOrigin(0.5)
-
-		// Subtitle
-		this.add.text(480, 220, 'A Magical Journey', menuSubtitleStyle()).setOrigin(0.5)
-
-		// Start game button
-		const startBtn = this.add.rectangle(480, 320, 300, 60, 0x4a90e2)
-		startBtn.setStrokeStyle(3, 0x5aa0f2)
-		startBtn.setInteractive({ useHandCursor: true })
-
-		this.add.text(480, 320, 'START GAME', menuButtonLabelStyle('28px')).setOrigin(0.5)
-
-		startBtn.on('pointerover', () => {
-			startBtn.setFillStyle(0x5aa0f2)
-			startBtn.setScale(1.05)
+		this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+			this.game.events.emit(GameEvents.uiMainMenu, { visible: false })
 		})
-		startBtn.on('pointerout', () => {
-			startBtn.setFillStyle(0x4a90e2)
-			startBtn.setScale(1)
-		})
-		startBtn.on('pointerdown', () => {
-			this.scene.start('LevelSelectInterface')
-		})
-
-		// Save Files button
-		const saveBtn = this.add.rectangle(480, 395, 300, 50, 0x48bb78)
-		saveBtn.setStrokeStyle(2, 0x68d391)
-		saveBtn.setInteractive({ useHandCursor: true })
-
-		this.add.text(480, 395, 'SAVE FILES', menuButtonLabelStyle('22px')).setOrigin(0.5)
-
-		saveBtn.on('pointerover', () => saveBtn.setFillStyle(0x68d391))
-		saveBtn.on('pointerout', () => saveBtn.setFillStyle(0x48bb78))
-		saveBtn.on('pointerdown', () => {
-			this.scene.start('SaveSelectScene')
-		})
-
-		// Instruction text
-		this.add.text(480, 480, 'Press TAB to open spell editor in levels', menuFooterHintStyle()).setOrigin(0.5)
-
-		// Version info
-		this.add.text(20, 520, 'v1.0.0 - Stage 1', menuVersionStyle())
 	}
 }

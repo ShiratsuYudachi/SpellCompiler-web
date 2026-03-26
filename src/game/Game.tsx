@@ -5,6 +5,9 @@ import { GameEvents } from './events'
 import { MainInterface } from './interface/MainInterface'
 import { LevelSelectInterface } from './interface/LevelSelectInterface'
 import { PauseInterface } from './interface/PauseInterface'
+import { LevelSelectOverlay } from './interface/LevelSelectOverlay'
+import { MainMenuOverlay } from './interface/MainMenuOverlay'
+import { SaveSelectOverlay } from './interface/SaveSelectOverlay'
 import { VictoryInterface } from './interface/VictoryInterface'
 import { SaveSelectScene } from './scenes/SaveSelectScene'
 import { Level1 } from './scenes/levels/Level1'
@@ -27,7 +30,9 @@ import { Level17 } from './scenes/levels/Level17'
 import { Level18 } from './scenes/levels/Level18'
 import { Level19 } from './scenes/levels/Level19'
 import { Level20 } from './scenes/levels/Level20'
-import { setGameInstance, setEditorContext } from './gameInstance'
+import { LevelHudOverlay } from './ui/LevelHudOverlay'
+import { getPhaserCanvasResolution } from './canvasResolution'
+import { getForegroundSceneKey, setGameInstance, setEditorContext } from './gameInstance'
 
 export function Game() {
 	const containerRef = useRef<HTMLDivElement | null>(null)
@@ -35,6 +40,9 @@ export function Game() {
 	const [showEditor, setShowEditor] = useState(false)
 	const [showPause, setShowPause] = useState(false)
 	const [showVictory, setShowVictory] = useState(false)
+	const [showMainMenuDom, setShowMainMenuDom] = useState(false)
+	const [showLevelSelectDom, setShowLevelSelectDom] = useState(false)
+	const [showSaveSelectDom, setShowSaveSelectDom] = useState(false)
 	const pausedSceneRef = useRef<string | null>(null)
 	const completedLevelRef = useRef<number>(0)
 
@@ -47,14 +55,20 @@ export function Game() {
 			return
 		}
 
-		const config: Phaser.Types.Core.GameConfig = {
+		const config = {
 			type: Phaser.AUTO,
 			parent: containerRef.current,
 			width: 960,
 			height: 540,
+			// Higher backing store = sharper text/UI when the canvas is scaled up (FIT)
+			resolution: getPhaserCanvasResolution(),
+			render: {
+				antialias: true,
+				roundPixels: true,
+			},
 			scene: [
-				SaveSelectScene,
 				MainInterface,
+				SaveSelectScene,
 				LevelSelectInterface,
 				Level1,
 				Level2,
@@ -94,42 +108,42 @@ export function Game() {
 			scale: {
 				mode: Phaser.Scale.FIT,
 				autoCenter: Phaser.Scale.CENTER_BOTH,
+				autoRound: true,
 			},
-		}
+		} as Phaser.Types.Core.GameConfig
 
 		const game = new Phaser.Game(config)
 		gameRef.current = game
 		setGameInstance(game)
 
-		const onToggleEditor = () => {
+		const onWindowResize = () => {
+			game.scale.refresh()
+		}
+		window.addEventListener('resize', onWindowResize)
+
+		const onToggleEditor = (payload?: { sceneKey?: string }) => {
 			setShowEditor((v) => {
 				const newValue = !v
-				// Set context in a separate effect to avoid React warning
-				requestAnimationFrame(() => {
-					if (newValue) {
-						// When opening editor, set context to current scene
-						const currentScene = game.scene.getScenes(true).find(s => s.scene.isActive())
-						if (currentScene) {
-							setEditorContext({ sceneKey: currentScene.scene.key })
-						}
-					} else {
-						setEditorContext({ sceneKey: undefined })
-					}
-				})
+				// Set context synchronously so Editor mounts with sceneKey (rAF caused first paint on SpellManager).
+				if (newValue) {
+					const key = payload?.sceneKey ?? getForegroundSceneKey(game)
+					if (key) setEditorContext({ sceneKey: key })
+				} else {
+					setEditorContext({ sceneKey: undefined })
+				}
 				return newValue
 			})
 		}
 		game.events.on(GameEvents.toggleEditor, onToggleEditor)
 
-		const onTogglePause = () => {
+		const onTogglePause = (payload?: { sceneKey?: string }) => {
 			setShowPause((v) => {
 				const newValue = !v
 				if (newValue) {
-					// Store which scene was paused
-					const currentScene = game.scene.getScenes(true).find(s => s.scene.isActive())
-					if (currentScene) {
-						pausedSceneRef.current = currentScene.scene.key
-						game.scene.pause(currentScene.scene.key)
+					const key = payload?.sceneKey ?? getForegroundSceneKey(game)
+					if (key) {
+						pausedSceneRef.current = key
+						game.scene.pause(key)
 					}
 				} else {
 					// Resume the paused scene
@@ -147,26 +161,54 @@ export function Game() {
 			console.log('[Game] Victory event received for level:', data.level)
 			completedLevelRef.current = data.level
 
-			// Pause the current scene
-			const currentScene = game.scene.getScenes(true).find(s => s.scene.isActive())
-			if (currentScene) {
-				pausedSceneRef.current = currentScene.scene.key
-				game.scene.pause(currentScene.scene.key)
+			const key = getForegroundSceneKey(game)
+			if (key) {
+				pausedSceneRef.current = key
+				game.scene.pause(key)
 			}
 
 			setShowVictory(true)
 		}
 		game.events.on(GameEvents.showVictory, onShowVictory)
 
+		const onMainMenuUi = (data: { visible: boolean }) => {
+			setShowMainMenuDom(data.visible)
+		}
+		game.events.on(GameEvents.uiMainMenu, onMainMenuUi)
+
+		const onLevelSelectUi = (data: { visible: boolean }) => {
+			setShowLevelSelectDom(data.visible)
+		}
+		game.events.on(GameEvents.uiLevelSelect, onLevelSelectUi)
+
+		const onSaveSelectUi = (data: { visible: boolean }) => {
+			setShowSaveSelectDom(data.visible)
+		}
+		game.events.on(GameEvents.uiSaveSelect, onSaveSelectUi)
+
 		return () => {
+			window.removeEventListener('resize', onWindowResize)
 			game.events.off(GameEvents.toggleEditor, onToggleEditor)
 			game.events.off(GameEvents.togglePause, onTogglePause)
 			game.events.off(GameEvents.showVictory, onShowVictory)
+			game.events.off(GameEvents.uiMainMenu, onMainMenuUi)
+			game.events.off(GameEvents.uiLevelSelect, onLevelSelectUi)
+			game.events.off(GameEvents.uiSaveSelect, onSaveSelectUi)
 			game.destroy(true)
 			gameRef.current = null
 			setGameInstance(null)
 		}
 	}, [])
+
+	useEffect(() => {
+		const g = gameRef.current
+		const kb = g?.input.keyboard
+		if (!kb) return
+		kb.enabled = !showEditor
+		return () => {
+			kb.enabled = true
+		}
+	}, [showEditor])
 
 	const handleResume = () => {
 		if (gameRef.current) {
@@ -257,7 +299,15 @@ export function Game() {
 
 	return (
 		<div style={{ position: 'fixed', inset: 0 }}>
-			<div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />
+			<div
+				className="phaser-game-host"
+				ref={containerRef}
+				style={{ position: 'absolute', inset: 0, pointerEvents: showEditor ? 'none' : 'auto' }}
+			/>
+			{!showEditor && !showVictory ? <LevelHudOverlay /> : null}
+			{showMainMenuDom ? <MainMenuOverlay /> : null}
+			{showLevelSelectDom ? <LevelSelectOverlay /> : null}
+			{showSaveSelectDom ? <SaveSelectOverlay /> : null}
 			{showEditor ? (
 				<div
 					style={{

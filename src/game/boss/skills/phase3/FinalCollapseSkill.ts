@@ -4,7 +4,7 @@
  */
 
 import Phaser from 'phaser';
-import { bossBannerStyle } from '../../../ui/inGameTextStyle';
+import { showDomBanner } from '../../../ui/gameDomUiStore';
 import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class FinalCollapseSkill extends BossSkill {
@@ -26,16 +26,7 @@ export class FinalCollapseSkill extends BossSkill {
     
     // 警告
     this.scene.cameras.main.shake(1000, 0.03);
-    const warning = this.scene.add.text(480, 200, '!!! LAST STAND !!!', bossBannerStyle('56px', '#ff3333'));
-    warning.setOrigin(0.5);
-    
-    this.scene.tweens.add({
-      targets: warning,
-      alpha: 0,
-      scale: 1.5,
-      duration: 1000,
-      onComplete: () => warning.destroy()
-    });
+    showDomBanner('!!! LAST STAND !!!', '#ff3333', 56, 1000);
     
     await this.delay(1000);
     
@@ -119,16 +110,7 @@ export class FinalCollapseSkill extends BossSkill {
           // 完美闪避
           const allDestroyed = this.fragments.every(f => !f.active);
           if (!allDestroyed) {
-            const dodgeText = this.scene.add.text(480, 270, 'PERFECT DODGE!', bossBannerStyle('40px', '#66ff88'));
-            dodgeText.setOrigin(0.5);
-            
-            this.scene.tweens.add({
-              targets: dodgeText,
-              alpha: 0,
-              y: 220,
-              duration: 1500,
-              onComplete: () => dodgeText.destroy()
-            });
+            showDomBanner('PERFECT DODGE!', '#66ff88', 40, 1500);
           }
           
           // 清理剩余碎片

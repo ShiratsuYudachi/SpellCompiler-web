@@ -36,7 +36,6 @@ export type GameResources = {
 	scene: Phaser.Scene
 	bodies: Map<number, Phaser.Physics.Arcade.Image>
 	playerEid: number
-	hudText: Phaser.GameObjects.Text
 	spellMessageByEid: Map<number, string>
 	// REMOVED: spellByEid - spells are now managed by Event System via spellId
 	// REMOVED: input - use Event System instead

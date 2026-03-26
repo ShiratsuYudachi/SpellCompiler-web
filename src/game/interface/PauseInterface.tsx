@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { CSS_FONT_STACK } from '../ui/inGameTextStyle'
+import { crispDomTextRootStyle, CSS_FONT_STACK } from '../ui/inGameTextStyle'
 
 interface PauseInterfaceProps {
 	onResume: () => void
@@ -27,13 +27,13 @@ export function PauseInterface({ onResume, onQuit }: PauseInterfaceProps) {
 			style={{
 				position: 'absolute',
 				inset: 0,
-				fontFamily: CSS_FONT_STACK,
 				background: 'rgba(0, 0, 0, 0.88)',
 				backdropFilter: 'blur(6px)',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
 				zIndex: 1000, // Higher than editor (z-index: 10) to ensure it's on top
+				...crispDomTextRootStyle,
 			}}
 			onClick={onResume}
 		>

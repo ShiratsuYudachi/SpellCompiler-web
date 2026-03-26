@@ -6,25 +6,11 @@ import { TerrainType, type ObjectiveConfig } from './TerrainTypes'
 import { TerrainRenderer } from './TerrainRenderer'
 import { Health, Enemy } from '../../components'
 import { LevelProgress } from './LevelProgress'
-import { setEditorContext } from '../../gameInstance'
 import { setupInputEventListeners, cleanupInputEventListeners, emitTickEvent } from '../../systems/inputEventSystem'
 import { eventProcessSystem, processHoldEvents } from '../../systems/eventProcessSystem'
 import { PlayerVisual } from '../../EntityVisual'
-import {
-	controlsBodyStyle,
-	controlsTitleStyle,
-	hpLabelStyle,
-	minimapLabelStyle,
-	panelBg,
-	panelBorder,
-	panelTitleStrip,
-	spellCastColorNormal,
-	spellCastColorWarning,
-	spellCastCounterStyle,
-	taskBodyStyle,
-	taskPanelTitleStyle,
-	tutorialOverlayStyle,
-} from '../../ui/inGameTextStyle'
+import { panelBg, panelBorder } from '../../ui/inGameTextStyle'
+import { patchLevelHud, resetLevelHud, setLevelHudVisible } from '../../ui/gameDomUiStore'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
@@ -34,15 +20,8 @@ export abstract class BaseScene extends Phaser.Scene {
 	protected terrainRenderer!: TerrainRenderer
 	protected allObjectives: ObjectiveConfig[] = [] // All objectives
 
-	// UI components
+	// UI components (DOM text via LevelHudOverlay; Phaser draws bars/minimap only)
 	private hpBar!: Phaser.GameObjects.Graphics
-	private hpText!: Phaser.GameObjects.Text
-	private taskPanel!: Phaser.GameObjects.Container
-	private taskText!: Phaser.GameObjects.Text
-	private tutorialOverlay!: Phaser.GameObjects.Container
-	private tutorialInstructionText!: Phaser.GameObjects.Text
-	private controlsPanel!: Phaser.GameObjects.Container
-	private castCountText!: Phaser.GameObjects.Text   // Spell cast count (visible only when level has limit)
 
 	// Player visual (knight helmet)
 	private playerVisual?: PlayerVisual
@@ -110,18 +89,32 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.playerVisual = new PlayerVisual(this, playerBody.x, playerBody.y)
 		}
 
-		// Clean up playerVisual on scene shutdown / restart
+		const dismissTut = () => patchLevelHud({ tutorialVisible: false })
+		this.game.events.on(GameEvents.dismissTutorial, dismissTut)
+
+		// Clean up playerVisual + DOM HUD on scene shutdown / restart
 		this.events.once('shutdown', () => {
 			this.playerVisual?.destroy()
 			this.playerVisual = undefined
+			this.game.events.off(GameEvents.dismissTutorial, dismissTut)
+			cleanupInputEventListeners(this)
+			resetLevelHud()
 		})
 
-		// Init UI
 		this.initPlayerHUD()
-		this.initTaskUI()
 		this.initMinimap()
-		this.initControlsPanel()
-		this.initTutorial()
+
+		setLevelHudVisible(true)
+		patchLevelHud({
+			taskTitle: 'OBJECTIVE',
+			taskBody: '',
+			controlsLeft: 'Tab  →  Toggle Editor\nESC  →  Pause Menu',
+			minimapTitle: 'MINIMAP',
+			tutorialVisible: false,
+			survivalTimerVisible: false,
+			bossHud: null,
+			banner: null,
+		})
 
 		// Init progressive objectives
 		if (config?.objectives) {
@@ -133,9 +126,6 @@ export abstract class BaseScene extends Phaser.Scene {
 
 		// Set up event system input listeners
 		setupInputEventListeners(this)
-		this.events.once('shutdown', () => {
-			cleanupInputEventListeners(this)
-		})
 
 		this.onLevelCreate()
 	}
@@ -175,17 +165,14 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	private updateTaskDisplay() {
-		// Show only current active objective (first incomplete visible one)
-		// Completed objectives are hidden
 		const currentTask = this.allObjectives.find(obj => obj.visible && !obj.completed)
 
 		if (currentTask) {
-			this.taskText.setText(`☐ ${currentTask.description}`)
+			patchLevelHud({ taskBody: `☐ ${currentTask.description}` })
 		} else if (this.allObjectives.every(obj => obj.completed)) {
-			// All objectives complete
-			this.taskText.setText('✓ All objectives complete!')
+			patchLevelHud({ taskBody: '✓ All objectives complete!' })
 		} else {
-			this.taskText.setText('')
+			patchLevelHud({ taskBody: '' })
 		}
 	}
 
@@ -447,28 +434,15 @@ export abstract class BaseScene extends Phaser.Scene {
 
 		this.add.rectangle(x, y, barWidth, barHeight, 0x000000, 0.7).setOrigin(0).setScrollFactor(0).setDepth(1000)
 		this.hpBar = this.add.graphics().setScrollFactor(0).setDepth(1001)
-		this.hpText = this.add
-			.text(x + 5, y + 3, 'HP: 100/100', hpLabelStyle())
-			.setOrigin(0)
-			.setScrollFactor(0)
-			.setDepth(1002)
 
-		// Spell cast count (hidden by default, shown when limit exists)
-		this.castCountText = this.add
-			.text(x + 5, y + 43, '', spellCastCounterStyle())
-			.setOrigin(0)
-			.setScrollFactor(0)
-			.setDepth(1002)
-			.setVisible(false)
-
-		// Listen for spell cast limit reached, flash hint
 		this.events.on('spell-cast-limit-reached', (max: number) => {
-			this.castCountText.setText(`✨ Spells: 0/${max} — No casts left!`)
-			this.castCountText.setColor(spellCastColorWarning)
-			this.castCountText.setVisible(true)
-			// Restore color after 0.8s
+			patchLevelHud({
+				castVisible: true,
+				castLine: `✨ Spells: 0/${max} — No casts left!`,
+				castWarning: true,
+			})
 			this.time.delayedCall(800, () => {
-				this.castCountText.setColor(spellCastColorNormal)
+				patchLevelHud({ castWarning: false })
 			})
 		})
 	}
@@ -477,13 +451,16 @@ export abstract class BaseScene extends Phaser.Scene {
 		const levelData = this.world.resources.levelData
 		const maxCasts = levelData?.['_maxSpellCasts'] as number | undefined
 		if (maxCasts === undefined) {
-			this.castCountText.setVisible(false)
+			patchLevelHud({ castVisible: false })
 			return
 		}
 		const usedCasts = (levelData!['_spellCastCount'] as number) ?? 0
 		const remaining = maxCasts - usedCasts
-		this.castCountText.setText(`✨ Spells: ${remaining}/${maxCasts}`)
-		this.castCountText.setVisible(true)
+		patchLevelHud({
+			castVisible: true,
+			castLine: `✨ Spells: ${remaining}/${maxCasts}`,
+			castWarning: false,
+		})
 	}
 
 	private updatePlayerHUD() {
@@ -495,40 +472,10 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.hpBar.clear()
 		this.hpBar.fillStyle(0xff0000, 0.8)
 		this.hpBar.fillRect(20, 20, 200 * hpPercent, 20)
-		this.hpText.setText(`HP: ${Math.ceil(currentHP)}/${maxHP}`)
-	}
-
-	private initTaskUI() {
-		this.taskPanel = this.add.container(735, 20).setScrollFactor(0).setDepth(1000)
-
-		// Smaller panel since we only show one task
-		const panelWidth = 210
-		const panelHeight = 90
-
-		const bg = this.add.graphics()
-		bg.fillStyle(panelBg, 0.96)
-		bg.fillRoundedRect(0, 0, panelWidth, panelHeight, 8)
-		bg.lineStyle(2, panelBorder, 0.95)
-		bg.strokeRoundedRect(0, 0, panelWidth, panelHeight, 8)
-
-		const titleBg = this.add.graphics()
-		titleBg.fillStyle(panelTitleStrip, 1)
-		titleBg.fillRoundedRect(0, 0, panelWidth, 35, { tl: 8, tr: 8, bl: 0, br: 0 })
-
-		const title = this.add
-			.text(panelWidth / 2, 17, 'OBJECTIVE', taskPanelTitleStyle())
-			.setOrigin(0.5)
-
-		this.taskText = this.add.text(12, 45, '', {
-			...taskBodyStyle(),
-			wordWrap: { width: panelWidth - 24 },
+		patchLevelHud({
+			hpLine: `HP: ${Math.ceil(currentHP)}/${maxHP}`,
+			hpPercent,
 		})
-
-		this.taskPanel.add([bg, titleBg, title, this.taskText])
-	}
-
-	protected setTaskInfo(_title: string, steps: string[]) {
-		this.taskText.setText(steps.join('\n'))
 	}
 
 	private initMinimap() {
@@ -544,13 +491,9 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.minimapBg.lineStyle(2, panelBorder, 0.85)
 		this.minimapBg.strokeRoundedRect(0, 0, size, size, 8)
 
-		const minimapTitle = this.add
-			.text(size / 2, -15, 'MINIMAP', minimapLabelStyle())
-			.setOrigin(0.5)
-
 		this.minimapPlayerDot = this.add.circle(0, 0, 4, 0x00ff00)
 
-		this.minimapContainer.add([this.minimapBg, minimapTitle, this.minimapPlayerDot])
+		this.minimapContainer.add([this.minimapBg, this.minimapPlayerDot])
 	}
 
 	private updateMinimap() {
@@ -587,64 +530,15 @@ export abstract class BaseScene extends Phaser.Scene {
 		})
 	}
 
-	private initControlsPanel() {
-		const x = 20
-		const y = 540 - 110
-
-		this.controlsPanel = this.add.container(x, y).setScrollFactor(0).setDepth(1000)
-
-		const bg = this.add.graphics()
-		bg.fillStyle(panelBg, 0.92)
-		bg.fillRoundedRect(0, 0, 250, 90, 8)
-		bg.lineStyle(2, panelBorder, 0.75)
-		bg.strokeRoundedRect(0, 0, 250, 90, 8)
-
-		const title = this.add.graphics()
-		title.fillStyle(panelTitleStrip, 0.95)
-		title.fillRoundedRect(0, 0, 250, 28, { tl: 8, tr: 8, bl: 0, br: 0 })
-
-		const titleText = this.add
-			.text(125, 14, 'CONTROLS', controlsTitleStyle())
-			.setOrigin(0.5)
-
-		const controls = [
-			'Tab  →  Toggle Editor',
-			'ESC  →  Pause Menu',
-		]
-
-		const controlsText = this.add.text(12, 36, controls.join('\n'), controlsBodyStyle())
-
-		this.controlsPanel.add([bg, title, titleText, controlsText])
-	}
-
-	private initTutorial() {
-		this.tutorialOverlay = this.add.container(0, 0).setDepth(2000).setVisible(false).setScrollFactor(0)
-
-		const dim = this.add.rectangle(480, 270, 960, 540, 0x000000, 0.72).setOrigin(0.5)
-		dim.setInteractive({ useHandCursor: true })
-		dim.on('pointerdown', () => this.tutorialOverlay.setVisible(false))
-
-		const cx = 480
-		const cy = 270
-		const cardW = 680
-		const cardH = 300
-		const card = this.add.graphics()
-		card.setPosition(cx, cy)
-		card.fillStyle(panelBg, 0.98)
-		card.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16)
-		card.lineStyle(2, panelBorder, 1)
-		card.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16)
-
-		this.tutorialInstructionText = this.add.text(cx, cy, '', tutorialOverlayStyle()).setOrigin(0.5)
-		this.tutorialInstructionText.setInteractive({ useHandCursor: true })
-		this.tutorialInstructionText.on('pointerdown', () => this.tutorialOverlay.setVisible(false))
-
-		this.tutorialOverlay.add([dim, card, this.tutorialInstructionText])
+	protected setTaskInfo(_title: string, steps: string[]) {
+		patchLevelHud({ taskBody: steps.join('\n') })
 	}
 
 	protected showInstruction(msg: string) {
-		this.tutorialInstructionText.setText(`${msg}\n\n[ Click to dismiss ]`)
-		this.tutorialOverlay.setVisible(true)
+		patchLevelHud({
+			tutorialVisible: true,
+			tutorialBody: `${msg}\n\n[ Click to dismiss ]`,
+		})
 	}
 
 	// --- Core logic ---
@@ -656,11 +550,10 @@ export abstract class BaseScene extends Phaser.Scene {
 			this.game.events.emit(GameEvents.togglePause, { sceneKey: this.scene.key })
 		})
 
-		// TAB key for editor
+		// TAB key for editor (sceneKey on event so Game.tsx does not rely on getScenes while paused)
 		this.input.keyboard?.on('keydown-TAB', (e: KeyboardEvent) => {
 			e.preventDefault()
-			setEditorContext({ sceneKey: this.scene.key })
-			this.game.events.emit(GameEvents.toggleEditor)
+			this.game.events.emit(GameEvents.toggleEditor, { sceneKey: this.scene.key })
 		})
 
 		this.events.once('shutdown', () => {

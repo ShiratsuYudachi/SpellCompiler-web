@@ -5,7 +5,8 @@ import { Velocity, Health, Sprite } from '../../components'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { eventQueue } from '../../events/EventQueue'
-import { worldBattleTimerStyle, worldFloatingTextStyle } from '../../ui/inGameTextStyle'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
+import { patchLevelHud } from '../../ui/gameDomUiStore'
 
 const level3SpellWorkflow = {
 	nodes: [
@@ -76,7 +77,6 @@ export class Level3 extends BaseScene {
 	private readonly HIT_COOLDOWN = 500 // Cooldown between hits from same bullet (ms)
 
 	private spawnTimer = 0
-	private timerText!: Phaser.GameObjects.Text
 	private battleStarted = false
 	private battleZone!: Phaser.GameObjects.Rectangle
 	private battleZoneBounds!: { x: number; y: number; width: number; height: number }
@@ -108,13 +108,7 @@ export class Level3 extends BaseScene {
 		// Create central battle zone (surrounded by walls)
 		this.createBattleZone()
 
-		// Create timer display (initially hidden)
-		this.timerText = this.add
-			.text(480, 40, 'Time: 0.0s / 10.0s', worldBattleTimerStyle())
-			.setOrigin(0.5)
-			.setScrollFactor(0)
-			.setDepth(1500)
-			.setVisible(false)
+		patchLevelHud({ survivalTimerVisible: false, survivalTimerLine: '', survivalTimerGreen: false })
 
 		// Camera settings
 		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
@@ -352,7 +346,7 @@ export class Level3 extends BaseScene {
 			if (inZone) {
 				this.battleStarted = true
 				this.startTime = Date.now()
-				this.timerText.setVisible(true)
+				patchLevelHud({ survivalTimerVisible: true })
 				this.showInstruction('Battle started! Survive 10 seconds!')
 			} else {
 				// Player hasn't entered yet, no need to process further
@@ -362,12 +356,16 @@ export class Level3 extends BaseScene {
 
 		// Update survival timer
 		this.survivalTime = (Date.now() - this.startTime) / 1000
-		this.timerText.setText(`Time: ${this.survivalTime.toFixed(1)}s / ${this.SURVIVAL_GOAL}.0s`)
+		patchLevelHud({
+			survivalTimerVisible: true,
+			survivalTimerLine: `Time: ${this.survivalTime.toFixed(1)}s / ${this.SURVIVAL_GOAL}.0s`,
+			survivalTimerGreen: false,
+		})
 
 		// Check if survived
 		if (this.survivalTime >= this.SURVIVAL_GOAL) {
 			this.completeObjectiveById('survive-10-seconds')
-			this.timerText.setColor('#00ff00')
+			patchLevelHud({ survivalTimerGreen: true })
 			return
 		}
 

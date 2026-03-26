@@ -280,12 +280,17 @@ function EditorContent(props: FunctionalEditorProps) {
 				const sceneSpellId = newSceneKey ? `scene-spell-${newSceneKey}` : null;
 				const savedSpell = sceneSpellId ? loadSpell(sceneSpellId) : null;
 
-				const nodesToLoad = savedSpell
+				let nodesToLoad = savedSpell
 					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.nodes ?? [])
 					: (config?.initialSpellWorkflow?.nodes ?? []);
-				const edgesToLoad = savedSpell
+				let edgesToLoad = savedSpell
 					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.edges ?? [])
 					: (config?.initialSpellWorkflow?.edges ?? []);
+
+				if (nodesToLoad.length === 0 && edgesToLoad.length === 0) {
+					nodesToLoad = defaultNewFlow.nodes
+					edgesToLoad = defaultNewFlow.edges
+				}
 
 				console.log('[Editor] Game mode: loading workflow, nodes:', nodesToLoad.length, savedSpell ? '(from saved copy)' : '(from template)')
 				setNodes(nodesToLoad);
@@ -1101,8 +1106,8 @@ function EditorContent(props: FunctionalEditorProps) {
 					panOnScroll={true}
 					zoomOnScroll={true}
 					zoomOnPinch={true}
-					panOnDrag={false}
-					selectionOnDrag={true}
+					panOnDrag={true}
+					selectionOnDrag={false}
 						// Better UX
 						minZoom={0.1}
 						maxZoom={4}
