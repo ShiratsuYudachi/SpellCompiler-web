@@ -5,6 +5,7 @@ import '@mantine/core/styles.css'
 import './index.css'
 import Game from './game/Game'
 import Editor from './editor/Editor'
+import { EditorShell } from './editor/EditorShell'
 
 function getRoutePath() {
 	const base = import.meta.env.BASE_URL || '/'
@@ -27,7 +28,9 @@ function Root() {
 	if (path === '/editor') {
 		return (
 			<div style={{ position: 'fixed', inset: 0 }}>
-				<Editor />
+				<EditorShell>
+					<Editor />
+				</EditorShell>
 			</div>
 		)
 	}

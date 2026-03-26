@@ -33,6 +33,7 @@ import { Level20 } from './scenes/levels/Level20'
 import { LevelHudOverlay } from './ui/LevelHudOverlay'
 import { getPhaserCanvasResolution } from './canvasResolution'
 import { getForegroundSceneKey, setGameInstance, setEditorContext } from './gameInstance'
+import { EditorShell } from '../editor/EditorShell'
 
 export function Game() {
 	const containerRef = useRef<HTMLDivElement | null>(null)
@@ -309,25 +310,9 @@ export function Game() {
 			{showLevelSelectDom ? <LevelSelectOverlay /> : null}
 			{showSaveSelectDom ? <SaveSelectOverlay /> : null}
 			{showEditor ? (
-				<div
-					style={{
-						position: 'absolute',
-						inset: 0,
-						background: 'rgba(0, 0, 0, 0.35)',
-						zIndex: 10,
-					}}
-				>
-					<div
-						style={{
-							position: 'absolute',
-							inset: 12,
-							background: '#0b0b0b',
-							border: '1px solid rgba(255, 255, 255, 0.2)',
-						}}
-					>
-						<Editor />
-					</div>
-				</div>
+				<EditorShell>
+					<Editor />
+				</EditorShell>
 			) : null}
 			{showPause ? (
 				<PauseInterface onResume={handleResume} onQuit={handleQuit} />

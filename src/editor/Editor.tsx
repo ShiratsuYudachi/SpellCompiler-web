@@ -33,32 +33,17 @@ export function Editor() {
 		return `${editingId || 'new'}:${screen}`
 	}, [editingId, screen])
 
-	// Handle Tab key for switching between spell library and scene config
+	// Tab in game mode: close editor overlay (do not use Tab to switch spell ↔ Level1 scene in standalone /editor).
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			// In game mode, Tab closes the editor (goes back to game)
-			if (isGameMode && event.key === 'Tab') {
-				event.preventDefault()
-				// Only close if we're not in the manager screen
-				if (screen !== 'manager') {
-					const game = getGameInstance()
-					if (game) {
-						game.events.emit(GameEvents.toggleEditor)
-					}
-				}
+			if (!isGameMode || event.key !== 'Tab') {
 				return
 			}
-
-			// In library mode, Tab switches between editor and sceneConfig
-			if (event.key === 'Tab' && (screen === 'editor' || screen === 'sceneConfig')) {
-				event.preventDefault()
-
-				if (screen === 'editor') {
-					// Switch to scene config
-					setScreen('sceneConfig')
-				} else if (screen === 'sceneConfig') {
-					// Switch back to spell library (editor)
-					setScreen('editor')
+			event.preventDefault()
+			if (screen !== 'manager') {
+				const game = getGameInstance()
+				if (game) {
+					game.events.emit(GameEvents.toggleEditor)
 				}
 			}
 		}
