@@ -34,7 +34,7 @@ export interface Identifier extends BaseASTNode {
 
 export interface FunctionCall extends BaseASTNode {
 	type: 'FunctionCall';
-	function: ASTNode | string;  // （ Identifier）（）
+	function: ASTNode | string;  // （Identifier）（）
 	args: ASTNode[];             // 
 }
 

@@ -43,7 +43,6 @@ export type GameResources = {
 	// REMOVED: triggers - use Event System instead
 	// REMOVED: triggerIdCounter
 	score?: number // Optional score for scenes that use it
-	mana?: number // Optional mana for scenes that use it
 	// 压力板和感应器状态
 	currentPlateColor: PlateColor        // 当前踩踏的压力板颜色
 	sensorState: boolean                 // 感应器状态（true=未被遮挡）

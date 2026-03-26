@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { worldFloatingTextStyle } from '../../../ui/inGameTextStyle';
 import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class TripleIllusionSkill extends BossSkill {
@@ -72,10 +73,7 @@ export class TripleIllusionSkill extends BossSkill {
     
     // 半透明紫色形体
     const body = this.scene.add.circle(0, 0, 25, 0x8b00ff, 0.6);
-    const label = this.scene.add.text(0, -40, 'ILLUSION', {
-      fontSize: '10px',
-      color: '#ff00ff'
-    });
+    const label = this.scene.add.text(0, -40, 'ILLUSION', worldFloatingTextStyle('10px', '#ee88ff', { bold: true }));
     label.setOrigin(0.5);
     
     container.add([body, label]);

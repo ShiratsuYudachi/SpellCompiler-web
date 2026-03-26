@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { bossBannerStyle } from '../../../ui/inGameTextStyle';
 import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
 import { BossEffects } from '../../visuals/BossEffects';
 
@@ -210,13 +211,8 @@ export class FullScreenPurgeSkill extends BossSkill {
     const warningText = this.scene.add.text(
       this.scene.cameras.main.centerX,
       this.scene.cameras.main.centerY,
-      '!!! 全屏肃清 !!!',
-      {
-        fontSize: '48px',
-        color: '#ff0000',
-        stroke: '#000000',
-        strokeThickness: 6,
-      }
+      '!!! FULL PURGE !!!',
+      bossBannerStyle('48px', '#ff4444'),
     );
     warningText.setOrigin(0.5);
     warningText.setDepth(100);

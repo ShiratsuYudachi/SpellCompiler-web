@@ -1,6 +1,13 @@
 import Phaser from 'phaser'
 import { LevelProgress } from './base/LevelProgress'
 import { levelRegistry } from '../levels/LevelRegistry'
+import {
+	menuButtonLabelStyle,
+	menuScreenTitleStyle,
+	menuTinyHintStyle,
+	worldFloatingTextStyle,
+} from '../ui/inGameTextStyle'
+import { drawArcaneMenuBackground } from '../ui/menuVisuals'
 
 /**
  * LevelSelectScene - Level selection interface
@@ -20,16 +27,10 @@ export class LevelSelectScene extends Phaser.Scene {
 
 	create() {
 		this.cameras.main.setBackgroundColor('#0a0e14')
+		drawArcaneMenuBackground(this)
 
 		// Title (fixed)
-		this.add
-			.text(480, 40, 'SELECT LEVEL', {
-				fontSize: '32px',
-				color: '#ffffff',
-				fontStyle: 'bold',
-			})
-			.setOrigin(0.5)
-			.setScrollFactor(0)
+		this.add.text(480, 40, 'SELECT LEVEL', menuScreenTitleStyle('32px')).setOrigin(0.5).setScrollFactor(0)
 
 		// Scrollable container
 		this.container = this.add.container(0, 80)
@@ -78,19 +79,12 @@ export class LevelSelectScene extends Phaser.Scene {
 
 			// Level number
 			const numText = this.add
-				.text(0, -20, `${levelNum}`, {
-					fontSize: '32px',
-					color: isUnlocked ? '#ffffff' : '#555555',
-					fontStyle: 'bold',
-				})
+				.text(0, -20, `${levelNum}`, worldFloatingTextStyle('32px', isUnlocked ? '#ffffff' : '#555555', { bold: true }))
 				.setOrigin(0.5)
 
 			// Level name
 			const nameText = this.add
-				.text(0, 20, levelName, {
-					fontSize: '14px',
-					color: isUnlocked ? '#aaaaaa' : '#444444',
-				})
+				.text(0, 20, levelName, worldFloatingTextStyle('14px', isUnlocked ? '#c8c8c8' : '#444444'))
 				.setOrigin(0.5)
 
 			btnGroup.add([btn, numText, nameText])
@@ -98,10 +92,7 @@ export class LevelSelectScene extends Phaser.Scene {
 			// Completion marker
 			if (isCompleted) {
 				const checkmark = this.add
-					.text(50, -40, '✓', {
-						fontSize: '24px',
-						color: '#00ff00',
-					})
+					.text(50, -40, '✓', worldFloatingTextStyle('24px', '#00ff88', { bold: true }))
 					.setOrigin(0.5)
 				btnGroup.add(checkmark)
 			}
@@ -122,11 +113,7 @@ export class LevelSelectScene extends Phaser.Scene {
 				})
 			} else {
 				// Locked level: show lock icon
-				const lockText = this.add
-					.text(0, 5, '🔒', {
-						fontSize: '32px',
-					})
-					.setOrigin(0.5)
+				const lockText = this.add.text(0, 5, '🔒', menuScreenTitleStyle('32px')).setOrigin(0.5)
 				lockText.setAlpha(0.4)
 				btnGroup.add(lockText)
 			}
@@ -147,26 +134,14 @@ export class LevelSelectScene extends Phaser.Scene {
 		backBtn.setStrokeStyle(2, 0xcd853f)
 		backBtn.setInteractive({ useHandCursor: true })
 
-		this.add
-			.text(480, 520, 'BACK TO MENU', {
-				fontSize: '18px',
-				color: '#ffffff',
-			})
-			.setOrigin(0.5)
-			.setScrollFactor(0)
+		this.add.text(480, 520, 'BACK TO MENU', menuButtonLabelStyle('18px')).setOrigin(0.5).setScrollFactor(0)
 
 		backBtn.on('pointerover', () => backBtn.setFillStyle(0xab6523))
 		backBtn.on('pointerout', () => backBtn.setFillStyle(0x8b4513))
 		backBtn.on('pointerdown', () => this.scene.start('MainInterface'))
 
 		// Unlock hint (dev mode)
-		this.add
-			.text(480, 510, 'Press U to unlock all levels (dev)', {
-				fontSize: '10px',
-				color: '#666666',
-			})
-			.setOrigin(0.5)
-			.setScrollFactor(0)
+		this.add.text(480, 510, 'Press U to unlock all levels (dev)', menuTinyHintStyle()).setOrigin(0.5).setScrollFactor(0)
 
 		// Setup drag scrolling
 		this.setupDragScroll()

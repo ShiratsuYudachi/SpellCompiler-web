@@ -1,5 +1,12 @@
 import Phaser from 'phaser'
 import { LevelProgress } from '../scenes/base/LevelProgress'
+import {
+	menuButtonLabelStyle,
+	menuScreenTitleStyle,
+	menuTinyHintStyle,
+	worldFloatingTextStyle,
+} from '../ui/inGameTextStyle'
+import { drawArcaneMenuBackground } from '../ui/menuVisuals'
 
 // Category color accents
 const CATEGORY_COLORS: Record<string, number> = {
@@ -37,13 +44,10 @@ export class LevelSelectInterface extends Phaser.Scene {
 
 	create() {
 		this.cameras.main.setBackgroundColor('#0a0e14')
+		drawArcaneMenuBackground(this)
 
 		// Title (fixed)
-		this.add.text(480, 40, 'SELECT LEVEL', {
-			fontSize: '32px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5).setScrollFactor(0)
+		this.add.text(480, 40, 'SELECT LEVEL', menuScreenTitleStyle('32px')).setOrigin(0.5).setScrollFactor(0)
 
 		// Scrollable container
 		this.container = this.add.container(0, 80)
@@ -110,34 +114,41 @@ export class LevelSelectInterface extends Phaser.Scene {
 			}
 
 			// Level number
-			const numText = this.add.text(-28, -18, `${entry.num}`, {
-				fontSize: '28px',
-				color: isUnlocked ? '#ffffff' : '#555555',
-				fontStyle: 'bold',
-			}).setOrigin(0, 0.5)
+			const numText = this.add
+				.text(
+					-28,
+					-18,
+					`${entry.num}`,
+					worldFloatingTextStyle('28px', isUnlocked ? '#ffffff' : '#555555', { bold: true }),
+				)
+				.setOrigin(0, 0.5)
 
 			// Level name
-			const nameText = this.add.text(0, 22, entry.name, {
-				fontSize: '12px',
-				color: isUnlocked ? '#aaaaaa' : '#444444',
-				wordWrap: { width: 128 },
-				align: 'center',
-			}).setOrigin(0.5)
+			const nameText = this.add
+				.text(0, 22, entry.name, {
+					...worldFloatingTextStyle('12px', isUnlocked ? '#c8c8c8' : '#444444'),
+					wordWrap: { width: 128 },
+					align: 'center',
+				})
+				.setOrigin(0.5)
 
 			// Category tag
-			const catText = this.add.text(42, -28, entry.category, {
-				fontSize: '9px',
-				color: isUnlocked ? `#${accentColor.toString(16).padStart(6, '0')}` : '#444444',
-			}).setOrigin(1, 0.5)
+			const catText = this.add
+				.text(42, -28, entry.category, {
+					...worldFloatingTextStyle(
+						'9px',
+						isUnlocked ? `#${accentColor.toString(16).padStart(6, '0')}` : '#444444',
+					),
+				})
+				.setOrigin(1, 0.5)
 
 			btnGroup.add([btn, numText, nameText, catText])
 
 			// Completion marker
 			if (isCompleted) {
-				const checkmark = this.add.text(52, -42, '✓', {
-					fontSize: '20px',
-					color: '#00ff88',
-				}).setOrigin(0.5)
+				const checkmark = this.add
+					.text(52, -42, '✓', worldFloatingTextStyle('20px', '#00ff88', { bold: true }))
+					.setOrigin(0.5)
 				btnGroup.add(checkmark)
 			}
 
@@ -155,9 +166,7 @@ export class LevelSelectInterface extends Phaser.Scene {
 					this.scene.start(entry.key)
 				})
 			} else {
-				const lockText = this.add.text(0, 5, '🔒', {
-					fontSize: '28px',
-				}).setOrigin(0.5)
+				const lockText = this.add.text(0, 5, '🔒', menuScreenTitleStyle('28px')).setOrigin(0.5)
 				lockText.setAlpha(0.4)
 				btnGroup.add(lockText)
 			}
@@ -178,20 +187,14 @@ export class LevelSelectInterface extends Phaser.Scene {
 		backBtn.setStrokeStyle(2, 0xcd853f)
 		backBtn.setInteractive({ useHandCursor: true })
 
-		this.add.text(480, 520, 'BACK TO MENU', {
-			fontSize: '18px',
-			color: '#ffffff',
-		}).setOrigin(0.5).setScrollFactor(0)
+		this.add.text(480, 520, 'BACK TO MENU', menuButtonLabelStyle('18px')).setOrigin(0.5).setScrollFactor(0)
 
 		backBtn.on('pointerover', () => backBtn.setFillStyle(0xab6523))
 		backBtn.on('pointerout', () => backBtn.setFillStyle(0x8b4513))
 		backBtn.on('pointerdown', () => this.scene.start('MainInterface'))
 
 		// Dev hints (small text)
-		this.add.text(480, 507, 'U = unlock all  |  R = reset progress', {
-			fontSize: '10px',
-			color: '#555555',
-		}).setOrigin(0.5).setScrollFactor(0)
+		this.add.text(480, 507, 'U = unlock all  |  R = reset progress', menuTinyHintStyle()).setOrigin(0.5).setScrollFactor(0)
 
 		// Setup drag scrolling
 		this.setupDragScroll()

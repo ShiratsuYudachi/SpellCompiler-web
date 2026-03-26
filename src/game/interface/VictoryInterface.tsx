@@ -1,3 +1,5 @@
+import { CSS_FONT_STACK } from '../ui/inGameTextStyle'
+
 interface VictoryInterfaceProps {
 	level: number
 	onNextLevel: () => void
@@ -13,7 +15,9 @@ export function VictoryInterface({ level, onNextLevel, onReplay, onMainMenu }: V
 			style={{
 				position: 'absolute',
 				inset: 0,
-				background: 'rgba(0, 0, 0, 0.85)',
+				fontFamily: CSS_FONT_STACK,
+				background: 'rgba(0, 0, 0, 0.88)',
+				backdropFilter: 'blur(6px)',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
@@ -22,13 +26,14 @@ export function VictoryInterface({ level, onNextLevel, onReplay, onMainMenu }: V
 		>
 			<div
 				style={{
-					background: '#1a1a2e',
-					border: '3px solid #4a90e2',
+					background: '#1a1a1e',
+					border: '1px solid #333338',
 					borderRadius: '12px',
 					padding: '50px 60px',
 					minWidth: '450px',
 					textAlign: 'center',
-					boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+					boxShadow: '0 16px 48px rgba(0, 0, 0, 0.55)',
+					fontFamily: CSS_FONT_STACK,
 				}}
 			>
 				{/* Title */}
@@ -38,7 +43,7 @@ export function VictoryInterface({ level, onNextLevel, onReplay, onMainMenu }: V
 						color: '#ffffff',
 						margin: '0 0 40px 0',
 						fontWeight: 'bold',
-						textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+						textShadow: '0 2px 8px rgba(0, 0, 0, 0.75)',
 					}}
 				>
 					LEVEL {level} COMPLETED!

@@ -4,7 +4,6 @@ import { Editor } from '../editor/Editor'
 import { GameEvents } from './events'
 import { MainInterface } from './interface/MainInterface'
 import { LevelSelectInterface } from './interface/LevelSelectInterface'
-import { SettingsInterface } from './interface/SettingsInterface'
 import { PauseInterface } from './interface/PauseInterface'
 import { VictoryInterface } from './interface/VictoryInterface'
 import { SaveSelectScene } from './scenes/SaveSelectScene'
@@ -57,7 +56,6 @@ export function Game() {
 				SaveSelectScene,
 				MainInterface,
 				LevelSelectInterface,
-				SettingsInterface,
 				Level1,
 				Level2,
 				Level3,

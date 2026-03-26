@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { bossBannerStyle } from '../../../ui/inGameTextStyle';
 import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class FinalCollapseSkill extends BossSkill {
@@ -25,12 +26,7 @@ export class FinalCollapseSkill extends BossSkill {
     
     // 警告
     this.scene.cameras.main.shake(1000, 0.03);
-    const warning = this.scene.add.text(480, 200, '!!! 垂死挣扎 !!!', {
-      fontSize: '64px',
-      color: '#ff0000',
-      stroke: '#000000',
-      strokeThickness: 8
-    });
+    const warning = this.scene.add.text(480, 200, '!!! LAST STAND !!!', bossBannerStyle('56px', '#ff3333'));
     warning.setOrigin(0.5);
     
     this.scene.tweens.add({
@@ -123,12 +119,7 @@ export class FinalCollapseSkill extends BossSkill {
           // 完美闪避
           const allDestroyed = this.fragments.every(f => !f.active);
           if (!allDestroyed) {
-            const dodgeText = this.scene.add.text(480, 270, '完美闪避！', {
-              fontSize: '48px',
-              color: '#00ff00',
-              stroke: '#000000',
-              strokeThickness: 6
-            });
+            const dodgeText = this.scene.add.text(480, 270, 'PERFECT DODGE!', bossBannerStyle('40px', '#66ff88'));
             dodgeText.setOrigin(0.5);
             
             this.scene.tweens.add({

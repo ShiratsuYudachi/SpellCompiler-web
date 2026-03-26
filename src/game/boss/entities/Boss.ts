@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { bossHudLineStyle } from '../../ui/inGameTextStyle';
 import { BossStore } from '../core/BossStore';
 import { EventBus } from '../core/EventBus';
 import type { BossConfig, PhaseConfig } from '../configs/BossConfig';
@@ -116,22 +117,12 @@ export class Boss {
     this.healthBarFill.setDepth(1001);
 
     // 血量文本
-    this.healthText = this.scene.add.text(x, y - 140, '', {
-      fontSize: '16px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-    });
+    this.healthText = this.scene.add.text(x, y - 140, '', bossHudLineStyle('16px', '#f0f0f0'));
     this.healthText.setOrigin(0.5);
     this.healthText.setDepth(1002);
 
     // 状态文本
-    this.stateText = this.scene.add.text(x, y - 160, '', {
-      fontSize: '14px',
-      color: '#ffff00',
-      stroke: '#000000',
-      strokeThickness: 3,
-    });
+    this.stateText = this.scene.add.text(x, y - 160, '', bossHudLineStyle('14px', '#e8e070'));
     this.stateText.setOrigin(0.5);
     this.stateText.setDepth(1002);
 

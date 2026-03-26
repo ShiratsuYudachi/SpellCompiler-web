@@ -347,7 +347,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 				)}
 				{!error && summaryMsg && (
 					<div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 10px' }}>
-						<Text size="xs" fw={600} style={{ color: '#15803d', marginBottom: 4 }}>✨ 法术效果</Text>
+						<Text size="xs" fw={600} style={{ color: '#15803d', marginBottom: 4 }}>✨ Spell Effect</Text>
 						<ScrollArea type="auto" offsetScrollbars style={{ maxHeight: 100 }}>
 							<Text size="xs" className="whitespace-pre-wrap" style={{ color: '#166534' }}>
 								{summaryMsg}

@@ -6,6 +6,7 @@ import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -144,8 +145,12 @@ export class Level18 extends BaseScene {
 
 		// Draw visual zone divider
 		this.add.rectangle(480, 320, 4, 560, 0xffff00, 0.3)
-		this.add.text(240, 40, '← TARGET ZONE', { fontSize: '14px', color: '#33cc66', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
-		this.add.text(720, 40, 'PROTECTED →', { fontSize: '14px', color: '#ff6666', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
+		this.add
+			.text(240, 40, '← TARGET ZONE', worldFloatingTextStyle('14px', '#55dd88', { bold: true }))
+			.setOrigin(0.5)
+		this.add
+			.text(720, 40, 'PROTECTED →', worldFloatingTextStyle('14px', '#ff8888', { bold: true }))
+			.setOrigin(0.5)
 
 		this.showInstruction(
 			'【Close Range Clear — Spatial Query Basics】\n\n' +

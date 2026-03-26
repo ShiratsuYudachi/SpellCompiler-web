@@ -1,4 +1,12 @@
 import Phaser from 'phaser'
+import {
+	menuButtonLabelStyle,
+	menuFooterHintStyle,
+	menuMainTitleStyle,
+	menuSubtitleStyle,
+	menuVersionStyle,
+} from '../ui/inGameTextStyle'
+import { drawArcaneMenuBackground } from '../ui/menuVisuals'
 
 /**
  * MainInterface - Main menu interface (pure UI)
@@ -10,30 +18,20 @@ export class MainInterface extends Phaser.Scene {
 
 	create() {
 		this.cameras.main.setBackgroundColor('#0a0e14')
+		drawArcaneMenuBackground(this)
 
 		// Title
-		this.add.text(480, 150, 'SPELL COMPILER', {
-			fontSize: '64px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		this.add.text(480, 150, 'SPELL COMPILER', menuMainTitleStyle()).setOrigin(0.5)
 
 		// Subtitle
-		this.add.text(480, 220, 'A Magical Journey', {
-			fontSize: '24px',
-			color: '#aaaaaa',
-		}).setOrigin(0.5)
+		this.add.text(480, 220, 'A Magical Journey', menuSubtitleStyle()).setOrigin(0.5)
 
 		// Start game button
 		const startBtn = this.add.rectangle(480, 320, 300, 60, 0x4a90e2)
 		startBtn.setStrokeStyle(3, 0x5aa0f2)
 		startBtn.setInteractive({ useHandCursor: true })
 
-		this.add.text(480, 320, 'START GAME', {
-			fontSize: '28px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		this.add.text(480, 320, 'START GAME', menuButtonLabelStyle('28px')).setOrigin(0.5)
 
 		startBtn.on('pointerover', () => {
 			startBtn.setFillStyle(0x5aa0f2)
@@ -47,48 +45,23 @@ export class MainInterface extends Phaser.Scene {
 			this.scene.start('LevelSelectInterface')
 		})
 
-	// Save Files button
-	const saveBtn = this.add.rectangle(480, 395, 300, 50, 0x48bb78)
-	saveBtn.setStrokeStyle(2, 0x68d391)
-	saveBtn.setInteractive({ useHandCursor: true })
+		// Save Files button
+		const saveBtn = this.add.rectangle(480, 395, 300, 50, 0x48bb78)
+		saveBtn.setStrokeStyle(2, 0x68d391)
+		saveBtn.setInteractive({ useHandCursor: true })
 
-	this.add.text(480, 395, 'SAVE FILES', {
-		fontSize: '22px',
-		color: '#ffffff',
-	}).setOrigin(0.5)
+		this.add.text(480, 395, 'SAVE FILES', menuButtonLabelStyle('22px')).setOrigin(0.5)
 
-	saveBtn.on('pointerover', () => saveBtn.setFillStyle(0x68d391))
-	saveBtn.on('pointerout', () => saveBtn.setFillStyle(0x48bb78))
-	saveBtn.on('pointerdown', () => {
-		this.scene.start('SaveSelectScene')
-	})
+		saveBtn.on('pointerover', () => saveBtn.setFillStyle(0x68d391))
+		saveBtn.on('pointerout', () => saveBtn.setFillStyle(0x48bb78))
+		saveBtn.on('pointerdown', () => {
+			this.scene.start('SaveSelectScene')
+		})
 
-	// Settings button
-	const settingsBtn = this.add.rectangle(480, 455, 300, 50, 0x2d3748)
-	settingsBtn.setStrokeStyle(2, 0x4a90e2)
-	settingsBtn.setInteractive({ useHandCursor: true })
+		// Instruction text
+		this.add.text(480, 480, 'Press TAB to open spell editor in levels', menuFooterHintStyle()).setOrigin(0.5)
 
-	this.add.text(480, 455, 'SETTINGS', {
-		fontSize: '22px',
-		color: '#ffffff',
-	}).setOrigin(0.5)
-
-	settingsBtn.on('pointerover', () => settingsBtn.setFillStyle(0x3d4758))
-	settingsBtn.on('pointerout', () => settingsBtn.setFillStyle(0x2d3748))
-	settingsBtn.on('pointerdown', () => {
-		this.scene.start('SettingsInterface')
-	})
-
-	// Instruction text
-	this.add.text(480, 512, 'Press TAB to open spell editor in levels', {
-		fontSize: '14px',
-		color: '#666666',
-	}).setOrigin(0.5)
-
-	// Version info
-	this.add.text(20, 520, 'v1.0.0 - Stage 1', {
-		fontSize: '14px',
-		color: '#444444',
-	})
+		// Version info
+		this.add.text(20, 520, 'v1.0.0 - Stage 1', menuVersionStyle())
 	}
 }

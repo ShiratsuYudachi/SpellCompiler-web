@@ -6,6 +6,7 @@ import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -162,12 +163,12 @@ export class Level20 extends BaseScene {
 
 		// Visual zone divider
 		this.add.rectangle(480, 320, 960, 2, 0xffffff, 0.15)
-		this.add.text(480, 68, '— TOP ZONE: ELITES (shield) —', {
-			fontSize: '13px', color: '#ff8888', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
-		this.add.text(480, 570, '— BOTTOM ZONE: DRONES —', {
-			fontSize: '13px', color: '#aaaaaa', stroke: '#000000', strokeThickness: 3,
-		}).setOrigin(0.5)
+		this.add
+			.text(480, 68, '— TOP ZONE: ELITES (shield) —', worldFloatingTextStyle('13px', '#ffaaaa', { bold: true }))
+			.setOrigin(0.5)
+		this.add
+			.text(480, 570, '— BOTTOM ZONE: DRONES —', worldFloatingTextStyle('13px', '#c8c8c8', { bold: true }))
+			.setOrigin(0.5)
 
 		this.showInstruction(
 			'【Combined Assault — Synthesis I】\n\n' +

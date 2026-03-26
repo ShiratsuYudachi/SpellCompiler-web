@@ -1,4 +1,11 @@
 import Phaser from 'phaser'
+import {
+	menuButtonLabelStyle,
+	menuParagraphStyle,
+	menuScreenTitleStyle,
+	worldFloatingTextStyle,
+} from '../ui/inGameTextStyle'
+import { drawArcaneMenuBackground } from '../ui/menuVisuals'
 import { SaveManager } from '../../storage/SaveManager'
 import type { SaveFileInfo } from '../../storage/types'
 import { LevelProgress } from './base/LevelProgress'
@@ -19,13 +26,10 @@ export class SaveSelectScene extends Phaser.Scene {
 
 	create() {
 		this.cameras.main.setBackgroundColor('#0a0e14')
+		drawArcaneMenuBackground(this)
 
 		// Title
-		this.add.text(480, 50, 'SELECT SAVE FILE', {
-			fontSize: '36px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		this.add.text(480, 50, 'SELECT SAVE FILE', menuScreenTitleStyle('36px')).setOrigin(0.5)
 
 		// Container for save items
 		this.container = this.add.container(0, 120)
@@ -37,10 +41,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		this.createNewSaveButton()
 
 		// Instructions
-		this.add.text(480, 650, 'Load a save, create new one, or import/export for backup', {
-			fontSize: '16px',
-			color: '#888888',
-		}).setOrigin(0.5)
+		this.add.text(480, 650, 'Load a save, create new one, or import/export for backup', menuParagraphStyle()).setOrigin(0.5)
 	}
 
 	private refreshSaveList() {
@@ -83,19 +84,12 @@ export class SaveSelectScene extends Phaser.Scene {
 
 		// Save name
 		const shortId = save.id.slice(-4)
-		const nameText = this.add.text(-330, -25, `Save #${shortId}`, {
-			fontSize: '24px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		})
+		const nameText = this.add.text(-330, -25, `Save #${shortId}`, worldFloatingTextStyle('24px', '#ffffff', { bold: true }))
 		container.add(nameText)
 
 		// Save info
 		const timeAgo = this.getTimeAgo(save.lastSaved)
-		const infoText = this.add.text(-330, 5, `Level ${save.currentLevel} • Last saved: ${timeAgo}`, {
-			fontSize: '14px',
-			color: '#888888',
-		})
+		const infoText = this.add.text(-330, 5, `Level ${save.currentLevel} • Last saved: ${timeAgo}`, worldFloatingTextStyle('14px', '#989898'))
 		container.add(infoText)
 
 		// Load button
@@ -104,11 +98,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		loadBtn.setInteractive({ useHandCursor: true })
 		container.add(loadBtn)
 
-		const loadText = this.add.text(150, -10, 'LOAD', {
-			fontSize: '14px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		const loadText = this.add.text(150, -10, 'LOAD', menuButtonLabelStyle('14px')).setOrigin(0.5)
 		container.add(loadText)
 
 		loadBtn.on('pointerover', () => {
@@ -127,11 +117,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		exportBtn.setInteractive({ useHandCursor: true })
 		container.add(exportBtn)
 
-		const exportText = this.add.text(260, -10, 'EXPORT', {
-			fontSize: '14px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		const exportText = this.add.text(260, -10, 'EXPORT', menuButtonLabelStyle('14px')).setOrigin(0.5)
 		container.add(exportText)
 
 		exportBtn.on('pointerover', () => {
@@ -150,10 +136,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		deleteBtn.setInteractive({ useHandCursor: true })
 		container.add(deleteBtn)
 
-		const deleteText = this.add.text(260, 30, 'Delete', {
-			fontSize: '12px',
-			color: '#ffffff',
-		}).setOrigin(0.5)
+		const deleteText = this.add.text(260, 30, 'Delete', menuButtonLabelStyle('12px')).setOrigin(0.5)
 		container.add(deleteText)
 
 		deleteBtn.on('pointerover', () => {
@@ -203,11 +186,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		newBtn.setStrokeStyle(3, 0x68d391)
 		newBtn.setInteractive({ useHandCursor: true })
 
-		this.add.text(380, y, '+ NEW SAVE', {
-			fontSize: '20px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		this.add.text(380, y, '+ NEW SAVE', menuButtonLabelStyle('20px')).setOrigin(0.5)
 
 		newBtn.on('pointerover', () => {
 			newBtn.setFillStyle(0x68d391)
@@ -224,11 +203,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		importBtn.setStrokeStyle(3, 0xb794f4)
 		importBtn.setInteractive({ useHandCursor: true })
 
-		this.add.text(660, y, '📥 IMPORT SAVE', {
-			fontSize: '20px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		this.add.text(660, y, '📥 IMPORT SAVE', menuButtonLabelStyle('20px')).setOrigin(0.5)
 
 		importBtn.on('pointerover', () => {
 			importBtn.setFillStyle(0xb794f4)
@@ -371,17 +346,14 @@ export class SaveSelectScene extends Phaser.Scene {
 		container.add(bg)
 
 		// Error icon
-		const icon = this.add.text(0, -50, '❌', {
-			fontSize: '48px',
-		}).setOrigin(0.5)
+		const icon = this.add.text(0, -50, '❌', menuScreenTitleStyle('48px')).setOrigin(0.5)
 		container.add(icon)
 
 		// Message
 		const text = this.add.text(0, 10, message, {
-			fontSize: '16px',
-			color: '#ffffff',
+			...worldFloatingTextStyle('16px', '#f0f0f0'),
 			align: 'center',
-			wordWrap: { width: 350 }
+			wordWrap: { width: 350 },
 		}).setOrigin(0.5)
 		container.add(text)
 
@@ -391,11 +363,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		okBtn.setInteractive({ useHandCursor: true })
 		container.add(okBtn)
 
-		const okText = this.add.text(0, 70, 'OK', {
-			fontSize: '18px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		const okText = this.add.text(0, 70, 'OK', menuButtonLabelStyle('18px')).setOrigin(0.5)
 		container.add(okText)
 
 		okBtn.on('pointerover', () => {
@@ -427,31 +395,23 @@ export class SaveSelectScene extends Phaser.Scene {
 		this.confirmDialog.add(dialogBg)
 
 		// Warning icon
-		const warningText = this.add.text(0, -70, '⚠️', {
-			fontSize: '48px',
-		}).setOrigin(0.5)
+		const warningText = this.add.text(0, -70, '⚠️', menuScreenTitleStyle('48px')).setOrigin(0.5)
 		this.confirmDialog.add(warningText)
 
 		// Title
-		const title = this.add.text(0, -20, 'Delete Save File?', {
-			fontSize: '28px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		const title = this.add.text(0, -20, 'Delete Save File?', menuScreenTitleStyle('28px')).setOrigin(0.5)
 		this.confirmDialog.add(title)
 
 		// Message
 		const message = this.add.text(0, 20, `Are you sure you want to delete "${saveName}"?`, {
-			fontSize: '16px',
-			color: '#cccccc',
+			...worldFloatingTextStyle('16px', '#d0d0d0'),
 			align: 'center',
-			wordWrap: { width: 450 }
+			wordWrap: { width: 450 },
 		}).setOrigin(0.5)
 		this.confirmDialog.add(message)
 
 		const warning = this.add.text(0, 50, 'This action cannot be undone!', {
-			fontSize: '14px',
-			color: '#ff6b6b',
+			...worldFloatingTextStyle('14px', '#e88888'),
 			fontStyle: 'italic',
 		}).setOrigin(0.5)
 		this.confirmDialog.add(warning)
@@ -462,10 +422,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		cancelBtn.setInteractive({ useHandCursor: true })
 		this.confirmDialog.add(cancelBtn)
 
-		const cancelText = this.add.text(-100, 100, 'Cancel', {
-			fontSize: '18px',
-			color: '#ffffff',
-		}).setOrigin(0.5)
+		const cancelText = this.add.text(-100, 100, 'Cancel', menuButtonLabelStyle('18px')).setOrigin(0.5)
 		this.confirmDialog.add(cancelText)
 
 		cancelBtn.on('pointerover', () => {
@@ -485,11 +442,7 @@ export class SaveSelectScene extends Phaser.Scene {
 		deleteBtn.setInteractive({ useHandCursor: true })
 		this.confirmDialog.add(deleteBtn)
 
-		const deleteText = this.add.text(100, 100, 'Delete', {
-			fontSize: '18px',
-			color: '#ffffff',
-			fontStyle: 'bold',
-		}).setOrigin(0.5)
+		const deleteText = this.add.text(100, 100, 'Delete', menuButtonLabelStyle('18px')).setOrigin(0.5)
 		this.confirmDialog.add(deleteText)
 
 		deleteBtn.on('pointerover', () => {

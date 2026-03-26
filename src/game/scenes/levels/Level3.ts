@@ -5,6 +5,7 @@ import { Velocity, Health, Sprite } from '../../components'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { eventQueue } from '../../events/EventQueue'
+import { worldBattleTimerStyle, worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 
 const level3SpellWorkflow = {
 	nodes: [
@@ -109,13 +110,7 @@ export class Level3 extends BaseScene {
 
 		// Create timer display (initially hidden)
 		this.timerText = this.add
-			.text(480, 40, 'Time: 0.0s / 10.0s', {
-				fontSize: '24px',
-				color: '#ffffff',
-				fontStyle: 'bold',
-				backgroundColor: '#000000',
-				padding: { x: 10, y: 5 },
-			})
+			.text(480, 40, 'Time: 0.0s / 10.0s', worldBattleTimerStyle())
 			.setOrigin(0.5)
 			.setScrollFactor(0)
 			.setDepth(1500)
@@ -237,22 +232,16 @@ export class Level3 extends BaseScene {
 
 		// Add entrance indicator arrows
 		const arrowY = bottomY + 40
-		this.add.text(centerX, arrowY, '▲ ENTER ▲', {
-			fontSize: '24px',
-			color: '#00ff00',
-			fontStyle: 'bold',
-			stroke: '#000000',
-			strokeThickness: 4,
-		}).setOrigin(0.5).setDepth(100)
+		this.add
+			.text(centerX, arrowY, '▲ ENTER ▲', worldFloatingTextStyle('24px', '#66ff88', { bold: true }))
+			.setOrigin(0.5)
+			.setDepth(100)
 
 		// Add battle zone text
-		this.add.text(centerX, centerY, 'BATTLE ZONE', {
-			fontSize: '32px',
-			color: '#ff0000',
-			fontStyle: 'bold',
-			stroke: '#000000',
-			strokeThickness: 4,
-		}).setOrigin(0.5).setDepth(100)
+		this.add
+			.text(centerX, centerY, 'BATTLE ZONE', worldFloatingTextStyle('32px', '#ff6666', { bold: true }))
+			.setOrigin(0.5)
+			.setDepth(100)
 	}
 
 	private spawnBullet() {

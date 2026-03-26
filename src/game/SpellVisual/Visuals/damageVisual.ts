@@ -5,6 +5,7 @@
  */
 
 import Phaser from 'phaser';
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle';
 
 export interface DamageHitVisualOptions {
   /** Impact main color (default: red) */
@@ -190,9 +191,7 @@ function createFloatingDamageNumber(
   // Shadow layer
   const shadow = scene.add
     .text(x + 1, startY + 1, label, {
-      fontSize: '15px',
-      color: '#220000',
-      fontStyle: 'bold',
+      ...worldFloatingTextStyle('15px', '#220000', { bold: true }),
     })
     .setOrigin(0.5)
     .setDepth(101)
@@ -201,11 +200,7 @@ function createFloatingDamageNumber(
   // Main number
   const text = scene.add
     .text(x, startY, label, {
-      fontSize: '15px',
-      color: '#ff5566',
-      fontStyle: 'bold',
-      stroke: '#330000',
-      strokeThickness: 2,
+      ...worldFloatingTextStyle('15px', '#ff6670', { bold: true }),
     })
     .setOrigin(0.5)
     .setDepth(102);

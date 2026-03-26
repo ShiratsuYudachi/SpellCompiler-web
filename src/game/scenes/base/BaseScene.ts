@@ -10,6 +10,21 @@ import { setEditorContext } from '../../gameInstance'
 import { setupInputEventListeners, cleanupInputEventListeners, emitTickEvent } from '../../systems/inputEventSystem'
 import { eventProcessSystem, processHoldEvents } from '../../systems/eventProcessSystem'
 import { PlayerVisual } from '../../EntityVisual'
+import {
+	controlsBodyStyle,
+	controlsTitleStyle,
+	hpLabelStyle,
+	minimapLabelStyle,
+	panelBg,
+	panelBorder,
+	panelTitleStrip,
+	spellCastColorNormal,
+	spellCastColorWarning,
+	spellCastCounterStyle,
+	taskBodyStyle,
+	taskPanelTitleStyle,
+	tutorialOverlayStyle,
+} from '../../ui/inGameTextStyle'
 
 export abstract class BaseScene extends Phaser.Scene {
 	protected world!: GameWorld
@@ -22,11 +37,10 @@ export abstract class BaseScene extends Phaser.Scene {
 	// UI components
 	private hpBar!: Phaser.GameObjects.Graphics
 	private hpText!: Phaser.GameObjects.Text
-	private manaBar!: Phaser.GameObjects.Graphics
-	private manaText!: Phaser.GameObjects.Text
 	private taskPanel!: Phaser.GameObjects.Container
 	private taskText!: Phaser.GameObjects.Text
 	private tutorialOverlay!: Phaser.GameObjects.Container
+	private tutorialInstructionText!: Phaser.GameObjects.Text
 	private controlsPanel!: Phaser.GameObjects.Container
 	private castCountText!: Phaser.GameObjects.Text   // Spell cast count (visible only when level has limit)
 
@@ -434,41 +448,14 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.add.rectangle(x, y, barWidth, barHeight, 0x000000, 0.7).setOrigin(0).setScrollFactor(0).setDepth(1000)
 		this.hpBar = this.add.graphics().setScrollFactor(0).setDepth(1001)
 		this.hpText = this.add
-			.text(x + 5, y + 3, 'HP: 100/100', {
-				fontSize: '14px',
-				color: '#ffffff',
-				fontStyle: 'bold',
-			})
-			.setOrigin(0)
-			.setScrollFactor(0)
-			.setDepth(1002)
-
-		this.add
-			.rectangle(x, y + 30, barWidth, barHeight, 0x000000, 0.7)
-			.setOrigin(0)
-			.setScrollFactor(0)
-			.setDepth(1000)
-
-		this.manaBar = this.add.graphics().setScrollFactor(0).setDepth(1001)
-		this.manaText = this.add
-			.text(x + 5, y + 33, 'MP: 100/100', {
-				fontSize: '14px',
-				color: '#ffffff',
-				fontStyle: 'bold',
-			})
+			.text(x + 5, y + 3, 'HP: 100/100', hpLabelStyle())
 			.setOrigin(0)
 			.setScrollFactor(0)
 			.setDepth(1002)
 
 		// Spell cast count (hidden by default, shown when limit exists)
 		this.castCountText = this.add
-			.text(x + 5, y + 63, '', {
-				fontSize: '14px',
-				color: '#ffd700',
-				fontStyle: 'bold',
-				stroke: '#000000',
-				strokeThickness: 3,
-			})
+			.text(x + 5, y + 43, '', spellCastCounterStyle())
 			.setOrigin(0)
 			.setScrollFactor(0)
 			.setDepth(1002)
@@ -477,11 +464,11 @@ export abstract class BaseScene extends Phaser.Scene {
 		// Listen for spell cast limit reached, flash hint
 		this.events.on('spell-cast-limit-reached', (max: number) => {
 			this.castCountText.setText(`✨ Spells: 0/${max} — No casts left!`)
-			this.castCountText.setColor('#ff4444')
+			this.castCountText.setColor(spellCastColorWarning)
 			this.castCountText.setVisible(true)
 			// Restore color after 0.8s
 			this.time.delayedCall(800, () => {
-				this.castCountText.setColor('#ffd700')
+				this.castCountText.setColor(spellCastColorNormal)
 			})
 		})
 	}
@@ -503,20 +490,12 @@ export abstract class BaseScene extends Phaser.Scene {
 		const playerEid = this.world.resources.playerEid
 		const currentHP = Health.current[playerEid] || 100
 		const maxHP = Health.max[playerEid] || 100
-		const currentMana = this.world.resources.mana ?? 100
-		const maxMana = 100
 
 		const hpPercent = currentHP / maxHP
 		this.hpBar.clear()
 		this.hpBar.fillStyle(0xff0000, 0.8)
 		this.hpBar.fillRect(20, 20, 200 * hpPercent, 20)
 		this.hpText.setText(`HP: ${Math.ceil(currentHP)}/${maxHP}`)
-
-		const manaPercent = currentMana / maxMana
-		this.manaBar.clear()
-		this.manaBar.fillStyle(0x00ccff, 0.8)
-		this.manaBar.fillRect(20, 50, 200 * manaPercent, 20)
-		this.manaText.setText(`MP: ${Math.ceil(currentMana)}/${maxMana}`)
 	}
 
 	private initTaskUI() {
@@ -527,27 +506,21 @@ export abstract class BaseScene extends Phaser.Scene {
 		const panelHeight = 90
 
 		const bg = this.add.graphics()
-		bg.fillStyle(0x1a1f2e, 0.95)
+		bg.fillStyle(panelBg, 0.96)
 		bg.fillRoundedRect(0, 0, panelWidth, panelHeight, 8)
-		bg.lineStyle(2, 0x4a90e2, 0.9)
+		bg.lineStyle(2, panelBorder, 0.95)
 		bg.strokeRoundedRect(0, 0, panelWidth, panelHeight, 8)
 
 		const titleBg = this.add.graphics()
-		titleBg.fillStyle(0x2d3748, 1)
+		titleBg.fillStyle(panelTitleStrip, 1)
 		titleBg.fillRoundedRect(0, 0, panelWidth, 35, { tl: 8, tr: 8, bl: 0, br: 0 })
 
 		const title = this.add
-			.text(panelWidth / 2, 17, '>> OBJECTIVE', {
-				fontSize: '15px',
-				color: '#4a90e2',
-				fontStyle: 'bold',
-			})
+			.text(panelWidth / 2, 17, 'OBJECTIVE', taskPanelTitleStyle())
 			.setOrigin(0.5)
 
 		this.taskText = this.add.text(12, 45, '', {
-			fontSize: '13px',
-			color: '#e0e0e0',
-			lineSpacing: 7,
+			...taskBodyStyle(),
 			wordWrap: { width: panelWidth - 24 },
 		})
 
@@ -566,17 +539,13 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.minimapContainer = this.add.container(x, y).setScrollFactor(0).setDepth(1000)
 
 		this.minimapBg = this.add.graphics()
-		this.minimapBg.fillStyle(0x000000, 0.8)
+		this.minimapBg.fillStyle(0x000000, 0.82)
 		this.minimapBg.fillRoundedRect(0, 0, size, size, 8)
-		this.minimapBg.lineStyle(2, 0x4a90e2, 0.7)
+		this.minimapBg.lineStyle(2, panelBorder, 0.85)
 		this.minimapBg.strokeRoundedRect(0, 0, size, size, 8)
 
 		const minimapTitle = this.add
-			.text(size / 2, -15, 'MINIMAP', {
-				fontSize: '12px',
-				color: '#4a90e2',
-				fontStyle: 'bold',
-			})
+			.text(size / 2, -15, 'MINIMAP', minimapLabelStyle())
 			.setOrigin(0.5)
 
 		this.minimapPlayerDot = this.add.circle(0, 0, 4, 0x00ff00)
@@ -625,21 +594,17 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.controlsPanel = this.add.container(x, y).setScrollFactor(0).setDepth(1000)
 
 		const bg = this.add.graphics()
-		bg.fillStyle(0x1a1f2e, 0.85)
+		bg.fillStyle(panelBg, 0.92)
 		bg.fillRoundedRect(0, 0, 250, 90, 8)
-		bg.lineStyle(2, 0x4a90e2, 0.6)
+		bg.lineStyle(2, panelBorder, 0.75)
 		bg.strokeRoundedRect(0, 0, 250, 90, 8)
 
 		const title = this.add.graphics()
-		title.fillStyle(0x2d3748, 0.9)
+		title.fillStyle(panelTitleStrip, 0.95)
 		title.fillRoundedRect(0, 0, 250, 28, { tl: 8, tr: 8, bl: 0, br: 0 })
 
 		const titleText = this.add
-			.text(125, 14, 'CONTROLS', {
-				fontSize: '13px',
-				color: '#4a90e2',
-				fontStyle: 'bold',
-			})
+			.text(125, 14, 'CONTROLS', controlsTitleStyle())
 			.setOrigin(0.5)
 
 		const controls = [
@@ -647,32 +612,38 @@ export abstract class BaseScene extends Phaser.Scene {
 			'ESC  →  Pause Menu',
 		]
 
-		const controlsText = this.add.text(12, 36, controls.join('\n'), {
-			fontSize: '11px',
-			color: '#d0d0d0',
-			lineSpacing: 5,
-		})
+		const controlsText = this.add.text(12, 36, controls.join('\n'), controlsBodyStyle())
 
 		this.controlsPanel.add([bg, title, titleText, controlsText])
 	}
 
 	private initTutorial() {
 		this.tutorialOverlay = this.add.container(0, 0).setDepth(2000).setVisible(false).setScrollFactor(0)
-		const bg = this.add.rectangle(0, 0, 960, 540, 0x000000, 0.85).setOrigin(0)
-		const txt = this.add
-			.text(480, 270, '', {
-				fontSize: '20px',
-				align: 'center',
-				backgroundColor: '#1a1f2e',
-				padding: { x: 30, y: 20 },
-			})
-			.setOrigin(0.5)
-		bg.setInteractive().on('pointerdown', () => this.tutorialOverlay.setVisible(false))
-		this.tutorialOverlay.add([bg, txt])
+
+		const dim = this.add.rectangle(480, 270, 960, 540, 0x000000, 0.72).setOrigin(0.5)
+		dim.setInteractive({ useHandCursor: true })
+		dim.on('pointerdown', () => this.tutorialOverlay.setVisible(false))
+
+		const cx = 480
+		const cy = 270
+		const cardW = 680
+		const cardH = 300
+		const card = this.add.graphics()
+		card.setPosition(cx, cy)
+		card.fillStyle(panelBg, 0.98)
+		card.fillRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16)
+		card.lineStyle(2, panelBorder, 1)
+		card.strokeRoundedRect(-cardW / 2, -cardH / 2, cardW, cardH, 16)
+
+		this.tutorialInstructionText = this.add.text(cx, cy, '', tutorialOverlayStyle()).setOrigin(0.5)
+		this.tutorialInstructionText.setInteractive({ useHandCursor: true })
+		this.tutorialInstructionText.on('pointerdown', () => this.tutorialOverlay.setVisible(false))
+
+		this.tutorialOverlay.add([dim, card, this.tutorialInstructionText])
 	}
 
 	protected showInstruction(msg: string) {
-		;(this.tutorialOverlay.getAt(1) as Phaser.GameObjects.Text).setText(msg + '\n\n[ Click to continue ]')
+		this.tutorialInstructionText.setText(`${msg}\n\n[ Click to dismiss ]`)
 		this.tutorialOverlay.setVisible(true)
 	}
 

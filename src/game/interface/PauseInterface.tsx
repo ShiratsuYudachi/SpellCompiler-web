@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { CSS_FONT_STACK } from '../ui/inGameTextStyle'
 
 interface PauseInterfaceProps {
 	onResume: () => void
@@ -26,7 +27,9 @@ export function PauseInterface({ onResume, onQuit }: PauseInterfaceProps) {
 			style={{
 				position: 'absolute',
 				inset: 0,
-				background: 'rgba(0, 0, 0, 0.85)',
+				fontFamily: CSS_FONT_STACK,
+				background: 'rgba(0, 0, 0, 0.88)',
+				backdropFilter: 'blur(6px)',
 				display: 'flex',
 				alignItems: 'center',
 				justifyContent: 'center',
@@ -36,12 +39,14 @@ export function PauseInterface({ onResume, onQuit }: PauseInterfaceProps) {
 		>
 			<div
 				style={{
-					background: '#1a1a2e',
-					border: '3px solid #4a90e2',
+					background: '#1a1a1e',
+					border: '1px solid #333338',
 					borderRadius: '12px',
 					padding: '40px',
 					minWidth: '400px',
 					textAlign: 'center',
+					boxShadow: '0 16px 40px rgba(0, 0, 0, 0.55)',
+					fontFamily: CSS_FONT_STACK,
 				}}
 				onClick={(e) => e.stopPropagation()}
 			>
@@ -51,7 +56,7 @@ export function PauseInterface({ onResume, onQuit }: PauseInterfaceProps) {
 						color: '#ffffff',
 						margin: '0 0 30px 0',
 						fontWeight: 'bold',
-						textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+						textShadow: '0 2px 8px rgba(0, 0, 0, 0.75)',
 					}}
 				>
 					PAUSED
@@ -90,18 +95,18 @@ export function PauseInterface({ onResume, onQuit }: PauseInterfaceProps) {
 							fontSize: '20px',
 							fontWeight: 'bold',
 							color: '#ffffff',
-							background: '#e74c3c',
-							border: '2px solid #ff6b5a',
+							background: '#5c2a2a',
+							border: '2px solid #7a3a3a',
 							borderRadius: '8px',
 							cursor: 'pointer',
 							transition: 'all 0.2s',
 						}}
 						onMouseEnter={(e) => {
-							e.currentTarget.style.background = '#ff6b5a'
+							e.currentTarget.style.background = '#6e3434'
 							e.currentTarget.style.transform = 'scale(1.05)'
 						}}
 						onMouseLeave={(e) => {
-							e.currentTarget.style.background = '#e74c3c'
+							e.currentTarget.style.background = '#5c2a2a'
 							e.currentTarget.style.transform = 'scale(1)'
 						}}
 					>
