@@ -7,6 +7,8 @@ export type SpellMeta = {
 	name: string
 	savedAt: number
 	hasCompiledAST: boolean  // Indicates if the spell has successfully compiled AST
+	/** True when the last explicit compile attempt failed (graph existed but flowToIR threw). */
+	compilationFailed?: boolean
 }
 
 export type StoredSpell = SpellMeta & {
@@ -24,7 +26,8 @@ export function listSpells(): SpellMeta[] {
 		id: s.id,
 		name: s.name,
 		savedAt: s.savedAt,
-		hasCompiledAST: s.hasCompiledAST
+		hasCompiledAST: s.hasCompiledAST,
+		compilationFailed: s.compilationFailed ?? false,
 	})).sort((a, b) => b.savedAt - a.savedAt)
 }
 
@@ -88,20 +91,20 @@ export function upsertSpell(params: {
 	 * Auto-save uses this to avoid compiling on every keystroke / editor entry.
 	 */
 	compile?: boolean
-}): { id: string; hasCompiledAST: boolean; compiledSpell?: Spell } {
+}): { id: string; hasCompiledAST: boolean; compiledSpell?: Spell; compilationFailed: boolean } {
 	const now = Date.now()
 	const id = params.id || `spell-${now}`
 	const shouldCompile = params.compile !== false
 	const existing = loadSpell(id)
 
 	if (shouldCompile) {
+		const flow = params.flow as { nodes: any[]; edges: any[] }
+		const attempted = !!(flow && flow.nodes && flow.edges)
 		let compiledAST: Spell | undefined = undefined
 		let hasCompiledAST = false
 
 		try {
-			const flow = params.flow as { nodes: any[]; edges: any[] }
-
-			if (flow && flow.nodes && flow.edges) {
+			if (attempted) {
 				compiledAST = flowToIR(flow.nodes, flow.edges)
 				hasCompiledAST = true
 				console.log(`[spellStorage] Successfully compiled spell ${id}`)
@@ -110,11 +113,14 @@ export function upsertSpell(params: {
 			console.warn(`[spellStorage] Failed to compile spell ${id}:`, err)
 		}
 
+		const compilationFailed = attempted && !hasCompiledAST
+
 		const spell: StoredSpell = {
 			id,
 			name: params.name,
 			savedAt: now,
 			hasCompiledAST,
+			compilationFailed,
 			flow: params.flow,
 			compiledSpell: compiledAST,
 			viewport: params.viewport ?? existing?.viewport,
@@ -123,19 +129,20 @@ export function upsertSpell(params: {
 		const saveData = SaveManager.getCurrentSaveData()
 		if (!saveData) {
 			console.error('[spellStorage] No current save data')
-			return { id, hasCompiledAST, compiledSpell: compiledAST }
+			return { id, hasCompiledAST, compiledSpell: compiledAST, compilationFailed }
 		}
 
 		const spells = saveData.spells.filter((s) => s.id !== id)
 		spells.push(spell)
 		SaveManager.updateCurrentSaveData({ spells })
 
-		return { id, hasCompiledAST, compiledSpell: compiledAST }
+		return { id, hasCompiledAST, compiledSpell: compiledAST, compilationFailed }
 	}
 
 	// Persist flow without compiling; keep prior AST only if the graph is unchanged
 	let compiledSpell: Spell | undefined
 	let hasCompiledAST = false
+	let compilationFailed = false
 	const newFlow = params.flow as { nodes: any[]; edges: any[] }
 	const sameFlow =
 		existing &&
@@ -143,6 +150,11 @@ export function upsertSpell(params: {
 	if (sameFlow && existing!.compiledSpell) {
 		compiledSpell = existing!.compiledSpell
 		hasCompiledAST = existing!.hasCompiledAST
+		compilationFailed = false
+	} else if (sameFlow) {
+		compilationFailed = existing!.compilationFailed ?? false
+	} else {
+		compilationFailed = false
 	}
 
 	const spell: StoredSpell = {
@@ -150,6 +162,7 @@ export function upsertSpell(params: {
 		name: params.name,
 		savedAt: now,
 		hasCompiledAST,
+		compilationFailed,
 		flow: params.flow,
 		compiledSpell,
 		viewport: params.viewport ?? existing?.viewport,
@@ -158,14 +171,14 @@ export function upsertSpell(params: {
 	const saveData = SaveManager.getCurrentSaveData()
 	if (!saveData) {
 		console.error('[spellStorage] No current save data')
-		return { id, hasCompiledAST, compiledSpell }
+		return { id, hasCompiledAST, compiledSpell, compilationFailed }
 	}
 
 	const spells = saveData.spells.filter((s) => s.id !== id)
 	spells.push(spell)
 	SaveManager.updateCurrentSaveData({ spells })
 
-	return { id, hasCompiledAST, compiledSpell }
+	return { id, hasCompiledAST, compiledSpell, compilationFailed }
 }
 
 // Viewport state (camera position/zoom) is now stored directly in spell data
@@ -196,12 +209,12 @@ export function duplicateSpell(id: string, newName?: string): string | null {
 	if (!spell) return null
 
 	const name = newName || `Copy of ${spell.name}`
-	// upsertSpell will generate a new ID and handle compilation
-	// Viewport is automatically included in the spell data
+	// New ID: persist flow only — do not compile until the user builds (compile: false).
 	const { id: newId } = upsertSpell({
 		name: name,
 		flow: spell.flow,
 		viewport: spell.viewport,
+		compile: false,
 	})
 
 	return newId

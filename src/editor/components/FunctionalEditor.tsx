@@ -236,6 +236,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (sid) {
 			const s = loadSpell(sid)
 			if (s?.hasCompiledAST) return 'compiled'
+			if (s?.compilationFailed) return 'failed'
 		}
 		return 'draft'
 	})
@@ -244,7 +245,9 @@ function EditorContent(props: FunctionalEditorProps) {
 	useEffect(() => {
 		if (!spellId) return
 		const s = loadSpell(spellId)
-		setCompilationStatus(s?.hasCompiledAST ? 'compiled' : 'draft')
+		setCompilationStatus(
+			s?.hasCompiledAST ? 'compiled' : s?.compilationFailed ? 'failed' : 'draft',
+		)
 	}, [spellId])
 
 	const clearCompileErrorOnGraphEdit = useCallback(() => {
@@ -371,7 +374,7 @@ function EditorContent(props: FunctionalEditorProps) {
 			try {
 				const nodes = getNodes();
 				const edges = getEdges();
-				const { hasCompiledAST } = upsertSpell({
+				const { hasCompiledAST, compilationFailed } = upsertSpell({
 					id: spellId,
 					name: spellName,
 					flow: { nodes, edges },
@@ -380,9 +383,9 @@ function EditorContent(props: FunctionalEditorProps) {
 				if (!hasCompiledAST) {
 					invalidateSpellCache(spellId);
 				}
-				setCompilationStatus((prev) => {
+				setCompilationStatus(() => {
 					if (hasCompiledAST) return 'compiled'
-					if (prev === 'failed') return 'failed'
+					if (compilationFailed) return 'failed'
 					return 'draft'
 				})
 			} catch (err) {
@@ -401,7 +404,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		try {
 			const nodes = getNodes();
 			const edges = getEdges();
-			const { hasCompiledAST } = upsertSpell({
+			const { hasCompiledAST, compilationFailed } = upsertSpell({
 				id: spellId,
 				name: spellName,
 				flow: { nodes, edges },
@@ -410,9 +413,9 @@ function EditorContent(props: FunctionalEditorProps) {
 			if (!hasCompiledAST) {
 				invalidateSpellCache(spellId);
 			}
-			setCompilationStatus((prev) => {
+			setCompilationStatus(() => {
 				if (hasCompiledAST) return 'compiled'
-				if (prev === 'failed') return 'failed'
+				if (compilationFailed) return 'failed'
 				return 'draft'
 			})
 		} catch (err) {
@@ -855,7 +858,7 @@ function EditorContent(props: FunctionalEditorProps) {
 
 			// Use compiledSpell from upsert — getCompiledSpell(nextId) can miss right after save
 			// (timing / no save slot) and falsely show "Compilation failed".
-			const { id: nextId, hasCompiledAST, compiledSpell } = upsertSpell({
+			const { id: nextId, hasCompiledAST, compiledSpell, compilationFailed } = upsertSpell({
 				id: spellId,
 				name,
 				flow,
@@ -870,9 +873,12 @@ function EditorContent(props: FunctionalEditorProps) {
 				setCompilationStatus('compiled')
 				setEvaluationResult({ saved: true, id: nextId, compiled: true })
 				updateSpellInCache(nextId, compiledSpell)
-			} else {
+			} else if (compilationFailed) {
 				setCompilationStatus('failed')
 				setError('Compilation failed')
+				setEvaluationResult(null)
+			} else {
+				setCompilationStatus('draft')
 				setEvaluationResult(null)
 			}
 		} catch (err) {
@@ -1115,7 +1121,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						{compilationStatus === 'compiled'
 							? 'Compiled'
 							: compilationStatus === 'failed'
-								? 'Build failed'
+								? 'Compilation failed'
 								: 'No build yet'}
 					</Badge>
 				</Group>
