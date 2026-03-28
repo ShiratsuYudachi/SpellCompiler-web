@@ -13,6 +13,7 @@ import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { flowToIR } from '../../../editor/utils/flowToIR'
 import { updateSpellInCache } from '../../systems/eventProcessSystem'
 import { eventQueue } from '../../events/EventQueue'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 
 const LEVEL8_SPELL_ID = '__level8_auto_spell'
 
@@ -190,9 +191,9 @@ export class Level8 extends BaseScene {
 
 		const glowRing = this.add.circle(x, y, 26, glow, 0.25)
 		const circle   = this.add.circle(x, y, 18, fill, 1).setStrokeStyle(2, 0xffffff, 0.6)
-		const label    = this.add.text(x, y + 32, String(id), {
-			fontSize: '14px', color: '#ffffff', fontStyle: 'bold',
-		}).setOrigin(0.5, 0)
+		const label = this.add
+			.text(x, y + 32, String(id), worldFloatingTextStyle('14px', '#ffffff', { bold: true }))
+			.setOrigin(0.5, 0)
 
 		const light: Light = {
 			circle, glowRing, label,

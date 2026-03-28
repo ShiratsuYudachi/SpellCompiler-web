@@ -9,6 +9,7 @@ import { BaseScene } from '../base/BaseScene'
 import { Health } from '../../components'
 import { createRoom } from '../../utils/levelUtils'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 
 // Level19-style: getChestIndices → filter(isSafe) → head → openChest(state, index). Lambda isSafe(index) = detectTreasure(state, index).
 const level5InitialWorkflow = {
@@ -155,12 +156,9 @@ export class Level5 extends BaseScene {
 			const x = Math.max(50, Math.min(pos.x, worldWidth - 50))
 			const y = Math.max(50, Math.min(pos.y, worldHeight - 50))
 			const chestSprite = this.add.image(x, y, 'chest', 0).setOrigin(0.5, 0.5)
-			const indexLabel = this.add.text(x, y - 36, String(index), {
-				fontSize: '20px',
-				color: '#ffffff',
-				stroke: '#000000',
-				strokeThickness: 3,
-			}).setOrigin(0.5)
+			const indexLabel = this.add
+				.text(x, y - 36, String(index), worldFloatingTextStyle('20px', '#ffffff', { bold: true }))
+				.setOrigin(0.5)
 			const isTreasure = index === treasureIndex
 			this.chests.push({
 				sprite: chestSprite,

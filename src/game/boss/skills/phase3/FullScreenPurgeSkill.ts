@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { clearDomBanner, showDomBanner } from '../../../ui/gameDomUiStore';
 import { BossSkill, SkillConfig, SkillPhase } from '../BossSkill';
 import { BossEffects } from '../../visuals/BossEffects';
 
@@ -206,29 +207,7 @@ export class FullScreenPurgeSkill extends BossSkill {
    * 警告阶段
    */
   private async warningPhase(): Promise<void> {
-    // 显示警告文本
-    const warningText = this.scene.add.text(
-      this.scene.cameras.main.centerX,
-      this.scene.cameras.main.centerY,
-      '!!! 全屏肃清 !!!',
-      {
-        fontSize: '48px',
-        color: '#ff0000',
-        stroke: '#000000',
-        strokeThickness: 6,
-      }
-    );
-    warningText.setOrigin(0.5);
-    warningText.setDepth(100);
-    
-    // 闪烁警告
-    this.scene.tweens.add({
-      targets: warningText,
-      alpha: { from: 1, to: 0.3 },
-      duration: 200,
-      yoyo: true,
-      repeat: 7,
-    });
+    showDomBanner('!!! FULL PURGE !!!', '#ff4444', 48, 1600);
     
     // 绘制交点预警（红色小圆点）
     this.intersections.forEach(inter => {
@@ -248,7 +227,7 @@ export class FullScreenPurgeSkill extends BossSkill {
     
     await this.delay(1500);
     
-    warningText.destroy();
+    clearDomBanner();
   }
   
   /**

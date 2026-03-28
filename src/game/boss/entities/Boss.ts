@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { clearBossDomHud, setBossDomHud } from '../../ui/gameDomUiStore';
 import { BossStore } from '../core/BossStore';
 import { EventBus } from '../core/EventBus';
 import type { BossConfig, PhaseConfig } from '../configs/BossConfig';
@@ -49,11 +50,6 @@ export class Boss {
   private skillSelector: SkillSelector;
   private hitboxManager: HitboxManager;
   
-  // UI组件
-  private healthBarBg!: Phaser.GameObjects.Graphics;
-  private healthBarFill!: Phaser.GameObjects.Graphics;
-  private healthText!: Phaser.GameObjects.Text;
-  private stateText!: Phaser.GameObjects.Text;
   
   // 边界
   private bounds: { left: number; right: number; top: number; bottom: number };
@@ -106,36 +102,22 @@ export class Boss {
     console.log('[Boss] 破碎幻影Boss已创建');
   }
   
-  private createUI(x: number, y: number): void {
-    // 血条背景
-    this.healthBarBg = this.scene.add.graphics();
-    this.healthBarBg.setDepth(1000);
+  private createUI(_x: number, _y: number): void {
+    this.syncDomHud();
+  }
 
-    // 血条填充
-    this.healthBarFill = this.scene.add.graphics();
-    this.healthBarFill.setDepth(1001);
-
-    // 血量文本
-    this.healthText = this.scene.add.text(x, y - 140, '', {
-      fontSize: '16px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 4,
-    });
-    this.healthText.setOrigin(0.5);
-    this.healthText.setDepth(1002);
-
-    // 状态文本
-    this.stateText = this.scene.add.text(x, y - 160, '', {
-      fontSize: '14px',
-      color: '#ffff00',
-      stroke: '#000000',
-      strokeThickness: 3,
-    });
-    this.stateText.setOrigin(0.5);
-    this.stateText.setDepth(1002);
-
-    this.updateHealthBar();
+  private syncDomHud(): void {
+    const health = this.store.get('health');
+    const maxHealth = this.store.get('maxHealth');
+    const percent = maxHealth > 0 ? health / maxHealth : 0;
+    const state = this.store.get('currentState');
+    const phase = this.store.get('currentPhase') + 1;
+    const isInvincible = this.store.get('isInvincible');
+    let stateLine = `Phase ${phase} - ${String(state).toUpperCase()}`;
+    if (isInvincible) {
+      stateLine += ' (INVINCIBLE)';
+    }
+    setBossDomHud(`${Math.ceil(health)} / ${maxHealth}`, stateLine, percent);
   }
   
   private setupListeners(): void {
@@ -564,39 +546,11 @@ export class Boss {
   }
   
   private updateHealthBar(): void {
-    const health = this.store.get('health');
-    const maxHealth = this.store.get('maxHealth');
-    const percent = health / maxHealth;
-    const pos = this.store.get('position');
-    
-    this.healthBarBg.clear();
-    this.healthBarFill.clear();
-    
-    this.healthBarBg.fillStyle(0x000000, 0.5);
-    this.healthBarBg.fillRect(pos.x - 60, pos.y - 100, 120, 12);
-    
-    const color = percent > 0.5 ? 0x00ff00 : percent > 0.25 ? 0xffff00 : 0xff0000;
-    this.healthBarFill.fillStyle(color, 1);
-    this.healthBarFill.fillRect(pos.x - 60, pos.y - 100, 120 * percent, 12);
-    
-    this.healthText.setPosition(pos.x, pos.y - 140);
-    this.healthText.setText(`${Math.ceil(health)} / ${maxHealth}`);
+    this.syncDomHud();
   }
   
   private updateStateText(): void {
-    const pos = this.store.get('position');
-    const state = this.store.get('currentState');
-    const phase = this.store.get('currentPhase') + 1;
-    const isInvincible = this.store.get('isInvincible');
-    
-    this.stateText.setPosition(pos.x, pos.y - 160);
-    
-    let text = `Phase ${phase} - ${state.toUpperCase()}`;
-    if (isInvincible) {
-      text += ' (INVINCIBLE)';
-    }
-    
-    this.stateText.setText(text);
+    this.syncDomHud();
   }
   
   getPosition(): { x: number; y: number } {
@@ -626,10 +580,7 @@ export class Boss {
   destroy(): void {
     this.visualBoss.destroy();
     this.weapon.destroy();
-    this.healthBarBg.destroy();
-    this.healthBarFill.destroy();
-    this.healthText.destroy();
-    this.stateText.destroy();
+    clearBossDomHud();
     this.skillManager.destroy();
     this.hitboxManager.destroy();
     this.eventBus.clear();

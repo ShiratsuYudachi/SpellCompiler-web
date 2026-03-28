@@ -1,4 +1,5 @@
 import type Phaser from 'phaser'
+import { entityNameplateStyle } from '../ui/inGameTextStyle'
 import { BadgeDrawer } from './BadgeDrawer'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -142,13 +143,7 @@ export class EntityVisualManager {
 		                   : role === 'target'   ? '#ffdd44'
 		                   : '#ffffff'
 		const label = this.scene.add
-			.text(x, y - radius - 18, `${displayLabel}  ${maxHP}`, {
-				fontSize: '11px',
-				fontFamily: 'monospace',
-				color: labelColor,
-				stroke: '#000000',
-				strokeThickness: 3,
-			})
+			.text(x, y - radius - 18, `${displayLabel}  ${maxHP}`, entityNameplateStyle('11px', labelColor))
 			.setOrigin(0.5)
 			.setDepth(15)
 

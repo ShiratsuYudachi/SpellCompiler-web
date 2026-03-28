@@ -4,6 +4,7 @@
  */
 
 import Phaser from 'phaser';
+import { worldFloatingTextStyle } from '../../../ui/inGameTextStyle';
 import { BossSkill, SkillPhase } from '../BossSkill';
 
 export class ShadowEchoSkill extends BossSkill {
@@ -49,10 +50,7 @@ export class ShadowEchoSkill extends BossSkill {
     bodyGraphics.fillCircle(0, 0, 30);
     
     // 替身标记
-    const label = this.scene.add.text(0, -50, 'SHADOW', {
-      fontSize: '12px',
-      color: '#8b1a8b'
-    });
+    const label = this.scene.add.text(0, -50, 'SHADOW', worldFloatingTextStyle('12px', '#c090c8', { bold: true }));
     label.setOrigin(0.5);
     
     this.shadow.add([bodyGraphics, label]);

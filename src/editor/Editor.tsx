@@ -1,20 +1,30 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useSyncExternalStore } from 'react'
 import type { Node, Edge } from 'reactflow'
 import { FunctionalEditor } from './components/FunctionalEditor'
 import { SpellManager } from './components/SpellManager'
 import { loadSpell } from './utils/spellStorage'
-import { getGameInstance, getEditorContext, setEditorContext } from '../game/gameInstance'
+import { getGameInstance, getEditorContext, setEditorContext, subscribeEditorContext } from '../game/gameInstance'
 import { GameEvents } from '../game/events'
 import { levelRegistry } from '../game/levels/LevelRegistry'
 
 export function Editor() {
-	// Check if we're in game mode (editor context has a scene key)
-	const initialEditorContext = getEditorContext()
-	const isGameMode = Boolean(initialEditorContext?.sceneKey)
+	const editorContext = useSyncExternalStore(
+		subscribeEditorContext,
+		getEditorContext,
+		() => null
+	)
+	const isGameMode = Boolean(editorContext?.sceneKey)
 
-	const [screen, setScreen] = useState<'manager' | 'editor' | 'sceneConfig'>(
+	const [screen, setScreen] = useState<'manager' | 'editor' | 'sceneConfig'>(() =>
 		isGameMode ? 'sceneConfig' : 'manager'
 	)
+
+	// If context arrived after first paint (e.g. race), leave Spell Manager and open scene graph.
+	useEffect(() => {
+		if (isGameMode && screen === 'manager') {
+			setScreen('sceneConfig')
+		}
+	}, [isGameMode, screen])
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editingName, setEditingName] = useState<string>('New Spell')
 	const [initialFlow, setInitialFlow] = useState<{ nodes: Node[]; edges: Edge[] } | null>(null)
@@ -23,39 +33,30 @@ export function Editor() {
 		return `${editingId || 'new'}:${screen}`
 	}, [editingId, screen])
 
-	// Handle Tab key for switching between spell library and scene config
+	// Tab: close editor overlay (return to game). Works in scene editor (isGameMode) and when
+	// editing a level-linked spell from the library (id scene-spell-<LevelKey>) while the game exists.
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			// In game mode, Tab closes the editor (goes back to game)
-			if (isGameMode && event.key === 'Tab') {
-				event.preventDefault()
-				// Only close if we're not in the manager screen
-				if (screen !== 'manager') {
-					const game = getGameInstance()
-					if (game) {
-						game.events.emit(GameEvents.toggleEditor)
-					}
-				}
-				return
-			}
+			if (event.key !== 'Tab') return
+			const game = getGameInstance()
+			if (!game) return
 
-			// In library mode, Tab switches between editor and sceneConfig
-			if (event.key === 'Tab' && (screen === 'editor' || screen === 'sceneConfig')) {
-				event.preventDefault()
+			const levelLinkedSpell =
+				editingId != null && /^scene-spell-.+/.test(editingId)
+			const allowTab =
+				isGameMode || (screen === 'editor' && levelLinkedSpell)
 
-				if (screen === 'editor') {
-					// Switch to scene config
-					setScreen('sceneConfig')
-				} else if (screen === 'sceneConfig') {
-					// Switch back to spell library (editor)
-					setScreen('editor')
-				}
-			}
+			if (!allowTab) return
+
+			event.preventDefault()
+			if (screen === 'manager') return
+
+			game.events.emit(GameEvents.toggleEditor)
 		}
 
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [screen, isGameMode])
+	}, [screen, isGameMode, editingId])
 
 	if (screen === 'manager') {
 		return (
@@ -116,6 +117,9 @@ export function Editor() {
 		console.log('[Editor] Loading workflow for scene:', sceneKey, savedSpell ? '(saved copy)' : '(template)')
 
 		const handleExit = () => {
+			// Clear scene context so isGameMode is false; otherwise the effect below
+			// forces screen back to sceneConfig and the user can never reach Spell Library.
+			setEditorContext({ sceneKey: undefined })
 			setScreen('manager')
 		}
 

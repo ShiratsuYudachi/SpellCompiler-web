@@ -15,7 +15,9 @@ import ReactFlow, {
 	useEdgesState,
 	type Connection,
 	type Edge,
+	type EdgeChange,
 	type Node,
+	type NodeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Alert, Button, Group, Paper, Text, TextInput, Modal, Badge } from '@mantine/core';
@@ -39,8 +41,8 @@ import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import type { EventBinding } from '../../game/events/EventQueue'
-import { getEditorContext, subscribeEditorContext } from '../../game/gameInstance'
-import { updateSpellInCache } from '../../game/systems/eventProcessSystem'
+import { getEditorContext, getGameInstance, subscribeEditorContext } from '../../game/gameInstance'
+import { updateSpellInCache, invalidateSpellCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
 import { upsertSpell, loadSpell } from '../utils/spellStorage'
 import { registerGameFunctions } from '../library/game'
@@ -118,6 +120,24 @@ type FlowState = { nodes: Node[]; edges: Edge[] };
 // Controlled nodes/edges so that setNodes/setEdges (e.g. from Vibe Build) reliably update the view.
 function EditorContent(props: FunctionalEditorProps) {
 	const isLibraryMode = props.isLibraryMode ?? Boolean(props.onExit && props.initialSpellId !== null)
+	const editorShortcutsHint = useMemo(() => {
+		const mac = typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/i.test(navigator.platform)
+		const mod = mac ? '⌘' : 'Ctrl'
+		const parts = [
+			'Pan: drag empty canvas',
+			'Box select: Shift+drag',
+			`Copy/Paste: ${mod}+C / ${mod}+V`,
+			'Delete: Backspace',
+			`Undo/Redo: ${mod}+Z / ${mod}+Shift+Z`,
+			`Add node: right click`,
+		]
+		const levelLinkedSpell =
+			props.initialSpellId != null && /^scene-spell-.+/.test(props.initialSpellId)
+		if (!isLibraryMode || (isLibraryMode && levelLinkedSpell && getGameInstance())) {
+			parts.push('Tab: return to game')
+		}
+		return parts.join(' · ')
+	}, [isLibraryMode, props.initialSpellId])
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
 	const initialNodes = useMemo(() => startingFlow?.nodes ?? defaultNewFlow.nodes, [startingFlow]);
 	const initialEdges = useMemo(() => startingFlow?.edges ?? defaultNewFlow.edges, [startingFlow]);
@@ -210,7 +230,30 @@ function EditorContent(props: FunctionalEditorProps) {
 	} | null>(null);
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
 	const [workflowLoaded, setWorkflowLoaded] = useState(false);
-	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'failed' | null>(null);
+	// compiled = has saved AST; draft = no build yet (neutral); failed = last Compile & Save errored
+	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'draft' | 'failed'>(() => {
+		const sid = props.initialSpellId
+		if (sid) {
+			const s = loadSpell(sid)
+			if (s?.hasCompiledAST) return 'compiled'
+			if (s?.compilationFailed) return 'failed'
+		}
+		return 'draft'
+	})
+
+	// Keep badge in sync when spellId is adopted (e.g. game mode) or save data updates
+	useEffect(() => {
+		if (!spellId) return
+		const s = loadSpell(spellId)
+		setCompilationStatus(
+			s?.hasCompiledAST ? 'compiled' : s?.compilationFailed ? 'failed' : 'draft',
+		)
+	}, [spellId])
+
+	const clearCompileErrorOnGraphEdit = useCallback(() => {
+		setCompilationStatus((prev) => (prev === 'failed' ? 'draft' : prev))
+		setError((e) => (e === 'Compilation failed' ? null : e))
+	}, [])
 
 	const VIBE_PANEL_WIDTH_KEY = 'spellcompiler-vibe-panel-width';
 	const [vibePanelWidth, setVibePanelWidth] = useState(() => {
@@ -280,12 +323,17 @@ function EditorContent(props: FunctionalEditorProps) {
 				const sceneSpellId = newSceneKey ? `scene-spell-${newSceneKey}` : null;
 				const savedSpell = sceneSpellId ? loadSpell(sceneSpellId) : null;
 
-				const nodesToLoad = savedSpell
+				let nodesToLoad = savedSpell
 					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.nodes ?? [])
 					: (config?.initialSpellWorkflow?.nodes ?? []);
-				const edgesToLoad = savedSpell
+				let edgesToLoad = savedSpell
 					? ((savedSpell.flow as { nodes: Node[]; edges: Edge[] } | null)?.edges ?? [])
 					: (config?.initialSpellWorkflow?.edges ?? []);
+
+				if (nodesToLoad.length === 0 && edgesToLoad.length === 0) {
+					nodesToLoad = defaultNewFlow.nodes
+					edgesToLoad = defaultNewFlow.edges
+				}
 
 				console.log('[Editor] Game mode: loading workflow, nodes:', nodesToLoad.length, savedSpell ? '(from saved copy)' : '(from template)')
 				setNodes(nodesToLoad);
@@ -326,7 +374,20 @@ function EditorContent(props: FunctionalEditorProps) {
 			try {
 				const nodes = getNodes();
 				const edges = getEdges();
-				upsertSpell({ id: spellId, name: spellName, flow: { nodes, edges } });
+				const { hasCompiledAST, compilationFailed } = upsertSpell({
+					id: spellId,
+					name: spellName,
+					flow: { nodes, edges },
+					compile: false,
+				});
+				if (!hasCompiledAST) {
+					invalidateSpellCache(spellId);
+				}
+				setCompilationStatus(() => {
+					if (hasCompiledAST) return 'compiled'
+					if (compilationFailed) return 'failed'
+					return 'draft'
+				})
 			} catch (err) {
 				console.error('[Editor] Failed to auto-save:', err);
 			}
@@ -343,7 +404,20 @@ function EditorContent(props: FunctionalEditorProps) {
 		try {
 			const nodes = getNodes();
 			const edges = getEdges();
-			upsertSpell({ id: spellId, name: spellName, flow: { nodes, edges } });
+			const { hasCompiledAST, compilationFailed } = upsertSpell({
+				id: spellId,
+				name: spellName,
+				flow: { nodes, edges },
+				compile: false,
+			});
+			if (!hasCompiledAST) {
+				invalidateSpellCache(spellId);
+			}
+			setCompilationStatus(() => {
+				if (hasCompiledAST) return 'compiled'
+				if (compilationFailed) return 'failed'
+				return 'draft'
+			})
 		} catch (err) {
 			console.error('[Editor] Force save failed:', err);
 		}
@@ -365,15 +439,36 @@ function EditorContent(props: FunctionalEditorProps) {
 		}
 	}, [props.onBeforeExit])
 
+	const onNodesChangeWrapped = useCallback(
+		(changes: NodeChange[]) => {
+			const meaningful = changes.some(
+				(c) => c.type !== 'select' && c.type !== 'dimensions'
+			)
+			if (meaningful) clearCompileErrorOnGraphEdit()
+			onNodesChange(changes)
+		},
+		[onNodesChange, clearCompileErrorOnGraphEdit]
+	)
+
+	const onEdgesChangeWrapped = useCallback(
+		(changes: EdgeChange[]) => {
+			const meaningful = changes.some((c) => c.type !== 'select')
+			if (meaningful) clearCompileErrorOnGraphEdit()
+			onEdgesChange(changes)
+		},
+		[onEdgesChange, clearCompileErrorOnGraphEdit]
+	)
+
 	const onConnect = useCallback(
 		(params: Connection) => {
+			clearCompileErrorOnGraphEdit()
 			historyAllowedRef.current = true;
 			setHasUserActed(true);
 			pushUndo();
 			setEdges((eds) => addEdge(params, eds));
 			triggerSave();
 		},
-		[setEdges, pushUndo, triggerSave]
+		[setEdges, pushUndo, triggerSave, clearCompileErrorOnGraphEdit]
 	);
 
 	// Handle click on source handle to show menu
@@ -761,32 +856,31 @@ function EditorContent(props: FunctionalEditorProps) {
 			const name = spellName.trim() || 'New Spell'
 			const flow = toObject()
 
-		// Save spell data (flow already contains nodes with positions)
-		const nextId = upsertSpell({
-			id: spellId,
-			name,
-			flow
-		})
-		console.log('[Editor] Saved to library:', nextId, 'name:', name)
+			// Use compiledSpell from upsert — getCompiledSpell(nextId) can miss right after save
+			// (timing / no save slot) and falsely show "Compilation failed".
+			const { id: nextId, hasCompiledAST, compiledSpell, compilationFailed } = upsertSpell({
+				id: spellId,
+				name,
+				flow,
+				compile: true,
+			})
+			console.log('[Editor] Saved to library:', nextId, 'name:', name)
 
 			setSpellId(nextId)
 			setSpellName(name)
 
-			// Try to compile
-			try {
-				const compiledAST = flowToIR(getNodes(), getEdges())
+			if (hasCompiledAST && compiledSpell) {
 				setCompilationStatus('compiled')
 				setEvaluationResult({ saved: true, id: nextId, compiled: true })
-
-                // Update the spell in the game's event system cache
-                updateSpellInCache(nextId, compiledAST)
-			} catch (compileErr) {
-				console.error('[Editor] Compilation failed during save:', compileErr)
+				updateSpellInCache(nextId, compiledSpell)
+			} else if (compilationFailed) {
 				setCompilationStatus('failed')
-				setError(compileErr instanceof Error ? compileErr.message : String(compileErr))
-				setEvaluationResult({ saved: true, id: nextId, compiled: false })
+				setError('Compilation failed')
+				setEvaluationResult(null)
+			} else {
+				setCompilationStatus('draft')
+				setEvaluationResult(null)
 			}
-
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err))
 		}
@@ -980,6 +1074,7 @@ function EditorContent(props: FunctionalEditorProps) {
 						setCurrentAST(null);
 						setCurrentFunctions([]);
 						setError(null);
+						setCompilationStatus('draft');
 					} catch (err) {
 						setError(err instanceof Error ? err.message : String(err));
 					}
@@ -1013,11 +1108,22 @@ function EditorContent(props: FunctionalEditorProps) {
 						placeholder="Spell name"
 						size="sm"
 					/>
-					{compilationStatus && (
-						<Badge color={compilationStatus === 'compiled' ? 'green' : 'red'} variant="light">
-							{compilationStatus === 'compiled' ? 'Compiled' : 'Compilation Failed'}
-						</Badge>
-					)}
+					<Badge
+						color={
+							compilationStatus === 'compiled'
+								? 'green'
+								: compilationStatus === 'failed'
+									? 'red'
+									: 'gray'
+						}
+						variant="light"
+					>
+						{compilationStatus === 'compiled'
+							? 'Compiled'
+							: compilationStatus === 'failed'
+								? 'Compilation failed'
+								: 'No build yet'}
+					</Badge>
 				</Group>
 				<div className="flex gap-2">
 					<Button size="sm" variant="outline" color="gray" onClick={handleImport}>
@@ -1029,11 +1135,17 @@ function EditorContent(props: FunctionalEditorProps) {
 					<Button size="sm" variant="outline" color="violet" onClick={() => setEventListModalOpen(true)}>
 						📡 Event Bindings
 					</Button>
-					<Button size="sm" color="blue" onClick={handleCompileAndSave}>
+					<Button type="button" size="sm" color="blue" onClick={handleCompileAndSave}>
 						Compile & Save
 					</Button>
 				</div>
 			</div>
+		</Paper>
+
+		<Paper shadow="xs" px="md" py="xs" className="border-b bg-gray-50">
+			<Text size="xs" c="dimmed" style={{ lineHeight: 1.55 }}>
+				{editorShortcutsHint}
+			</Text>
 		</Paper>
 
 			{/* Header - Row 2: AST and Results */}
@@ -1085,8 +1197,8 @@ function EditorContent(props: FunctionalEditorProps) {
 						key={props.initialSpellId ?? 'new'}
 						nodes={nodes}
 						edges={edges}
-						onNodesChange={onNodesChange}
-						onEdgesChange={onEdgesChange}
+						onNodesChange={onNodesChangeWrapped}
+						onEdgesChange={onEdgesChangeWrapped}
 						onPaneClick={onPaneClick}
 						onNodeContextMenu={onNodeContextMenu}
 						onEdgeContextMenu={onEdgeContextMenu}
@@ -1101,9 +1213,10 @@ function EditorContent(props: FunctionalEditorProps) {
 					panOnScroll={true}
 					zoomOnScroll={true}
 					zoomOnPinch={true}
-					panOnDrag={false}
-					selectionOnDrag={true}
-						// Better UX
+					// Default RF behaviour: left-drag on empty pane = pan. Shift+drag on pane = selection box.
+					// Click/drag on nodes & edges = select (elementsSelectable). Cmd/Ctrl+click = add to selection.
+					panOnDrag={true}
+					selectionOnDrag={false}
 						minZoom={0.1}
 						maxZoom={4}
 					>
@@ -1167,7 +1280,6 @@ function EditorContent(props: FunctionalEditorProps) {
 								onGenerate={handleVibeGenerate}
 								onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
 								onAsk={handleVibeAsk}
-								hasExistingNodes={nodes.length > 0}
 							/>
 						</div>
 					</aside>

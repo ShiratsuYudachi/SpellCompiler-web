@@ -5,6 +5,7 @@ import { Health, Sprite, Enemy } from '../../components'
 import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -277,12 +278,12 @@ export class Level9 extends BaseScene {
 			.setStrokeStyle(isCivilian ? 2 : 4, color)
 
 		const label = this.add
-			.text(x, y - size - 14, labelText, {
-				fontSize: isCivilian ? '12px' : '14px',
-				color: isCivilian ? '#cccccc' : '#ff6666',
-				stroke: '#000000',
-				strokeThickness: 3,
-			})
+			.text(
+				x,
+				y - size - 14,
+				labelText,
+				worldFloatingTextStyle(isCivilian ? '12px' : '14px', isCivilian ? '#d8d8d8' : '#ff8888', { bold: true }),
+			)
 			.setOrigin(0.5)
 
 		const body = createRectBody(this, `unit-${labelText}-${x}`, color, size * 2, size * 2, x, y, isCivilian ? 2 : 5)

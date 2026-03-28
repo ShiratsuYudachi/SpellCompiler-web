@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Phaser host: game uses resolution + FIT; avoid extra canvas sizing rules (Scale Manager sets inline size) */
+.phaser-game-host canvas {
+	display: block;
+}
+
 /* Hide number input spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

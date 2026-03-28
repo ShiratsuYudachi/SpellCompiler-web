@@ -8,6 +8,7 @@
 import { BaseScene } from '../base/BaseScene'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 
 // Level 6/19 style: getBallIndices → filter(isHeaviest) → head → throwBallToGate. Lambda isHeaviest(index) = isHeaviestBall(state, index).
 const level6InitialWorkflow = {
@@ -159,12 +160,9 @@ export class Level6 extends BaseScene {
 					this.cameras.main.shake(180, 0.02)
 					this.showInstruction('Wrong ball. Use getBallIndices → filter(isHeaviestBall) → head → throwBallToGate, then cast again.')
 					ball.marker.setPosition(ball.x, ball.y)
-					ball.indexLabel = this.add.text(ball.x, ball.y - 38, String(ball.index), {
-						fontSize: '18px',
-						color: '#ffffff',
-						stroke: '#000000',
-						strokeThickness: 3,
-					}).setOrigin(0.5)
+					ball.indexLabel = this.add
+						.text(ball.x, ball.y - 38, String(ball.index), worldFloatingTextStyle('18px', '#ffffff', { bold: true }))
+						.setOrigin(0.5)
 				}
 			},
 		})
@@ -187,12 +185,9 @@ export class Level6 extends BaseScene {
 			const x = Math.max(50, Math.min(pos.x, worldWidth - 50))
 			const y = Math.max(50, Math.min(pos.y, worldHeight - 50))
 			const marker = this.add.circle(x, y, 22, 0x4a90e2, 0.8).setStrokeStyle(2, 0x4a90e2)
-			const indexLabel = this.add.text(x, y - 38, String(index), {
-				fontSize: '18px',
-				color: '#ffffff',
-				stroke: '#000000',
-				strokeThickness: 3,
-			}).setOrigin(0.5)
+			const indexLabel = this.add
+				.text(x, y - 38, String(index), worldFloatingTextStyle('18px', '#ffffff', { bold: true }))
+				.setOrigin(0.5)
 			this.balls.push({ index, weight, marker, indexLabel, x, y })
 		})
 	}
@@ -203,7 +198,12 @@ export class Level6 extends BaseScene {
 		const gateY = 300
 		this.gate = {
 			rect: this.add.rectangle(gateX, gateY, 60, 120, 0x888888, 0.8).setStrokeStyle(3, 0xffffff),
-			label: this.add.text(gateX, gateY - 70, 'GATE\n(Heaviest ball)', { fontSize: '14px', color: '#ffffff', stroke: '#000000', strokeThickness: 2, align: 'center' }).setOrigin(0.5),
+			label: this.add
+				.text(gateX, gateY - 70, 'GATE\n(Heaviest ball)', {
+					...worldFloatingTextStyle('14px', '#f0f0f0', { bold: true }),
+					align: 'center',
+				})
+				.setOrigin(0.5),
 			activated: false,
 		}
 	}

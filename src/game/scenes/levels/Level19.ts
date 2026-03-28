@@ -6,6 +6,7 @@ import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -169,9 +170,9 @@ export class Level19 extends BaseScene {
 		// Visual: circle outline + center dot
 		this.add.circle(cx, cy, R, 0x4444ff, 0).setStrokeStyle(2, 0x4444bb, 0.5)
 		this.add.circle(cx, cy, 6, 0xffffff, 0.6)
-		this.add.text(cx, cy + R + 20, `radius = 150`, {
-			fontSize: '11px', color: '#8888ff', stroke: '#000000', strokeThickness: 2,
-		}).setOrigin(0.5)
+		this.add
+			.text(cx, cy + R + 20, `radius = 150`, worldFloatingTextStyle('12px', '#a8a8ff', { bold: true }))
+			.setOrigin(0.5)
 
 		this.showInstruction(
 			'【Precision Lockdown — Spatial + Filter】\n\n' +

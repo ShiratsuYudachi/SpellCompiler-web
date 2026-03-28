@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea, Tooltip } from '@mantine/core';
 import { OPENROUTER_MODELS, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi';
-import { COMPLETE_SPELL_INSTRUCTION, FULL_REGEN_INSTRUCTION } from '../../lib/vibe/vibePrompt';
+import { FULL_REGEN_INSTRUCTION } from '../../lib/vibe/vibePrompt';
 
 const API_KEY_STORAGE_KEY = 'spellcompiler-openrouter-api-key';
 const MODEL_STORAGE_KEY = 'spellcompiler-openrouter-model';
@@ -33,18 +33,17 @@ export type VibePanelProps = {
 	onApplyFlow: (nodes: unknown[], edges: unknown[], options?: { replace?: boolean }) => void;
 	onAsk?: (text: string, apiKey?: string, model?: string) => Promise<{ explanation: string }>;
 	disabled?: boolean;
-	/** Whether the canvas already has nodes — enables the "Complete Spell" quick action */
-	hasExistingNodes?: boolean;
 };
 
 const MODEL_OPTIONS = OPENROUTER_MODELS.map((m) => ({ value: m.value, label: m.label }));
 
-export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistingNodes }: VibePanelProps) {
+export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePanelProps) {
 	const [mode, setMode] = useState<VibeMode>('build');
-	const [text, setText] = useState('');
+	/** Ask mode only — Build uses Full Regen without free-form text */
+	const [askText, setAskText] = useState('');
 	const [apiKey, setApiKey] = useState('');
 	const [model, setModel] = useState<string>('openai/gpt-4o-mini');
-	const [loading, setLoading] = useState(false);
+	const [askLoading, setAskLoading] = useState(false);
 	const [regenLoading, setRegenLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -107,76 +106,42 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 
 	const useMock = model === MOCK_MODEL_ID;
 
-	useEffect(() => {
-		console.warn('[Vibe] Panel ready. Click Generate and watch for [Vibe] logs here.');
-	}, []);
-
-	/** Shared submit logic — accepts explicit instruction text so Complete can bypass the textarea. */
-	const submitBuild = async (instruction: string, opts?: { isComplete?: boolean; isFullRegen?: boolean }) => {
-		const isComplete = opts?.isComplete ?? false;
-		const isFullRegen = opts?.isFullRegen ?? false;
-		// Mock model can't actually wire connections — inform the user
-		if ((isComplete || isFullRegen) && useMock) {
-			setError('Complete Spell needs a real AI model to wire connections. Select an OpenRouter model and enter your API key at openrouter.ai/keys.');
+	const handleFullRegen = async () => {
+		if (useMock) {
+			setError('Full Regen needs a real AI model. Select an OpenRouter model and enter your API key at openrouter.ai/keys.');
 			setSuccessMsg(null);
 			setSummaryMsg(null);
 			return;
 		}
-		if (!useMock && !sanitizeApiKey(apiKey)) {
+		if (!sanitizeApiKey(apiKey)) {
 			setError('Please enter your API key (or choose Mock for testing without API).');
 			return;
 		}
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
-		if (isFullRegen) setRegenLoading(true); else setLoading(true);
+		setRegenLoading(true);
 		try {
-			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model, isFullRegen ? { isFullRegen: true } : undefined);
+			const result = await onGenerate(
+				FULL_REGEN_INSTRUCTION,
+				sanitizeApiKey(apiKey),
+				model,
+				{ isFullRegen: true }
+			);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
-			// Compute diff for the success headline
-			const addedNodes = result.nodes.length - (result.prevNodeCount ?? 0);
-			const addedEdges = result.edges.length - (result.prevEdgeCount ?? 0);
-			if (isFullRegen) {
-				setSuccessMsg(`⚡ Regenerated: ${result.nodes.length} nodes, ${result.edges.length} edges`);
-			} else if (isComplete) {
-				const parts: string[] = [];
-				if (addedNodes > 0) parts.push(`+${addedNodes} node${addedNodes !== 1 ? 's' : ''}`);
-				if (addedEdges > 0) parts.push(`+${addedEdges} edge${addedEdges !== 1 ? 's' : ''}`);
-				setSuccessMsg(`✓ Spell completed!${parts.length > 0 ? ' ' + parts.join(', ') : ''}`);
-			} else {
-				setSuccessMsg(`✓ Applied: ${result.nodes.length} node${result.nodes.length !== 1 ? 's' : ''}, ${result.edges.length} edge${result.edges.length !== 1 ? 's' : ''}`);
-			}
-			// Show AI-provided explanation if available
+			setSuccessMsg(`⚡ Regenerated: ${result.nodes.length} nodes, ${result.edges.length} edges`);
 			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
-			console.error('[Vibe] Build failed', e);
+			console.error('[Vibe] Full Regen failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
 			setError(msg + ' (See F12 Console for details.)');
 		} finally {
-			setLoading(false);
 			setRegenLoading(false);
 		}
 	};
 
-	const handleBuild = async () => {
-		const trimmed = text.trim();
-		if (!trimmed) return;
-		await submitBuild(trimmed);
-		setText('');
-	};
-
-	/** One-click "Complete Spell" — wires up missing connections using existing nodes only. */
-	const handleComplete = async () => {
-		await submitBuild(COMPLETE_SPELL_INSTRUCTION, { isComplete: true });
-	};
-
-	/** One-click "完全重生成" — discards current graph and generates a fresh complete spell from level objectives. */
-	const handleFullRegen = async () => {
-		await submitBuild(FULL_REGEN_INSTRUCTION, { isFullRegen: true });
-	};
-
 	const handleAsk = async () => {
-		const trimmed = text.trim();
+		const trimmed = askText.trim();
 		if (!trimmed || !onAsk) return;
 		if (!useMock && !sanitizeApiKey(apiKey)) {
 			setError('Please enter your API key (or choose Mock for testing without API).');
@@ -186,19 +151,18 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		setSuccessMsg(null);
 		setSummaryMsg(null);
 		setExplanation(null);
-		setLoading(true);
+		setAskLoading(true);
 		try {
 			const { explanation: result } = await onAsk(trimmed, useMock ? '' : sanitizeApiKey(apiKey), model);
 			setExplanation(result);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : String(e));
 		} finally {
-			setLoading(false);
-			setRegenLoading(false);
+			setAskLoading(false);
 		}
 	};
 
-	const canSubmit = !disabled && !loading && !regenLoading && (useMock || !!sanitizeApiKey(apiKey));
+	const canUseApi = !disabled && !askLoading && !regenLoading && (useMock || !!sanitizeApiKey(apiKey));
 
 	return (
 		<Paper p="sm" shadow="sm" withBorder className="flex flex-col gap-2 h-full overflow-hidden">
@@ -213,7 +177,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 			<Collapse in={open} className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
 				<Select
 					label="Model"
-					description={useMock ? 'Mock: no API key needed. Use to test Ask/Build without spending credits.' : 'OpenRouter model. Get a key at openrouter.ai/keys'}
+					description={useMock ? 'Mock: no API key needed. Use to test Ask / Full Regen without spending credits.' : 'OpenRouter model. Get a key at openrouter.ai/keys'}
 					size="xs"
 					data={MODEL_OPTIONS}
 					value={model}
@@ -243,77 +207,31 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 					disabled={disabled}
 				/>
 				{mode === 'build' ? (
-					<>
-						{/* ── Quick action: complete existing spell ── */}
-						{hasExistingNodes && (
-							<Tooltip
-								label="Analyses the current nodes, detects missing connections, and wires them up automatically. No new nodes are created."
-								position="left"
-								multiline
-								w={240}
-								withArrow
-							>
-								<Button
-									size="xs"
-									variant="filled"
-									color="teal"
-									onClick={handleComplete}
-									loading={loading}
-									disabled={!canSubmit}
-									fullWidth
-								>
-									✓ Complete Spell
-								</Button>
-							</Tooltip>
-						)}
-						<Tooltip
-							label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
-							position="left"
-							multiline
-							w={240}
-							withArrow
-						>
-							<Button
-								size="xs"
-								variant="filled"
-								color="orange"
-								onClick={handleFullRegen}
-								loading={regenLoading}
-								disabled={!canSubmit}
-								fullWidth
-							>
-								⚡ Full Regen
-							</Button>
-						</Tooltip>
-
-						<Textarea
-							placeholder={
-								hasExistingNodes
-									? 'Modify the spell... e.g. "also heal the player after attacking" or "change damage to 50"'
-									: 'Describe what the spell should do... e.g. "move player left by 80 pixels"'
-							}
-							value={text}
-							onChange={(e) => setText(e.currentTarget.value)}
-							minRows={3}
-							disabled={disabled}
-							className="flex-1 min-h-0"
-						/>
+					<Tooltip
+						label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
+						position="left"
+						multiline
+						w={240}
+						withArrow
+					>
 						<Button
 							size="xs"
-							variant="light"
-							onClick={handleBuild}
-							loading={loading}
-							disabled={!text.trim() || !canSubmit}
+							variant="filled"
+							color="orange"
+							onClick={handleFullRegen}
+							loading={regenLoading}
+							disabled={!canUseApi}
+							fullWidth
 						>
-							{hasExistingNodes ? 'Modify' : 'Generate'}
+							⚡ Full Regen
 						</Button>
-					</>
+					</Tooltip>
 				) : (
 					<>
 						<Textarea
 							placeholder="Ask about the current graph... e.g. What does this spell do? Explain the flow."
-							value={text}
-							onChange={(e) => setText(e.currentTarget.value)}
+							value={askText}
+							onChange={(e) => setAskText(e.currentTarget.value)}
 							minRows={2}
 							disabled={disabled}
 						/>
@@ -321,8 +239,8 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 							size="xs"
 							variant="light"
 							onClick={handleAsk}
-							loading={loading}
-							disabled={!text.trim() || (!useMock && !apiKey.trim()) || !onAsk || disabled}
+							loading={askLoading}
+							disabled={!askText.trim() || (!useMock && !apiKey.trim()) || !onAsk || disabled}
 						>
 							Ask
 						</Button>
@@ -347,7 +265,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 				)}
 				{!error && summaryMsg && (
 					<div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 10px' }}>
-						<Text size="xs" fw={600} style={{ color: '#15803d', marginBottom: 4 }}>✨ 法术效果</Text>
+						<Text size="xs" fw={600} style={{ color: '#15803d', marginBottom: 4 }}>✨ Spell Effect</Text>
 						<ScrollArea type="auto" offsetScrollbars style={{ maxHeight: 100 }}>
 							<Text size="xs" className="whitespace-pre-wrap" style={{ color: '#166534' }}>
 								{summaryMsg}

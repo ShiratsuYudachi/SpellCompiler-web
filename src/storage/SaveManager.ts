@@ -98,6 +98,19 @@ class SaveManagerClass {
 	}
 	
 	/**
+	 * Set the current save to the most recently saved file (by lastSaved).
+	 * Use when entering level select from "Start Game" so progress matches the latest slot.
+	 */
+	loadLatestSaveAsCurrent(): void {
+		const saves = this.listAllSaves()
+		if (saves.length === 0) {
+			this.createNewSave('Default Save')
+			return
+		}
+		this.loadSaveFile(saves[0].id)
+	}
+
+	/**
 	 * Load a save file and set it as current
 	 */
 	loadSaveFile(id: string): SaveFile | null {

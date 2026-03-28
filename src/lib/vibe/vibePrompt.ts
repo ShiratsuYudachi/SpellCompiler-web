@@ -409,16 +409,6 @@ Edges — lambda body (scoring: just return the entity's HP):
 === END SPELL PATTERNS ===
 `;
 
-/** Instruction injected when the user explicitly wants to complete/wire an existing graph. */
-export const COMPLETE_SPELL_INSTRUCTION =
-	'Complete all missing connections in the current spell to make it fully functional. ' +
-	'For EVERY item listed under MISSING CONNECTIONS: add an edge that resolves it. ' +
-	'For any new node you add: wire ALL its input handles AND route its output to the correct downstream node — never leave a new node orphaned. ' +
-	'Trace every data path from source nodes all the way to the output node — no dead ends. ' +
-	'You may add literal/lambdaDef/functionOut/if/vector nodes as needed values. ' +
-	'You may add dynamicFunction nodes ONLY from the Available Functions list. ' +
-	'Reuse existing nodes — do not duplicate any node that already serves the same purpose.';
-
 /** Instruction injected when the user wants a full regeneration from scratch. */
 export const FULL_REGEN_INSTRUCTION =
 	'Generate a COMPLETE spell from scratch that correctly achieves the level objective shown above. ' +

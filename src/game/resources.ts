@@ -36,14 +36,12 @@ export type GameResources = {
 	scene: Phaser.Scene
 	bodies: Map<number, Phaser.Physics.Arcade.Image>
 	playerEid: number
-	hudText: Phaser.GameObjects.Text
 	spellMessageByEid: Map<number, string>
 	// REMOVED: spellByEid - spells are now managed by Event System via spellId
 	// REMOVED: input - use Event System instead
 	// REMOVED: triggers - use Event System instead
 	// REMOVED: triggerIdCounter
 	score?: number // Optional score for scenes that use it
-	mana?: number // Optional mana for scenes that use it
 	// 压力板和感应器状态
 	currentPlateColor: PlateColor        // 当前踩踏的压力板颜色
 	sensorState: boolean                 // 感应器状态（true=未被遮挡）

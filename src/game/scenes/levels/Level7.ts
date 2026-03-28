@@ -8,6 +8,7 @@
 import { BaseScene } from '../base/BaseScene'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
+import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
 
 // Level 6/19 style: getRemainingBallIndices → filter(isLightest) → head → throwBallToGate. Lambda isLightest(index) = isLightestBall(state, index).
 const level7InitialWorkflow = {
@@ -176,7 +177,9 @@ export class Level7 extends BaseScene {
 				} else {
 					ball.thrown = false
 					ball.marker.setPosition(ball.x, ball.y)
-					ball.indexLabel = this.add.text(ball.x, ball.y - 38, String(ball.index), { fontSize: '18px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
+					ball.indexLabel = this.add
+						.text(ball.x, ball.y - 38, String(ball.index), worldFloatingTextStyle('18px', '#ffffff', { bold: true }))
+						.setOrigin(0.5)
 					this.remainingIndices.push(idx)
 					this.remainingIndices.sort((a, b) => a - b)
 					this.world.resources.levelData!.remainingBallIndices = [...this.remainingIndices]
@@ -204,7 +207,9 @@ export class Level7 extends BaseScene {
 			const x = Math.max(50, Math.min(pos.x, worldWidth - 50))
 			const y = Math.max(50, Math.min(pos.y, worldHeight - 50))
 			const marker = this.add.circle(x, y, 22, 0x4a90e2, 0.8).setStrokeStyle(2, 0x4a90e2)
-			const indexLabel = this.add.text(x, y - 38, String(index), { fontSize: '18px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5)
+			const indexLabel = this.add
+				.text(x, y - 38, String(index), worldFloatingTextStyle('18px', '#ffffff', { bold: true }))
+				.setOrigin(0.5)
 			this.balls.push({ index, weight, marker, indexLabel, x, y, thrown: false })
 		})
 	}
@@ -219,7 +224,12 @@ export class Level7 extends BaseScene {
 			const colors = [0x66ff66, 0xffff66, 0xffaa66, 0xff6666]
 			this.gates.push({
 				rect: this.add.rectangle(gateX, gateY, 80, 90, colors[i], 0.7).setStrokeStyle(3, 0xffffff),
-				label: this.add.text(gateX, gateY - 55, `${order}${i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'}`, { fontSize: '14px', color: '#000', stroke: '#fff', strokeThickness: 1, align: 'center' }).setOrigin(0.5),
+				label: this.add
+					.text(gateX, gateY - 55, `${order}${i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'}`, {
+						...worldFloatingTextStyle('14px', '#f0f0f0', { bold: true }),
+						align: 'center',
+					})
+					.setOrigin(0.5),
 				activated: false,
 				order,
 			})

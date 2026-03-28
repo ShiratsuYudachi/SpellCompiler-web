@@ -3,7 +3,6 @@ import Phaser from 'phaser'
 import type { GameResources } from './resources'
 import { createPlayer } from './prefabs/createPlayer'
 import { createEnemy } from './prefabs/createEnemy'
-import { createHud } from './prefabs/createHud'
 import { enemyAISystem } from './systems/enemyAISystem'
 import { fireballSystem } from './systems/fireballSystem'
 import { velocitySystem } from './systems/velocitySystem'
@@ -32,13 +31,10 @@ export function createGameWorld(
 		createEnemy(world, scene, bodies, playerEid)
 	}
 
-	const hudText = createHud(scene)
-
 	world.resources = {
 		scene,
 		bodies,
 		playerEid,
-		hudText,
 		spellMessageByEid,
 		// REMOVED: spellByEid - spells are now managed by Event System via spellId
 		// REMOVED: input - no longer needed, using Event System
