@@ -92,7 +92,7 @@ export function SpellManager(props: {
 									{s.hasCompiledAST ? (
 										<Badge color="green" size="sm">Compiled</Badge>
 									) : (
-										<Badge color="red" size="sm" variant="light">Compilation Failed</Badge>
+										<Badge color="gray" size="sm" variant="light">No build yet</Badge>
 									)}
 								</Group>
 								<Text size="sm" c="dimmed">

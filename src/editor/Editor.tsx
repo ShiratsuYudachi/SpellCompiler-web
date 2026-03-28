@@ -33,24 +33,30 @@ export function Editor() {
 		return `${editingId || 'new'}:${screen}`
 	}, [editingId, screen])
 
-	// Tab in game mode: close editor overlay (do not use Tab to switch spell ↔ Level1 scene in standalone /editor).
+	// Tab: close editor overlay (return to game). Works in scene editor (isGameMode) and when
+	// editing a level-linked spell from the library (id scene-spell-<LevelKey>) while the game exists.
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (!isGameMode || event.key !== 'Tab') {
-				return
-			}
+			if (event.key !== 'Tab') return
+			const game = getGameInstance()
+			if (!game) return
+
+			const levelLinkedSpell =
+				editingId != null && /^scene-spell-.+/.test(editingId)
+			const allowTab =
+				isGameMode || (screen === 'editor' && levelLinkedSpell)
+
+			if (!allowTab) return
+
 			event.preventDefault()
-			if (screen !== 'manager') {
-				const game = getGameInstance()
-				if (game) {
-					game.events.emit(GameEvents.toggleEditor)
-				}
-			}
+			if (screen === 'manager') return
+
+			game.events.emit(GameEvents.toggleEditor)
 		}
 
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [screen, isGameMode])
+	}, [screen, isGameMode, editingId])
 
 	if (screen === 'manager') {
 		return (
@@ -111,6 +117,9 @@ export function Editor() {
 		console.log('[Editor] Loading workflow for scene:', sceneKey, savedSpell ? '(saved copy)' : '(template)')
 
 		const handleExit = () => {
+			// Clear scene context so isGameMode is false; otherwise the effect below
+			// forces screen back to sceneConfig and the user can never reach Spell Library.
+			setEditorContext({ sceneKey: undefined })
 			setScreen('manager')
 		}
 

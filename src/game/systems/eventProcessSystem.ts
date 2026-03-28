@@ -52,6 +52,11 @@ export function clearSpellCache(): void {
 	spellCache.clear()
 }
 
+/** Drop one spell from the in-memory cache (e.g. when stored AST is cleared). */
+export function invalidateSpellCache(spellId: string): void {
+	spellCache.delete(spellId)
+}
+
 /**
  * Process all queued events
  */
