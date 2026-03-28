@@ -39,11 +39,12 @@ const MODEL_OPTIONS = OPENROUTER_MODELS.map((m) => ({ value: m.value, label: m.l
 
 export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePanelProps) {
 	const [mode, setMode] = useState<VibeMode>('build');
-	/** Ask mode only — Build uses Full Regen without free-form text */
 	const [askText, setAskText] = useState('');
+	const [buildText, setBuildText] = useState('');
 	const [apiKey, setApiKey] = useState('');
 	const [model, setModel] = useState<string>('openai/gpt-4o-mini');
 	const [askLoading, setAskLoading] = useState(false);
+	const [modifyLoading, setModifyLoading] = useState(false);
 	const [regenLoading, setRegenLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -162,7 +163,32 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		}
 	};
 
-	const canUseApi = !disabled && !askLoading && !regenLoading && (useMock || !!sanitizeApiKey(apiKey));
+	const handleModify = async () => {
+		const trimmed = buildText.trim();
+		if (!trimmed) return;
+		if (!useMock && !sanitizeApiKey(apiKey)) {
+			setError('Please enter your API key (or choose Mock for testing without API).');
+			return;
+		}
+		setError(null);
+		setSuccessMsg(null);
+		setSummaryMsg(null);
+		setModifyLoading(true);
+		try {
+			const result = await onGenerate(trimmed, sanitizeApiKey(apiKey), model, { isFullRegen: false });
+			onApplyFlow(result.nodes, result.edges, { replace: true });
+			setSuccessMsg(`✏️ Modified: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+			if (result.summary) setSummaryMsg(result.summary);
+		} catch (e) {
+			console.error('[Vibe] Modify failed', e);
+			const msg = e instanceof Error ? e.message : String(e);
+			setError(msg + ' (See F12 Console for details.)');
+		} finally {
+			setModifyLoading(false);
+		}
+	};
+
+	const canUseApi = !disabled && !askLoading && !regenLoading && !modifyLoading && (useMock || !!sanitizeApiKey(apiKey));
 
 	return (
 		<Paper p="sm" shadow="sm" withBorder className="flex flex-col gap-2 h-full overflow-hidden">
@@ -207,25 +233,46 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 					disabled={disabled}
 				/>
 				{mode === 'build' ? (
-					<Tooltip
-						label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
-						position="left"
-						multiline
-						w={240}
-						withArrow
-					>
+					<>
+						<Textarea
+							placeholder="Describe the spell you want... e.g. Filter enemies with HP above 30, attack the first one for 100 damage."
+							value={buildText}
+							onChange={(e) => setBuildText(e.currentTarget.value)}
+							minRows={2}
+							disabled={disabled}
+							size="xs"
+						/>
 						<Button
 							size="xs"
 							variant="filled"
-							color="orange"
-							onClick={handleFullRegen}
-							loading={regenLoading}
-							disabled={!canUseApi}
+							color="teal"
+							onClick={handleModify}
+							loading={modifyLoading}
+							disabled={!buildText.trim() || !canUseApi}
 							fullWidth
 						>
-							⚡ Full Regen
+							✏️ Modify
 						</Button>
-					</Tooltip>
+						<Tooltip
+							label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
+							position="left"
+							multiline
+							w={240}
+							withArrow
+						>
+							<Button
+								size="xs"
+								variant="filled"
+								color="orange"
+								onClick={handleFullRegen}
+								loading={regenLoading}
+								disabled={!canUseApi}
+								fullWidth
+							>
+								⚡ Full Regen
+							</Button>
+						</Tooltip>
+					</>
 				) : (
 					<>
 						<Textarea
