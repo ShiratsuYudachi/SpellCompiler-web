@@ -210,6 +210,7 @@ Node types and their "data" shape (each node has id, type, position: {x,y}, data
 - output: data = {} (has targetHandle: value - the main expression feeds here)
 - lambdaDef: data = { functionName?: string, params: string[] } (e.g. params: ["arg0"]); sourceHandles: param0, param1, ... WARNING: the UI shows an "env" port on lambdaDef — DO NOT wire anything to env. It is automatic. State from spellInput wires directly to each game:: node inside the lambda.
 - functionOut: data = { lambdaId: string } (id of the lambdaDef node); targetHandle: value, sourceHandle: function. WARNING: functionOut is MANDATORY for every lambda — it is the lambda's return node AND the way to pass the lambda to forEach/filter. Without functionOut the lambda cannot run.
+  CRITICAL — minBy/maxBy key lambda: the lambda passed to list::minBy or list::maxBy must ONLY return a number (the sort key). NEVER put damageEntity, healEntity, or any side-effect function inside a minBy/maxBy lambda. Side effects must happen OUTSIDE after minBy/maxBy returns the chosen element. Example: minBy(enemies, lambda(e) → getEntityHealth(state,e)) → chosenEnemy → damageEntity(state, chosenEnemy, 150).
 - applyFunc: data = { paramCount: number }; targetHandles: func, arg0, arg1, ...
 - dynamicFunction: data = { functionName: string (fullName e.g. "std::math::add"), displayName: string, namespace: string, params: string[] }; targetHandles: arg0, arg1, ...; sourceHandle: result
 
