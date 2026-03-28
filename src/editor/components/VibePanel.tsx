@@ -251,7 +251,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 							disabled={!buildText.trim() || !canUseApi}
 							fullWidth
 						>
-							✏️ Modify
+							✨ Generate
 						</Button>
 						<Tooltip
 							label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
