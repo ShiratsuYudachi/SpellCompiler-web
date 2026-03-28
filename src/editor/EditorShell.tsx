@@ -8,7 +8,9 @@ export function EditorShell({ children }: { children: ReactNode }) {
 				position: 'absolute',
 				inset: 0,
 				background: 'rgba(0, 0, 0, 0.35)',
-				zIndex: 10,
+				// Above Phaser canvas (game host has no z-index); avoids WebGL compositing hiding the flow.
+				zIndex: 10000,
+				isolation: 'isolate',
 			}}
 		>
 			<div

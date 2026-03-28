@@ -4,12 +4,14 @@
 // =============================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import ReactFlow, {
 	Background,
 	Controls,
 	MiniMap,
 	addEdge,
 	useReactFlow,
+	useStoreApi,
 	ReactFlowProvider,
 	useNodesState,
 	useEdgesState,
@@ -145,11 +147,18 @@ function EditorContent(props: FunctionalEditorProps) {
 	const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
 	const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-	// Sync to initial flow when opening a different spell
+	// Sync from props only when the *spell identity* changes. If we also keyed this on
+	// initialNodes/initialEdges references, any parent re-render that re-reads loadSpell()
+	// (new object identity, often before debounced auto-save lands) would overwrite the
+	// canvas and hide Vibe Build updates until a full remount (e.g. Tab away/back).
+	const lastSyncedSpellKeyForPropsRef = useRef<string | null>(null);
 	useEffect(() => {
+		const spellKey = props.initialSpellId ?? 'new';
+		if (lastSyncedSpellKeyForPropsRef.current === spellKey) return;
+		lastSyncedSpellKeyForPropsRef.current = spellKey;
 		setNodes(initialNodes);
 		setEdges(initialEdges);
-	}, [initialNodes, initialEdges, setNodes, setEdges]);
+	}, [props.initialSpellId, initialNodes, initialEdges, setNodes, setEdges]);
 
 	// Custom undo/redo - sync with React Flow instance, no state updates during drag
 	const pastRef = useRef<FlowState[]>([]);
@@ -158,7 +167,9 @@ function EditorContent(props: FunctionalEditorProps) {
 	const historyAllowedRef = useRef(false);
 	const [hasUserActed, setHasUserActed] = useState(false);
 
-	const { getNodes, getEdges, screenToFlowPosition, getNode, toObject } = useReactFlow();
+	const { getNodes, getEdges, screenToFlowPosition, getNode, toObject, fitView } = useReactFlow();
+	/** RF syncs props → zustand store in useEffect (after paint). Programmatic replaces must update the store immediately or the graph stays stale until remount (e.g. Tab). */
+	const rfStoreApi = useStoreApi();
 
 	const pushUndo = useCallback(() => {
 		const nodes = getNodes();
@@ -229,7 +240,11 @@ function EditorContent(props: FunctionalEditorProps) {
 		nodeId?: string;
 	} | null>(null);
 	const [editorContext, setEditorContext] = useState<{ sceneKey?: string; refreshId?: number } | null>(() => getEditorContext());
-	const [workflowLoaded, setWorkflowLoaded] = useState(false);
+	/** Dedupe game-mode workflow loads — must not depend on React state in subscribe callback (stale closure overwrote Vibe results). */
+	const lastWorkflowContextRef = useRef<{ sceneKey?: string; refreshId?: number } | null>(null);
+	const workflowHydratedFromStoreRef = useRef(false);
+	/** Bumps after Vibe apply to remount React Flow so the pane always repaints (fixes stuck canvas until Tab). */
+	const [flowRevision, setFlowRevision] = useState(0);
 	// compiled = has saved AST; draft = no build yet (neutral); failed = last Compile & Save errored
 	const [compilationStatus, setCompilationStatus] = useState<'compiled' | 'draft' | 'failed'>(() => {
 		const sid = props.initialSpellId
@@ -292,9 +307,11 @@ function EditorContent(props: FunctionalEditorProps) {
 
 	const generateNodeId = useCallback(() => `node-${nodeIdCounter++}`, []);
 
-	// Subscribe to editor context changes and load workflow (ONLY in game mode)
+	// Subscribe to editor context changes and load workflow (ONLY in game mode).
+	// Stable subscription (deps [isLibraryMode] only): do not re-run when local editorContext
+	// updates — that would re-subscribe and re-invoke the listener with stale closures and
+	// reload from loadSpell(), wiping Vibe-generated graphs before debounced save completes.
 	useEffect(() => {
-		// Skip this effect entirely in library mode
 		if (isLibraryMode) {
 			console.log('[Editor] Library mode: skipping sceneKey-based workflow loading')
 			return
@@ -304,22 +321,25 @@ function EditorContent(props: FunctionalEditorProps) {
 			const newSceneKey = context?.sceneKey;
 			const newRefreshId = context?.refreshId;
 
-			// Only reload workflow if scene key actually changed OR refreshId changed (for config updates)
-			if (editorContext?.sceneKey === newSceneKey &&
-			    editorContext?.refreshId === newRefreshId &&
-			    workflowLoaded) {
+			const last = lastWorkflowContextRef.current;
+			const sameSceneAndRefresh =
+				last?.sceneKey === newSceneKey &&
+				last?.refreshId === newRefreshId &&
+				workflowHydratedFromStoreRef.current;
+
+			if (sameSceneAndRefresh) {
+				setEditorContext(context);
 				return;
 			}
 
+			lastWorkflowContextRef.current = { sceneKey: newSceneKey, refreshId: newRefreshId };
 			setEditorContext(context);
 
-			// Load workflow: prefer user's saved working copy; fall back to level template
 			console.log('[Editor] Game mode: loading workflow for sceneKey:', newSceneKey)
 
 			try {
 				const config = newSceneKey ? levelRegistry.get(newSceneKey) : null;
 
-				// Check if player has a saved working copy for this scene
 				const sceneSpellId = newSceneKey ? `scene-spell-${newSceneKey}` : null;
 				const savedSpell = sceneSpellId ? loadSpell(sceneSpellId) : null;
 
@@ -339,12 +359,10 @@ function EditorContent(props: FunctionalEditorProps) {
 				setNodes(nodesToLoad);
 				setEdges(edgesToLoad);
 
-				// Adopt stable spell ID so auto-save targets the same slot
 				if (sceneSpellId) {
 					setSpellId(sceneSpellId);
 				}
 
-				// Update nodeIdCounter to avoid conflicts
 				let maxId = nodeIdCounter;
 				nodesToLoad.forEach((node: Node) => {
 					const match = node.id.match(/-(\d+)$/);
@@ -360,11 +378,11 @@ function EditorContent(props: FunctionalEditorProps) {
 				setEdges([]);
 			}
 
-			setWorkflowLoaded(true);
+			workflowHydratedFromStoreRef.current = true;
 		});
 
 		return unsubscribe;
-	}, [editorContext, workflowLoaded, isLibraryMode, setNodes, setEdges]);
+	}, [isLibraryMode, setNodes, setEdges]);
 
 	// Auto-save: trigger on flow changes (saveTrigger incremented by drag stop, add, delete, connect)
 	// Runs in both library mode and scene-config mode (whenever spellId is set)
@@ -937,8 +955,6 @@ function EditorContent(props: FunctionalEditorProps) {
 			nodes: nodes as Node[],
 			edges: edges as Edge[],
 			wasUpdate: true, // always replace existing graph
-			prevNodeCount: isFullRegen ? 0 : currentNodes.length,
-			prevEdgeCount: isFullRegen ? 0 : currentEdges.length,
 			summary,
 		};
 	}, [getNodes, getEdges, levelContext, props.levelMeta]);
@@ -979,9 +995,18 @@ function EditorContent(props: FunctionalEditorProps) {
 				target: String(e.target ?? ''),
 				selected: false,
 			}));
-			setNodes(normNodes);
-			setEdges(normEdges);
+			flushSync(() => {
+				setNodes(normNodes);
+				setEdges(normEdges);
+			});
+			rfStoreApi.getState().setNodes(normNodes);
+			rfStoreApi.getState().setEdges(normEdges);
 			bumpNodeIdCounterFromNodes(normNodes);
+			setFlowRevision((r) => r + 1);
+			requestAnimationFrame(() => {
+				fitView({ padding: 0.15, duration: 200 });
+				window.dispatchEvent(new Event('resize'));
+			});
 		} else {
 			// Merge new nodes into existing graph (e.g. empty canvas or "add something")
 			const existingNodes = getNodes();
@@ -1025,9 +1050,18 @@ function EditorContent(props: FunctionalEditorProps) {
 				: existingEdges;
 			const mergedNodes = [...existingNodes, ...newNodes];
 			const mergedEdges = [...existingWithoutOutputIncoming, ...newEdges];
-			setNodes(mergedNodes);
-			setEdges(mergedEdges);
+			flushSync(() => {
+				setNodes(mergedNodes);
+				setEdges(mergedEdges);
+			});
+			rfStoreApi.getState().setNodes(mergedNodes);
+			rfStoreApi.getState().setEdges(mergedEdges);
 			bumpNodeIdCounterFromNodes(mergedNodes);
+			setFlowRevision((r) => r + 1);
+			requestAnimationFrame(() => {
+				fitView({ padding: 0.15, duration: 200 });
+				window.dispatchEvent(new Event('resize'));
+			});
 		}
 
 		triggerSave();
@@ -1035,7 +1069,7 @@ function EditorContent(props: FunctionalEditorProps) {
 		setCurrentAST(null);
 		setCurrentFunctions([]);
 		setError(null);
-	}, [getNodes, getEdges, setNodes, setEdges, pushUndo, triggerSave]);
+	}, [getNodes, getEdges, setNodes, setEdges, pushUndo, triggerSave, fitView, rfStoreApi]);
 
 	// Import workflow from JSON file
 	const handleImport = () => {
@@ -1194,7 +1228,7 @@ function EditorContent(props: FunctionalEditorProps) {
 					onClick={onEditorAreaClick}
 				>
 					<ReactFlow
-						key={props.initialSpellId ?? 'new'}
+						key={`${props.initialSpellId ?? 'new'}-${flowRevision}`}
 						nodes={nodes}
 						edges={edges}
 						onNodesChange={onNodesChangeWrapped}

@@ -23,10 +23,6 @@ export type VibePanelProps = {
 		nodes: unknown[];
 		edges: unknown[];
 		wasUpdate?: boolean;
-		/** Node count BEFORE this build (for computing diff in the UI) */
-		prevNodeCount?: number;
-		/** Edge count BEFORE this build (for computing diff in the UI) */
-		prevEdgeCount?: number;
 		/** Optional plain-English summary from the AI about what changed */
 		summary?: string;
 	}>;
@@ -130,7 +126,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 				{ isFullRegen: true }
 			);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
-			setSuccessMsg(`⚡ Regenerated: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+			setSuccessMsg('⚡ Spell regenerated.');
 			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
 			console.error('[Vibe] Full Regen failed', e);
@@ -177,7 +173,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		try {
 			const result = await onGenerate(trimmed, sanitizeApiKey(apiKey), model, { isFullRegen: false });
 			onApplyFlow(result.nodes, result.edges, { replace: true });
-			setSuccessMsg(`✏️ Modified: ${result.nodes.length} nodes, ${result.edges.length} edges`);
+			setSuccessMsg('✏️ Spell updated.');
 			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
 			console.error('[Vibe] Modify failed', e);

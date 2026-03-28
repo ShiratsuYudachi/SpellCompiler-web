@@ -303,7 +303,7 @@ export function Game() {
 			<div
 				className="phaser-game-host"
 				ref={containerRef}
-				style={{ position: 'absolute', inset: 0, pointerEvents: showEditor ? 'none' : 'auto' }}
+				style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: showEditor ? 'none' : 'auto' }}
 			/>
 			{!showEditor && !showVictory ? <LevelHudOverlay /> : null}
 			{showMainMenuDom ? <MainMenuOverlay /> : null}
