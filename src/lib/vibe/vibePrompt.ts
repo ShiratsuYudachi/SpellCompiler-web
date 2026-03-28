@@ -390,23 +390,30 @@ Copy this exactly for "different damage per enemy based on HP" requests.
   {"id":"e15","source":"f-dmg","target":"f-out","targetHandle":"value"}
 ]}
 
-── PATTERN F: attack the enemy with the lowest HP (list::minBy + 1-level lambda) ──
-(minBy takes the SAME lambda pattern as filter — use it to score each element)
-Nodes: si, f-gae(getAllEnemies),
-       lam(lambdaDef,params=["eid"]), f-hp(game::getEntityHealth), fout(functionOut,lambdaId="lam"),
-       f-min(list::minBy), f-act(game::damageEntity), lit-amt(literal,100), out
-Edges — main chain:
-  si            → f-gae(arg0)
-  f-gae         → f-min(arg0)            enemy list → minBy
-  fout [sourceHandle="function"] → f-min(arg1)   ← scoring lambda (returns HP per eid)
-  si            → f-act(arg0)
-  f-min         → f-act(arg1)            lowest-HP enemy eid → damage
-  lit-amt       → f-act(arg2)
-  f-act         → out(value)
-Edges — lambda body (scoring: just return the entity's HP):
-  si            → f-hp(arg0)             ← state direct (no env port)
-  lam [sourceHandle="param0"] → f-hp(arg1)    ← eid from lambda (NO hyphen)
-  f-hp          → fout(value)            ← minBy uses this number to rank elements
+── PATTERN F: attack the enemy with the lowest HP (list::minBy + key lambda) ──
+KEY RULE: the lambda passed to minBy returns ONLY a number (the sort key). damageEntity is OUTSIDE minBy, called on the result. minBy.result → damageEntity.arg1 → out. Never connect functionOut.fn to output.
+{"nodes":[
+  {"id":"si","type":"spellInput","position":{"x":-200,"y":200},"data":{"label":"Game State","params":["state"]}},
+  {"id":"f-gae","type":"dynamicFunction","position":{"x":60,"y":200},"data":{"functionName":"game::getAllEnemies","displayName":"getAllEnemies","namespace":"game","params":["state"]}},
+  {"id":"f-min","type":"dynamicFunction","position":{"x":300,"y":200},"data":{"functionName":"list::minBy","displayName":"minBy","namespace":"list","params":["l","f"]}},
+  {"id":"f-act","type":"dynamicFunction","position":{"x":560,"y":200},"data":{"functionName":"game::damageEntity","displayName":"damageEntity","namespace":"game","params":["state","eid","amount"]}},
+  {"id":"lit-amt","type":"literal","position":{"x":460,"y":320},"data":{"value":150}},
+  {"id":"out","type":"output","position":{"x":800,"y":200},"data":{}},
+  {"id":"lam","type":"lambdaDef","position":{"x":60,"y":420},"data":{"functionName":"scoreByHp","params":["eid"]}},
+  {"id":"f-hp","type":"dynamicFunction","position":{"x":240,"y":500},"data":{"functionName":"game::getEntityHealth","displayName":"getEntityHealth","namespace":"game","params":["state","eid"]}},
+  {"id":"fout","type":"functionOut","position":{"x":460,"y":500},"data":{"lambdaId":"lam"}}
+],"edges":[
+  {"id":"e1","source":"si","target":"f-gae","targetHandle":"arg0"},
+  {"id":"e2","source":"f-gae","target":"f-min","targetHandle":"arg0"},
+  {"id":"e3","source":"fout","sourceHandle":"function","target":"f-min","targetHandle":"arg1"},
+  {"id":"e4","source":"f-min","target":"f-act","targetHandle":"arg1"},
+  {"id":"e5","source":"si","target":"f-act","targetHandle":"arg0"},
+  {"id":"e6","source":"lit-amt","target":"f-act","targetHandle":"arg2"},
+  {"id":"e7","source":"f-act","target":"out","targetHandle":"value"},
+  {"id":"e8","source":"si","target":"f-hp","targetHandle":"arg0"},
+  {"id":"e9","source":"lam","sourceHandle":"param0","target":"f-hp","targetHandle":"arg1"},
+  {"id":"e10","source":"f-hp","target":"fout","targetHandle":"value"}
+]}
 === END SPELL PATTERNS ===
 `;
 
