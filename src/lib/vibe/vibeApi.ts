@@ -197,7 +197,7 @@ async function _vibeBuildOnce(
 	console.log('[Vibe] Calling OpenRouter...', OPENROUTER_URL);
 	let raw: string;
 	try {
-		raw = await callOpenRouter(apiKey, m, systemPrompt, prompt, { temperature: 0.2, maxTokens: 8192 });
+		raw = await callOpenRouter(apiKey, m, systemPrompt, prompt, { temperature: 0.2, maxTokens: 4096 });
 	} catch (e) {
 		const message = e instanceof Error ? e.message : String(e);
 		if (typeof console !== 'undefined' && console.error) console.error('[Vibe] Build request failed:', e);
