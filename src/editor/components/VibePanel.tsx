@@ -45,6 +45,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
 	const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
+	const [elapsedMs, setElapsedMs] = useState<number | null>(null);
 	const [open, setOpen] = useState(true);
 	const [explanation, setExplanation] = useState<string | null>(null);
 
@@ -94,6 +95,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
+		setElapsedMs(null);
 		try {
 			localStorage.setItem(MODE_STORAGE_KEY, value);
 		} catch {
@@ -117,7 +119,9 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
+		setElapsedMs(null);
 		setRegenLoading(true);
+		const t0Regen = Date.now();
 		try {
 			const result = await onGenerate(
 				FULL_REGEN_INSTRUCTION,
@@ -125,10 +129,12 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 				model,
 				{ isFullRegen: true }
 			);
+			setElapsedMs(Date.now() - t0Regen);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
 			setSuccessMsg('⚡ Spell regenerated.');
 			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
+			setElapsedMs(Date.now() - t0Regen);
 			console.error('[Vibe] Full Regen failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
 			setError(msg + ' (See F12 Console for details.)');
@@ -169,13 +175,17 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
+		setElapsedMs(null);
 		setModifyLoading(true);
+		const t0Mod = Date.now();
 		try {
 			const result = await onGenerate(trimmed, sanitizeApiKey(apiKey), model, { isFullRegen: false });
+			setElapsedMs(Date.now() - t0Mod);
 			onApplyFlow(result.nodes, result.edges, { replace: true });
 			setSuccessMsg('✏️ Spell updated.');
 			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
+			setElapsedMs(Date.now() - t0Mod);
 			console.error('[Vibe] Modify failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
 			setError(msg + ' (See F12 Console for details.)');
@@ -303,7 +313,12 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 				)}
 				{!error && successMsg && (
 					<Text size="xs" c="teal" fw={500}>
-						{successMsg}
+						{successMsg}{elapsedMs !== null ? ` (${(elapsedMs / 1000).toFixed(1)}s)` : ""}
+					</Text>
+				)}
+				{error && elapsedMs !== null && (
+					<Text size="xs" c="dimmed">
+						Failed after {(elapsedMs / 1000).toFixed(1)}s
 					</Text>
 				)}
 				{!error && summaryMsg && (

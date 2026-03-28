@@ -511,6 +511,7 @@ ${updateRule}- Each node needs: id (unique string), type (one of the types above
 - For game spells, include one spellInput node with params: ["state"] and connect state to game:: functions as first argument.
 - The final result must flow into the output node's "value" handle.
 - CRITICAL — dynamicFunction nodes: the "functionName" field MUST be one of the exact fullName strings in the list above. The "displayName" field MUST be the exact displayName shown in [displayName="..."] for that function. The "namespace" field MUST be the exact namespace shown in [namespace="..."]. Never invent or paraphrase these values.
+- CRITICAL — functionOut nodes: ONLY create a functionOut node when there is a matching lambdaDef node in the same graph. Never create a functionOut without a paired lambdaDef. If you do not need a lambda (e.g. simple linear spells), do not include any lambdaDef or functionOut nodes.
 - You MUST include a "summary" field: 1-3 sentences describing what this spell will DO in the game from the player's perspective (e.g. "This spell filters enemies with HP above 30, takes the first one, and deals 100 damage to it."). Focus on the game effect, not graph structure.
 
 User request:
