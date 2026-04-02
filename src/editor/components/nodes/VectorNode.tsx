@@ -10,22 +10,26 @@ import type { VectorNodeData } from '../../types/flowTypes';
 
 export function VectorNode({ data }: NodeProps) {
 	const nodeData = data as VectorNodeData;
-	const [x, setX] = useState(nodeData.x ?? 0);
-	const [y, setY] = useState(nodeData.y ?? 0);
+	const [rawX, setRawX] = useState(String(nodeData.x ?? 0));
+	const [rawY, setRawY] = useState(String(nodeData.y ?? 0));
 
-	const handleXChange = (newValue: string) => {
-		const num = parseFloat(newValue);
+	const commitX = (raw: string) => {
+		const num = parseFloat(raw);
 		if (!isNaN(num)) {
-			setX(num);
 			nodeData.x = num;
+			setRawX(String(num));
+		} else {
+			setRawX(String(nodeData.x ?? 0));
 		}
 	};
 
-	const handleYChange = (newValue: string) => {
-		const num = parseFloat(newValue);
+	const commitY = (raw: string) => {
+		const num = parseFloat(raw);
 		if (!isNaN(num)) {
-			setY(num);
 			nodeData.y = num;
+			setRawY(String(num));
+		} else {
+			setRawY(String(nodeData.y ?? 0));
 		}
 	};
 
@@ -39,12 +43,13 @@ export function VectorNode({ data }: NodeProps) {
 			<div className="mb-2">
 				<label className="text-xs text-teal-600 font-medium">X:</label>
 				<input
-					type="number"
-					value={x}
-					onChange={(e) => handleXChange(e.target.value)}
+					type="text"
+					value={rawX}
+					onChange={(e) => setRawX(e.target.value)}
+					onBlur={(e) => commitX(e.target.value)}
+					onKeyDown={(e) => { if (e.key === 'Enter') commitX((e.target as HTMLInputElement).value); }}
 					className="nodrag w-full px-2 py-1 text-sm border border-teal-300 rounded focus:outline-none focus:border-teal-500"
 					placeholder="X coordinate"
-					step="any"
 				/>
 			</div>
 
@@ -52,12 +57,13 @@ export function VectorNode({ data }: NodeProps) {
 			<div className="mb-1">
 				<label className="text-xs text-teal-600 font-medium">Y:</label>
 				<input
-					type="number"
-					value={y}
-					onChange={(e) => handleYChange(e.target.value)}
+					type="text"
+					value={rawY}
+					onChange={(e) => setRawY(e.target.value)}
+					onBlur={(e) => commitY(e.target.value)}
+					onKeyDown={(e) => { if (e.key === 'Enter') commitY((e.target as HTMLInputElement).value); }}
 					className="nodrag w-full px-2 py-1 text-sm border border-teal-300 rounded focus:outline-none focus:border-teal-500"
 					placeholder="Y coordinate"
-					step="any"
 				/>
 			</div>
 
