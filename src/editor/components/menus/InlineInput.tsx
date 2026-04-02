@@ -20,18 +20,14 @@ interface InlineInputProps {
 }
 
 export const InlineInput = memo(({ type, value, onChange, disabled, colors }: InlineInputProps) => {
-	// Vector state
-	const [x, setX] = useState<number>(() => {
-		if (typeof value === 'object' && value !== null && 'x' in value) {
-			return value.x;
-		}
-		return 0;
+	// Vector state (raw strings for free-form typing)
+	const [rawX, setRawX] = useState<string>(() => {
+		if (typeof value === 'object' && value !== null && 'x' in value) return String(value.x);
+		return '0';
 	});
-	const [y, setY] = useState<number>(() => {
-		if (typeof value === 'object' && value !== null && 'y' in value) {
-			return value.y;
-		}
-		return 0;
+	const [rawY, setRawY] = useState<string>(() => {
+		if (typeof value === 'object' && value !== null && 'y' in value) return String(value.y);
+		return '0';
 	});
 
 	// Literal state
@@ -45,33 +41,27 @@ export const InlineInput = memo(({ type, value, onChange, disabled, colors }: In
 	// Sync from props when value changes externally
 	useEffect(() => {
 		if (type === 'vector' && typeof value === 'object' && value !== null && 'x' in value) {
-			setX(value.x);
-			setY(value.y);
+			setRawX(String(value.x));
+			setRawY(String(value.y));
 		} else if (type === 'literal' && (typeof value === 'number' || typeof value === 'string')) {
 			setLiteralValue(value);
 		}
 	}, [value, type]);
 
-	const handleXChange = (newValue: string) => {
-		const num = parseFloat(newValue);
-		if (!isNaN(num)) {
-			setX(num);
-			onChange({ x: num, y });
-		} else if (newValue === '' || newValue === '-') {
-			setX(0);
-			onChange({ x: 0, y });
-		}
+	const commitX = (raw: string) => {
+		const num = parseFloat(raw);
+		const committed = isNaN(num) ? 0 : num;
+		if (isNaN(num)) setRawX('0');
+		const curY = parseFloat(rawY);
+		onChange({ x: committed, y: isNaN(curY) ? 0 : curY });
 	};
 
-	const handleYChange = (newValue: string) => {
-		const num = parseFloat(newValue);
-		if (!isNaN(num)) {
-			setY(num);
-			onChange({ x, y: num });
-		} else if (newValue === '' || newValue === '-') {
-			setY(0);
-			onChange({ x, y: 0 });
-		}
+	const commitY = (raw: string) => {
+		const num = parseFloat(raw);
+		const committed = isNaN(num) ? 0 : num;
+		if (isNaN(num)) setRawY('0');
+		const curX = parseFloat(rawX);
+		onChange({ x: isNaN(curX) ? 0 : curX, y: committed });
 	};
 
 	const handleLiteralChange = (newValue: string) => {
@@ -93,22 +83,24 @@ export const InlineInput = memo(({ type, value, onChange, disabled, colors }: In
 		return (
 			<div className="flex gap-1 ml-3">
 				<input
-					type="number"
-					value={x}
-					onChange={(e) => handleXChange(e.target.value)}
+					type="text"
+					value={rawX}
+					onChange={(e) => setRawX(e.target.value)}
+					onBlur={(e) => commitX(e.target.value)}
+					onKeyDown={(e) => { if (e.key === 'Enter') commitX((e.target as HTMLInputElement).value); }}
 					className={`w-12 px-1 py-0.5 text-xs border ${colors.border} rounded focus:outline-none opacity-80`}
 					placeholder="X"
-					step="any"
 					onClick={(e) => e.stopPropagation()}
 					onMouseDown={(e) => e.stopPropagation()}
 				/>
 				<input
-					type="number"
-					value={y}
-					onChange={(e) => handleYChange(e.target.value)}
+					type="text"
+					value={rawY}
+					onChange={(e) => setRawY(e.target.value)}
+					onBlur={(e) => commitY(e.target.value)}
+					onKeyDown={(e) => { if (e.key === 'Enter') commitY((e.target as HTMLInputElement).value); }}
 					className={`w-12 px-1 py-0.5 text-xs border ${colors.border} rounded focus:outline-none opacity-80`}
 					placeholder="Y"
-					step="any"
 					onClick={(e) => e.stopPropagation()}
 					onMouseDown={(e) => e.stopPropagation()}
 				/>
