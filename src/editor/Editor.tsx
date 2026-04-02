@@ -33,25 +33,32 @@ export function Editor() {
 		return `${editingId || 'new'}:${screen}`
 	}, [editingId, screen])
 
-	// Tab: close editor overlay (return to game). Works in scene editor (isGameMode) and when
-	// editing a level-linked spell from the library (id scene-spell-<LevelKey>) while the game exists.
+	// Tab / Esc: close editor overlay (return to game).
+	// Tab works in: scene editor (isGameMode), Spell Library manager, level-linked spell editor.
+	// Esc works in: Spell Library manager and scene config (returns to game).
+	// The 'editor' screen Esc is handled inside FunctionalEditor itself.
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key !== 'Tab') return
 			const game = getGameInstance()
-			if (!game) return
 
-			const levelLinkedSpell =
-				editingId != null && /^scene-spell-.+/.test(editingId)
-			const allowTab =
-				isGameMode || (screen === 'editor' && levelLinkedSpell)
+			if (event.key === 'Tab') {
+				if (!game) return
+				const levelLinkedSpell =
+					editingId != null && /^scene-spell-.+/.test(editingId)
+				const allowTab =
+					isGameMode || screen === 'manager' || (screen === 'editor' && levelLinkedSpell)
+				if (!allowTab) return
+				event.preventDefault()
+				game.events.emit(GameEvents.toggleEditor)
+				return
+			}
 
-			if (!allowTab) return
-
-			event.preventDefault()
-			if (screen === 'manager') return
-
-			game.events.emit(GameEvents.toggleEditor)
+			if (event.key === 'Escape') {
+				if (!game) return
+				if (screen === 'manager' || screen === 'sceneConfig') {
+					game.events.emit(GameEvents.toggleEditor)
+				}
+			}
 		}
 
 		window.addEventListener('keydown', handleKeyDown)

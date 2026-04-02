@@ -20,7 +20,7 @@ interface NodeSelectionMenuProps {
 }
 
 const BASIC_NODES = [
-	{ type: 'spellInput' as const, label: 'Spell Input', icon: '🎯' },
+	{ type: 'spellInput' as const, label: 'Spell Input (state / GameState)', icon: '🎯' },
 	{ type: 'literal' as const, label: 'Literal', icon: '🔢' },
 	{ type: 'vector' as const, label: 'Vector2D', icon: '📐' },
 	{ type: 'if' as const, label: 'If', icon: '🔀' },

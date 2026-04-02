@@ -138,6 +138,9 @@ function EditorContent(props: FunctionalEditorProps) {
 		if (!isLibraryMode || (isLibraryMode && levelLinkedSpell && getGameInstance())) {
 			parts.push('Tab: return to game')
 		}
+		if (props.onExit) {
+			parts.push('Esc: back to library')
+		}
 		return parts.join(' · ')
 	}, [isLibraryMode, props.initialSpellId])
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
@@ -219,7 +222,14 @@ function EditorContent(props: FunctionalEditorProps) {
 		console.log('[Editor] Created new spell ID:', tempId)
 		return tempId
 	})
-	const [spellName, setSpellName] = useState<string>(props.initialSpellName || 'New Spell')
+	const [spellName, setSpellName] = useState<string>(() => {
+		// Prefer the name already saved in storage (survives Tab unmount/remount)
+		if (props.initialSpellId) {
+			const saved = loadSpell(props.initialSpellId)
+			if (saved?.name) return saved.name
+		}
+		return props.initialSpellName || 'New Spell'
+	})
 
 	const [evaluationResult, setEvaluationResult] = useState<any>(null);
 	const [currentAST, setCurrentAST] = useState<ASTNode | null>(null);
@@ -269,6 +279,20 @@ function EditorContent(props: FunctionalEditorProps) {
 		setCompilationStatus((prev) => (prev === 'failed' ? 'draft' : prev))
 		setError((e) => (e === 'Compilation failed' ? null : e))
 	}, [])
+
+	// Esc: go back (to Spell Library) when no internal menu/modal is open
+	useEffect(() => {
+		const handleEsc = (event: KeyboardEvent) => {
+			if (event.key !== 'Escape') return
+			// Let context menu / node-selection menu handle Esc first
+			if (contextMenu?.show || menuState?.show) return
+			// Don't close while modals are open
+			if (addEventModalOpen || eventListModalOpen || editingBinding) return
+			props.onExit?.()
+		}
+		window.addEventListener('keydown', handleEsc)
+		return () => window.removeEventListener('keydown', handleEsc)
+	}, [contextMenu?.show, menuState?.show, addEventModalOpen, eventListModalOpen, editingBinding, props.onExit])
 
 	const VIBE_PANEL_WIDTH_KEY = 'spellcompiler-vibe-panel-width';
 	const [vibePanelWidth, setVibePanelWidth] = useState(() => {
