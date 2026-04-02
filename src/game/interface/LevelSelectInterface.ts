@@ -85,7 +85,6 @@ export class LevelSelectInterface extends Phaser.Scene {
 			{ num: 29, key: 'Level29', name: 'Lockdown',     category: 'Spatial' },
 			// Chapter 7: Combination
 			{ num: 30, key: 'Level30', name: 'Combo I',      category: 'Combo' },
-			{ num: 31, key: 'Level31', name: 'Final Trial',  category: 'Combo' },
 		]
 
 		const cols = 4

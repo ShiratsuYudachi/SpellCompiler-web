@@ -48,6 +48,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 	const [error, setError] = useState<string | null>(null);
 	const [successMsg, setSuccessMsg] = useState<string | null>(null);
 	const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
+	const [elapsedMs, setElapsedMs] = useState<number | null>(null);
 	const [open, setOpen] = useState(true);
 	const [explanation, setExplanation] = useState<string | null>(null);
 
@@ -97,6 +98,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
+		setElapsedMs(null);
 		try {
 			localStorage.setItem(MODE_STORAGE_KEY, value);
 		} catch {
@@ -127,9 +129,13 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 		setError(null);
 		setSuccessMsg(null);
 		setSummaryMsg(null);
+		setElapsedMs(null);
 		setLoading(true);
+		const t0 = Date.now();
 		try {
 			const result = await onGenerate(instruction, useMock ? '' : sanitizeApiKey(apiKey), model);
+			const elapsed = Date.now() - t0;
+			setElapsedMs(elapsed);
 			onApplyFlow(result.nodes, result.edges, result.wasUpdate ? { replace: true } : undefined);
 			// Compute diff for the success headline
 			const addedNodes = result.nodes.length - (result.prevNodeCount ?? 0);
@@ -145,6 +151,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 			// Show AI-provided explanation if available
 			if (result.summary) setSummaryMsg(result.summary);
 		} catch (e) {
+			setElapsedMs(Date.now() - t0);
 			console.error('[Vibe] Build failed', e);
 			const msg = e instanceof Error ? e.message : String(e);
 			setError(msg + ' (See F12 Console for details.)');
@@ -312,7 +319,12 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled, hasExistin
 				)}
 				{!error && successMsg && (
 					<Text size="xs" c="teal" fw={500}>
-						{successMsg}
+						{successMsg}{elapsedMs !== null ? ` (${(elapsedMs / 1000).toFixed(1)}s)` : ""}
+					</Text>
+				)}
+				{error && elapsedMs !== null && (
+					<Text size="xs" c="dimmed">
+						Failed after {(elapsedMs / 1000).toFixed(1)}s
 					</Text>
 				)}
 				{!error && summaryMsg && (
