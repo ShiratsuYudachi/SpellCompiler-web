@@ -124,7 +124,6 @@ export class Level2 extends BaseScene {
 			'• Press TAB to open the Spell Editor.\n' +
 			'• Use "spawnFireball" to shoot fireballs.\n' +
 			'• Change the direction vector to aim at enemies.\n' +
-			'• Press "1" key to cast your spell.\n\n' +
 			'Goal: Kill all three enemies one by one.\n' +
 			'Warning: Avoid the red laser wall - it is deadly!'
 		)

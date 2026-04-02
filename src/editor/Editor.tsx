@@ -1,11 +1,133 @@
-import { useMemo, useState, useEffect, useSyncExternalStore } from 'react'
+import { useMemo, useState, useEffect, useSyncExternalStore, useCallback } from 'react'
 import type { Node, Edge } from 'reactflow'
 import { FunctionalEditor } from './components/FunctionalEditor'
 import { SpellManager } from './components/SpellManager'
 import { loadSpell } from './utils/spellStorage'
-import { getGameInstance, getEditorContext, setEditorContext, subscribeEditorContext } from '../game/gameInstance'
+import {
+	getGameInstance,
+	getEditorContext,
+	setEditorContext,
+	subscribeEditorContext,
+	getForegroundSceneKey,
+	isPauseOverlayVisible,
+} from '../game/gameInstance'
 import { GameEvents } from '../game/events'
 import { levelRegistry } from '../game/levels/LevelRegistry'
+import { crispDomTextRootStyle, CSS_FONT_STACK } from '../game/ui/inGameTextStyle'
+
+function StandaloneEditorPauseOverlay({ onClose }: { onClose: () => void }) {
+	useEffect(() => {
+		const handleKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				e.preventDefault()
+				onClose()
+			}
+		}
+		window.addEventListener('keydown', handleKey)
+		return () => window.removeEventListener('keydown', handleKey)
+	}, [onClose])
+
+	const homeHref = import.meta.env.BASE_URL === '/' ? '/' : import.meta.env.BASE_URL.replace(/\/$/, '') || '/'
+
+	return (
+		<div
+			data-pause-overlay
+			style={{
+				position: 'fixed',
+				inset: 0,
+				background: 'rgba(0, 0, 0, 0.88)',
+				backdropFilter: 'blur(6px)',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				zIndex: 11001,
+				...crispDomTextRootStyle,
+			}}
+			onClick={onClose}
+		>
+			<div
+				style={{
+					background: '#1a1a1e',
+					border: '1px solid #333338',
+					borderRadius: '12px',
+					padding: '40px',
+					minWidth: '400px',
+					textAlign: 'center',
+					boxShadow: '0 16px 40px rgba(0, 0, 0, 0.55)',
+					fontFamily: CSS_FONT_STACK,
+				}}
+				onClick={(e) => e.stopPropagation()}
+			>
+				<h1
+					style={{
+						fontSize: '36px',
+						color: '#ffffff',
+						margin: '0 0 16px 0',
+						fontWeight: 'bold',
+						textShadow: '0 2px 8px rgba(0, 0, 0, 0.75)',
+					}}
+				>
+					PAUSED
+				</h1>
+				<p style={{ margin: '0 0 24px 0', fontSize: '15px', color: '#aaaaaa' }}>
+					No game session — open the editor from the game with Tab, or refresh this page.
+				</p>
+				<div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+					<button
+						type="button"
+						onClick={onClose}
+						style={{
+							padding: '15px 30px',
+							fontSize: '20px',
+							fontWeight: 'bold',
+							color: '#ffffff',
+							background: '#4a90e2',
+							border: '2px solid #5aa0f2',
+							borderRadius: '8px',
+							cursor: 'pointer',
+						}}
+					>
+						RESUME [ESC]
+					</button>
+					<button
+						type="button"
+						onClick={() => window.location.reload()}
+						style={{
+							padding: '15px 30px',
+							fontSize: '20px',
+							fontWeight: 'bold',
+							color: '#ffffff',
+							background: '#3a5a7a',
+							border: '2px solid #4a6a8a',
+							borderRadius: '8px',
+							cursor: 'pointer',
+						}}
+					>
+						REFRESH PAGE [TAB]
+					</button>
+					<button
+						type="button"
+						onClick={() => {
+							window.location.href = homeHref
+						}}
+						style={{
+							padding: '15px 30px',
+							fontSize: '20px',
+							fontWeight: 'bold',
+							color: '#ffffff',
+							background: '#5c2a2a',
+							border: '2px solid #7a3a3a',
+							borderRadius: '8px',
+							cursor: 'pointer',
+						}}
+					>
+						OPEN GAME
+					</button>
+				</div>
+			</div>
+		</div>
+	)
+}
 
 export function Editor() {
 	const editorContext = useSyncExternalStore(
@@ -33,40 +155,55 @@ export function Editor() {
 		return `${editingId || 'new'}:${screen}`
 	}, [editingId, screen])
 
-	// Tab / Esc: close editor overlay (return to game).
-	// Tab works in: scene editor (isGameMode), Spell Library manager, level-linked spell editor.
-	// Esc works in: Spell Library manager and scene config (returns to game).
-	// The 'editor' screen Esc is handled inside FunctionalEditor itself.
+	const hasRunningGame = Boolean(getGameInstance())
+	const [standalonePauseOpen, setStandalonePauseOpen] = useState(false)
+	const closeStandalonePause = useCallback(() => setStandalonePauseOpen(false), [])
+	const toggleStandalonePause = useCallback(() => setStandalonePauseOpen((v) => !v), [])
+
+	// Tab: return to game (close editor overlay). No game (/editor route): refresh page.
+	// Esc (Spell Library manager only): pause when game exists; standalone pause when not.
+	// Esc on spell/scene editor screens is handled in FunctionalEditor.
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			const game = getGameInstance()
 
 			if (event.key === 'Tab') {
-				if (!game) return
-				const levelLinkedSpell =
-					editingId != null && /^scene-spell-.+/.test(editingId)
-				const allowTab =
-					isGameMode || screen === 'manager' || (screen === 'editor' && levelLinkedSpell)
-				if (!allowTab) return
 				event.preventDefault()
-				game.events.emit(GameEvents.toggleEditor)
+				if (game) {
+					game.events.emit(GameEvents.toggleEditor)
+				} else {
+					window.location.reload()
+				}
 				return
 			}
 
-			if (event.key === 'Escape') {
-				if (!game) return
-				if (screen === 'manager' || screen === 'sceneConfig') {
-					game.events.emit(GameEvents.toggleEditor)
+			if (event.key === 'Escape' && screen === 'manager') {
+				if (game && isPauseOverlayVisible()) return
+				if (!game && isPauseOverlayVisible()) return
+				event.preventDefault()
+				if (game) {
+					game.events.emit(GameEvents.togglePause, { sceneKey: getForegroundSceneKey(game) })
+				} else {
+					toggleStandalonePause()
 				}
 			}
 		}
 
 		window.addEventListener('keydown', handleKeyDown)
 		return () => window.removeEventListener('keydown', handleKeyDown)
-	}, [screen, isGameMode, editingId])
+	}, [screen, toggleStandalonePause])
+
+	const standalonePause =
+		!hasRunningGame && standalonePauseOpen ? (
+			<StandaloneEditorPauseOverlay onClose={closeStandalonePause} />
+		) : null
+
+	const escWithoutGame = hasRunningGame ? undefined : toggleStandalonePause
 
 	if (screen === 'manager') {
 		return (
+			<>
+				{standalonePause}
 			<SpellManager
 				onNew={(name) => {
 					// Clear game mode context when entering library mode
@@ -104,6 +241,7 @@ export function Editor() {
 					// deprecated
 				}}
 			/>
+			</>
 		)
 	}
 
@@ -131,30 +269,38 @@ export function Editor() {
 		}
 
 		return (
-			<FunctionalEditor
-				key={`scene-${sceneKey}`}
-				initialSpellId={sceneSpellId}
-				initialSpellName={`Scene: ${sceneKey}`}
-				initialFlow={initialSceneFlow}
-				onExit={handleExit}
-				backButtonText="Spell Library"
-				isLibraryMode={false}
-				levelMeta={sceneConfig}
-			/>
+			<>
+				{standalonePause}
+				<FunctionalEditor
+					key={`scene-${sceneKey}`}
+					initialSpellId={sceneSpellId}
+					initialSpellName={`Scene: ${sceneKey}`}
+					initialFlow={initialSceneFlow}
+					onExit={handleExit}
+					backButtonText="Spell Library"
+					isLibraryMode={false}
+					levelMeta={sceneConfig}
+					onEscWithoutGame={escWithoutGame}
+				/>
+			</>
 		)
 	}
 
 	// Editor screen (spell library)
 	return (
-		<FunctionalEditor
-			key={editorKey}
-			initialSpellId={editingId}
-			initialSpellName={editingName}
-			initialFlow={initialFlow || undefined}
-			onExit={() => setScreen('manager')}
-			backButtonText="Spell Library"
-			isLibraryMode={true}
-		/>
+		<>
+			{standalonePause}
+			<FunctionalEditor
+				key={editorKey}
+				initialSpellId={editingId}
+				initialSpellName={editingName}
+				initialFlow={initialFlow || undefined}
+				onExit={() => setScreen('manager')}
+				backButtonText="Spell Library"
+				isLibraryMode={true}
+				onEscWithoutGame={escWithoutGame}
+			/>
+		</>
 	)
 }
 

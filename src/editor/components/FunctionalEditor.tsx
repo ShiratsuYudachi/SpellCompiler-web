@@ -43,7 +43,14 @@ import { EditorProvider } from '../contexts/EditorContext';
 import { NodeSelectionMenu } from './menus/NodeSelectionMenu';
 import { ContextMenu } from './menus/ContextMenu';
 import type { EventBinding } from '../../game/events/EventQueue'
-import { getEditorContext, getGameInstance, subscribeEditorContext } from '../../game/gameInstance'
+import {
+	getEditorContext,
+	getGameInstance,
+	getForegroundSceneKey,
+	subscribeEditorContext,
+	isPauseOverlayVisible,
+} from '../../game/gameInstance'
+import { GameEvents } from '../../game/events'
 import { updateSpellInCache, invalidateSpellCache } from '../../game/systems/eventProcessSystem'
 import { levelRegistry } from '../../game/levels/LevelRegistry'
 import { upsertSpell, loadSpell } from '../utils/spellStorage'
@@ -82,6 +89,8 @@ export type FunctionalEditorProps = {
 	isLibraryMode?: boolean
 	onBeforeExit?: () => void
 	levelMeta?: LevelMeta
+	/** When no Phaser game (e.g. /editor route), Esc toggles standalone pause instead of Spell Library */
+	onEscWithoutGame?: () => void
 }
 
 const defaultNewFlow: FlowSnapshot = {
@@ -133,16 +142,16 @@ function EditorContent(props: FunctionalEditorProps) {
 			`Undo/Redo: ${mod}+Z / ${mod}+Shift+Z`,
 			`Add node: right click`,
 		]
-		const levelLinkedSpell =
-			props.initialSpellId != null && /^scene-spell-.+/.test(props.initialSpellId)
-		if (!isLibraryMode || (isLibraryMode && levelLinkedSpell && getGameInstance())) {
+		const game = getGameInstance()
+		if (game) {
 			parts.push('Tab: return to game')
-		}
-		if (props.onExit) {
-			parts.push('Esc: back to library')
+			parts.push('Esc: pause')
+		} else if (props.onExit) {
+			parts.push('Tab: refresh page')
+			parts.push('Esc: pause')
 		}
 		return parts.join(' · ')
-	}, [isLibraryMode, props.initialSpellId])
+	}, [isLibraryMode, props.onExit])
 	const startingFlow = props.initialFlow || (isLibraryMode ? defaultNewFlow : null)
 	const initialNodes = useMemo(() => startingFlow?.nodes ?? defaultNewFlow.nodes, [startingFlow]);
 	const initialEdges = useMemo(() => startingFlow?.edges ?? defaultNewFlow.edges, [startingFlow]);
@@ -280,19 +289,39 @@ function EditorContent(props: FunctionalEditorProps) {
 		setError((e) => (e === 'Compilation failed' ? null : e))
 	}, [])
 
-	// Esc: go back (to Spell Library) when no internal menu/modal is open
+	// Esc: pause when a game exists; standalone pause or Spell Library otherwise
 	useEffect(() => {
 		const handleEsc = (event: KeyboardEvent) => {
 			if (event.key !== 'Escape') return
+			if (isPauseOverlayVisible()) return
 			// Let context menu / node-selection menu handle Esc first
 			if (contextMenu?.show || menuState?.show) return
 			// Don't close while modals are open
 			if (addEventModalOpen || eventListModalOpen || editingBinding) return
+			const game = getGameInstance()
+			if (game) {
+				event.preventDefault()
+				game.events.emit(GameEvents.togglePause, { sceneKey: getForegroundSceneKey(game) })
+				return
+			}
+			if (props.onEscWithoutGame) {
+				event.preventDefault()
+				props.onEscWithoutGame()
+				return
+			}
 			props.onExit?.()
 		}
 		window.addEventListener('keydown', handleEsc)
 		return () => window.removeEventListener('keydown', handleEsc)
-	}, [contextMenu?.show, menuState?.show, addEventModalOpen, eventListModalOpen, editingBinding, props.onExit])
+	}, [
+		contextMenu?.show,
+		menuState?.show,
+		addEventModalOpen,
+		eventListModalOpen,
+		editingBinding,
+		props.onExit,
+		props.onEscWithoutGame,
+	])
 
 	const VIBE_PANEL_WIDTH_KEY = 'spellcompiler-vibe-panel-width';
 	const [vibePanelWidth, setVibePanelWidth] = useState(() => {

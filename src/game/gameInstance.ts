@@ -10,6 +10,14 @@ export function getGameInstance() {
 	return gameInstance
 }
 
+/** DOM marker for pause overlays (in-game + standalone editor) so Esc handlers do not double-toggle. */
+export const PAUSE_OVERLAY_SELECTOR = '[data-pause-overlay]'
+
+export function isPauseOverlayVisible(): boolean {
+	if (typeof document === 'undefined') return false
+	return document.querySelector(PAUSE_OVERLAY_SELECTOR) !== null
+}
+
 /**
  * Switch scenes when the caller is outside any Phaser Scene (e.g. React DOM).
  * `Phaser.Game#scene` is SceneManager; `SceneManager#start()` does not stop the
