@@ -7,6 +7,7 @@ import { Position } from 'reactflow';
 import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
+import { getPixelBoxStyle, getPixelHeaderStyle, getPixelInputStyle, EditorColors } from '../../utils/EditorTheme';
 
 interface ApplyFuncNodeData {
 	paramCount?: number;
@@ -22,39 +23,39 @@ export function ApplyFuncNode({ id, data }: NodeProps<ApplyFuncNodeData>) {
 	};
 
 	return (
-		<div className="relative px-4 py-3 shadow-md rounded-lg bg-green-50 border-2 border-green-400 min-w-[160px]">
+		<div style={getPixelBoxStyle('logic')}>
 			{/* Header */}
-			<div className="font-bold text-sm text-green-700 mb-2 text-center">
-				⚡ Apply
+			<div style={getPixelHeaderStyle('logic')}>
+				⚡ APPLY
 			</div>
 
 			{/* Function input */}
-			<div className="flex items-center mb-3 relative">
+			<div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', position: 'relative', height: '24px' }}>
 				<SmartHandle
 					type="target"
 					position={Position.Left}
 					id="func"
-					className="w-3 h-3 bg-purple-500 !absolute !-left-4"
 					nodeId={id}
+					style={{ left: -10, border: `1px solid ${EditorColors.output.border}`, boxShadow: `0 0 8px ${EditorColors.output.glow}` }}
 				/>
-				<span className="ml-1 text-xs text-purple-600 font-medium">function</span>
+				<span style={{ marginLeft: 15, fontSize: '8px', color: EditorColors.output.border, opacity: 0.8 }}>FUNCTION</span>
 			</div>
 
 			{/* Param count control */}
-			<div className="flex items-center justify-between mb-2">
-				<span className="text-xs text-gray-600">Args:</span>
-				<div className="flex items-center gap-1">
+			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', padding: '4px 8px', backgroundColor: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }}>
+				<span style={{ fontSize: '7px', color: 'rgba(255,255,255,0.4)' }}>ARGS:</span>
+				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
 					<button
 						onClick={() => handleParamCountChange(paramCount - 1)}
-						className="w-5 h-5 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs flex items-center justify-center"
+						style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', width: '18px', height: '18px', fontSize: '10px' }}
 						type="button"
 					>
 						−
 					</button>
-					<span className="text-sm font-mono w-6 text-center">{paramCount}</span>
+					<span style={{ fontSize: '9px', color: EditorColors.logic.border, fontFamily: 'monospace', width: '12px', textAlign: 'center' }}>{paramCount}</span>
 					<button
 						onClick={() => handleParamCountChange(paramCount + 1)}
-						className="w-5 h-5 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs flex items-center justify-center"
+						style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer', width: '18px', height: '18px', fontSize: '10px' }}
 						type="button"
 					>
 						+
@@ -63,30 +64,30 @@ export function ApplyFuncNode({ id, data }: NodeProps<ApplyFuncNodeData>) {
 			</div>
 
 			{/* Argument handles */}
-			<div className="space-y-1">
+			<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
 				{Array.from({ length: paramCount }).map((_, i) => (
-					<div key={i} className="flex items-center relative h-6">
+					<div key={i} style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
 						<SmartHandle
 							type="target"
 							position={Position.Left}
 							id={`arg${i}`}
-							className="w-3 h-3 bg-blue-500 !absolute !-left-4"
 							nodeId={id}
+							style={{ left: -10, border: `1px solid ${EditorColors.data.border}`, boxShadow: `0 0 8px ${EditorColors.data.glow}` }}
 						/>
-						<span className="ml-1 text-xs text-gray-600">arg{i}</span>
+						<span style={{ marginLeft: 15, fontSize: '8px', color: EditorColors.data.border, opacity: 0.8 }}>ARG{i}</span>
 					</div>
 				))}
 			</div>
 
 			{/* Result output */}
-			<div className="flex items-center justify-end mt-3 relative">
-				<span className="mr-1 text-xs text-green-600 font-medium">result</span>
+			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: '12px', height: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+				<span style={{ marginRight: 15, fontSize: '8px', color: EditorColors.logic.border, opacity: 0.8 }}>RESULT</span>
 				<SmartHandle
 					type="source"
 					position={Position.Right}
 					id="result"
-					className="w-3 h-3 bg-green-500 !absolute !-right-4"
 					nodeId={id}
+					style={{ border: `1px solid ${EditorColors.logic.border}`, boxShadow: `0 0 8px ${EditorColors.logic.glow}` }}
 				/>
 			</div>
 		</div>

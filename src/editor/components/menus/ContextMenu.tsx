@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { NodeSelectionMenu } from './NodeSelectionMenu';
 import type { FunctionInfo } from '../../utils/getFunctionRegistry';
+import { EditorColors, PIXEL_FONT } from '../../utils/EditorTheme'
 
 interface ContextMenuProps {
 	position: { x: number; y: number };
@@ -29,93 +30,91 @@ interface ContextMenuProps {
 	canRedo?: boolean;
 }
 
-// Shared menu styles - Blue-pink theme
+// Shared menu styles - Retro Pixel theme
 export const menuTheme = {
 	container: {
 		position: 'fixed' as const,
-		backgroundColor: '#ffffff',
-		border: '1px solid #e8d5e0',
-		borderRadius: '8px',
-		boxShadow: '0 4px 20px rgba(255, 143, 171, 0.15), 0 2px 8px rgba(110, 181, 255, 0.1)',
-		minWidth: '180px',
+		backgroundColor: '#1a1f2e',
+		border: '2px solid #ffffff',
+		borderRadius: 0,
+		boxShadow: '4px 4px 0 0 rgba(0,0,0,0.5)',
+		minWidth: '200px',
 		maxHeight: '70vh',
 		overflowY: 'auto' as const,
 		zIndex: 9999,
 		padding: '4px 0',
+		fontFamily: PIXEL_FONT,
 	},
 	menuItem: {
 		display: 'flex',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		padding: '8px 14px',
+		padding: '10px 14px',
 		cursor: 'pointer',
-		color: '#374151',
-		fontSize: '13px',
-		fontWeight: 500,
+		color: '#ffffff',
+		fontSize: '8px',
 		backgroundColor: 'transparent',
 		border: 'none',
 		width: '100%',
 		textAlign: 'left' as const,
-		transition: 'all 0.15s ease',
+		transition: 'none',
 	},
 	menuItemHover: {
-		backgroundColor: '#f0f7ff',
-		color: '#1e40af',
+		backgroundColor: '#4facfe',
+		color: '#ffffff',
 	},
 	menuItemIcon: {
-		marginRight: '10px',
-		width: '20px',
+		marginRight: '12px',
+		width: '16px',
 		textAlign: 'center' as const,
-		fontSize: '14px',
+		fontSize: '12px',
 	},
 	menuItemArrow: {
 		marginLeft: '8px',
-		opacity: 0.5,
-		fontSize: '10px',
-		color: '#6b7280',
+		fontSize: '8px',
+		color: 'inherit',
 	},
 	divider: {
-		height: '1px',
-		backgroundColor: '#f3e8ed',
-		margin: '4px 8px',
+		height: '2px',
+		backgroundColor: 'rgba(255,255,255,0.1)',
+		margin: '4px 0',
 	},
 	sectionLabel: {
-		padding: '6px 14px',
-		fontSize: '11px',
-		color: '#9ca3af',
+		padding: '8px 14px',
+		fontSize: '7px',
+		color: '#4facfe',
 		textTransform: 'uppercase' as const,
-		letterSpacing: '0.5px',
-		fontWeight: 600,
+		fontWeight: 'normal',
 	},
 	searchContainer: {
 		padding: '8px',
-		borderBottom: '1px solid #f3e8ed',
+		borderBottom: '2px solid rgba(255,255,255,0.1)',
 	},
 	searchInput: {
 		width: '100%',
-		padding: '8px 12px',
-		backgroundColor: '#faf5f7',
-		border: '1px solid #e8d5e0',
-		borderRadius: '6px',
-		color: '#374151',
-		fontSize: '13px',
+		padding: '8px 10px',
+		backgroundColor: 'rgba(0,0,0,0.3)',
+		border: '1px solid rgba(255,255,255,0.2)',
+		borderRadius: 0,
+		color: '#ffffff',
+		fontSize: '8px',
+		fontFamily: PIXEL_FONT,
 		outline: 'none',
-		transition: 'border-color 0.15s, box-shadow 0.15s',
 	},
 	searchInputFocus: {
-		borderColor: '#93c5fd',
-		boxShadow: '0 0 0 3px rgba(147, 197, 253, 0.2)',
+		borderColor: '#4facfe',
 	},
 	deleteItem: {
-		color: '#dc2626',
+		color: '#ff5c5c',
 	},
 	deleteItemHover: {
-		backgroundColor: '#fef2f2',
-		color: '#b91c1c',
+		backgroundColor: '#ff5c5c',
+		color: '#ffffff',
 	},
 	disabledItem: {
-		color: '#9ca3af',
+		color: '#4b5563',
 		cursor: 'not-allowed',
+		opacity: 0.5,
 	},
 };
 

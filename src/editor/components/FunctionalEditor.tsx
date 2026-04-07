@@ -22,7 +22,8 @@ import ReactFlow, {
 	type NodeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Alert, Button, Group, Paper, Text, TextInput, Modal, Badge } from '@mantine/core';
+import { Alert, Button, Group, Paper, Text, TextInput, Modal, Badge, MantineProvider } from '@mantine/core';
+import { getMantineThemeOverrides, EditorColors, PIXEL_FONT } from '../utils/EditorTheme'
 
 import { LiteralNode } from './nodes/LiteralNode';
 import { DynamicFunctionNode } from './nodes/DynamicFunctionNode';
@@ -61,7 +62,7 @@ import { EventListPanel } from './EventListPanel'
 import { useEditorClipboard } from './hooks/useEditorClipboard'
 import { useEditorShortcut } from './hooks/useEditorShortcut'
 import { VibePanel } from './VibePanel'
-import { vibeBuild, vibeAsk, MOCK_MODEL_ID, type LevelContext } from '../../lib/vibe/vibeApi'
+import { vibeBuild, vibeAsk, MOCK_MODEL_ID, type LevelContext } from '../../lib/vibe/vibeApi';
 import type { LevelMeta } from '../../game/levels/LevelRegistry'
 
 // Define node types
@@ -123,7 +124,6 @@ function bumpNodeIdCounterFromNodes(nodes: Node[]) {
 			maxId = num + 1
 		}
 	}
-	nodeIdCounter = maxId
 }
 
 type FlowState = { nodes: Node[]; edges: Edge[] };
@@ -1168,7 +1168,6 @@ function EditorContent(props: FunctionalEditorProps) {
 				};
 				reader.readAsText(file);
 			};
-
 			input.click();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
@@ -1176,251 +1175,302 @@ function EditorContent(props: FunctionalEditorProps) {
 	};
 
 	return (
-		<EditorProvider value={editorContextValue}>
-			<div className="h-screen flex flex-col">
-		{/* Header - Row 1 */}
-		<Paper shadow="sm" p="md" className="border-b">
-			<div className="flex items-center justify-between">
-				<Group gap="sm">
-					{props.onExit ? (
-						<Button size="sm" variant="outline" color="gray" onClick={props.onExit}>
-							{props.backButtonText || 'Back'}
-						</Button>
-					) : null}
-					{/* Always show Save button and spell name input (both Library and Game mode) */}
-					<TextInput
-						data-spell-name-input
-						value={spellName}
-						onChange={(e) => setSpellName(e.currentTarget.value)}
-						placeholder="Spell name"
-						size="sm"
-					/>
-					<Badge
-						color={
-							compilationStatus === 'compiled'
-								? 'green'
-								: compilationStatus === 'failed'
-									? 'red'
-									: 'gray'
-						}
-						variant="light"
-					>
-						{compilationStatus === 'compiled'
-							? 'Compiled'
-							: compilationStatus === 'failed'
-								? 'Compilation failed'
-								: 'No build yet'}
-					</Badge>
-				</Group>
-				<div className="flex gap-2">
-					<Button size="sm" variant="outline" color="gray" onClick={handleImport}>
-						📥 Import
-					</Button>
-					<Button size="sm" variant="outline" color="gray" onClick={handleExport}>
-						📤 Export
-					</Button>
-					<Button size="sm" variant="outline" color="violet" onClick={() => setEventListModalOpen(true)}>
-						📡 Event Bindings
-					</Button>
-					<Button type="button" size="sm" color="blue" onClick={handleCompileAndSave}>
-						Compile & Save
-					</Button>
-				</div>
-			</div>
-		</Paper>
+		<div
+			className="functional-editor-root"
+			style={{
+				width: '100%',
+				height: '100%',
+				backgroundColor: EditorColors.bg,
+				position: 'relative',
+				overflow: 'hidden',
+				fontFamily: PIXEL_FONT
+			}}
+			tabIndex={-1}
+			onClick={onEditorAreaClick}
+			onContextMenu={onEditorAreaContextMenu}
+		>
+			<EditorProvider value={editorContextValue}>
+				<div className="h-screen flex flex-col relative w-full overflow-hidden">
+					{/* Main View Layer */}
+					<div className="flex-1 flex flex-col min-h-0 relative">
+						{/* Floating Header System */}
+						<div 
+                            className="absolute top-4 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+                        >
+							{/* Main Console Bar */}
+							<div 
+                                className="flex justify-between items-center px-4 py-2 pointer-events-auto"
+                                style={{
+                                    backgroundColor: 'rgba(10, 15, 20, 0.75)',
+                                    backdropFilter: 'blur(16px)',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+                                }}
+                            >
+								<Group gap="xl">
+									<div className="flex flex-col">
+										<Text size="xs" style={{ color: EditorColors.data.border, fontSize: '8px', letterSpacing: '1.5px', opacity: 0.8 }}>
+											TERM.01 // {isLibraryMode ? 'STORAGE' : 'SESSION'}
+										</Text>
+										<Text size="sm" fw={700} style={{ color: '#fff', fontSize: '11px', letterSpacing: '0.5px' }}>
+											{spellName.toUpperCase()}
+										</Text>
+									</div>
 
-		<Paper shadow="xs" px="md" py="xs" className="border-b bg-gray-50">
-			<Text size="xs" c="dimmed" style={{ lineHeight: 1.55 }}>
-				{editorShortcutsHint}
-			</Text>
-		</Paper>
+									<Group gap="xs">
+										<Button size="xs" variant="subtle" color="gray" onClick={props.onExit} style={{ fontSize: '7px', height: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
+											[{props.backButtonText ? props.backButtonText.toUpperCase() : 'BACK'}]
+										</Button>
+										{isLibraryMode && (
+											<Button size="xs" variant="subtle" color="blue" onClick={handleCompileAndSave} style={{ fontSize: '7px', height: '24px', border: '1px solid rgba(0, 210, 255, 0.2)' }}>
+												SYNC_DATA
+											</Button>
+										)}
+									</Group>
+								</Group>
 
-			{/* Header - Row 2: AST and Results */}
-			{(currentAST || error || evaluationResult !== null) && (
-				<Paper shadow="sm" p="md" className="border-b">
-					<div className="flex gap-4" style={{ maxHeight: '300px' }}>
-						{/* AST Visualizer - Left */}
-						{currentAST && (
-							<div className="flex-1 border rounded-lg bg-white overflow-auto p-4">
-								<Text size="lg" fw={700} mb="md">
-									📊 AST Structure
-								</Text>
-								<ASTVisualizer ast={currentAST} functions={currentFunctions} />
+								<Group gap="xs">
+									<div style={{ width: '1px', height: '20px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+									<Button size="xs" variant="subtle" color="gray" onClick={handleImport} style={{ fontSize: '7px', height: '24px' }}>
+										IMPORT
+									</Button>
+									<Button size="xs" variant="subtle" color="gray" onClick={handleExport} style={{ fontSize: '7px', height: '24px' }}>
+										EXPORT
+									</Button>
+									<Button 
+                                        size="xs" 
+                                        variant="subtle" 
+                                        color="violet" 
+                                        onClick={() => setEventListModalOpen(true)}
+                                        style={{ fontSize: '7px', height: '24px', border: `1px solid ${EditorColors.output.border}33` }}
+                                    >
+										EVENTS
+									</Button>
+									{!isLibraryMode && (
+										<Button size="xs" variant="filled" color="blue" onClick={handleCompileAndSave} style={{ fontSize: '7px', height: '24px', boxShadow: `0 0 15px ${EditorColors.data.glow}`, border: 'none' }}>
+											COMPILE_SAVE
+										</Button>
+									)}
+								</Group>
 							</div>
-						)}
 
-						{/* Results - Right */}
-						<div className="flex-1 flex flex-col gap-2">
-							{error && (
-								<Alert color="red" title="Error" className="flex-1 overflow-auto">
-									{error}
-								</Alert>
-							)}
+							{/* Diagnostics Bar */}
+                            <div 
+                                className="flex justify-between items-center px-4 py-1 pointer-events-auto"
+                                style={{
+                                    backgroundColor: 'rgba(13, 17, 23, 0.6)',
+                                    backdropFilter: 'blur(10px)',
+                                    borderBottom: '1px solid rgba(255,255,255,0.03)',
+                                }}
+                            >
+								<Group gap="xl">
+									<Group gap={6}>
+										<Text size="xs" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '7px' }}>NODES:</Text>
+										<Text size="xs" style={{ color: EditorColors.logic.border, fontSize: '7px', textShadow: `0 0 8px ${EditorColors.logic.glow}` }}>{nodes.length}</Text>
+									</Group>
+									<Group gap={6}>
+										<Text size="xs" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '7px' }}>FLUX:</Text>
+										<Text size="xs" style={{ color: EditorColors.data.border, fontSize: '7px', textShadow: `0 0 8px ${EditorColors.data.glow}` }}>{edges.length}</Text>
+									</Group>
+									{props.levelMeta && (
+										<Group gap={6}>
+											<Text size="xs" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '7px' }}>MISSION:</Text>
+											<Text size="xs" style={{ color: EditorColors.input.border, fontSize: '7px' }}>{props.levelMeta.key.toUpperCase()}</Text>
+										</Group>
+									)}
+								</Group>
 
-							{evaluationResult !== null && (
-								<Alert color="green" title="Result" className="flex-1 overflow-auto">
-									<Text size="lg" fw={700}>
-										{JSON.stringify(evaluationResult)}
-									</Text>
-								</Alert>
-							)}
+								<Text size="xs" style={{ color: 'rgba(255,255,255,0.15)', fontSize: '6px', letterSpacing: '0.5px' }}>
+									CMD+Z: UNDO // SHIFT+CMD+Z: REDO // RIGHT_CLICK: SELECT_NODE
+								</Text>
+							</div>
+						</div>
+
+						{/* Main Workspace: Canvas + Vibe Panel */}
+						<div className="flex-1 flex flex-nowrap min-h-0 w-full overflow-hidden" style={{ flexDirection: 'row', direction: 'ltr' }}>
+							{/* Flow canvas */}
+							<div className="flex-1 min-w-0 relative flex flex-col overflow-hidden" style={{ order: 1 }}>
+								<div className="w-full h-full outline-none flex-1 min-h-0 compiler-grid">
+									<ReactFlow
+										key={flowRevision}
+										nodes={nodes}
+										edges={edges}
+										onNodesChange={onNodesChangeWrapped}
+										onEdgesChange={onEdgesChangeWrapped}
+										onConnect={onConnect}
+										nodeTypes={nodeTypes}
+										onNodeDragStart={onDragStart}
+										onNodeDragStop={onNodeDragStop}
+										onPaneClick={onPaneClick}
+										onNodeContextMenu={onNodeContextMenu}
+										onEdgeContextMenu={onEdgeContextMenu}
+										fitView
+										panOnScroll={true}
+										zoomOnScroll={true}
+										zoomOnPinch={true}
+										panOnDrag={true}
+										selectionOnDrag={false}
+										minZoom={0.1}
+										maxZoom={4}
+									>
+										<Background />
+										<Controls />
+										<MiniMap 
+											style={{ 
+												backgroundColor: 'rgba(5, 8, 10, 0.6)', 
+												border: `1px solid ${EditorColors.borderColor}`,
+												borderRadius: 0,
+												backdropFilter: 'blur(12px)',
+											}} 
+											maskColor="rgba(0, 0, 0, 0.2)"
+											nodeColor={(node) => {
+												const type = (node.type || 'data') as keyof typeof EditorColors;
+												return (EditorColors as any)[type]?.border || '#fff';
+											}}
+											nodeStrokeWidth={4}
+											nodeBorderRadius={0}
+										/>
+									</ReactFlow>
+								</div>
+							</div>
+
+							{/* Right side: Vibe panel */}
+							<div className="flex shrink-0 flex-row h-full" style={{ width: 4 + vibePanelWidth, order: 2, marginLeft: 'auto' }}>
+								<div
+									role="separator"
+									aria-label="Resize Vibe panel"
+									onMouseDown={onVibeResizeStart}
+									className="shrink-0 w-1 cursor-col-resize hover:bg-blue-900 active:bg-blue-800 transition-colors self-stretch"
+									style={{ minWidth: 4, backgroundColor: 'rgba(255,255,255,0.05)' }}
+								/>
+								<aside
+									className="shrink-0 h-full flex flex-col overflow-hidden"
+									style={{ 
+										width: vibePanelWidth, 
+										minWidth: vibePanelWidth, 
+										backgroundColor: 'rgba(13, 17, 23, 0.5)',
+										backdropFilter: 'blur(20px)',
+										borderLeft: '1px solid rgba(255,255,255,0.05)'
+									}}
+								>
+									<div className="p-2 flex-1 min-h-0 flex flex-col overflow-auto">
+										<VibePanel
+											onGenerate={handleVibeGenerate}
+											onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
+											onAsk={handleVibeAsk}
+										/>
+									</div>
+								</aside>
+							</div>
 						</div>
 					</div>
-				</Paper>
-			)}
 
-			{/* Main content area: flow (left) + resizable vibe panel (right); force LTR so panel stays right */}
-			<div className="flex-1 flex flex-nowrap min-h-0 w-full overflow-hidden" style={{ flexDirection: 'row', direction: 'ltr' }}>
-				{/* Flow canvas - takes remaining space on the left */}
-				<div className="flex-1 min-w-0 relative flex flex-col overflow-hidden" style={{ order: 1 }}>
-				{/* React Flow editor - focusable so keyboard shortcuts work after clicking canvas */}
-				<div
-					className="w-full h-full outline-none flex-1 min-h-0"
-					tabIndex={0}
-					onContextMenu={onEditorAreaContextMenu}
-					onClick={onEditorAreaClick}
-				>
-					<ReactFlow
-						key={`${props.initialSpellId ?? 'new'}-${flowRevision}`}
-						nodes={nodes}
-						edges={edges}
-						onNodesChange={onNodesChangeWrapped}
-						onEdgesChange={onEdgesChangeWrapped}
-						onPaneClick={onPaneClick}
-						onNodeContextMenu={onNodeContextMenu}
-						onEdgeContextMenu={onEdgeContextMenu}
-						onNodeDragStart={onDragStart}
-						onNodeDragStop={onNodeDragStop}
-						onSelectionDragStart={onDragStart}
-						onSelectionDragStop={onNodeDragStop}
-						onConnect={onConnect}
-						nodeTypes={nodeTypes}
-						fitView
-					// Touchpad support
-					panOnScroll={true}
-					zoomOnScroll={true}
-					zoomOnPinch={true}
-					// Default RF behaviour: left-drag on empty pane = pan. Shift+drag on pane = selection box.
-					// Click/drag on nodes & edges = select (elementsSelectable). Cmd/Ctrl+click = add to selection.
-					panOnDrag={true}
-					selectionOnDrag={false}
-						minZoom={0.1}
-						maxZoom={4}
-					>
-						<Background />
-						<Controls />
-						<MiniMap />
-					</ReactFlow>
-				</div>
-				</div>
-
-		{/* Node Selection Menu */}
-		{menuState && menuState.show && (
-			<NodeSelectionMenu
-				position={menuState.position}
-				onSelectFunction={addFunctionNodeFromMenu}
-				onSelectBasicNode={addBasicNodeFromMenu}
-				onClose={() => setMenuState(null)}
-				editorContext={editorContext}
-			/>
-		)}
-
-		{/* Context Menu */}
-		{contextMenu && contextMenu.show && (
-			<ContextMenu
-				position={contextMenu.position}
-				onSelectFunction={addFunctionNodeFromMenu}
-				onSelectBasicNode={addBasicNodeFromMenu}
-				editorContext={editorContext}
-				onCopy={handleCopy}
-				onPaste={handlePaste}
-				canPaste={canPaste}
-				hasNodeSelected={getNodes().some((node: Node) => node.selected)}
-				hasEdgeSelected={getEdges().some((edge: Edge) => edge.selected)}
-				onDeleteSelected={handleDeleteSelected}
-				onUndo={undo}
-				onRedo={redo}
-				canUndo={hasUserActed && undoState.canUndo}
-				canRedo={hasUserActed && undoState.canRedo}
-				onEvaluate={() => {
-					handleEvaluate();
-					setContextMenu(null);
-				}}
-				onClose={() => setContextMenu(null)}
-			/>
-		)}
-				{/* Right side: resize handle + Vibe panel (fixed on the right, drag to resize) */}
-				<div className="flex shrink-0 flex-row h-full" style={{ width: 4 + vibePanelWidth, order: 2, marginLeft: 'auto' }}>
-					<div
-						role="separator"
-						aria-label="Resize Vibe panel"
-						onMouseDown={onVibeResizeStart}
-						className="shrink-0 w-1 cursor-col-resize bg-gray-300 hover:bg-blue-400 active:bg-blue-500 transition-colors self-stretch"
-						style={{ minWidth: 4 }}
-					/>
-					<aside
-						className="shrink-0 h-full border-l border-gray-200 bg-gray-50 flex flex-col overflow-hidden"
-						style={{ width: vibePanelWidth, minWidth: vibePanelWidth }}
-					>
-						<div className="p-2 flex-1 min-h-0 flex flex-col overflow-auto">
-							<VibePanel
-								onGenerate={handleVibeGenerate}
-								onApplyFlow={(nodes, edges, options) => applyVibeFlow(nodes as Node[], edges as Edge[], options)}
-								onAsk={handleVibeAsk}
-							/>
+					{/* Global Alerts & Error Modals */}
+					{(currentAST || error || evaluationResult !== null) && (
+						<div className="absolute bottom-4 left-4 z-[999] max-w-sm pointer-events-none">
+							<div className="pointer-events-auto flex flex-col gap-2">
+								{error && (
+									<Alert color="red" title="COMP_ERR" variant="filled" style={{ backgroundColor: 'rgba(220, 38, 38, 0.4)', backdropFilter: 'blur(20px)', border: `1px solid ${EditorColors.control.border}66`, boxShadow: `0 0 15px ${EditorColors.control.glow}` }}>
+										<Text size="xs" style={{ fontFamily: PIXEL_FONT, color: '#fff' }}>{error}</Text>
+									</Alert>
+								)}
+								{evaluationResult !== null && (
+									<Alert color="cyan" title="SUCCESS" variant="filled" style={{ backgroundColor: 'rgba(8, 145, 178, 0.4)', backdropFilter: 'blur(20px)', border: `1px solid ${EditorColors.data.border}66`, boxShadow: `0 0 15px ${EditorColors.data.glow}` }}>
+										<Text size="xs" style={{ fontFamily: PIXEL_FONT, color: '#fff' }}>{JSON.stringify(evaluationResult)}</Text>
+									</Alert>
+								)}
+							</div>
 						</div>
-					</aside>
+					)}
 				</div>
-			</div>
 
-	{/* Event List Modal */}
-	<Modal
-		opened={eventListModalOpen}
-		onClose={() => setEventListModalOpen(false)}
-		title="Active Bindings"
-		size="lg"
-	>
-		<EventListPanel
-            onAdd={() => {
-                setEditingBinding(null)
-                setAddEventModalOpen(true)
-            }}
-            onEdit={(binding) => {
-                setEditingBinding(binding)
-                setAddEventModalOpen(true)
-            }}
-        />
-	</Modal>
+				{/* Event List Modal */}
+				<Modal
+					opened={eventListModalOpen}
+					onClose={() => setEventListModalOpen(false)}
+					title="ACTIVE_BINDINGS"
+					size="lg"
+					style={{ fontFamily: PIXEL_FONT }}
+				>
+					<EventListPanel
+						onAdd={() => {
+							setEditingBinding(null)
+							setAddEventModalOpen(true)
+						}}
+						onEdit={(binding) => {
+							setEditingBinding(binding)
+							setAddEventModalOpen(true)
+						}}
+					/>
+				</Modal>
 
-	{/* Add Event Modal */}
-	<Modal
-		opened={addEventModalOpen}
-		onClose={() => {
-            setAddEventModalOpen(false)
-            setEditingBinding(null)
-        }}
-		title={editingBinding ? "Edit Event Binding" : "Add Event Binding"}
-		size="lg"
-        zIndex={300}
-	>
-		<AddEventPanel
-            initialSpellId={spellId}
-            binding={editingBinding}
-            onClose={() => {
-                setAddEventModalOpen(false)
-                setEditingBinding(null)
-            }}
-        />
-	</Modal>
-			</div>
-	</EditorProvider>
+				{/* Add Event Modal */}
+				<Modal
+					opened={addEventModalOpen}
+					onClose={() => {
+						setAddEventModalOpen(false)
+						setEditingBinding(null)
+					}}
+					title={editingBinding ? "EDIT_BINDING" : "NEW_BINDING"}
+					size="lg"
+					zIndex={300}
+					style={{ fontFamily: PIXEL_FONT }}
+				>
+					<AddEventPanel
+						initialSpellId={spellId}
+						binding={editingBinding}
+						onClose={() => {
+							setAddEventModalOpen(false)
+							setEditingBinding(null)
+						}}
+					/>
+				</Modal>
+
+				{/* Menus */}
+				{menuState && menuState.show && (
+					<NodeSelectionMenu
+						position={menuState.position}
+						onSelectFunction={addFunctionNodeFromMenu}
+						onSelectBasicNode={addBasicNodeFromMenu}
+						onClose={() => setMenuState(null)}
+						editorContext={editorContext}
+					/>
+				)}
+
+				{contextMenu && contextMenu.show && (
+					<ContextMenu
+						position={contextMenu.position}
+						onSelectFunction={addFunctionNodeFromMenu}
+						onSelectBasicNode={addBasicNodeFromMenu}
+						editorContext={editorContext}
+						onCopy={handleCopy}
+						onPaste={handlePaste}
+						canPaste={canPaste}
+						hasNodeSelected={getNodes().some((node: Node) => node.selected)}
+						hasEdgeSelected={getEdges().some((edge: Edge) => edge.selected)}
+						onDeleteSelected={handleDeleteSelected}
+						onUndo={undo}
+						onRedo={redo}
+						canUndo={hasUserActed && undoState.canUndo}
+						canRedo={hasUserActed && undoState.canRedo}
+						onEvaluate={() => {
+							handleEvaluate();
+							setContextMenu(null);
+						}}
+						onClose={() => setContextMenu(null)}
+					/>
+				)}
+			</EditorProvider>
+		</div>
 	);
 }
 
 export function FunctionalEditor(props: FunctionalEditorProps) {
 	return (
-		<ReactFlowProvider>
-			<EditorContent {...props} />
-		</ReactFlowProvider>
+		<MantineProvider theme={getMantineThemeOverrides() as any}>
+			<ReactFlowProvider>
+				<EditorContent {...props} />
+			</ReactFlowProvider>
+		</MantineProvider>
 	);
 }

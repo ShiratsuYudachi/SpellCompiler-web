@@ -7,6 +7,7 @@ import { Position } from 'reactflow';
 import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import { SmartHandle } from '../handles/SmartHandle';
+import { getPixelBoxStyle, getPixelHeaderStyle, getPixelInputStyle, EditorColors } from '../../utils/EditorTheme';
 
 interface LambdaDefNodeData {
 	functionName?: string;
@@ -51,22 +52,22 @@ export function LambdaDefNode({ id, data }: NodeProps<LambdaDefNodeData>) {
 	};
 
 	return (
-		<div className="relative px-4 py-3 shadow-md rounded-lg bg-purple-50 border-2 border-purple-400 min-w-[200px]">
+		<div style={getPixelBoxStyle('output')}>
 			{/* Left Handle - Captured Environment */}
 			<SmartHandle
 				type="target"
 				position={Position.Left}
 				id="env"
-				className="w-3 h-3 bg-purple-500 !absolute !-left-1.5 !top-3"
 				nodeId={id}
+				style={{ left: -10, top: 20, border: `1px solid ${EditorColors.output.border}`, boxShadow: `0 0 8px ${EditorColors.output.glow}` }}
 			/>
-			<div className="absolute left-1 top-2 text-[10px] text-purple-600 font-medium">
-				env
+			<div style={{ position: 'absolute', left: 15, top: 15, fontSize: '7px', color: EditorColors.output.border, opacity: 0.6 }}>
+				ENV_CAPTURE
 			</div>
 
 			{/* Header with emoji */}
-			<div className="font-bold text-sm text-purple-700 mb-2 text-center mt-3">
-				λ Lambda
+			<div style={getPixelHeaderStyle('output')}>
+				λ LAMBDA_DEF
 			</div>
 
 			{/* Function Name */}
@@ -74,68 +75,65 @@ export function LambdaDefNode({ id, data }: NodeProps<LambdaDefNodeData>) {
 				type="text"
 				value={functionName}
 				onChange={(e) => handleNameChange(e.target.value)}
-				placeholder="lambda name"
-				className="nodrag w-full text-base font-semibold bg-transparent border-none outline-none mb-3 px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
+				placeholder="lambda_id"
+				className="nodrag"
+				style={{ ...getPixelInputStyle(), marginBottom: '12px', textAlign: 'center' }}
 			/>
 
 			{/* Parameters */}
-			<div className="space-y-0">
+			<div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
 				{params.map((param, i) => (
 					<div
 						key={i}
-						className="relative flex items-center gap-2 group"
+						style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center', gap: '8px' }}
 						onMouseEnter={() => setHoveredIndex(i)}
 						onMouseLeave={() => setHoveredIndex(null)}
 					>
-
 						{/* Parameter Input */}
 						<input
 							type="text"
 							value={param}
 							onChange={(e) => handleParamNameChange(i, e.target.value)}
-							placeholder={`param${i + 1}`}
-							className="nodrag flex-1 text-sm text-gray-700 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-gray-50 focus:bg-gray-50"
+							placeholder={`p${i}`}
+							className="nodrag"
+							style={{ ...getPixelInputStyle(), flex: 1, padding: '4px 8px' }}
 						/>
 
 						{/* Delete Button */}
-						<button
-							onClick={() => handleDeleteParam(i)}
-							className={`w-4 h-4 text-gray-400 hover:text-red-500 text-lg leading-none flex items-center justify-center transition-opacity ${
-								hoveredIndex === i ? 'opacity-100' : 'opacity-0'
-							}`}
-							type="button"
-						>
-							×
-						</button>
+						{hoveredIndex === i && (
+							<button
+								onClick={() => handleDeleteParam(i)}
+								style={{ background: 'none', border: 'none', color: EditorColors.control.border, cursor: 'pointer', fontSize: '12px', padding: '0 4px' }}
+								type="button"
+							>
+								×
+							</button>
+						)}
 
 						{/* Handle */}
 						<SmartHandle
 							type="source"
 							position={Position.Right}
 							id={`param${i}`}
-							className="w-3 h-3 bg-blue-500 !absolute !-right-4 !top-1/2 !-translate-y-1/2 !translate-x-1/2"
 							nodeId={id}
+							style={{ border: `1px solid ${EditorColors.data.border}`, boxShadow: `0 0 8px ${EditorColors.data.glow}` }}
 						/>
 					</div>
 				))}
 
 				{/* Add New Parameter */}
-				
-				
 				<input
 					type="text"
 					value={newParamValue}
 					onChange={(e) => setNewParamValue(e.target.value)}
 					onKeyDown={(e) => {
-						if (e.key === 'Enter') {
-							handleAddParam();
-						}
+						if (e.key === 'Enter') handleAddParam();
 					}}
-					placeholder="+ Add Param"
-					className="nodrag flex-1 text-sm text-purple-500 placeholder-purple-400 bg-transparent border-none outline-none px-1 py-0.5 rounded hover:bg-purple-50 focus:bg-purple-100"
+					placeholder="+ ARG"
+					className="nodrag"
+					style={{ ...getPixelInputStyle(), marginTop: '8px', borderStyle: 'dashed', color: EditorColors.data.border }}
 				/>
-				</div>
-			
+			</div>
 		</div>
 	);
 }

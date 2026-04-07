@@ -267,8 +267,8 @@ export function NodeSelectionMenu({
 								onSelectBasicNode(node.type);
 								onClose();
 							}}
-							onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = menuTheme.menuItemHover.backgroundColor)}
-							onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+							onMouseEnter={(e) => Object.assign(e.currentTarget.style, menuTheme.menuItemHover)}
+							onMouseLeave={(e) => Object.assign(e.currentTarget.style, menuTheme.menuItem)}
 						>
 							<span>
 								<span style={menuTheme.menuItemIcon}>{node.icon}</span>
@@ -290,8 +290,8 @@ export function NodeSelectionMenu({
 								onSelectFunction(toFunctionInfo(fn.fullName, fn.params, fn.displayName));
 								onClose();
 							}}
-							onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = menuTheme.menuItemHover.backgroundColor)}
-							onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+							onMouseEnter={(e) => Object.assign(e.currentTarget.style, menuTheme.menuItemHover)}
+							onMouseLeave={(e) => Object.assign(e.currentTarget.style, menuTheme.menuItem)}
 						>
 							<span>{fn.displayName}</span>
 							<span style={{ ...menuTheme.menuItemArrow, fontSize: '11px', color: '#9ca3af' }}>
@@ -351,8 +351,8 @@ export function NodeSelectionMenu({
 									onSelectBasicNode(node.type);
 									onClose();
 								}}
-								onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = menuTheme.menuItemHover.backgroundColor)}
-								onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+								onMouseEnter={(e) => Object.assign(e.currentTarget.style, menuTheme.menuItemHover)}
+								onMouseLeave={(e) => Object.assign(e.currentTarget.style, menuTheme.menuItem)}
 							>
 								<span>
 									<span style={menuTheme.menuItemIcon}>{node.icon}</span>
@@ -423,12 +423,10 @@ export function NodeSelectionMenu({
 					onChange={(e) => setSearchQuery(e.target.value)}
 					style={menuTheme.searchInput}
 					onFocus={(e) => {
-						e.target.style.borderColor = '#93c5fd';
-						e.target.style.boxShadow = '0 0 0 3px rgba(147, 197, 253, 0.2)';
+						Object.assign(e.currentTarget.style, menuTheme.searchInputFocus);
 					}}
 					onBlur={(e) => {
-						e.target.style.borderColor = '#e8d5e0';
-						e.target.style.boxShadow = 'none';
+						e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
 					}}
 				/>
 			</div>

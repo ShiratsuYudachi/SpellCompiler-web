@@ -12,6 +12,7 @@ import { getFunctionInfo } from '../../utils/getFunctionRegistry';
 import { InlineInput, type InlineInputType } from '../menus/InlineInput';
 import type { InlineValue } from '../../types/flowTypes';
 import { inferParamType, shouldShowInlineInput } from '../../utils/paramTypeInfer';
+import { getPixelBoxStyle, getPixelInputStyle, getPixelHeaderStyle, EditorColors } from '../../utils/EditorTheme';
 
 export interface DynamicFunctionNodeData {
 	functionName: string;      //  (e.g., 'std::math::add')
@@ -175,41 +176,19 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 		return result;
 	};
 
-	// Determine color based on namespace
-	const getNamespaceColor = () => {
+	// Determine category based on namespace
+	const getNamespaceCategory = (): keyof typeof EditorColors => {
 		switch (namespace) {
-			case 'std':
-				return {
-					bg: 'bg-blue-50',
-					border: 'border-blue-400',
-					text: 'text-blue-700',
-					handle: 'bg-blue-500'
-				};
-			case 'game':
-				return {
-					bg: 'bg-purple-50',
-					border: 'border-purple-400',
-					text: 'text-purple-700',
-					handle: 'bg-purple-500'
-				};
-			case 'math':
-				return {
-					bg: 'bg-green-50',
-					border: 'border-green-400',
-					text: 'text-green-700',
-					handle: 'bg-green-500'
-				};
-			default:
-				return {
-					bg: 'bg-gray-50',
-					border: 'border-gray-400',
-					text: 'text-gray-700',
-					handle: 'bg-gray-500'
-				};
+			case 'std': return 'data';
+			case 'game': return 'control';
+			case 'math': return 'logic';
+			case 'list': return 'logic';
+			default: return 'data';
 		}
 	};
 
-	const colors = getNamespaceColor();
+	const category = getNamespaceCategory();
+	const categoryTheme = (EditorColors as any)[category];
 
 	const displayParams = getDisplayParams();
 
@@ -228,28 +207,28 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 	});
 
 	return (
-		<div className={`px-4 py-3 shadow-md rounded-lg ${colors.bg} border-2 ${colors.border} min-w-[200px]`}>
+		<div style={getPixelBoxStyle(category)}>
 			{/* Function name header */}
-			<div className={`font-bold text-sm ${colors.text} mb-2 text-center`}>
+			<div style={getPixelHeaderStyle(category)}>
 				{displayName}
 			</div>
 
-			{/* Namespace badge (namespace name only, no "::" to avoid confusion with pipe) */}
+			{/* Namespace badge */}
 			{namespace ? (
-				<div className={`text-xs ${colors.text} opacity-60 text-center mb-3`}>
+				<div style={{ fontSize: '8px', color: categoryTheme.border, opacity: 0.6, marginBottom: '12px' }}>
 					{namespace}
 				</div>
 			) : null}
 
 			{/* Input parameters with mode selectors */}
 			{paramGroups.length > 0 && (
-				<div className="space-y-2 mb-2">
+				<div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
 					{paramGroups.map((group, groupIndex) => {
 						const modeOptions = getParamModeOptions(group.originalParam);
 						const currentMode = paramModes[group.originalParam];
 
 						return (
-							<div key={groupIndex} className="space-y-1">
+							<div key={groupIndex} style={{ borderBottom: groupIndex < paramGroups.length - 1 ? '1px dashed rgba(255,255,255,0.1)' : 'none', paddingBottom: 8 }}>
 								{/* Mode selector if available */}
 								{modeOptions && modeOptions.length > 1 && (
 									<select
@@ -261,7 +240,11 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 												[group.originalParam]: newMode
 											}));
 										}}
-										className={`w-full text-xs px-2 py-1 rounded border ${colors.border} ${colors.bg} ${colors.text} cursor-pointer`}
+										style={{
+											...getPixelInputStyle(),
+											marginBottom: 8,
+											color: categoryTheme.border
+										}}
 										onClick={(e) => e.stopPropagation()}
 									>
 										{modeOptions.map(option => (
@@ -290,26 +273,26 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 									}
 
 									return (
-										<div key={param.index} className="flex items-center relative min-h-[24px]">
+										<div key={param.index} style={{ position: 'relative', height: '28px', display: 'flex', alignItems: 'center' }}>
 											<Handle
 												type="target"
 												position={Position.Left}
 												id={handleId}
-												className={`w-3 h-3 ${colors.handle} absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2`}
+												style={{ left: -10, width: 12, height: 12, borderRadius: 0, background: '#ffffff', border: `2px solid ${categoryTheme.border}` }}
 											/>
-											<div className={`ml-3 text-xs ${colors.text} opacity-70 flex items-center gap-1`}>
-												<span>
+											<div style={{ marginLeft: 15, fontSize: '8px', color: 'rgba(255,255,255,0.8)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+												<span style={{ color: categoryTheme.border }}>
 													{getParamDisplayLabel(param.name)}
 													{isVariadic && <span className="opacity-50">?</span>}
 												</span>
-												{/* Inline input - only show when not connected and type supports inline */}
+												{/* Inline input */}
 												{!connected && !isVariadic && showInline && (
 													<InlineInput
 														type={inputType}
 														value={getInlineValue(param.originalParam)}
 														onChange={(value) => handleInlineValueChange(param.originalParam, value)}
 														disabled={connected}
-														colors={{ border: colors.border, text: colors.text }}
+														colors={{ border: categoryTheme.border, text: '#ffffff' }}
 													/>
 												)}
 											</div>
@@ -327,8 +310,8 @@ export const DynamicFunctionNode = memo(({ data, id }: NodeProps) => {
 				type="source"
 				position={Position.Right}
 				id="result"
-				className={`w-3 h-3 ${colors.handle}`}
 				nodeId={id}
+				style={{ border: `2px solid ${categoryTheme.border}` }}
 			/>
 		</div>
 	);

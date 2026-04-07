@@ -7,6 +7,7 @@ import { Handle, Position } from 'reactflow';
 import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
 import type { LiteralNodeData } from '../../types/flowTypes';
+import { getPixelBoxStyle, getPixelInputStyle, getPixelHeaderStyle, EditorColors } from '../../utils/EditorTheme'
 
 export function LiteralNode({ data }: NodeProps) {
 	const nodeData = data as LiteralNodeData;
@@ -28,8 +29,8 @@ export function LiteralNode({ data }: NodeProps) {
 	const isString = typeof value === 'string' && (typeof nodeData.value === 'string' || isNaN(Number(value)));
 
 	return (
-		<div className="px-4 py-3 shadow-md rounded-lg bg-green-50 border-2 border-green-400 min-w-[150px]">
-			<div className="font-bold text-sm text-green-700 mb-2">
+		<div style={getPixelBoxStyle('data')}>
+			<div style={getPixelHeaderStyle('data')}>
 				🔢 Literal
 			</div>
 			
@@ -37,20 +38,21 @@ export function LiteralNode({ data }: NodeProps) {
 				type="text"
 				value={typeof value === 'string' ? value : String(value)}
 				onChange={(e) => handleChange(e.target.value)}
-				className="nodrag w-full px-2 py-1 text-sm border border-green-300 rounded focus:outline-none focus:border-green-500"
-				placeholder="Number or string..."
+				className="nodrag"
+				style={getPixelInputStyle()}
+				placeholder="Value..."
 			/>
 
 			{/* Hint for string values */}
 			{isString && (
-				<div className="text-xs text-green-600 mt-1 opacity-70">
-					💡 String: "{value}"
+				<div style={{ fontSize: '7px', color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
+					String: "{value}"
 				</div>
 			)}
 
 			{/* Hint for number values */}
 			{!isString && typeof value === 'number' && (
-				<div className="text-xs text-green-600 mt-1 opacity-50">
+				<div style={{ fontSize: '7px', color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
 					Number: {value}
 				</div>
 			)}
@@ -60,7 +62,7 @@ export function LiteralNode({ data }: NodeProps) {
 				type="source"
 				position={Position.Right}
 				id="value"
-				className="w-3 h-3 bg-green-500"
+				style={{ width: 10, height: 10, borderRadius: 0, background: 'rgba(5, 8, 10, 0.9)', border: `1px solid ${EditorColors.data.border}`, boxShadow: `0 0 8px ${EditorColors.data.glow}` }}
 			/>
 		</div>
 	);

@@ -1,11 +1,3 @@
-/**
- * AddEventPanel - UI for adding new event bindings
- * 
- * Features:
- * - Quick key bindings (select spell + key + trigger mode)
- * - Custom event bindings (event name + handler spell)
- */
-
 import { useState, useEffect } from 'react'
 import { 
 	Button, 
@@ -15,12 +7,11 @@ import {
 	Group, 
 	Stack, 
 	Text, 
-	Card, 
 	Tabs, 
-	Title,
     Accordion,
     Code
 } from '@mantine/core'
+import { PIXEL_FONT, EditorColors, getPixelGlassStyle, getPixelInputStyle } from '../utils/EditorTheme'
 import { eventQueue, type EventBinding, BUILT_IN_EVENTS } from '../../game/events/EventQueue'
 import { listSpells } from '../utils/spellStorage'
 
@@ -108,12 +99,12 @@ export function AddEventPanel({ initialSpellId, binding, onClose }: { initialSpe
 		                  triggerMode === 'release' ? 'onKeyReleased' : 'onKeyPressed'
 		
 		const newBinding: EventBinding = {
-			id: binding ? binding.id : `key-${selectedKey}-${Date.now()}`, // Keep ID if editing
+			id: binding ? binding.id : `key-${selectedKey}-${Date.now()}`,
 			eventName,
 			spellId: selectedSpell,
 			triggerMode,
 			holdInterval: triggerMode === 'hold' ? holdInterval : undefined,
-			keyOrButton: selectedKey  // Store the specific key
+			keyOrButton: selectedKey
 		}
 		
 		eventQueue.addBinding(newBinding)
@@ -134,7 +125,7 @@ export function AddEventPanel({ initialSpellId, binding, onClose }: { initialSpe
         }
 
 		const newBinding: EventBinding = {
-			id: binding ? binding.id : `custom-${customEventName}-${Date.now()}`, // Keep ID if editing
+			id: binding ? binding.id : `custom-${customEventName}-${Date.now()}`, 
 			eventName: customEventName.trim(),
 			spellId: customSpell
 		}
@@ -148,136 +139,127 @@ export function AddEventPanel({ initialSpellId, binding, onClose }: { initialSpe
 	}
 	
 	return (
-		<Stack h="100%" gap="md" p="md">
-			<Title order={4}>{binding ? 'Edit Event Binding' : 'Add Event Binding'}</Title>
-			
-			<Card withBorder shadow="sm" radius="md" p={0}>
-				<Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius="md" p="xs">
-					<Tabs.List grow mb="xs">
-						<Tabs.Tab value="key">Key Binding</Tabs.Tab>
-						<Tabs.Tab value="custom">Custom Event</Tabs.Tab>
+		<Stack gap="xl" p="xs" style={{ backgroundColor: 'transparent' }}>
+			<div style={{ ...getPixelGlassStyle(0.2, 10), padding: '16px', borderStyle: 'dashed' }}>
+				<Tabs value={activeTab} onChange={setActiveTab} variant="pills" radius={0}>
+					<Tabs.List grow mb="xl">
+						<Tabs.Tab value="key" style={{ fontSize: '8px', fontFamily: PIXEL_FONT }}>KEY_BIND</Tabs.Tab>
+						<Tabs.Tab value="custom" style={{ fontSize: '8px', fontFamily: PIXEL_FONT }}>CUSTOM_EVT</Tabs.Tab>
 					</Tabs.List>
 
 					<Tabs.Panel value="key">
-						<Stack gap="xs" p="xs">
+						<Stack gap="md">
 							<Select
-								label="Spell"
-								placeholder="Select a spell to trigger"
+								label="SCHEMA_ID"
+								placeholder="SELECT_SPELL"
 								data={spells}
 								value={selectedSpell}
 								onChange={setSelectedSpell}
 								searchable
-								checkIconPosition="right"
+                                styles={{ input: getPixelInputStyle() }}
 							/>
 							
 							<Group grow align="flex-end">
-								<Stack gap={4} style={{ flex: 1 }}>
-									<Text size="sm" fw={500}>Trigger Key</Text>
+								<Stack gap={6}>
+									<Text size="xs" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '7px' }}>TRIGGER_KEY</Text>
 									<Button
-										variant={isCapturingKey ? 'filled' : 'light'}
+										variant="outline"
 										color={isCapturingKey ? 'red' : 'gray'}
 										onClick={() => setIsCapturingKey(true)}
 										style={{ 
-											transition: 'all 0.2s',
-											border: isCapturingKey ? '2px solid var(--mantine-color-red-6)' : undefined
+											fontSize: '8px',
+                                            height: '36px',
+                                            border: isCapturingKey ? `2px solid ${EditorColors.control.border}` : '1px solid rgba(255,255,255,0.1)',
+                                            backgroundColor: isCapturingKey ? 'rgba(255,0,0,0.1)' : 'rgba(255,255,255,0.02)'
 										}}
 									>
-										{isCapturingKey ? 'Press any key...' : (selectedKey ? `Key: ${selectedKey}` : 'Click to Capture')}
+										{isCapturingKey ? 'CAPTURING...' : (selectedKey ? `KEY: ${selectedKey.toUpperCase()}` : 'CAPT_INPUT')}
 									</Button>
 								</Stack>
-								
-								{selectedKey && !isCapturingKey && (
-									<Button 
-										variant="subtle" 
-										color="gray" 
-										onClick={() => setSelectedKey('')}
-										style={{ flex: 0, paddingLeft: 8, paddingRight: 8 }}
-									>
-										✕
-									</Button>
-								)}
 							</Group>
 
 							<Group grow>
 								<Select
-									label="Mode"
+									label="TRIGGER_MODE"
 									data={[
-										{ value: 'press', label: 'On Press' },
-										{ value: 'release', label: 'On Release' },
-										{ value: 'hold', label: 'While Holding' }
+										{ value: 'press', label: 'ON_PRESS' },
+										{ value: 'release', label: 'ON_RELEASE' },
+										{ value: 'hold', label: 'ON_HOLD' }
 									]}
 									value={triggerMode}
 									onChange={(v) => setTriggerMode(v as 'press' | 'release' | 'hold')}
+                                    styles={{ input: getPixelInputStyle() }}
 								/>
 								{triggerMode === 'hold' && (
 									<NumberInput
-										label="Interval (ms)"
+										label="CYCLE_MS"
 										value={holdInterval}
 										onChange={(v) => setHoldInterval(typeof v === 'number' ? v : 100)}
 										min={16}
 										max={5000}
 										step={10}
+                                        styles={{ input: getPixelInputStyle() }}
 									/>
 								)}
 							</Group>
 
 							<Button 
 								fullWidth 
-								mt="xs" 
+								mt="md" 
 								onClick={addKeyBinding} 
 								disabled={!selectedSpell || !selectedKey}
-								variant="filled"
 								color="blue"
+                                style={{ boxShadow: `0 0 15px ${EditorColors.data.glow}` }}
 							>
-								{binding ? 'Update Key Binding' : 'Add Key Binding'}
+								{binding ? 'UPDATE_BIND' : 'COMMIT_BIND'}
 							</Button>
 						</Stack>
 					</Tabs.Panel>
 
 					<Tabs.Panel value="custom">
-						<Stack gap="xs" p="xs">
+						<Stack gap="md">
 							<TextInput
-								label="Event Name"
-								placeholder="e.g., onTick"
-								description="Name of the event to listen for"
+								label="EVENT_NAME"
+								placeholder="e.g., ON_TICK"
 								value={customEventName}
 								onChange={(e) => setCustomEventName(e.currentTarget.value)}
+                                styles={{ input: getPixelInputStyle() }}
 							/>
 							<Select
-								label="Handler Spell"
-								placeholder="Select a spell"
+								label="HANDLER_ID"
+								placeholder="SELECT_SPELL"
 								data={spells}
 								value={customSpell}
 								onChange={setCustomSpell}
 								searchable
-								checkIconPosition="right"
+                                styles={{ input: getPixelInputStyle() }}
 							/>
 							<Button 
 								fullWidth 
-								mt="xs" 
+								mt="md" 
 								onClick={addCustomBinding} 
 								disabled={!customSpell || !customEventName.trim()}
-								variant="filled"
 								color="violet"
+                                style={{ boxShadow: `0 0 15px ${EditorColors.output.glow}` }}
 							>
-								{binding ? 'Update Custom Binding' : 'Add Custom Binding'}
+								{binding ? 'UPDATE_LISTENER' : 'COMMIT_LISTENER'}
 							</Button>
 						</Stack>
 					</Tabs.Panel>
 				</Tabs>
-			</Card>
+			</div>
             
-            <Accordion variant="contained" radius="md">
+            <Accordion variant="separated" radius={0} styles={{ item: { border: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(255,255,255,0.01)' } }}>
 				<Accordion.Item value="builtin">
-					<Accordion.Control icon="ℹ️">
-						<Text size="sm">Built-in Events Reference</Text>
+					<Accordion.Control>
+						<Text style={{ fontSize: '7px', color: 'rgba(255,255,255,0.3)', fontFamily: PIXEL_FONT }}>BUILT_IN_REF</Text>
 					</Accordion.Control>
 					<Accordion.Panel>
 						<Stack gap="xs">
 							{Object.entries(BUILT_IN_EVENTS).map(([name, info]) => (
 								<Group key={name} justify="space-between" wrap="nowrap">
-									<Text size="xs" fw={500} style={{ flex: 1 }}>{name}</Text>
-									<Code fz="xs" c="dimmed">{info.params.join(', ') || 'no params'}</Code>
+									<Text style={{ fontSize: '7px', color: EditorColors.data.border }}>{name}</Text>
+									<Code style={{ fontSize: '6px', backgroundColor: 'rgba(0,0,0,0.3)', color: 'rgba(255,255,255,0.5)' }}>{info.params.join(', ') || 'VOID'}</Code>
 								</Group>
 							))}
 						</Stack>

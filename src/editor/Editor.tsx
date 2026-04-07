@@ -14,6 +14,8 @@ import {
 import { GameEvents } from '../game/events'
 import { levelRegistry } from '../game/levels/LevelRegistry'
 import { crispDomTextRootStyle, CSS_FONT_STACK } from '../game/ui/inGameTextStyle'
+import { EditorColors, PIXEL_FONT } from './utils/EditorTheme'
+
 
 function StandaloneEditorPauseOverlay({ onClose }: { onClose: () => void }) {
 	useEffect(() => {
@@ -47,24 +49,24 @@ function StandaloneEditorPauseOverlay({ onClose }: { onClose: () => void }) {
 		>
 			<div
 				style={{
-					background: '#1a1a1e',
-					border: '1px solid #333338',
-					borderRadius: '12px',
+					background: EditorColors.bg,
+					border: `1px solid rgba(255, 255, 255, 0.1)`,
+					borderRadius: 0,
 					padding: '40px',
 					minWidth: '400px',
 					textAlign: 'center',
-					boxShadow: '0 16px 40px rgba(0, 0, 0, 0.55)',
-					fontFamily: CSS_FONT_STACK,
+					boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8)',
+					fontFamily: PIXEL_FONT,
 				}}
 				onClick={(e) => e.stopPropagation()}
 			>
 				<h1
 					style={{
-						fontSize: '36px',
+						fontSize: '24px',
 						color: '#ffffff',
 						margin: '0 0 16px 0',
-						fontWeight: 'bold',
-						textShadow: '0 2px 8px rgba(0, 0, 0, 0.75)',
+						fontFamily: PIXEL_FONT,
+						textShadow: '2px 2px 0 #000',
 					}}
 				>
 					PAUSED
@@ -77,14 +79,15 @@ function StandaloneEditorPauseOverlay({ onClose }: { onClose: () => void }) {
 						type="button"
 						onClick={onClose}
 						style={{
-							padding: '15px 30px',
-							fontSize: '20px',
-							fontWeight: 'bold',
+							padding: '12px 30px',
+							fontSize: '14px',
 							color: '#ffffff',
 							background: '#4a90e2',
-							border: '2px solid #5aa0f2',
-							borderRadius: '8px',
+							border: '3px solid #5aa0f2',
+							borderRadius: 0,
 							cursor: 'pointer',
+                            fontFamily: PIXEL_FONT,
+                            boxShadow: '4px 4px 0 0 rgba(0,0,0,0.5)'
 						}}
 					>
 						RESUME [ESC]
@@ -93,17 +96,18 @@ function StandaloneEditorPauseOverlay({ onClose }: { onClose: () => void }) {
 						type="button"
 						onClick={() => window.location.reload()}
 						style={{
-							padding: '15px 30px',
-							fontSize: '20px',
-							fontWeight: 'bold',
+							padding: '12px 30px',
+							fontSize: '14px',
 							color: '#ffffff',
 							background: '#3a5a7a',
-							border: '2px solid #4a6a8a',
-							borderRadius: '8px',
+							border: '3px solid #4a6a8a',
+							borderRadius: 0,
 							cursor: 'pointer',
+                            fontFamily: PIXEL_FONT,
+                            boxShadow: '4px 4px 0 0 rgba(0,0,0,0.5)'
 						}}
 					>
-						REFRESH PAGE [TAB]
+						REFRESH [TAB]
 					</button>
 					<button
 						type="button"
@@ -111,14 +115,15 @@ function StandaloneEditorPauseOverlay({ onClose }: { onClose: () => void }) {
 							window.location.href = homeHref
 						}}
 						style={{
-							padding: '15px 30px',
-							fontSize: '20px',
-							fontWeight: 'bold',
+							padding: '12px 30px',
+							fontSize: '14px',
 							color: '#ffffff',
 							background: '#5c2a2a',
-							border: '2px solid #7a3a3a',
-							borderRadius: '8px',
+							border: '3px solid #7a3a3a',
+							borderRadius: 0,
 							cursor: 'pointer',
+                            fontFamily: PIXEL_FONT,
+                            boxShadow: '4px 4px 0 0 rgba(0,0,0,0.5)'
 						}}
 					>
 						OPEN GAME

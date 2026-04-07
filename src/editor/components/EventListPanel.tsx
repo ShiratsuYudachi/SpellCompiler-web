@@ -1,9 +1,6 @@
-/**
- * EventListPanel - UI for listing and managing active event bindings
- */
-
 import { useState, useEffect } from 'react'
-import { Button, Group, Stack, Text, Badge, ActionIcon, ScrollArea, Paper, Title, Code } from '@mantine/core'
+import { Button, Group, Stack, Text, Badge, ActionIcon, ScrollArea, Tooltip, Code } from '@mantine/core'
+import { PIXEL_FONT, EditorColors, getPixelGlassStyle } from '../utils/EditorTheme'
 import { eventQueue, type EventBinding } from '../../game/events/EventQueue'
 import { listSpells } from '../utils/spellStorage'
 
@@ -31,109 +28,120 @@ export function EventListPanel({ onAdd, onEdit }: { onAdd?: () => void, onEdit?:
 	
 	// Remove binding
 	const removeBinding = (bindingId: string) => {
-		eventQueue.removeBinding(bindingId)
+		if (confirm('RESCIND_BINDING_AUTHORIZATION?')) {
+            eventQueue.removeBinding(bindingId)
+        }
 	}
 	
 	// Get spell name by ID
 	const getSpellName = (spellId: string): string => {
 		const spell = spells.find(s => s.value === spellId)
-		return spell?.label || spellId
+		return spell?.label.toUpperCase() || spellId
 	}
 	
 	return (
-		<Stack h="100%" gap="md" p="md">
+		<Stack gap="xl" p="xs" style={{ backgroundColor: 'transparent' }}>
 			<Group justify="space-between" align="center">
-				<Group gap="xs">
-					<Title order={4}>Active Bindings</Title>
-					<Badge size="lg" variant="light" color="blue">{bindings.length} Active</Badge>
+				<Group gap="md">
+					<Text style={{ fontFamily: PIXEL_FONT, fontSize: '10px', color: EditorColors.data.border }}>ACTIVE_REGISTRY</Text>
+					<Badge size="xs" variant="outline" color="cyan" radius={0} style={{ fontFamily: PIXEL_FONT, fontSize: '6px', border: `1px solid ${EditorColors.data.border}44` }}>{bindings.length} ACTIVE</Badge>
 				</Group>
 				{onAdd && (
-					<Button size="xs" variant="light" onClick={onAdd}>
-						+ Add Binding
+					<Button size="xs" variant="filled" color="blue" onClick={onAdd} style={{ fontSize: '7px' }}>
+						+ ADD_DESCRIPTOR
 					</Button>
 				)}
 			</Group>
 			
-			<ScrollArea style={{ flex: 1, minHeight: 200 }} offsetScrollbars>
-				<Stack gap="xs">
+			<ScrollArea h={320} offsetScrollbars>
+				<Stack gap="md">
 					{bindings.length === 0 ? (
-						<Paper p="xl" withBorder style={{ borderStyle: 'dashed', textAlign: 'center', backgroundColor: 'transparent' }}>
-							<Text c="dimmed" size="sm">No active bindings</Text>
-							<Text c="dimmed" size="xs" mt={4}>Add a binding to get started</Text>
-						</Paper>
+						<div style={{ 
+                            padding: '40px', 
+                            textAlign: 'center', 
+                            border: '1px dashed rgba(255,255,255,0.1)',
+                            color: 'rgba(255,255,255,0.2)',
+                            fontSize: '9px'
+                        }}>
+							-- NO_ACTIVE_LIST_FILTRATION --
+						</div>
 					) : (
 						bindings.map((binding) => (
-							<Paper 
+							<div 
 								key={binding.id} 
-								shadow="xs" 
-								p="sm" 
-								radius="md" 
-								withBorder
 								style={{ 
+									...getPixelGlassStyle(0.1, 12),
+                                    padding: '16px 20px',
+                                    borderLeft: `3px solid ${binding.keyOrButton ? EditorColors.data.border : EditorColors.output.border}`,
 									display: 'flex', 
 									alignItems: 'center', 
 									justifyContent: 'space-between',
-									transition: 'transform 0.2s, box-shadow 0.2s',
 								}}
 							>
-								<Stack gap={4} style={{ flex: 1 }}>
+								<Stack gap={6} style={{ flex: 1 }}>
 									<Group gap="xs" wrap="nowrap">
-										<Badge 
-											color={binding.keyOrButton !== undefined ? 'blue' : 'violet'} 
-											variant="light"
-											size="sm"
-										>
-											{binding.eventName}
-										</Badge>
+										<Text style={{ 
+                                            fontSize: '9px', 
+                                            color: binding.keyOrButton ? EditorColors.data.border : EditorColors.output.border,
+                                            fontWeight: 'bold',
+                                            letterSpacing: '1px'
+                                        }}>
+											{binding.eventName.toUpperCase()}
+										</Text>
 										{binding.keyOrButton !== undefined && (
-											<Code fz="xs" fw={700} c="blue">{String(binding.keyOrButton)}</Code>
+											<Code style={{ 
+                                                fontSize: '8px', 
+                                                backgroundColor: 'rgba(255,255,255,0.05)', 
+                                                color: '#fff',
+                                                border: '1px solid rgba(255,255,255,0.1)'
+                                            }}>{String(binding.keyOrButton).toUpperCase()}</Code>
 										)}
 									</Group>
 									
-									<Group gap={6} align="center">
-										<Text size="xs" c="dimmed">triggers</Text>
-										<Text size="sm" fw={600} c="dark">{getSpellName(binding.spellId)}</Text>
+									<Group gap={8} align="center">
+										<Text style={{ fontSize: '7px', color: 'rgba(255,255,255,0.3)' }}>INVOKES:</Text>
+										<Text style={{ fontSize: '9px', color: '#fff', letterSpacing: '0.5px' }}>{getSpellName(binding.spellId)}</Text>
 									</Group>
 
 									{(binding.triggerMode || binding.holdInterval) && (
-										<Group gap={6}>
+										<Group gap={8}>
 											{binding.triggerMode && (
-												<Badge variant="outline" color="gray" size="xs" style={{ textTransform: 'none' }}>
-													mode: {binding.triggerMode}
-												</Badge>
+												<Text style={{ fontSize: '6px', color: 'rgba(255,255,255,0.2)' }}>
+													MODE: [{binding.triggerMode.toUpperCase()}]
+												</Text>
 											)}
 											{binding.holdInterval && (
-												<Badge variant="outline" color="orange" size="xs" style={{ textTransform: 'none' }}>
-													{binding.holdInterval}ms
-												</Badge>
+												<Text style={{ fontSize: '6px', color: 'rgba(255,255,255,0.2)' }}>
+													INTERVAL: [{binding.holdInterval}MS]
+												</Text>
 											)}
 										</Group>
 									)}
 								</Stack>
 
-								<Group gap={4}>
+								<Group gap={8}>
 									{onEdit && (
-										<ActionIcon 
-											color="blue" 
-											variant="light" 
-											size="lg"
-											onClick={() => onEdit(binding)}
-											aria-label="Edit binding"
-										>
-											✎
-										</ActionIcon>
+										<Tooltip label="MODIFY_PARAMETERS" position="left">
+                                            <ActionIcon 
+                                                color="blue" 
+                                                variant="subtle" 
+                                                onClick={() => onEdit(binding)}
+                                                style={{ border: '1px solid rgba(0, 210, 255, 0.1)' }}
+                                            >
+                                                ✎
+                                            </ActionIcon>
+                                        </Tooltip>
 									)}
 									<ActionIcon 
 										color="red" 
-										variant="light" 
-										size="lg"
+										variant="subtle" 
 										onClick={() => removeBinding(binding.id)}
-										aria-label="Remove binding"
+                                        style={{ border: '1px solid rgba(255, 0, 85, 0.1)' }}
 									>
-										✕
+										×
 									</ActionIcon>
 								</Group>
-							</Paper>
+							</div>
 						))
 					)}
 				</Stack>

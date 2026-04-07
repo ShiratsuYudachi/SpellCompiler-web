@@ -1,5 +1,6 @@
 import { memo, useState } from 'react'
 import { Handle, Position, useReactFlow } from 'reactflow'
+import { getPixelBoxStyle, getPixelInputStyle, getPixelHeaderStyle, EditorColors } from '../../utils/EditorTheme'
 
 export interface SpellInputNodeData {
 	label?: string
@@ -8,9 +9,6 @@ export interface SpellInputNodeData {
 
 /**
  * SpellInputNode - Represents the input parameters of a Castable Spell
- * 
- * For Castable Spells, inputs are injected by the evaluator at runtime.
- * Default parameter is 'state' (GameState), but additional parameters can be added.
  */
 export const SpellInputNode = memo(({ id, data }: { id: string; data: SpellInputNodeData }) => {
 	const label = data.label || 'Spell Input'
@@ -23,54 +21,33 @@ export const SpellInputNode = memo(({ id, data }: { id: string; data: SpellInput
 	// Add new parameter
 	const handleAddParam = () => {
 		if (!newParamName.trim()) return
-		
 		const trimmedName = newParamName.trim()
-		// Validate parameter name (must be valid identifier)
-		if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(trimmedName)) {
-			alert('Invalid parameter name. Use only letters, numbers, and underscores. Must start with a letter or underscore.')
-			return
-		}
-		
-		// Check for duplicates
-		if (params.includes(trimmedName)) {
-			alert('Parameter name already exists!')
-			return
-		}
+		if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(trimmedName)) return
+		if (params.includes(trimmedName)) return
 		
 		setNodes((nodes) =>
 			nodes.map((node) => {
 				if (node.id === id) {
 					return {
 						...node,
-						data: {
-							...node.data,
-							params: [...params, trimmedName],
-						},
+						data: { ...node.data, params: [...params, trimmedName] },
 					}
 				}
 				return node
 			})
 		)
-		
 		setNewParamName('')
 	}
 
 	// Remove parameter
 	const handleRemoveParam = (index: number) => {
-		if (params.length <= 1) {
-			alert('Must have at least one parameter!')
-			return
-		}
-		
+		if (params.length <= 1) return
 		setNodes((nodes) =>
 			nodes.map((node) => {
 				if (node.id === id) {
 					return {
 						...node,
-						data: {
-							...node.data,
-							params: params.filter((_, i) => i !== index),
-						},
+						data: { ...node.data, params: params.filter((_, i) => i !== index) },
 					}
 				}
 				return node
@@ -82,31 +59,17 @@ export const SpellInputNode = memo(({ id, data }: { id: string; data: SpellInput
 	const handleRenameParam = (index: number) => {
 		const currentName = params[index]
 		const newName = prompt(`Rename parameter "${currentName}" to:`, currentName)
-		
 		if (!newName || newName === currentName) return
-		
 		const trimmedName = newName.trim()
-		// Validate parameter name
-		if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(trimmedName)) {
-			alert('Invalid parameter name. Use only letters, numbers, and underscores. Must start with a letter or underscore.')
-			return
-		}
-		
-		// Check for duplicates
-		if (params.includes(trimmedName)) {
-			alert('Parameter name already exists!')
-			return
-		}
+		if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(trimmedName)) return
+		if (params.includes(trimmedName)) return
 		
 		setNodes((nodes) =>
 			nodes.map((node) => {
 				if (node.id === id) {
 					return {
 						...node,
-						data: {
-							...node.data,
-							params: params.map((p, i) => (i === index ? trimmedName : p)),
-						},
+						data: { ...node.data, params: params.map((p, i) => (i === index ? trimmedName : p)) },
 					}
 				}
 				return node
@@ -115,109 +78,88 @@ export const SpellInputNode = memo(({ id, data }: { id: string; data: SpellInput
 	}
 
 	return (
-		<div
-			style={{
-				padding: '12px 16px',
-				borderRadius: '8px',
-				background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-				border: '2px solid #9f7aea',
-				color: '#fff',
-				minWidth: '180px',
-				boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-			}}
-		>
-			<div style={{ 
-				fontSize: '12px', 
-				opacity: 0.9, 
-				marginBottom: '6px', 
-				fontWeight: 'bold',
-				display: 'flex',
-				justifyContent: 'space-between',
-				alignItems: 'center'
-			}}>
-				<span>{label}</span>
+		<div style={getPixelBoxStyle('input')}>
+			<div style={{ ...getPixelHeaderStyle('input'), justifyContent: 'space-between' }}>
+				<span>{label.toUpperCase()}</span>
 				<button
 					onClick={() => setIsEditing(!isEditing)}
 					style={{
-						background: 'rgba(255, 255, 255, 0.2)',
-						border: 'none',
-						borderRadius: '4px',
-						color: '#fff',
+						background: 'rgba(255, 255, 255, 0.05)',
+						border: `1px solid ${EditorColors.input.border}44`,
+						color: EditorColors.input.border,
 						cursor: 'pointer',
-						padding: '2px 6px',
-						fontSize: '10px',
+						padding: '4px 6px',
+						fontSize: '7px',
+						fontFamily: 'inherit'
 					}}
-					title="Toggle edit mode"
 				>
-					{isEditing ? '✓' : '✎'}
+					{isEditing ? 'SYNC' : 'EDIT'}
 				</button>
 			</div>
 			
-			{/* Parameter list */}
-			<div style={{ fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+			<div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 				{params.map((param, index) => (
 					<div key={`${param}-${index}`} style={{ 
 						display: 'flex', 
 						alignItems: 'center', 
 						justifyContent: 'space-between',
-						padding: '2px 0'
+						height: '28px',
+						position: 'relative'
 					}}>
 						<span 
 							style={{ 
+								fontSize: '8px',
+								color: '#ffffff',
 								flex: 1,
 								cursor: isEditing ? 'pointer' : 'default',
-								textDecoration: isEditing ? 'underline dotted' : 'none'
+								textDecoration: isEditing ? 'underline dotted' : 'none',
+								opacity: 0.9,
+								letterSpacing: '0.5px'
 							}}
 							onClick={() => isEditing && handleRenameParam(index)}
-							title={isEditing ? 'Click to rename' : undefined}
 						>
-							{param}
+							{param.toUpperCase()}
 						</span>
 						
-						{/* Remove button (only in edit mode and if more than 1 param) */}
 						{isEditing && params.length > 1 && (
 							<button
 								onClick={() => handleRemoveParam(index)}
 								style={{
-									background: 'rgba(255, 0, 0, 0.3)',
+									background: 'none',
 									border: 'none',
-									borderRadius: '3px',
-									color: '#fff',
+									color: EditorColors.control.border,
 									cursor: 'pointer',
-									padding: '0 4px',
-									fontSize: '12px',
-									marginRight: '4px',
+									padding: '0 8px',
+									fontSize: '12px'
 								}}
-								title="Remove parameter"
 							>
 								×
 							</button>
 						)}
 						
-						{/* Output handle for each parameter */}
 						<Handle
 							type="source"
 							position={Position.Right}
 							id={`param-${index}`}
 							style={{
-								background: '#9f7aea',
-								width: '10px',
-								height: '10px',
-								border: '2px solid #fff',
-								right: '-6px',
-								top: `${40 + index * 28}px`,
+								width: 10,
+								height: 10,
+								borderRadius: 0,
+								background: 'rgba(5, 8, 10, 0.9)',
+								border: `1px solid ${EditorColors.input.border}`,
+								boxShadow: `0 0 8px ${EditorColors.input.glow}`,
+								right: '-10px'
 							}}
 						/>
 					</div>
 				))}
 			</div>
 			
-			{/* Add parameter section (only in edit mode) */}
 			{isEditing && (
 				<div style={{ 
-					marginTop: '8px', 
-					paddingTop: '8px', 
-					borderTop: '1px solid rgba(255, 255, 255, 0.3)',
+					marginTop: '12px', 
+					paddingTop: '12px', 
+					borderTop: '1px dashed rgba(255, 255, 255, 0.1)',
 					display: 'flex',
 					gap: '4px'
 				}}>
@@ -225,31 +167,22 @@ export const SpellInputNode = memo(({ id, data }: { id: string; data: SpellInput
 						type="text"
 						value={newParamName}
 						onChange={(e) => setNewParamName(e.target.value)}
-						onKeyPress={(e) => e.key === 'Enter' && handleAddParam()}
-						placeholder="param name"
+						onKeyDown={(e) => e.key === 'Enter' && handleAddParam()}
+						placeholder="+ ARG"
 						className="nodrag"
-						style={{
-							flex: 1,
-							padding: '4px 6px',
-							fontSize: '12px',
-							borderRadius: '4px',
-							border: 'none',
-							background: 'rgba(255, 255, 255, 0.2)',
-							color: '#fff',
-						}}
+						style={{ ...getPixelInputStyle(), flex: 1 }}
 					/>
 					<button
 						onClick={handleAddParam}
 						style={{
-							background: 'rgba(255, 255, 255, 0.3)',
-							border: 'none',
-							borderRadius: '4px',
-							color: '#fff',
+							background: 'rgba(255,255,255,0.05)',
+							border: '1px solid rgba(255,255,255,0.1)',
+							color: EditorColors.input.border,
 							cursor: 'pointer',
 							padding: '4px 8px',
-							fontSize: '12px',
+							fontSize: '10px',
+							fontFamily: 'inherit'
 						}}
-						title="Add parameter"
 					>
 						+
 					</button>

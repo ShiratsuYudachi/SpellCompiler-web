@@ -4,11 +4,12 @@
 // =============================================
 
 import { Handle, Position } from 'reactflow';
+import { getPixelBoxStyle, getPixelHeaderStyle } from '../../utils/EditorTheme';
 
 export function OutputNode() {
 	return (
-		<div className="px-4 py-3 shadow-md rounded-lg bg-purple-50 border-2 border-purple-400 min-w-[140px]">
-			<div className="font-bold text-sm text-purple-700 text-center">
+		<div style={getPixelBoxStyle('output')}>
+			<div style={getPixelHeaderStyle('output')}>
 				📤 Output
 			</div>
 			
@@ -17,7 +18,7 @@ export function OutputNode() {
 				type="target"
 				position={Position.Left}
 				id="value"
-				className="w-3 h-3 bg-purple-500"
+				style={{ left: -10, width: 12, height: 12, borderRadius: 0, background: '#ffffff', border: '2px solid #fa709a' }}
 			/>
 		</div>
 	);

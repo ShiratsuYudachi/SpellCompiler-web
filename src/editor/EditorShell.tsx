@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { EditorColors } from './utils/EditorTheme'
 
 /** Same chrome as in-game editor overlay: dim + dark panel so direct /editor matches colors. */
 export function EditorShell({ children }: { children: ReactNode }) {
@@ -17,8 +18,8 @@ export function EditorShell({ children }: { children: ReactNode }) {
 				style={{
 					position: 'absolute',
 					inset: 12,
-					background: '#0b0b0b',
-					border: '1px solid rgba(255, 255, 255, 0.2)',
+					background: EditorColors.bg,
+					border: `1px solid ${EditorColors.borderColor}`,
 				}}
 			>
 				{children}

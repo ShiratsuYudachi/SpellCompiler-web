@@ -14,23 +14,58 @@ input[type="number"]::-webkit-outer-spin-button {
 
 input[type="number"] {
 	-moz-appearance: textfield;
+	appearance: none;
 }
 
-/* Node Selection Menu Styles - Blue-pink theme */
-.node-selection-menu::-webkit-scrollbar {
-	width: 6px;
+/* ReactFlow Overrides - Remove default white backgrounds and borders */
+.react-flow__node {
+	background: none !important;
+	border: none !important;
+	border-radius: 0 !important;
+	box-shadow: none !important;
+	padding: 0 !important;
+	min-width: 0 !important;
 }
 
-.node-selection-menu::-webkit-scrollbar-track {
-	background: #faf5f7;
-	border-radius: 3px;
+.react-flow__edge-path {
+	stroke-width: 2;
+	stroke: rgba(255,255,255,0.2);
 }
 
-.node-selection-menu::-webkit-scrollbar-thumb {
-	background: #ddd5e0;
-	border-radius: 3px;
+.react-flow__handle {
+	background: #fff;
+	border: 2px solid #000;
 }
 
-.node-selection-menu::-webkit-scrollbar-thumb:hover {
-	background: #c5b8d0;
+/* Mantine Modal Overrides - Arcane Glassmorphism */
+.mantine-Modal-content {
+	background-color: rgba(13, 17, 23, 0.75) !important;
+	backdrop-filter: blur(20px) !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	border-radius: 0 !important;
+	box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), inset 0 0 30px rgba(255, 255, 255, 0.02) !important;
+	color: #fff !important;
+}
+
+.mantine-Modal-header {
+	background-color: transparent !important;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+	padding-bottom: 12px !important;
+	margin-bottom: 12px !important;
+}
+
+.mantine-Modal-title {
+	font-family: 'Press Start 2P', monospace !important;
+	font-size: 10px !important;
+	letter-spacing: 1px !important;
+	color: #00d2ff !important;
+}
+
+.mantine-Modal-close {
+	color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.mantine-Modal-close:hover {
+	background-color: rgba(255, 255, 255, 0.1) !important;
+	color: #fff !important;
 }

@@ -3,11 +3,11 @@
 //  - , to remove later
 // =============================================
 
-import { Position } from 'reactflow';
+import { Position, Handle } from 'reactflow';
 import { useState } from 'react';
 import type { NodeProps } from 'reactflow';
-import { TextInput } from '@mantine/core';
-import { SmartHandle } from '../handles/SmartHandle';
+import { Text, TextInput } from '@mantine/core';
+import { getPixelBoxStyle, getPixelInputStyle, getPixelHeaderStyle, EditorColors } from '../../utils/EditorTheme';
 
 interface CustomFunctionNodeData {
 	functionName?: string;
@@ -32,60 +32,59 @@ export function CustomFunctionNode({ id, data }: NodeProps<CustomFunctionNodeDat
 	const params = Array.from({ length: paramCount }, (_, i) => `arg${i}`);
 
 	return (
-		<div className="px-4 py-3 shadow-md rounded-lg bg-amber-50 border-2 border-amber-400 min-w-[180px]">
-			<div className="font-bold text-sm text-amber-700 mb-2">
-				📞 Call Function
+		<div style={getPixelBoxStyle('logic')}>
+			<div style={getPixelHeaderStyle('logic')}>
+				📞 CALL_FUNCTION
 			</div>
 
-			{/* Function Name Input */}
-			<TextInput
-				value={functionName}
-				onChange={(e) => handleNameChange(e.target.value)}
-				placeholder="Function name"
-				size="xs"
-				className="mb-2"
-			/>
+			<div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+				<TextInput
+					label="FUNC_NAME"
+					value={functionName}
+					onChange={(e) => handleNameChange(e.target.value)}
+					placeholder="Enter name..."
+					size="xs"
+					styles={{ input: getPixelInputStyle() }}
+				/>
 
-			{/* Param Count Input */}
-			<TextInput
-				type="number"
-				value={paramCount}
-				onChange={(e) => handleParamCountChange(parseInt(e.target.value) || 0)}
-				placeholder="Parameter count"
-				size="xs"
-				min={0}
-				max={10}
-				className="mb-2"
-			/>
+				<TextInput
+					label="PARAMS"
+					type="number"
+					value={paramCount}
+					onChange={(e) => handleParamCountChange(parseInt(e.target.value) || 0)}
+					size="xs"
+					min={0}
+					max={10}
+					styles={{ input: getPixelInputStyle() }}
+				/>
+			</div>
 
 			{/* Parameter Input Handles */}
 			{params.length > 0 && (
-				<div className="mb-2">
-					<div className="text-xs text-amber-600 mb-1">Arguments:</div>
+				<div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '12px' }}>
+					<Text size="xs" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '7px', marginBottom: 4 }}>ARGUMENTS:</Text>
 					{params.map((param, i) => (
-						<div key={i} className="flex items-center justify-between mb-1">
-							<SmartHandle
+						<div key={i} style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
+							<Handle
 								type="target"
 								position={Position.Left}
 								id={`arg${i}`}
-								className="w-3 h-3 bg-amber-500"
-								nodeId={id}
+								style={{ left: -10, width: 10, height: 10, borderRadius: 0, background: 'rgba(5, 8, 10, 0.9)', border: `1px solid ${EditorColors.logic.border}`, boxShadow: `0 0 8px ${EditorColors.logic.glow}` }}
 							/>
-							<span className="ml-2 text-xs text-amber-600">{param}</span>
+							<span style={{ marginLeft: 15, fontSize: '8px', color: EditorColors.logic.border, opacity: 0.8 }}>{param.toUpperCase()}</span>
 						</div>
 					))}
 				</div>
 			)}
 
 			{/* Output Handle */}
-			<div className="flex items-center justify-end">
-				<span className="mr-2 text-xs text-amber-600">result</span>
-				<SmartHandle
+			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '24px' }}>
+				<span style={{ marginRight: 15, fontSize: '8px', color: EditorColors.logic.border, opacity: 0.8 }}>RESULT</span>
+				<Handle
 					type="source"
 					position={Position.Right}
-					id="output"
-					className="w-3 h-3 bg-amber-500"
-					nodeId={id}
+					id="result"
+					style={{ width: 10, height: 10, borderRadius: 0, background: 'rgba(5, 8, 10, 0.9)', border: `1px solid ${EditorColors.logic.border}`, boxShadow: `0 0 8px ${EditorColors.logic.glow}` }}
 				/>
 			</div>
 		</div>

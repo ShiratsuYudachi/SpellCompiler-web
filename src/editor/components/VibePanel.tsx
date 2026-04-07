@@ -1,11 +1,10 @@
-// =============================================
-// Vibe Panel - Ask (explain) and Build (generate nodes) via OpenRouter
-// =============================================
-
 import { useState, useEffect } from 'react';
 import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea, Tooltip } from '@mantine/core';
-import { OPENROUTER_MODELS, MOCK_MODEL_ID } from '../../lib/vibe/vibeApi';
+import { vibeBuild, vibeAsk, MOCK_MODEL_ID, OPENROUTER_MODELS, type LevelContext } from '../../lib/vibe/vibeApi';
+import { EditorColors, PIXEL_FONT } from '../utils/EditorTheme';
 import { FULL_REGEN_INSTRUCTION } from '../../lib/vibe/vibePrompt';
+
+export type VibeMode = 'ask' | 'build';
 
 const API_KEY_STORAGE_KEY = 'spellcompiler-openrouter-api-key';
 const MODEL_STORAGE_KEY = 'spellcompiler-openrouter-model';
@@ -14,8 +13,6 @@ const MODE_STORAGE_KEY = 'spellcompiler-vibe-mode';
 function sanitizeApiKey(key: string): string {
 	return key.trim().replace(/\s*\/?\s*$/i, '').trim();
 }
-
-export type VibeMode = 'ask' | 'build';
 
 export type VibePanelProps = {
 	mode?: VibeMode;
@@ -197,140 +194,237 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 	const canUseApi = !disabled && !askLoading && !regenLoading && !modifyLoading && (useMock || !!sanitizeApiKey(apiKey));
 
 	return (
-		<Paper p="sm" shadow="sm" withBorder className="flex flex-col gap-2 h-full overflow-hidden">
+		<Paper 
+			p="sm" 
+			style={{ 
+				backgroundColor: 'rgba(10, 15, 20, 0.4)', 
+				backdropFilter: 'blur(16px)',
+				border: '1px solid rgba(255,255,255,0.08)', 
+				borderRadius: 0,
+				display: 'flex',
+				flexDirection: 'column',
+				gap: '12px',
+				height: '100%',
+				overflow: 'hidden',
+				boxShadow: 'inset 0 0 20px rgba(0, 210, 255, 0.05), 0 20px 50px rgba(0,0,0,0.3)'
+			}}
+		>
 			<button
 				type="button"
 				onClick={() => setOpen((o) => !o)}
-				className="flex items-center justify-between w-full text-left font-semibold text-sm"
+				style={{
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					width: '100%',
+					background: 'transparent',
+					border: 'none',
+					color: EditorColors.data.border,
+					fontFamily: PIXEL_FONT,
+					fontSize: '9px',
+					letterSpacing: '1px',
+					cursor: 'pointer',
+					padding: '8px 0',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                    marginBottom: 4,
+					textShadow: `0 0 8px ${EditorColors.data.glow}`
+				}}
 			>
-				<span>Vibe coding</span>
-				<span aria-hidden>{open ? '▼' : '▶'}</span>
+				<span>{open ? '▼' : '▶'} VIBE_CODING_CORE</span>
+				<span style={{ opacity: 0.5, fontSize: '7px' }}>[V.02.AUTO]</span>
 			</button>
+
 			<Collapse in={open} className="flex flex-col gap-2 min-h-0 flex-1 overflow-hidden">
-				<Select
-					label="Model"
-					description={useMock ? 'Mock: no API key needed. Use to test Ask / Full Regen without spending credits.' : 'OpenRouter model. Get a key at openrouter.ai/keys'}
-					size="xs"
-					data={MODEL_OPTIONS}
-					value={model}
-					onChange={saveModel}
-					disabled={disabled}
-					searchable
-					allowDeselect={false}
-				/>
-				<TextInput
-					type="password"
-					placeholder="OpenRouter API key"
-					value={apiKey}
-					onChange={(e) => saveApiKey(e.currentTarget.value)}
-					size="xs"
-					disabled={disabled}
-					label="OpenRouter API Key"
-					description="Key is stored locally. Get one at openrouter.ai/keys"
-				/>
-				<SegmentedControl
-					size="xs"
-					value={mode}
-					onChange={(v) => saveMode(v as VibeMode)}
-					data={[
-						{ label: 'Ask', value: 'ask' },
-						{ label: 'Build', value: 'build' },
-					]}
-					disabled={disabled}
-				/>
-				{mode === 'build' ? (
-					<>
-						<Textarea
-							placeholder="Describe the spell you want... e.g. Filter enemies with HP above 30, attack the first one for 100 damage."
-							value={buildText}
-							onChange={(e) => setBuildText(e.currentTarget.value)}
-							minRows={2}
+				<div className="flex flex-col gap-4 overflow-auto pr-1">
+					<div className="flex flex-col gap-2">
+						<Select
+							label="NEURAL_MODEL"
+							size="xs"
+							data={OPENROUTER_MODELS as any}
+							value={model}
+							onChange={saveModel}
 							disabled={disabled}
-							size="xs"
+							styles={{
+								input: { backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
+								label: { color: 'rgba(255,255,255,0.4)', fontSize: '7px', letterSpacing: '1px' }
+							}}
 						/>
-						<Button
+						<TextInput
+							type="password"
+							placeholder="AUTH_TOKEN_REQUIRED"
+							value={apiKey}
+							onChange={(e) => saveApiKey(e.currentTarget.value)}
 							size="xs"
-							variant="filled"
-							color="teal"
-							onClick={handleModify}
-							loading={modifyLoading}
-							disabled={!buildText.trim() || !canUseApi}
-							fullWidth
-						>
-							✨ Generate
-						</Button>
-						<Tooltip
-							label="Discards the current graph and generates a brand-new complete spell from scratch based on the level objective."
-							position="left"
-							multiline
-							w={240}
-							withArrow
-						>
+							disabled={disabled}
+							label="ACCESS_KEY"
+							styles={{
+								input: { backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
+								label: { color: 'rgba(255,255,255,0.4)', fontSize: '7px', letterSpacing: '1px' }
+							}}
+						/>
+					</div>
+
+					<SegmentedControl
+						size="xs"
+						value={mode}
+						onChange={(v) => saveMode(v as VibeMode)}
+						data={[
+							{ label: 'ANALYZE', value: 'ask' },
+							{ label: 'CONSTRUCT', value: 'build' },
+						]}
+						disabled={disabled}
+						styles={{
+							root: { backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
+							control: { border: 'none' },
+							indicator: { backgroundColor: 'rgba(255,255,255,0.05)' },
+							label: { fontSize: '7px', letterSpacing: '1px' }
+						}}
+					/>
+
+					{mode === 'build' ? (
+						<div className="flex flex-col gap-3">
+							<Textarea
+								placeholder="ENTER_OBJECTIVE_INSTRUCTIONS..."
+								value={buildText}
+								onChange={(e) => setBuildText(e.currentTarget.value)}
+								minRows={3}
+								disabled={disabled}
+								size="xs"
+								styles={{
+									input: { 
+										backgroundColor: 'rgba(0,0,0,0.4)', 
+										border: '1px solid rgba(255,255,255,0.1)',
+										fontSize: '10px',
+										lineHeight: 1.5
+									}
+								}}
+							/>
+							<div className="flex flex-col gap-2">
+								<Button
+									size="xs"
+									variant="filled"
+									onClick={handleModify}
+									loading={modifyLoading}
+									disabled={!buildText.trim() || !canUseApi}
+									fullWidth
+									style={{
+										backgroundColor: EditorColors.logic.bg,
+										color: EditorColors.logic.border,
+										border: `1px solid ${EditorColors.logic.border}44`,
+										boxShadow: `0 0 15px ${EditorColors.logic.glow}`,
+										fontSize: '8px'
+									}}
+								>
+									EXECUTE_CONSTRUCTION
+								</Button>
+								<Tooltip
+									label="FORCE_RESET_AND_REBUILD"
+									position="left"
+									withArrow
+								>
+									<Button
+										size="xs"
+										variant="subtle"
+										onClick={handleFullRegen}
+										loading={regenLoading}
+										disabled={!canUseApi}
+										fullWidth
+										style={{
+											color: EditorColors.control.border,
+											border: `1px solid ${EditorColors.control.border}22`,
+											fontSize: '7px',
+											letterSpacing: '1px',
+											opacity: 0.8
+										}}
+									>
+										SYSTEM_TOTAL_REGEN
+									</Button>
+								</Tooltip>
+							</div>
+						</div>
+					) : (
+						<div className="flex flex-col gap-3">
+							<Textarea
+								placeholder="QUERY_CURRENT_LOGIC_FLOW..."
+								value={askText}
+								onChange={(e) => setAskText(e.currentTarget.value)}
+								minRows={3}
+								disabled={disabled}
+								size="xs"
+								styles={{
+									input: { 
+										backgroundColor: 'rgba(0,0,0,0.4)', 
+										border: '1px solid rgba(255,255,255,0.1)',
+										fontSize: '10px'
+									}
+								}}
+							/>
 							<Button
 								size="xs"
-								variant="filled"
-								color="orange"
-								onClick={handleFullRegen}
-								loading={regenLoading}
-								disabled={!canUseApi}
-								fullWidth
+								variant="subtle"
+								onClick={handleAsk}
+								loading={askLoading}
+								disabled={!askText.trim() || (!useMock && !apiKey.trim()) || !onAsk || disabled}
+								style={{
+									color: EditorColors.data.border,
+									border: `1px solid ${EditorColors.data.border}22`,
+									fontSize: '8px'
+								}}
 							>
-								⚡ Full Regen
+								RUN_DIAGNOSTICS
 							</Button>
-						</Tooltip>
-					</>
-				) : (
-					<>
-						<Textarea
-							placeholder="Ask about the current graph... e.g. What does this spell do? Explain the flow."
-							value={askText}
-							onChange={(e) => setAskText(e.currentTarget.value)}
-							minRows={2}
-							disabled={disabled}
-						/>
-						<Button
-							size="xs"
-							variant="light"
-							onClick={handleAsk}
-							loading={askLoading}
-							disabled={!askText.trim() || (!useMock && !apiKey.trim()) || !onAsk || disabled}
-						>
-							Ask
-						</Button>
-						{explanation !== null && (
-							<ScrollArea className="flex-1 min-h-0" type="auto" offsetScrollbars>
-								<Text size="xs" className="whitespace-pre-wrap p-2 rounded bg-gray-100">
-									{explanation}
+							{explanation !== null && (
+								<ScrollArea className="flex-1 min-h-0" type="auto" offsetScrollbars style={{ height: 200 }}>
+									<div style={{ 
+										padding: '12px', 
+										backgroundColor: 'rgba(255,255,255,0.02)', 
+										border: '1px solid rgba(255,255,255,0.05)',
+										color: 'rgba(255,255,255,0.85)',
+										fontSize: '10px',
+										lineHeight: 1.6,
+										fontFamily: 'monospace'
+									}}>
+										{explanation}
+									</div>
+								</ScrollArea>
+							)}
+						</div>
+					)}
+				</div>
+
+				<div className="mt-auto pt-4 flex flex-col gap-2 border-t border-white/5">
+					{error && (
+						<div style={{ padding: '8px', backgroundColor: `${EditorColors.control.border}11`, border: `1px solid ${EditorColors.control.border}33` }}>
+							<Text size="xs" style={{ color: EditorColors.control.border, fontFamily: PIXEL_FONT, fontSize: '7px' }}>
+								[ERR] // {error.toUpperCase()}
+							</Text>
+						</div>
+					)}
+					{!error && successMsg && (
+						<div style={{ padding: '8px', backgroundColor: `${EditorColors.logic.border}11`, border: `1px solid ${EditorColors.logic.border}33` }}>
+							<Text size="xs" style={{ color: EditorColors.logic.border, fontFamily: PIXEL_FONT, fontSize: '7px' }}>
+								[OK] // {successMsg.toUpperCase()} {elapsedMs !== null ? `(${(elapsedMs / 1000).toFixed(1)}S)` : ""}
+							</Text>
+						</div>
+					)}
+					{!error && summaryMsg && (
+						<div style={{ 
+							background: 'rgba(10, 15, 20, 0.6)', 
+							border: `1px solid ${EditorColors.logic.border}44`, 
+							padding: '12px',
+							boxShadow: `inset 0 0 10px ${EditorColors.logic.glow}`
+						}}>
+							<Text size="xs" style={{ color: EditorColors.logic.border, fontFamily: PIXEL_FONT, fontSize: '7px', marginBottom: 8, letterSpacing: '1px' }}>
+								► ANALYSIS_COMPLETE
+							</Text>
+							<ScrollArea type="auto" offsetScrollbars style={{ maxHeight: 120 }}>
+								<Text size="xs" style={{ color: '#ffffff', fontSize: '10px', lineHeight: 1.5, opacity: 0.85, fontFamily: 'monospace' }}>
+									{summaryMsg}
 								</Text>
 							</ScrollArea>
-						)}
-					</>
-				)}
-				{error && (
-					<Text size="xs" c="red">
-						{error}
-					</Text>
-				)}
-				{!error && successMsg && (
-					<Text size="xs" c="teal" fw={500}>
-						{successMsg}{elapsedMs !== null ? ` (${(elapsedMs / 1000).toFixed(1)}s)` : ""}
-					</Text>
-				)}
-				{error && elapsedMs !== null && (
-					<Text size="xs" c="dimmed">
-						Failed after {(elapsedMs / 1000).toFixed(1)}s
-					</Text>
-				)}
-				{!error && summaryMsg && (
-					<div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '8px 10px' }}>
-						<Text size="xs" fw={600} style={{ color: '#15803d', marginBottom: 4 }}>✨ Spell Effect</Text>
-						<ScrollArea type="auto" offsetScrollbars style={{ maxHeight: 100 }}>
-							<Text size="xs" className="whitespace-pre-wrap" style={{ color: '#166534' }}>
-								{summaryMsg}
-							</Text>
-						</ScrollArea>
-					</div>
-				)}
+						</div>
+					)}
+				</div>
 			</Collapse>
 		</Paper>
 	);

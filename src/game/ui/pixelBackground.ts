@@ -1,5 +1,27 @@
 import Phaser from 'phaser'
 
+enum Team {
+	FRIENDLY,
+	ENEMY,
+	NEUTRAL
+}
+
+interface AIImage extends Phaser.Physics.Arcade.Image {
+	team: Team;
+	lastFired: number;
+	fireRate: number;
+}
+
+const TEAM_MAP: Record<string, Team> = {
+	'player': Team.FRIENDLY,
+	'friendly1': Team.FRIENDLY,
+	'friendly2': Team.FRIENDLY,
+	'enemy1': Team.ENEMY,
+	'enemy2': Team.ENEMY,
+	'enemy3': Team.ENEMY,
+	'neutral1': Team.NEUTRAL
+};
+
 export function initPixelBackground(scene: Phaser.Scene) {
 	const { width, height } = scene.scale
 
@@ -20,26 +42,33 @@ export function initPixelBackground(scene: Phaser.Scene) {
 			{ key: 'enemy3', size: 70 },
 		]
 
-		const bouncers: Phaser.Physics.Arcade.Image[] = []
+		const bouncers: AIImage[] = []
+		const bullets = scene.physics.add.group();
+
 		entityTypes.forEach(({ key, size }) => {
 			const b = scene.physics.add.image(
 				Phaser.Math.Between(100, width - 100),
 				Phaser.Math.Between(100, height - 100),
 				key
-			)
-			b.setDisplaySize(size, size)
-			b.setCollideWorldBounds(true)
-			b.setBounce(1, 1)
+			) as AIImage;
+
+			b.team = TEAM_MAP[key] ?? Team.NEUTRAL;
+			b.lastFired = 0;
+			b.fireRate = Phaser.Math.Between(2000, 5000); 
+
+			b.setDisplaySize(size, size);
+			b.setCollideWorldBounds(true);
+			b.setBounce(0.8, 0.8);
 			
-			let vx = Phaser.Math.Between(40, 90)
-			let vy = Phaser.Math.Between(40, 90)
-			if (Math.random() > 0.5) vx *= -1
-			if (Math.random() > 0.5) vy *= -1
-			b.setVelocity(vx, vy)
+			// Initial velocity
+			let vx = Phaser.Math.Between(30, 60);
+			let vy = Phaser.Math.Between(30, 60);
+			if (Math.random() > 0.5) vx *= -1;
+			if (Math.random() > 0.5) vy *= -1;
+			b.setVelocity(vx, vy);
 			
-			b.setAngularVelocity(Phaser.Math.Between(-15, 15))
-			bouncers.push(b)
-		})
+			bouncers.push(b);
+		});
 
 		// 3. Pixel Particles
 		const pColors = [0x4a90e2, 0xff4444, 0x48bb78, 0xffdd44]
@@ -57,32 +86,121 @@ export function initPixelBackground(scene: Phaser.Scene) {
 		})
 		particles.setDepth(-10)
 
-		// 4. Occasional Bullet Firing
-		scene.time.addEvent({
-			delay: 2500,
-			loop: true,
-			callback: () => {
-				const shooterBase = Phaser.Math.RND.pick(
-					bouncers.filter(b => b.texture.key.startsWith('enemy'))
-				)
-				if (!shooterBase) return
+		// 4. AI Behavior Update Loop
+		const updateListener = (time: number, delta: number) => {
+			const dt = delta / 1000;
+			bouncers.forEach(b => {
+				if (!b.active || !b.body) return;
 
-				// Decorative bullets: simple colored circles instead of NPC textures
-				const bullet = scene.add.circle(shooterBase.x, shooterBase.y, 6, 0xffffff) as any
-				scene.physics.add.existing(bullet)
-				
-				const target = Phaser.Math.RND.pick(bouncers.filter(b => b !== shooterBase))
-				if (target && Math.random() > 0.3) {
-					scene.physics.moveToObject(bullet, target, 250)
+				// A. Find Nearest Enemy Target
+				let nearestEnemy: AIImage | null = null;
+				let minDist = Infinity;
+
+				bouncers.forEach(other => {
+					if (other === b || !other.active) return;
+					
+					const isHostile = (b.team === Team.ENEMY && other.team === Team.FRIENDLY) ||
+						              (b.team === Team.FRIENDLY && other.team === Team.ENEMY) ||
+									  (b.team === Team.NEUTRAL && other.team !== Team.NEUTRAL);
+					
+					if (isHostile) {
+						const dist = Phaser.Math.Distance.Between(b.x, b.y, other.x, other.y);
+						if (dist < minDist) {
+							minDist = dist;
+							nearestEnemy = other;
+						}
+					}
+				});
+
+				// B. Steering Force Calculation
+				const steerForce = new Phaser.Math.Vector2(0, 0);
+
+				if (nearestEnemy) {
+					const angleToTarget = Phaser.Math.Angle.Between(b.x, b.y, nearestEnemy.x, nearestEnemy.y);
+					const toTarget = new Phaser.Math.Vector2(nearestEnemy.x - b.x, nearestEnemy.y - b.y).normalize();
+					
+					// 1. Maintain Distance
+					if (minDist > 350) {
+						steerForce.add(toTarget.scale(40)); // Seek
+					} else if (minDist < 200) {
+						steerForce.add(toTarget.scale(-60)); // Flee
+					} else {
+						// Orbit/Sidestep slightly
+						const tangent = new Phaser.Math.Vector2(-toTarget.y, toTarget.x);
+						steerForce.add(tangent.scale(20));
+					}
+					
+					// Smoothly rotate to face target
+					const targetRotation = angleToTarget + Math.PI / 2;
+					b.rotation = Phaser.Math.Angle.RotateTo(b.rotation, targetRotation, 0.05);
+
+					// 2. Fire Logic
+					if (time > b.lastFired + b.fireRate && minDist < 600) {
+						const bulletColor = b.team === Team.FRIENDLY ? 0x4fb9ff : (b.team === Team.ENEMY ? 0xff4f4f : 0xffffff);
+						const bullet = scene.add.circle(b.x, b.y, 5, bulletColor) as any;
+						scene.physics.add.existing(bullet);
+						bullets.add(bullet);
+						
+						const shootAngle = angleToTarget + (Math.random() - 0.5) * 0.1;
+						const speed = 300;
+						if (bullet.body) {
+							(bullet.body as Phaser.Physics.Arcade.Body).setVelocity(Math.cos(shootAngle) * speed, Math.sin(shootAngle) * speed);
+						}
+						
+						scene.time.delayedCall(3000, () => { if (bullet.active) bullet.destroy(); });
+						b.lastFired = time + Phaser.Math.Between(-500, 500); 
+					}
 				} else {
-					bullet.setVelocity(Phaser.Math.Between(-250, 250), Phaser.Math.Between(-250, 250))
+					// Idle Wander
+					b.rotation += 0.01;
+					const wanderDir = new Phaser.Math.Vector2().setToPolar(b.rotation - Math.PI/2);
+					steerForce.add(wanderDir.scale(10));
 				}
+
+				// 3. Separation from other bouncers
+				bouncers.forEach(other => {
+					if (other === b) return;
+					const d = Phaser.Math.Distance.Between(b.x, b.y, other.x, other.y);
+					if (d < 120) {
+						const repel = new Phaser.Math.Vector2(b.x - other.x, b.y - other.y).normalize().scale(80 * (1 - d/120));
+						steerForce.add(repel);
+					}
+				});
+
+				// 4. Bullet Avoidance
+				bullets.getChildren().forEach((bullet: any) => {
+					const d = Phaser.Math.Distance.Between(b.x, b.y, bullet.x, bullet.y);
+					if (d < 100) {
+						// Perpendicular dodge
+						const bulletVel = (bullet.body as Phaser.Physics.Arcade.Body).velocity;
+						const toBullet = new Phaser.Math.Vector2(bullet.x - b.x, bullet.y - b.y);
+						if (toBullet.dot(bulletVel) < 0) { // Bullet coming towards us
+							const dodgeDir = new Phaser.Math.Vector2(-bulletVel.y, bulletVel.x).normalize();
+							steerForce.add(dodgeDir.scale(100));
+						}
+					}
+				});
+
+				// Apply integrated acceleration
+				const body = b.body as Phaser.Physics.Arcade.Body;
+				body.velocity.x += steerForce.x * dt;
+				body.velocity.y += steerForce.y * dt;
 				
-				scene.time.delayedCall(3000, () => {
-					if (bullet.active) bullet.destroy()
-				})
-			}
-		})
+				// Max speed limit
+				const maxSpeed = 150;
+				const currentSpeed = body.velocity.length();
+				if (currentSpeed > maxSpeed) {
+					body.velocity.normalize().scale(maxSpeed);
+				}
+				// Drag/Friction to prevent infinite acceleration
+				body.velocity.scale(0.995);
+			});
+		};
+
+		scene.events.on('update', updateListener);
+		scene.events.once('shutdown', () => {
+			scene.events.off('update', updateListener);
+		});
 	}
 }
 
