@@ -289,7 +289,9 @@ export class Level3 extends BaseScene {
 
 		// Create visual body
 		const bulletSize = 60
-		const body = this.physics.add.image(spawnX, spawnY, 'enemy')
+		const textureKeys = ['enemy1', 'enemy2', 'enemy3']
+		const randomKey = textureKeys[Math.floor(Math.random() * textureKeys.length)]
+		const body = this.physics.add.image(spawnX, spawnY, randomKey)
 		body.setDisplaySize(bulletSize, bulletSize)
 		body.setDepth(15)
 

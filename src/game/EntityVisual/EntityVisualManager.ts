@@ -111,24 +111,24 @@ export class EntityVisualManager {
 			.circle(x, y, radius * 1.65, bodyColor, 0.13)
 			.setDepth(10)
 
-		// ── Layer 2: inner circle (full solid + rim) or image ─────────────────────────
-		const isEnemyRole = role === 'enemy' || role === 'target' || role === 'weak' || role === 'guard'
-		
-		let innerCircle: Phaser.GameObjects.Arc | Phaser.GameObjects.Image
-		if (isEnemyRole) {
-			innerCircle = this.scene.add
-				.image(x, y, 'enemy')
-				.setDisplaySize(radius * 5, radius * 5)
-				.setDepth(11)
+		// ── Layer 2: Role-based image ─────────────────────────
+		let textureKey = 'enemy1'
+		if (role === 'civilian') {
+			const arr = ['friendly1', 'friendly2']
+			textureKey = arr[Math.floor(Math.random() * arr.length)]
+		} else if (role === 'target') {
+			textureKey = 'neutral1'
 		} else {
-			const fillAlpha = role === 'civilian' ? 0.55 : 0.85
-			const strokeW   = 2.5
-			const rimColor  = role === 'civilian' ? 0xaaaaaa : 0xffffff
-			innerCircle = this.scene.add
-				.circle(x, y, radius, bodyColor, fillAlpha)
-				.setStrokeStyle(strokeW, rimColor, 0.55)
-				.setDepth(11)
+			const arr = ['enemy1', 'enemy2', 'enemy3']
+			textureKey = arr[Math.floor(Math.random() * arr.length)]
 		}
+
+		let innerCircle: Phaser.GameObjects.Arc | Phaser.GameObjects.Image
+		
+		innerCircle = this.scene.add
+			.image(x, y, textureKey)
+			.setDisplaySize(radius * 5, radius * 5)
+			.setDepth(11)
 
 		// ── Layer 2b: inner highlight arc (top-left sheen) ───────────────────
 		const sheen = this.scene.add.graphics().setDepth(12)

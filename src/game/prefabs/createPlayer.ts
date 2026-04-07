@@ -13,7 +13,7 @@ export function createPlayer(
 	y = 270,
 ) {
 	const body = scene.physics.add.image(x, y, 'player')
-	body.setDisplaySize(70, 70)
+	body.setDisplaySize(112, 112)
 	body.setDepth(5)
 	body.setCollideWorldBounds(true)
 

@@ -42,9 +42,15 @@ export abstract class BaseScene extends Phaser.Scene {
 	}
 
 	preload() {
-		this.load.image('enemy', (import.meta.env.BASE_URL || '/') + 'assets/enemy.png')
-		this.load.image('player', (import.meta.env.BASE_URL || '/') + 'assets/player.png')
-		this.load.image('bg', (import.meta.env.BASE_URL || '/') + 'assets/bg.png')
+		const base = import.meta.env.BASE_URL || '/'
+		this.load.image('enemy1', base + 'assets/enemy1.png')
+		this.load.image('enemy2', base + 'assets/enemy2.png')
+		this.load.image('enemy3', base + 'assets/enemy3.png')
+		this.load.image('friendly1', base + 'assets/friendly1.png')
+		this.load.image('friendly2', base + 'assets/friendly2.png')
+		this.load.image('neutral1', base + 'assets/neutral1.png')
+		this.load.image('player', base + 'assets/player.png')
+		this.load.image('bg', base + 'assets/bg.png')
 	}
 
 	create() {

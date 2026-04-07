@@ -165,8 +165,10 @@ export class Level2 extends BaseScene {
 		Health.max[eid] = 30
 		Health.current[eid] = 30
 
-		// Create enemy using the 'enemy' image
-		const body = this.physics.add.image(nextEnemy.x, nextEnemy.y, 'enemy')
+		// Create enemy using a random enemy image
+		const textureKeys = ['enemy1', 'enemy2', 'enemy3']
+		const randomKey = textureKeys[Math.floor(Math.random() * textureKeys.length)]
+		const body = this.physics.add.image(nextEnemy.x, nextEnemy.y, randomKey)
 		body.setDisplaySize(70, 70)
 		body.setDepth(4)
 		

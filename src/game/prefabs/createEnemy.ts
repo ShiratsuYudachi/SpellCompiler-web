@@ -11,7 +11,9 @@ export function createEnemy(
 	x = 740,
 	y = 270,
 ) {
-	const body = scene.physics.add.image(x, y, 'enemy')
+	const textureKeys = ['enemy1', 'enemy2', 'enemy3']
+	const randomKey = textureKeys[Math.floor(Math.random() * textureKeys.length)]
+	const body = scene.physics.add.image(x, y, randomKey)
 	body.setDepth(4)
 	body.setDisplaySize(70, 70)
 	body.setCollideWorldBounds(true)
