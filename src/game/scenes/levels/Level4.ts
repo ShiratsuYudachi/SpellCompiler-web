@@ -389,22 +389,10 @@ export class Level4 extends BaseScene {
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Velocity)
 
-		// Create visual body (red square) - larger size
-		const bulletSize = 24 // Increased from 16 to 24
-		const body = this.physics.add.image(spawnX, spawnY, '')
+		// Create visual body
+		const bulletSize = 60
+		const body = this.physics.add.image(spawnX, spawnY, 'enemy')
 		body.setDisplaySize(bulletSize, bulletSize)
-		body.setTint(0xff0000)
-
-		// Create red square texture if not exists
-		if (!this.textures.exists('bullet-red')) {
-			const graphics = this.add.graphics()
-			graphics.fillStyle(0xff0000, 1)
-			graphics.fillRect(-bulletSize / 2, -bulletSize / 2, bulletSize, bulletSize)
-			graphics.generateTexture('bullet-red', bulletSize, bulletSize)
-			graphics.destroy()
-		}
-
-		body.setTexture('bullet-red')
 		body.setDepth(15)
 
 		this.world.resources.bodies.set(eid, body)

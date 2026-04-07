@@ -165,21 +165,10 @@ export class Level2 extends BaseScene {
 		Health.max[eid] = 30
 		Health.current[eid] = 30
 
-		// Create red square instead of image
-		const body = this.physics.add.image(nextEnemy.x, nextEnemy.y, '')
-		body.setDisplaySize(32, 32)
-		body.setTint(0xff0000)
-		
-		// Draw red square (only generate texture once)
-		if (!this.textures.exists('red-square-enemy')) {
-			const graphics = this.add.graphics()
-			graphics.fillStyle(0xff0000, 1)
-			graphics.fillRect(-16, -16, 32, 32)
-			graphics.generateTexture('red-square-enemy', 32, 32)
-			graphics.destroy()
-		}
-		
-		body.setTexture('red-square-enemy')
+		// Create enemy using the 'enemy' image
+		const body = this.physics.add.image(nextEnemy.x, nextEnemy.y, 'enemy')
+		body.setDisplaySize(70, 70)
+		body.setDepth(4)
 		
 		this.world.resources.bodies.set(eid, body)
 

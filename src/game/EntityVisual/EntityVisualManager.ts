@@ -24,8 +24,8 @@ interface EntityVisualState {
 	config: EntityVisualConfig
 	/** Large faint glow behind the body — animated by pulse tween. */
 	outerGlow:   Phaser.GameObjects.Arc
-	/** Main filled circle. */
-	innerCircle: Phaser.GameObjects.Arc
+	/** Main filled circle or image sprite. */
+	innerCircle: Phaser.GameObjects.Arc | Phaser.GameObjects.Image
 	/** Role badge drawn with Graphics (redrawn once on register). */
 	badge:       Phaser.GameObjects.Graphics
 	/** Radial HP arc — cleared and redrawn every update call. */
@@ -111,16 +111,24 @@ export class EntityVisualManager {
 			.circle(x, y, radius * 1.65, bodyColor, 0.13)
 			.setDepth(10)
 
-		// ── Layer 2: inner circle (full solid + rim) ─────────────────────────
-		const fillAlpha = role === 'civilian' ? 0.55 : 0.85
-		const strokeW   = role === 'target'   ? 4    : 2.5
-		const rimColor  = role === 'target'   ? 0xffdd44
-		                : role === 'civilian' ? 0xaaaaaa
-		                : 0xffffff
-		const innerCircle = this.scene.add
-			.circle(x, y, radius, bodyColor, fillAlpha)
-			.setStrokeStyle(strokeW, rimColor, 0.55)
-			.setDepth(11)
+		// ── Layer 2: inner circle (full solid + rim) or image ─────────────────────────
+		const isEnemyRole = role === 'enemy' || role === 'target' || role === 'weak' || role === 'guard'
+		
+		let innerCircle: Phaser.GameObjects.Arc | Phaser.GameObjects.Image
+		if (isEnemyRole) {
+			innerCircle = this.scene.add
+				.image(x, y, 'enemy')
+				.setDisplaySize(radius * 5, radius * 5)
+				.setDepth(11)
+		} else {
+			const fillAlpha = role === 'civilian' ? 0.55 : 0.85
+			const strokeW   = 2.5
+			const rimColor  = role === 'civilian' ? 0xaaaaaa : 0xffffff
+			innerCircle = this.scene.add
+				.circle(x, y, radius, bodyColor, fillAlpha)
+				.setStrokeStyle(strokeW, rimColor, 0.55)
+				.setDepth(11)
+		}
 
 		// ── Layer 2b: inner highlight arc (top-left sheen) ───────────────────
 		const sheen = this.scene.add.graphics().setDepth(12)

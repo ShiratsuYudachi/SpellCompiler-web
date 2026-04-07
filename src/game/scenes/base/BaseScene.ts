@@ -41,6 +41,10 @@ export abstract class BaseScene extends Phaser.Scene {
 		this.data.set('playerSpawnY', data?.playerY)
 	}
 
+	preload() {
+		this.load.image('enemy', (import.meta.env.BASE_URL || '/') + 'assets/enemy.png')
+	}
+
 	create() {
 		const config = levelRegistry.get(this.scene.key)
 

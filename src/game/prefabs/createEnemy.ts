@@ -3,8 +3,6 @@ import type Phaser from 'phaser'
 import { Enemy, EnemyAI, Health, Sprite, Velocity } from '../components'
 import type { GameWorld } from '../gameWorld'
 import { spawnEntity } from '../gameWorld'
-import { createRectBody } from './createRectBody'
-
 export function createEnemy(
 	world: GameWorld,
 	scene: Phaser.Scene & { physics: Phaser.Physics.Arcade.ArcadePhysics },
@@ -13,7 +11,9 @@ export function createEnemy(
 	x = 740,
 	y = 270,
 ) {
-	const body = createRectBody(scene, 'enemy-rect', 0xff4444, 28, 28, x, y, 4)
+	const body = scene.physics.add.image(x, y, 'enemy')
+	body.setDepth(4)
+	body.setDisplaySize(70, 70)
 	body.setCollideWorldBounds(true)
 
 	const eid = spawnEntity(world)

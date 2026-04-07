@@ -85,7 +85,8 @@ export class Level5 extends BaseScene {
 	}
 
 	preload() {
-		this.load.spritesheet('chest', '/assets/level6/chest.png', {
+		super.preload()
+		this.load.spritesheet('chest', (import.meta.env.BASE_URL || '/') + 'assets/level6/chest.png', {
 			frameWidth: 32,
 			frameHeight: 32,
 			startFrame: 0,

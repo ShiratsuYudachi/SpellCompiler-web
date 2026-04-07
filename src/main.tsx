@@ -6,6 +6,7 @@ import './index.css'
 import Game from './game/Game'
 import Editor from './editor/Editor'
 import { EditorShell } from './editor/EditorShell'
+import DebugPage from './debug/Debug'
 
 function getRoutePath() {
 	const base = import.meta.env.BASE_URL || '/'
@@ -33,6 +34,10 @@ function Root() {
 				</EditorShell>
 			</div>
 		)
+	}
+
+	if (path === '/debug') {
+		return <DebugPage />
 	}
 
 	return <Game />
