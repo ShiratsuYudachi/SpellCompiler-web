@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { replacePhaserScene } from '../gameInstance'
-import { CATEGORY_COLORS, LEVEL_GRID } from '../ui/levelSelectData'
-import { crispDomTextRootStyle, CSS_FONT_STACK } from '../ui/inGameTextStyle'
+import { LEVEL_GRID } from '../ui/levelSelectData'
+import { crispDomTextRootStyle } from '../ui/inGameTextStyle'
 import { LevelProgress } from '../scenes/base/LevelProgress'
+import { PixelTitle } from '../ui/PixelTitle'
+
+const PIXEL_FONT = "'Press Start 2P', monospace"
 
 export function LevelSelectOverlay() {
 	const [, setTick] = useState(0)
@@ -28,6 +31,13 @@ export function LevelSelectOverlay() {
 		return () => window.removeEventListener('keydown', onKey)
 	}, [])
 
+	const getRowTheme = (num: number) => {
+		if (num <= 5) return { border: '#4a90e2', bg: '#1c2841', id: 'blue' }
+		if (num <= 10) return { border: '#48cc48', bg: '#1a331a', id: 'green' }
+		if (num <= 15) return { border: '#fee140', bg: '#3a3311', id: 'yellow' }
+		return { border: '#ff5c5c', bg: '#3f1a1a', id: 'red' }
+	}
+
 	return (
 		<div
 			style={{
@@ -37,153 +47,247 @@ export function LevelSelectOverlay() {
 				display: 'flex',
 				flexDirection: 'column',
 				alignItems: 'center',
-				paddingTop: 24,
+				paddingTop: 40,
 				paddingBottom: 16,
 				boxSizing: 'border-box',
 				...crispDomTextRootStyle,
-				pointerEvents: 'auto',
+				pointerEvents: 'none',
+				background: 'transparent',
+				overflow: 'hidden'
 			}}
 		>
-			<h1
+			{/* Binary/Code Decorations */}
+			<div style={{ position: 'absolute', top: 10, left: 10, fontSize: 10, color: 'rgba(255,255,255,0.05)', fontFamily: 'monospace', textAlign: 'left', lineHeight: 1.2 }}>
+				011010 01101 0110011<br/>111100 01000 1010011<br/>111000 01101 1000110<br/>001010 01010 01000
+			</div>
+			<div style={{ position: 'absolute', top: 10, right: 10, fontSize: 10, color: 'rgba(255,255,255,0.05)', fontFamily: 'monospace', textAlign: 'right', lineHeight: 1.2 }}>
+				010000 01101 100101<br/>111100 11001 100010<br/>000001 01110 010101<br/>101001 01101 101101
+			</div>
+
+			<PixelTitle scale={0.7} />
+			
+			<h2
 				style={{
-					fontSize: 32,
-					fontWeight: 800,
-					color: '#fff',
-					margin: '0 0 12px 0',
-					textShadow: '0 1px 2px rgba(0,0,0,0.55)',
-					fontFamily: CSS_FONT_STACK,
+					fontSize: 16,
+					color: '#ffffff',
+					marginTop: 20,
+					marginBottom: 40,
+					fontFamily: PIXEL_FONT,
+					textShadow: '2px 2px 0 #1b1f2a',
+					letterSpacing: '1px'
 				}}
 			>
-				SELECT LEVEL
-			</h1>
+				SELECT YOUR CHALLENGE
+			</h2>
 
 			<div
 				style={{
 					flex: 1,
 					overflowY: 'auto',
 					overflowX: 'hidden',
-					width: 'min(920px, 96vw)',
-					padding: '8px 12px 100px',
+					width: 'min(1100px, 96vw)',
+					padding: '24px 20px 100px',
+					pointerEvents: 'auto',
 				}}
 			>
 				<div
 					style={{
 						display: 'grid',
-						gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-						gap: '16px 12px',
-						maxWidth: 880,
+						gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+						gap: '24px 16px',
 						margin: '0 auto',
 					}}
 				>
-					{LEVEL_GRID.map((entry) => {
+					{LEVEL_GRID.map((entry, index) => {
 						const unlocked = LevelProgress.isLevelUnlocked(entry.num)
-						const completed = LevelProgress.isLevelCompleted(entry.num)
-						const accent = CATEGORY_COLORS[entry.category] ?? '#4a90e2'
+						const theme = getRowTheme(entry.num)
+						
+						// Determine if we should show a connecting line to the next level
+						const showLine = index < LEVEL_GRID.length - 1 && (index + 1) % 5 !== 0;
+
 						return (
-							<button
-								key={entry.key}
-								type="button"
-								disabled={!unlocked}
-								onClick={() => unlocked && replacePhaserScene('LevelSelectInterface', entry.key)}
-								style={{
-									position: 'relative',
-									minHeight: 100,
-									borderRadius: 8,
-									border: `2px solid ${unlocked ? accent : '#3a3f4e'}`,
-									background: unlocked ? '#2d3748' : '#1a1f2e',
-									color: '#fff',
-									cursor: unlocked ? 'pointer' : 'default',
-									padding: '10px 8px',
-									fontFamily: CSS_FONT_STACK,
-									opacity: unlocked ? 1 : 0.75,
-								}}
-							>
-								{unlocked ? (
-									<div
-										style={{
-											position: 'absolute',
-											top: 4,
-											left: '50%',
-											transform: 'translateX(-50%)',
-											width: '90%',
-											height: 4,
-											background: accent,
-											opacity: 0.85,
-											borderRadius: 2,
-										}}
-									/>
-								) : null}
-								<div
+							<div key={entry.key} style={{ position: 'relative' }}>
+								{/* Connecting Line (Pipe) */}
+								{showLine && (
+									<div style={{
+										position: 'absolute',
+										top: '50%',
+										left: '100%',
+										width: '16px',
+										height: '8px',
+										background: unlocked ? theme.border : '#3a3f4e',
+										transform: 'translateY(-50%)',
+										zIndex: 0,
+										opacity: 0.6
+									}} />
+								)}
+
+								<button
+									type="button"
+									disabled={!unlocked}
+									onClick={() => unlocked && replacePhaserScene('LevelSelectInterface', entry.key)}
 									style={{
+										position: 'relative',
+										width: '100%',
+										minHeight: 120,
+										border: `3px solid ${unlocked ? theme.border : '#3a3f4e'}`,
+										borderRadius: '8px',
+										background: unlocked ? '#1a1f2e' : '#0d1117',
+										color: '#fff',
+										cursor: unlocked ? 'pointer' : 'default',
+										padding: 0,
+										fontFamily: PIXEL_FONT,
+										opacity: unlocked ? 1 : 0.65,
+										boxShadow: unlocked ? `0 4px 0 0 ${theme.border}` : '0 4px 0 0 #3a3f4e',
+										transition: 'transform 0.1s, box-shadow 0.1s',
+										overflow: 'hidden',
 										display: 'flex',
-										justifyContent: 'space-between',
-										alignItems: 'flex-start',
-										marginBottom: 6,
+										flexDirection: 'column',
+										zIndex: 1
+									}}
+									onMouseEnter={(e) => {
+										if (!unlocked) return
+										e.currentTarget.style.transform = 'translateY(-2px)'
+										e.currentTarget.style.boxShadow = `0 6px 0 0 ${theme.border}`
+									}}
+									onMouseLeave={(e) => {
+										if (!unlocked) return
+										e.currentTarget.style.transform = 'translateY(0)'
+										e.currentTarget.style.boxShadow = `0 4px 0 0 ${theme.border}`
 									}}
 								>
-									<span
-										style={{
-											fontSize: 28,
-											fontWeight: 800,
-											color: unlocked ? '#fff' : '#555',
-										}}
-									>
-										{entry.num}
-									</span>
-									<span
-										style={{
-											fontSize: 9,
-											fontWeight: 700,
-											color: unlocked ? accent : '#444',
-											textTransform: 'none',
-										}}
-									>
-										{entry.category}
-									</span>
-								</div>
-								<div
-									style={{
-										fontSize: 12,
-										color: unlocked ? '#c8c8c8' : '#444',
-										textAlign: 'center',
-										lineHeight: 1.25,
-									}}
-								>
-									{entry.name}
-								</div>
-								{completed ? (
+									{/* Lvl Header */}
 									<div
 										style={{
-											position: 'absolute',
-											top: 6,
-											right: 8,
-											fontSize: 20,
-											color: '#00ff88',
-											fontWeight: 800,
+											fontSize: '10px',
+											background: unlocked ? 'rgba(255,255,255,0.05)' : 'transparent',
+											color: unlocked ? '#ffffff' : '#666',
+											textAlign: 'left',
+											padding: '6px 8px',
+											borderBottom: `1px solid ${unlocked ? 'rgba(255,255,255,0.1)' : '#333'}`,
 										}}
 									>
-										✓
+										Lvl {entry.num}
 									</div>
-								) : null}
-								{!unlocked ? (
+									
+									{/* Icon Placeholder (Isometric-ish) */}
+									<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', padding: '10px 0' }}>
+										{unlocked ? (['📦', '💻', '🔮', '⚙️', '💎'][entry.num % 5]) : '🔒'}
+									</div>
+
+									{/* Name Footer */}
 									<div
 										style={{
-											position: 'absolute',
-											inset: 0,
-											display: 'flex',
-											alignItems: 'center',
-											justifyContent: 'center',
-											fontSize: 28,
-											opacity: 0.35,
+											fontSize: '8px',
+											lineHeight: 1.4,
+											color: unlocked ? '#c4c8d0' : '#555',
+											textAlign: 'center',
+											padding: '8px 4px',
+											fontWeight: 'normal'
 										}}
 									>
-										🔒
+										{entry.name}
 									</div>
-								) : null}
-							</button>
+								</button>
+							</div>
 						)
 					})}
 				</div>
+			</div>
+
+			{/* Bottom buttons */}
+			<div style={{
+				position: 'fixed',
+				bottom: 20,
+				left: 24,
+				pointerEvents: 'auto'
+			}}>
+				<button
+					type="button"
+					onClick={back}
+					style={{
+						minWidth: 160,
+						padding: '10px 16px',
+						fontSize: '10px',
+						color: '#c4c8d0',
+						background: '#2d3748',
+						border: '1px solid rgba(255,255,255,0.1)',
+						borderRadius: '4px',
+						boxShadow: '0 4px 0 0 #1a202c',
+						cursor: 'pointer',
+						fontFamily: PIXEL_FONT,
+						transition: 'transform 0.1s, box-shadow 0.1s',
+					}}
+					onMouseEnter={(e) => {
+						e.currentTarget.style.background = '#3a445d'
+						e.currentTarget.style.color = '#ffffff'
+						e.currentTarget.style.transform = 'translateY(1px)'
+						e.currentTarget.style.boxShadow = '0 3px 0 0 #1a202c'
+					}}
+					onMouseLeave={(e) => {
+						e.currentTarget.style.background = '#2d3748'
+						e.currentTarget.style.color = '#c4c8d0'
+						e.currentTarget.style.transform = 'translateY(0)'
+						e.currentTarget.style.boxShadow = '0 4px 0 0 #1a202c'
+					}}
+					onMouseDown={(e) => {
+						e.currentTarget.style.transform = 'translateY(4px)'
+						e.currentTarget.style.boxShadow = '0 0px 0 0 #1a202c'
+					}}
+					onMouseUp={(e) => {
+						e.currentTarget.style.transform = 'translateY(1px)'
+						e.currentTarget.style.boxShadow = '0 3px 0 0 #1a202c'
+					}}
+				>
+					back to main menu
+				</button>
+			</div>
+			
+			<div style={{
+				position: 'fixed',
+				bottom: 20,
+				right: 24,
+				pointerEvents: 'auto'
+			}}>
+				<button
+					type="button"
+					onClick={() => alert('Options menu coming soon!')}
+					style={{
+						minWidth: 120,
+						padding: '10px 16px',
+						fontSize: '10px',
+						color: '#c4c8d0',
+						background: '#2d3748',
+						border: '1px solid rgba(255,255,255,0.1)',
+						borderRadius: '4px',
+						boxShadow: '0 4px 0 0 #1a202c',
+						cursor: 'pointer',
+						fontFamily: PIXEL_FONT,
+						transition: 'transform 0.1s, box-shadow 0.1s',
+					}}
+					onMouseEnter={(e) => {
+						e.currentTarget.style.background = '#3a445d'
+						e.currentTarget.style.color = '#ffffff'
+						e.currentTarget.style.transform = 'translateY(1px)'
+						e.currentTarget.style.boxShadow = '0 3px 0 0 #1a202c'
+					}}
+					onMouseLeave={(e) => {
+						e.currentTarget.style.background = '#2d3748'
+						e.currentTarget.style.color = '#c4c8d0'
+						e.currentTarget.style.transform = 'translateY(0)'
+						e.currentTarget.style.boxShadow = '0 4px 0 0 #1a202c'
+					}}
+					onMouseDown={(e) => {
+						e.currentTarget.style.transform = 'translateY(4px)'
+						e.currentTarget.style.boxShadow = '0 0px 0 0 #1a202c'
+					}}
+					onMouseUp={(e) => {
+						e.currentTarget.style.transform = 'translateY(1px)'
+						e.currentTarget.style.boxShadow = '0 3px 0 0 #1a202c'
+					}}
+				>
+					options
+				</button>
 			</div>
 
 			<div
@@ -192,36 +296,13 @@ export function LevelSelectOverlay() {
 					bottom: 72,
 					left: '50%',
 					transform: 'translateX(-50%)',
-					fontSize: 11,
+					fontSize: 8,
 					color: '#6a7078',
-					fontFamily: CSS_FONT_STACK,
+					fontFamily: PIXEL_FONT,
 				}}
 			>
 				U = unlock all &nbsp;|&nbsp; R = reset progress
 			</div>
-
-			<button
-				type="button"
-				onClick={back}
-				style={{
-					position: 'fixed',
-					bottom: 20,
-					left: '50%',
-					transform: 'translateX(-50%)',
-					minWidth: 200,
-					padding: '12px 24px',
-					fontSize: 18,
-					fontWeight: 700,
-					color: '#fff',
-					background: '#8b4513',
-					border: '2px solid #cd853f',
-					borderRadius: 8,
-					cursor: 'pointer',
-					fontFamily: CSS_FONT_STACK,
-				}}
-			>
-				BACK TO MENU
-			</button>
 		</div>
 	)
 }
