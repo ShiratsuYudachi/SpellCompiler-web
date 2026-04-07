@@ -8,7 +8,7 @@ import { Health, Enemy } from '../../components'
 import { LevelProgress } from './LevelProgress'
 import { setupInputEventListeners, cleanupInputEventListeners, emitTickEvent } from '../../systems/inputEventSystem'
 import { eventProcessSystem, processHoldEvents } from '../../systems/eventProcessSystem'
-import { PlayerVisual } from '../../EntityVisual'
+// Removed PlayerVisual import
 import { panelBg, panelBorder } from '../../ui/inGameTextStyle'
 import { patchLevelHud, resetLevelHud, setLevelHudVisible } from '../../ui/gameDomUiStore'
 
@@ -24,7 +24,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	private hpBar!: Phaser.GameObjects.Graphics
 
 	// Player visual (knight helmet)
-	private playerVisual?: PlayerVisual
+	// Removed playerVisual property
 
 	// Minimap
 	private minimapContainer!: Phaser.GameObjects.Container
@@ -43,6 +43,7 @@ export abstract class BaseScene extends Phaser.Scene {
 
 	preload() {
 		this.load.image('enemy', (import.meta.env.BASE_URL || '/') + 'assets/enemy.png')
+		this.load.image('player', (import.meta.env.BASE_URL || '/') + 'assets/player.png')
 	}
 
 	create() {
@@ -87,10 +88,7 @@ export abstract class BaseScene extends Phaser.Scene {
 			playerBody.setCollideWorldBounds(true)
 			this.cameras.main.startFollow(playerBody, true, 0.1, 0.1)
 
-			// Hide the plain blue square; replace with knight helmet visual
-			playerBody.setAlpha(0)
-			this.playerVisual?.destroy()
-			this.playerVisual = new PlayerVisual(this, playerBody.x, playerBody.y)
+			// Player body is now rendered directly using the 'player' texture
 		}
 
 		const dismissTut = () => patchLevelHud({ tutorialVisible: false })
@@ -98,8 +96,6 @@ export abstract class BaseScene extends Phaser.Scene {
 
 		// Clean up playerVisual + DOM HUD on scene shutdown / restart
 		this.events.once('shutdown', () => {
-			this.playerVisual?.destroy()
-			this.playerVisual = undefined
 			this.game.events.off(GameEvents.dismissTutorial, dismissTut)
 			cleanupInputEventListeners(this)
 			resetLevelHud()
@@ -142,11 +138,7 @@ export abstract class BaseScene extends Phaser.Scene {
 		eventProcessSystem(this.world)
 		processHoldEvents(this.world)
 
-		// Sync player helmet to physics body position
-		const playerBody = this.world.resources.bodies.get(this.world.resources.playerEid)
-		if (playerBody && this.playerVisual) {
-			this.playerVisual.syncTo(playerBody.x, playerBody.y)
-		}
+		// No manual sync needed for player view, body texture updates automatically
 
 		this.updatePlayerHUD()
 		this.updateCastCountHUD()

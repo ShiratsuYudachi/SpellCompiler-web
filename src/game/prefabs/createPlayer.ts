@@ -12,7 +12,9 @@ export function createPlayer(
 	x = 200,
 	y = 270,
 ) {
-	const body = createRectBody(scene, 'player-rect', 0x4a90e2, 32, 32, x, y, 5)
+	const body = scene.physics.add.image(x, y, 'player')
+	body.setDisplaySize(70, 70)
+	body.setDepth(5)
 	body.setCollideWorldBounds(true)
 
 	const eid = spawnEntity(world)
