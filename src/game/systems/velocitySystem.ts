@@ -8,7 +8,14 @@ export function velocitySystem(world: GameWorld) {
 		if (!body) {
 			continue
 		}
-		body.setVelocity(Velocity.x[eid], Velocity.y[eid])
+		
+		// Handle both PhysicsSprites (have setVelocity) and raw GameObjects with Body
+		const anyBody = body as any
+		if (typeof anyBody.setVelocity === 'function') {
+			anyBody.setVelocity(Velocity.x[eid], Velocity.y[eid])
+		} else if (anyBody.body && typeof anyBody.body.setVelocity === 'function') {
+			anyBody.body.setVelocity(Velocity.x[eid], Velocity.y[eid])
+		}
 	}
 }
 
