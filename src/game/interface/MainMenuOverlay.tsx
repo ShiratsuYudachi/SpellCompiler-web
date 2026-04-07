@@ -2,7 +2,9 @@ import { eventQueue } from '../events/EventQueue'
 import { replacePhaserScene } from '../gameInstance'
 import { LevelProgress } from '../scenes/base/LevelProgress'
 import { SaveManager } from '../../storage/SaveManager'
-import { crispDomTextRootStyle, CSS_FONT_STACK } from '../ui/inGameTextStyle'
+import { crispDomTextRootStyle } from '../ui/inGameTextStyle'
+
+const PIXEL_FONT = "'Press Start 2P', monospace"
 
 /**
  * Main menu copy rendered as DOM (same approach as PauseInterface) — sharp on HiDPI + FIT.
@@ -32,26 +34,57 @@ export function MainMenuOverlay() {
 				...crispDomTextRootStyle,
 			}}
 		>
-			<h1
+			<div
 				style={{
 					margin: 'clamp(72px, 14vh, 120px) 0 0 0',
-					fontSize: '64px',
-					fontWeight: 'bold',
-					color: '#ffffff',
-					textShadow: '0 1px 2px rgba(0, 0, 0, 0.65)',
-					fontFamily: CSS_FONT_STACK,
-					pointerEvents: 'none',
+					display: 'flex',
+					gap: '24px',
+					pointerEvents: 'none'
 				}}
 			>
-				SPELL COMPILER
-			</h1>
+				<div style={{ display: 'flex', gap: '0px' }}>
+					{[
+						{ char: 'S', color: '#ff6b9d' },
+						{ char: 'P', color: '#ff8fab' },
+						{ char: 'E', color: '#ff9a8b' },
+						{ char: 'L', color: '#ff7b7b' },
+						{ char: 'L', color: '#ff5c5c' },
+					].map((item, i) => (
+						<span key={i} style={{
+							fontSize: '48px',
+							color: item.color,
+							textShadow: '4px 4px 0 #1b1f2a, 0 0 10px rgba(0,0,0,0.4)',
+							fontFamily: PIXEL_FONT,
+						}}>{item.char}</span>
+					))}
+				</div>
+				<div style={{ display: 'flex', gap: '0px' }}>
+					{[
+						{ char: 'C', color: '#4facfe' },
+						{ char: 'O', color: '#00f2fe' },
+						{ char: 'M', color: '#43e97b' },
+						{ char: 'P', color: '#38f9d7' },
+						{ char: 'I', color: '#fa709a' },
+						{ char: 'L', color: '#fee140' },
+						{ char: 'E', color: '#f6d365' },
+						{ char: 'R', color: '#fda085' },
+					].map((item, i) => (
+						<span key={i} style={{
+							fontSize: '48px',
+							color: item.color,
+							textShadow: '4px 4px 0 #1b1f2a, 0 0 10px rgba(0,0,0,0.4)',
+							fontFamily: PIXEL_FONT,
+						}}>{item.char}</span>
+					))}
+				</div>
+			</div>
 			<p
 				style={{
-					margin: '12px 0 0 0',
-					fontSize: '24px',
+					margin: '24px 0 0 0',
+					fontSize: '16px',
 					color: '#c4c8d0',
-					textShadow: '0 1px 2px rgba(0, 0, 0, 0.55)',
-					fontFamily: CSS_FONT_STACK,
+					textShadow: '2px 2px 0 #1b1f2a',
+					fontFamily: PIXEL_FONT,
 					pointerEvents: 'none',
 				}}
 			>
@@ -72,25 +105,36 @@ export function MainMenuOverlay() {
 					type="button"
 					onClick={goLevelSelect}
 					style={{
-						minWidth: '300px',
-						padding: '15px 30px',
-						fontSize: '28px',
-						fontWeight: 'bold',
+						minWidth: '340px',
+						padding: '24px 30px',
+						fontSize: '24px',
 						color: '#ffffff',
-						background: '#4a90e2',
-						border: '3px solid #5aa0f2',
-						borderRadius: '8px',
+						background: '#5c94fc', 
+						border: 'none',
+						borderRadius: '6px',
+						boxShadow: '0 8px 0 0 #0058f8, inset 0 4px 0 0 rgba(255,255,255,0.4)',
 						cursor: 'pointer',
-						fontFamily: CSS_FONT_STACK,
-						transition: 'all 0.2s',
+						fontFamily: PIXEL_FONT,
+						transition: 'transform 0.1s, box-shadow 0.1s',
+						textShadow: '3px 3px 0 #0058f8'
 					}}
 					onMouseEnter={(e) => {
-						e.currentTarget.style.background = '#5aa0f2'
-						e.currentTarget.style.transform = 'scale(1.05)'
+						e.currentTarget.style.background = '#7baafd'
+						e.currentTarget.style.transform = 'translateY(2px)'
+						e.currentTarget.style.boxShadow = '0 6px 0 0 #0058f8, inset 0 4px 0 0 rgba(255,255,255,0.4)'
 					}}
 					onMouseLeave={(e) => {
-						e.currentTarget.style.background = '#4a90e2'
-						e.currentTarget.style.transform = 'scale(1)'
+						e.currentTarget.style.background = '#5c94fc'
+						e.currentTarget.style.transform = 'translateY(0)'
+						e.currentTarget.style.boxShadow = '0 8px 0 0 #0058f8, inset 0 4px 0 0 rgba(255,255,255,0.4)'
+					}}
+					onMouseDown={(e) => {
+						e.currentTarget.style.transform = 'translateY(8px)'
+						e.currentTarget.style.boxShadow = '0 0px 0 0 #0058f8, inset 0 2px 0 0 rgba(255,255,255,0.4)'
+					}}
+					onMouseUp={(e) => {
+						e.currentTarget.style.transform = 'translateY(2px)'
+						e.currentTarget.style.boxShadow = '0 6px 0 0 #0058f8, inset 0 4px 0 0 rgba(255,255,255,0.4)'
 					}}
 				>
 					START GAME
@@ -100,23 +144,36 @@ export function MainMenuOverlay() {
 					type="button"
 					onClick={goSaveSelect}
 					style={{
-						minWidth: '300px',
-						padding: '12px 30px',
-						fontSize: '22px',
-						fontWeight: 'bold',
+						minWidth: '260px',
+						padding: '16px 20px',
+						fontSize: '18px',
 						color: '#ffffff',
-						background: '#48bb78',
-						border: '2px solid #68d391',
-						borderRadius: '8px',
+						background: '#48cc48',
+						border: 'none',
+						borderRadius: '6px',
+						boxShadow: '0 6px 0 0 #008800, inset 0 4px 0 0 rgba(255,255,255,0.4)',
 						cursor: 'pointer',
-						fontFamily: CSS_FONT_STACK,
-						transition: 'background 0.2s',
+						fontFamily: PIXEL_FONT,
+						transition: 'transform 0.1s, box-shadow 0.1s',
+						textShadow: '2px 2px 0 #008800'
 					}}
 					onMouseEnter={(e) => {
-						e.currentTarget.style.background = '#68d391'
+						e.currentTarget.style.background = '#64db64'
+						e.currentTarget.style.transform = 'translateY(2px)'
+						e.currentTarget.style.boxShadow = '0 4px 0 0 #008800, inset 0 4px 0 0 rgba(255,255,255,0.4)'
 					}}
 					onMouseLeave={(e) => {
-						e.currentTarget.style.background = '#48bb78'
+						e.currentTarget.style.background = '#48cc48'
+						e.currentTarget.style.transform = 'translateY(0)'
+						e.currentTarget.style.boxShadow = '0 6px 0 0 #008800, inset 0 4px 0 0 rgba(255,255,255,0.4)'
+					}}
+					onMouseDown={(e) => {
+						e.currentTarget.style.transform = 'translateY(6px)'
+						e.currentTarget.style.boxShadow = '0 0px 0 0 #008800, inset 0 2px 0 0 rgba(255,255,255,0.4)'
+					}}
+					onMouseUp={(e) => {
+						e.currentTarget.style.transform = 'translateY(2px)'
+						e.currentTarget.style.boxShadow = '0 4px 0 0 #008800, inset 0 4px 0 0 rgba(255,255,255,0.4)'
 					}}
 				>
 					SAVE FILES
@@ -127,11 +184,12 @@ export function MainMenuOverlay() {
 				style={{
 					marginTop: 'auto',
 					marginBottom: 'clamp(32px, 6vh, 56px)',
-					fontSize: '14px',
+					fontSize: '10px',
 					color: '#9098a8',
 					textAlign: 'center',
-					fontFamily: CSS_FONT_STACK,
+					fontFamily: PIXEL_FONT,
 					pointerEvents: 'none',
+					textShadow: '1px 1px 0 #1b1f2a'
 				}}
 			>
 				Press TAB to open spell editor in levels
@@ -142,9 +200,9 @@ export function MainMenuOverlay() {
 					position: 'absolute',
 					left: 20,
 					bottom: 20,
-					fontSize: '13px',
+					fontSize: '10px',
 					color: '#5a6270',
-					fontFamily: CSS_FONT_STACK,
+					fontFamily: PIXEL_FONT,
 					pointerEvents: 'none',
 				}}
 			>
