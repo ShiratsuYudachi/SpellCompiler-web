@@ -83,12 +83,14 @@ export const getPixelInputStyle = () => ({
 	backgroundColor: 'rgba(0, 0, 0, 0.4)',
 	border: '1px solid rgba(255, 255, 255, 0.08)',
 	borderRadius: '0px',
-	color: '#ffffff',
+	color: 'rgba(255, 255, 255, 0.95)',
+	caretColor: '#ffffff',
 	padding: '6px 10px',
 	outline: 'none',
 	width: '100%',
 	boxSizing: 'border-box' as const,
 	boxShadow: 'inset 0 4px 10px rgba(0, 0, 0, 0.4)',
+	WebkitTextFillColor: 'rgba(255, 255, 255, 0.95)',
 });
 
 /**
@@ -97,7 +99,6 @@ export const getPixelInputStyle = () => ({
 export const getMantineThemeOverrides = () => ({
 	fontFamily: PIXEL_FONT,
 	primaryColor: 'blue',
-	colorScheme: 'dark' as const,
 	components: {
 		Modal: {
 			defaultProps: {
@@ -134,24 +135,30 @@ export const getMantineThemeOverrides = () => ({
 		},
 		Select: {
 			styles: {
-				input: getPixelInputStyle(),
+				input: {
+					...getPixelInputStyle(),
+					// Mantine maps --input-color from theme; keep readable on dark panels
+					color: 'rgba(255, 255, 255, 0.95)',
+				},
 				label: {
 					fontFamily: PIXEL_FONT,
 					fontSize: '7px',
 					marginBottom: '6px',
-					color: 'rgba(255,255,255,0.4)',
+					color: 'rgba(255,255,255,0.55)',
 				},
 				dropdown: {
 					backgroundColor: '#0d1117',
 					border: '1px solid rgba(255,255,255,0.1)',
 					borderRadius: 0,
+					color: 'rgba(255, 255, 255, 0.92)',
 				},
-				item: {
+				options: {
+					padding: '4px 0',
+				},
+				option: {
 					fontSize: '9px',
 					fontFamily: PIXEL_FONT,
-					'&[data-selected]': {
-						backgroundColor: 'rgba(0, 210, 255, 0.2)',
-					},
+					color: 'rgba(255, 255, 255, 0.92)',
 				},
 			},
 		},

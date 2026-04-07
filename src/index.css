@@ -69,3 +69,12 @@ input[type="number"] {
 	background-color: rgba(255, 255, 255, 0.1) !important;
 	color: #fff !important;
 }
+
+/*
+ * Mantine Combobox option selected state: nested selectors like &[data-combobox-selected]
+ * cannot be used in React `styles` (they become invalid DOM style keys). Use attribute CSS here.
+ */
+[data-mantine-color-scheme='dark'] [data-combobox-selected][role='option'] {
+	background-color: rgba(0, 210, 255, 0.28) !important;
+	color: #ffffff !important;
+}

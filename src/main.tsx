@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { MantineProvider } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './index.css'
+import { getMantineThemeOverrides } from './editor/utils/EditorTheme'
 import Game from './game/Game'
 import Editor from './editor/Editor'
 import { EditorShell } from './editor/EditorShell'
@@ -45,7 +46,7 @@ function Root() {
 
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
-		<MantineProvider>
+		<MantineProvider theme={getMantineThemeOverrides() as any} defaultColorScheme="dark">
 			<Root />
 		</MantineProvider>
 	</StrictMode>,

@@ -48,7 +48,7 @@ export function EventListPanel({ onAdd, onEdit }: { onAdd?: () => void, onEdit?:
 				</Group>
 				{onAdd && (
 					<Button size="xs" variant="filled" color="blue" onClick={onAdd} style={{ fontSize: '7px' }}>
-						+ ADD_DESCRIPTOR
+						+ ADD_BINDING
 					</Button>
 				)}
 			</Group>
@@ -63,7 +63,7 @@ export function EventListPanel({ onAdd, onEdit }: { onAdd?: () => void, onEdit?:
                             color: 'rgba(255,255,255,0.2)',
                             fontSize: '9px'
                         }}>
-							-- NO_ACTIVE_LIST_FILTRATION --
+							-- NO_ACTIVE_BINDINGS --
 						</div>
 					) : (
 						bindings.map((binding) => (

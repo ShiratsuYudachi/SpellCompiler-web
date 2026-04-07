@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Paper, Textarea, Button, Text, Collapse, TextInput, Select, SegmentedControl, ScrollArea, Tooltip } from '@mantine/core';
 import { vibeBuild, vibeAsk, MOCK_MODEL_ID, OPENROUTER_MODELS, type LevelContext } from '../../lib/vibe/vibeApi';
-import { EditorColors, PIXEL_FONT } from '../utils/EditorTheme';
+import { EditorColors, PIXEL_FONT, getPixelInputStyle } from '../utils/EditorTheme';
 import { FULL_REGEN_INSTRUCTION } from '../../lib/vibe/vibePrompt';
 
 export type VibeMode = 'ask' | 'build';
@@ -245,8 +245,21 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 							onChange={saveModel}
 							disabled={disabled}
 							styles={{
-								input: { backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
-								label: { color: 'rgba(255,255,255,0.4)', fontSize: '7px', letterSpacing: '1px' }
+								input: {
+									backgroundColor: 'rgba(0,0,0,0.3)',
+									border: '1px solid rgba(255,255,255,0.05)',
+									color: 'rgba(255,255,255,0.95)',
+									caretColor: '#ffffff',
+									fontFamily: PIXEL_FONT,
+									fontSize: '8px',
+								},
+								label: { color: 'rgba(255,255,255,0.55)', fontSize: '7px', letterSpacing: '1px' },
+								dropdown: { color: 'rgba(255,255,255,0.92)' },
+								option: {
+									color: 'rgba(255,255,255,0.92)',
+									fontFamily: PIXEL_FONT,
+									fontSize: '8px',
+								},
 							}}
 						/>
 						<TextInput
@@ -258,8 +271,13 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 							disabled={disabled}
 							label="ACCESS_KEY"
 							styles={{
-								input: { backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
-								label: { color: 'rgba(255,255,255,0.4)', fontSize: '7px', letterSpacing: '1px' }
+								input: {
+									...getPixelInputStyle(),
+									backgroundColor: 'rgba(0,0,0,0.3)',
+									border: '1px solid rgba(255,255,255,0.05)',
+									fontSize: '8px',
+								},
+								label: { color: 'rgba(255,255,255,0.55)', fontSize: '7px', letterSpacing: '1px' },
 							}}
 						/>
 					</div>
@@ -269,8 +287,8 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 						value={mode}
 						onChange={(v) => saveMode(v as VibeMode)}
 						data={[
-							{ label: 'ANALYZE', value: 'ask' },
-							{ label: 'CONSTRUCT', value: 'build' },
+							{ label: 'ASK', value: 'ask' },
+							{ label: 'BUILD', value: 'build' },
 						]}
 						disabled={disabled}
 						styles={{
@@ -291,12 +309,14 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 								disabled={disabled}
 								size="xs"
 								styles={{
-									input: { 
-										backgroundColor: 'rgba(0,0,0,0.4)', 
+									input: {
+										...getPixelInputStyle(),
+										backgroundColor: 'rgba(0,0,0,0.4)',
 										border: '1px solid rgba(255,255,255,0.1)',
 										fontSize: '10px',
-										lineHeight: 1.5
-									}
+										lineHeight: 1.5,
+										fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+									},
 								}}
 							/>
 							<div className="flex flex-col gap-2">
@@ -315,7 +335,7 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 										fontSize: '8px'
 									}}
 								>
-									EXECUTE_CONSTRUCTION
+									EXECUTE_BUILD
 								</Button>
 								<Tooltip
 									label="FORCE_RESET_AND_REBUILD"
@@ -352,11 +372,14 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 								disabled={disabled}
 								size="xs"
 								styles={{
-									input: { 
-										backgroundColor: 'rgba(0,0,0,0.4)', 
+									input: {
+										...getPixelInputStyle(),
+										backgroundColor: 'rgba(0,0,0,0.4)',
 										border: '1px solid rgba(255,255,255,0.1)',
-										fontSize: '10px'
-									}
+										fontSize: '10px',
+										lineHeight: 1.5,
+										fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+									},
 								}}
 							/>
 							<Button
