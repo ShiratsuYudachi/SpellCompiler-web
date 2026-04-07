@@ -67,9 +67,9 @@ export function initPixelBackground(scene: Phaser.Scene) {
 				)
 				if (!shooterBase) return
 
-				const bulletKey = Phaser.Math.RND.pick(['enemy1', 'enemy2', 'enemy3'])
-				const bullet = scene.physics.add.image(shooterBase.x, shooterBase.y, bulletKey)
-				bullet.setDisplaySize(30, 30) // smaller bullets
+				// Decorative bullets: simple colored circles instead of NPC textures
+				const bullet = scene.add.circle(shooterBase.x, shooterBase.y, 6, 0xffffff) as any
+				scene.physics.add.existing(bullet)
 				
 				const target = Phaser.Math.RND.pick(bouncers.filter(b => b !== shooterBase))
 				if (target && Math.random() > 0.3) {

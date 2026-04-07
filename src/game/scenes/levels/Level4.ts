@@ -389,12 +389,10 @@ export class Level4 extends BaseScene {
 		addComponent(this.world, eid, Sprite)
 		addComponent(this.world, eid, Velocity)
 
-		// Create visual body
-		const bulletSize = 60
-		const textureKeys = ['enemy1', 'enemy2', 'enemy3']
-		const randomKey = textureKeys[Math.floor(Math.random() * textureKeys.length)]
-		const body = this.physics.add.image(spawnX, spawnY, randomKey)
-		body.setDisplaySize(bulletSize, bulletSize)
+		// Create visual body (Original style: a glowing red circle)
+		const bulletRadius = 12
+		const body = this.add.circle(spawnX, spawnY, bulletRadius, 0xff3333) as any
+		this.physics.add.existing(body)
 		body.setDepth(15)
 
 		this.world.resources.bodies.set(eid, body)
