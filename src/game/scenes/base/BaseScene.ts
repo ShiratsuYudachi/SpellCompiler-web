@@ -44,6 +44,7 @@ export abstract class BaseScene extends Phaser.Scene {
 	preload() {
 		this.load.image('enemy', (import.meta.env.BASE_URL || '/') + 'assets/enemy.png')
 		this.load.image('player', (import.meta.env.BASE_URL || '/') + 'assets/player.png')
+		this.load.image('bg', (import.meta.env.BASE_URL || '/') + 'assets/bg.png')
 	}
 
 	create() {
@@ -57,9 +58,13 @@ export abstract class BaseScene extends Phaser.Scene {
 		}
 
 		// Physics world setup
-		this.cameras.main.setBackgroundColor('#1b1f2a')
 		this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight)
 		this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight)
+
+		// Create background image tiled across the entire level
+		this.add.tileSprite(0, 0, this.worldWidth, this.worldHeight, 'bg')
+			.setOrigin(0, 0)
+			.setDepth(-100)
 
 		const spawnX = this.data.get('playerSpawnX') ?? config?.playerSpawnX ?? 200
 		const spawnY = this.data.get('playerSpawnY') ?? config?.playerSpawnY ?? 270
