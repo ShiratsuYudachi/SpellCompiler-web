@@ -1221,11 +1221,6 @@ function EditorContent(props: FunctionalEditorProps) {
 										<Button size="xs" variant="subtle" color="gray" onClick={props.onExit} style={{ fontSize: '7px', height: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
 											[{props.backButtonText ? props.backButtonText.toUpperCase() : 'BACK'}]
 										</Button>
-										{isLibraryMode && (
-											<Button size="xs" variant="subtle" color="blue" onClick={handleCompileAndSave} style={{ fontSize: '7px', height: '24px', border: '1px solid rgba(0, 210, 255, 0.2)' }}>
-												SYNC_DATA
-											</Button>
-										)}
 									</Group>
 								</Group>
 
@@ -1246,11 +1241,9 @@ function EditorContent(props: FunctionalEditorProps) {
                                     >
 										EVENTS
 									</Button>
-									{!isLibraryMode && (
-										<Button size="xs" variant="filled" color="blue" onClick={handleCompileAndSave} style={{ fontSize: '7px', height: '24px', boxShadow: `0 0 15px ${EditorColors.data.glow}`, border: 'none' }}>
-											COMPILE_SAVE
-										</Button>
-									)}
+									<Button size="xs" variant="filled" color="blue" onClick={handleCompileAndSave} style={{ fontSize: '7px', height: '24px', boxShadow: `0 0 15px ${EditorColors.data.glow}`, border: 'none' }}>
+										COMPILE_SAVE
+									</Button>
 								</Group>
 							</div>
 

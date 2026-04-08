@@ -70,7 +70,7 @@ export function SpellManager(props: {
                             color: EditorColors.data.border,
                             textShadow: `0 0 10px ${EditorColors.data.glow}`
                         }}>
-                            SPELL_REQUISITION
+                            SPELL_LIBRARY
                         </Text>
                         <Text size="xs" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '7px' }}>
                             ACTIVE_DATABASE_v2.0
