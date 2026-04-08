@@ -61,6 +61,7 @@ export function Game() {
 			parent: containerRef.current,
 			width: 960,
 			height: 540,
+			backgroundColor: '#0a0e14',
 			// Higher backing store = sharper text/UI when the canvas is scaled up (FIT)
 			resolution: getPhaserCanvasResolution(),
 			render: {
@@ -117,21 +118,67 @@ export function Game() {
 		gameRef.current = game
 		setGameInstance(game)
 
-		const onWindowResize = () => {
+		// FIT mode reads parentSize at the start of refresh/updateScale. Calling refresh() alone right after
+		// window resize (or DevTools dock) can use stale parent bounds — getParentBounds() must run first.
+		const syncScaleToParent = () => {
+			game.scale.getParentBounds()
 			game.scale.refresh()
 		}
-		window.addEventListener('resize', onWindowResize)
+
+		let resizeRafId: number | null = null
+		const scheduleResizeSync = () => {
+			if (resizeRafId !== null) {
+				cancelAnimationFrame(resizeRafId)
+			}
+			// Double rAF: Chrome often fires resize before layout after DevTools open/close.
+			resizeRafId = requestAnimationFrame(() => {
+				resizeRafId = requestAnimationFrame(() => {
+					resizeRafId = null
+					syncScaleToParent()
+				})
+			})
+		}
+
+		window.addEventListener('resize', scheduleResizeSync)
+
+		const parentEl = containerRef.current
+		const resizeObserver =
+			parentEl && typeof ResizeObserver !== 'undefined'
+				? new ResizeObserver(() => scheduleResizeSync())
+				: null
+		if (resizeObserver && parentEl) {
+			resizeObserver.observe(parentEl)
+		}
+
+		const visualViewport = window.visualViewport
+		const onVisualViewportResize = () => scheduleResizeSync()
+		if (visualViewport) {
+			visualViewport.addEventListener('resize', onVisualViewportResize)
+		}
+
+		// After a hidden tab or WebGL context restore, some browsers leave a blank/white frame until the scale/renderer refreshes.
+		const refreshGameView = () => {
+			scheduleResizeSync()
+		}
+		game.events.on(Phaser.Core.Events.VISIBLE, refreshGameView)
+		if (game.renderer.type === Phaser.WEBGL) {
+			game.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, refreshGameView)
+		}
 
 		const onToggleEditor = (payload?: { sceneKey?: string }) => {
 			setShowEditor((v) => {
 				const newValue = !v
-				// Set context synchronously so Editor mounts with sceneKey (rAF caused first paint on SpellManager).
-				if (newValue) {
-					const key = payload?.sceneKey ?? getForegroundSceneKey(game)
-					if (key) setEditorContext({ sceneKey: key })
-				} else {
-					setEditorContext({ sceneKey: undefined })
-				}
+				// Never call setEditorContext synchronously here: it notifies Editor (useSyncExternalStore) and
+				// triggers setState on EditorContent while React is still applying Game's update (React 19 warning).
+				// Microtask runs after this updater returns, still before paint.
+				queueMicrotask(() => {
+					if (newValue) {
+						const key = payload?.sceneKey ?? getForegroundSceneKey(game)
+						if (key) setEditorContext({ sceneKey: key })
+					} else {
+						setEditorContext({ sceneKey: undefined })
+					}
+				})
 				return newValue
 			})
 		}
@@ -188,7 +235,20 @@ export function Game() {
 		game.events.on(GameEvents.uiSaveSelect, onSaveSelectUi)
 
 		return () => {
-			window.removeEventListener('resize', onWindowResize)
+			window.removeEventListener('resize', scheduleResizeSync)
+			if (resizeObserver) {
+				resizeObserver.disconnect()
+			}
+			if (visualViewport) {
+				visualViewport.removeEventListener('resize', onVisualViewportResize)
+			}
+			if (resizeRafId !== null) {
+				cancelAnimationFrame(resizeRafId)
+			}
+			game.events.off(Phaser.Core.Events.VISIBLE, refreshGameView)
+			if (game.renderer.type === Phaser.WEBGL) {
+				game.renderer.off(Phaser.Renderer.Events.RESTORE_WEBGL, refreshGameView)
+			}
 			game.events.off(GameEvents.toggleEditor, onToggleEditor)
 			game.events.off(GameEvents.togglePause, onTogglePause)
 			game.events.off(GameEvents.showVictory, onShowVictory)

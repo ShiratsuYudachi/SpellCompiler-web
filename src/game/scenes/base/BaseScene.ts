@@ -66,6 +66,8 @@ export abstract class BaseScene extends Phaser.Scene {
 		// Physics world setup
 		this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight)
 		this.cameras.main.setBounds(0, 0, this.worldWidth, this.worldHeight)
+		// Opaque clear (default camera is transparent); avoids white bleed-through after tab switch / compositing glitches
+		this.cameras.main.setBackgroundColor('#0a0e14')
 
 		// Create background image tiled across the entire level
 		this.add.tileSprite(0, 0, this.worldWidth, this.worldHeight, 'bg')

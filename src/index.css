@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Match game/menus so letterboxing (FIT) and any transparent camera clears never show default white */
+html,
+body,
+#root {
+	background-color: #0a0e14;
+}
+
 /* Phaser host: game uses resolution + FIT; avoid extra canvas sizing rules (Scale Manager sets inline size) */
 .phaser-game-host canvas {
 	display: block;

@@ -243,53 +243,6 @@ export function LevelSelectOverlay() {
 				</button>
 			</div>
 			
-			<div style={{
-				position: 'fixed',
-				bottom: 20,
-				right: 24,
-				pointerEvents: 'auto'
-			}}>
-				<button
-					type="button"
-					onClick={() => alert('Options menu coming soon!')}
-					style={{
-						minWidth: 120,
-						padding: '10px 16px',
-						fontSize: '10px',
-						color: '#c4c8d0',
-						background: '#2d3748',
-						border: '1px solid rgba(255,255,255,0.1)',
-						borderRadius: '4px',
-						boxShadow: '0 4px 0 0 #1a202c',
-						cursor: 'pointer',
-						fontFamily: PIXEL_FONT,
-						transition: 'transform 0.1s, box-shadow 0.1s',
-					}}
-					onMouseEnter={(e) => {
-						e.currentTarget.style.background = '#3a445d'
-						e.currentTarget.style.color = '#ffffff'
-						e.currentTarget.style.transform = 'translateY(1px)'
-						e.currentTarget.style.boxShadow = '0 3px 0 0 #1a202c'
-					}}
-					onMouseLeave={(e) => {
-						e.currentTarget.style.background = '#2d3748'
-						e.currentTarget.style.color = '#c4c8d0'
-						e.currentTarget.style.transform = 'translateY(0)'
-						e.currentTarget.style.boxShadow = '0 4px 0 0 #1a202c'
-					}}
-					onMouseDown={(e) => {
-						e.currentTarget.style.transform = 'translateY(4px)'
-						e.currentTarget.style.boxShadow = '0 0px 0 0 #1a202c'
-					}}
-					onMouseUp={(e) => {
-						e.currentTarget.style.transform = 'translateY(1px)'
-						e.currentTarget.style.boxShadow = '0 3px 0 0 #1a202c'
-					}}
-				>
-					options
-				</button>
-			</div>
-
 			<div
 				style={{
 					position: 'fixed',
