@@ -7,6 +7,8 @@ import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
 import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
+import { getCompiledSpell } from '../../../editor/utils/spellStorage'
+import { castSpell } from '../../spells/castSpell'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -169,10 +171,27 @@ export class Level18 extends BaseScene {
 			'Hitting RIGHT zone = penalty (3 = fail)',
 			`Penalties: 0 / 3`,
 		])
+
+		// SPACE to cast the scene spell
+		this.input.keyboard?.on('keydown-SPACE', () => {
+			if (this.levelFailed || this.levelWon) return
+			const spell = getCompiledSpell('scene-spell-Level18')
+			if (spell) {
+				castSpell(this.world, this.world.resources.playerEid, spell)
+			} else {
+				this.showInstruction('No compiled spell found.\nOpen the editor (TAB), build your getNearbyEnemies spell, then save it.')
+			}
+		})
 	}
 
 	protected onLevelUpdate(): void {
 		if (this.levelFailed || this.levelWon) return
+
+		// Check win BEFORE filter — the filter removes dead enemies, making this check impossible afterward
+		const hadTargets = this.enemies.some(e => e.isTarget)
+		const allTargetsDead = hadTargets && this.enemies
+			.filter(e => e.isTarget)
+			.every(e => !this.world.resources.bodies.has(e.eid))
 
 		// Update alive entities; destroy dead, emit penalty for protected zone if needed
 		this.enemies = this.enemies.filter(ent => {
@@ -188,9 +207,7 @@ export class Level18 extends BaseScene {
 			return true
 		})
 
-		// Win: all left-zone targets dead
-		const targets = this.enemies.filter(e => e.isTarget)
-		if (targets.length > 0 && targets.every(e => !this.world.resources.bodies.has(e.eid))) {
+		if (allTargetsDead) {
 			this.onMissionSuccess()
 		}
 	}

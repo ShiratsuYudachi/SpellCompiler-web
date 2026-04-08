@@ -7,6 +7,8 @@ import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
 import { worldFloatingTextStyle } from '../../ui/inGameTextStyle'
+import { getCompiledSpell } from '../../../editor/utils/spellStorage'
+import { castSpell } from '../../spells/castSpell'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -191,6 +193,17 @@ export class Level19 extends BaseScene {
 			'GREY civilians (HP=15) = protected',
 			`Penalties: 0 / 3`,
 		])
+
+		// SPACE to cast the scene spell
+		this.input.keyboard?.on('keydown-SPACE', () => {
+			if (this.levelFailed || this.levelWon) return
+			const spell = getCompiledSpell('scene-spell-Level19')
+			if (spell) {
+				castSpell(this.world, this.world.resources.playerEid, spell)
+			} else {
+				this.showInstruction('No compiled spell found.\nOpen the editor (TAB), build your getNearbyEnemies→filter spell, then save it.')
+			}
+		})
 	}
 
 	protected onLevelUpdate(): void {
@@ -199,6 +212,12 @@ export class Level19 extends BaseScene {
 		// Lock player at center
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
+
+		// Check win BEFORE filter — filter removes dead enemies making the check impossible afterward
+		const hadThreats = this.enemies.some(e => e.role === 'threat')
+		const allThreatsDead = hadThreats && this.enemies
+			.filter(e => e.role === 'threat')
+			.every(e => !this.world.resources.bodies.has(e.eid))
 
 		// Update alive entities; destroy dead, emit civilian penalty if needed
 		this.enemies = this.enemies.filter(ent => {
@@ -214,9 +233,8 @@ export class Level19 extends BaseScene {
 			return true
 		})
 
-		// Win: all threats dead
-		const threats = this.enemies.filter(e => e.role === 'threat')
-		if (threats.length > 0 && threats.every(e => !this.world.resources.bodies.has(e.eid))) {
+		// Win: all threats dead (checked before filter)
+		if (allThreatsDead) {
 			this.onMissionSuccess()
 		}
 	}

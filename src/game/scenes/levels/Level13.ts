@@ -6,6 +6,8 @@ import { createRectBody } from '../../prefabs/createRectBody'
 import { LevelMeta, levelRegistry } from '../../levels/LevelRegistry'
 import { createRoom } from '../../utils/levelUtils'
 import { EntityVisualManager } from '../../EntityVisual'
+import { getCompiledSpell } from '../../../editor/utils/spellStorage'
+import { castSpell } from '../../spells/castSpell'
 import type Phaser from 'phaser'
 
 // ─────────────────────────────────────────────────────────────
@@ -112,6 +114,29 @@ export class Level13 extends BaseScene {
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setPosition(480, 320)
 
+		// SPACE to cast the scene spell (with maxSpellCasts enforcement)
+		this.input.keyboard?.on('keydown-SPACE', () => {
+			if (this.levelFailed || this.levelWon) return
+
+			const levelData = this.world.resources.levelData!
+			const maxCasts = levelData['_maxSpellCasts'] as number | undefined
+			if (maxCasts !== undefined) {
+				const usedCasts = (levelData['_spellCastCount'] as number) ?? 0
+				if (usedCasts >= maxCasts) {
+					this.events.emit('spell-cast-limit-reached', maxCasts)
+					return
+				}
+				levelData['_spellCastCount'] = usedCasts + 1
+			}
+
+			const spell = getCompiledSpell('scene-spell-Level13')
+			if (spell) {
+				castSpell(this.world, this.world.resources.playerEid, spell)
+			} else {
+				this.showInstruction('No compiled spell found.\nOpen the editor (TAB), build your forEach spell, then save it.')
+			}
+		})
+
 		const hpValues = this.shuffleArray([20, 35, 55, 70, 90])
 		const positions = [
 			{ x: 180, y: 180 }, { x: 480, y: 140 }, { x: 780, y: 180 },
@@ -127,7 +152,8 @@ export class Level13 extends BaseScene {
 		this.world.resources.levelData!['onDamage'] = (eid: number, amount: number) => {
 			const ent = this.enemies.find(e => e.eid === eid)
 			if (ent) {
-				const actualDamage = Math.min(amount, Health.current[eid] + amount) // cap at remaining HP
+				// Cap at the entity's remaining HP (don't count overkill damage)
+				const actualDamage = Math.min(amount, Health.current[eid])
 				this.totalDamageDealt += actualDamage
 			}
 		}
@@ -137,6 +163,11 @@ export class Level13 extends BaseScene {
 		if (this.levelFailed || this.levelWon) return
 		const pb = this.world.resources.bodies.get(this.world.resources.playerEid)
 		if (pb) pb.setVelocity(0, 0)
+
+		// Check win BEFORE filtering — after filter removes dead enemies, length becomes 0
+		// and the "all dead" check would always be false.
+		const hadEnemies = this.enemies.length > 0
+		const allDead = hadEnemies && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))
 
 		// Update / clean up entity visuals
 		this.enemies = this.enemies.filter(ent => {
@@ -154,8 +185,8 @@ export class Level13 extends BaseScene {
 			return
 		}
 
-		// Win: all enemies dead
-		if (this.enemies.length > 0 && this.enemies.every(e => !this.world.resources.bodies.has(e.eid))) {
+		// Win: all enemies dead (evaluated before the filter above)
+		if (allDead) {
 			this.onMissionSuccess()
 		}
 	}
