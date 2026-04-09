@@ -96,8 +96,8 @@ export function initPixelBackground(scene: Phaser.Scene) {
 				let nearestEnemy: AIImage | null = null;
 				let minDist = Infinity;
 
-				bouncers.forEach(other => {
-					if (other === b || !other.active) return;
+				for (const other of bouncers) {
+					if (other === b || !other.active) continue;
 					
 					const isHostile = (b.team === Team.ENEMY && other.team === Team.FRIENDLY) ||
 						              (b.team === Team.FRIENDLY && other.team === Team.ENEMY) ||
@@ -110,7 +110,7 @@ export function initPixelBackground(scene: Phaser.Scene) {
 							nearestEnemy = other;
 						}
 					}
-				});
+				}
 
 				// B. Steering Force Calculation
 				const steerForce = new Phaser.Math.Vector2(0, 0);
