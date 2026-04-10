@@ -283,7 +283,8 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 					</div>
 
 					<SegmentedControl
-						size="xs"
+						size="sm"
+						fullWidth
 						value={mode}
 						onChange={(v) => saveMode(v as VibeMode)}
 						data={[
@@ -292,10 +293,29 @@ export function VibePanel({ onGenerate, onApplyFlow, onAsk, disabled }: VibePane
 						]}
 						disabled={disabled}
 						styles={{
-							root: { backgroundColor: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' },
+							root: {
+								backgroundColor: 'rgba(0,0,0,0.45)',
+								border: '1px solid rgba(255,255,255,0.14)',
+							},
 							control: { border: 'none' },
-							indicator: { backgroundColor: 'rgba(255,255,255,0.05)' },
-							label: { fontSize: '7px', letterSpacing: '1px' }
+							indicator: {
+								backgroundColor: `${EditorColors.data.border}33`,
+								boxShadow: `0 0 14px ${EditorColors.data.glow}`,
+							},
+							label: {
+								fontSize: '10px',
+								fontWeight: 700,
+								letterSpacing: '0.1em',
+								color: 'rgba(230, 238, 255, 0.5)',
+								'&[data-active]': {
+									color: '#f4f8ff',
+									textShadow: `0 0 10px ${EditorColors.data.border}88`,
+								},
+							},
+							innerLabel: {
+								fontFamily: PIXEL_FONT,
+								lineHeight: 1.35,
+							},
 						}}
 					/>
 
