@@ -103,6 +103,7 @@ export class Level14 extends BaseScene {
 	private penaltyCount: number = 0
 	private levelFailed: boolean = false
 	private levelWon: boolean = false
+	private totalCombatants: number = 0
 	private visuals!: EntityVisualManager
 
 	constructor() { super({ key: 'Level14' }) }
@@ -116,6 +117,7 @@ export class Level14 extends BaseScene {
 		this.penaltyCount = 0
 		this.levelFailed = false
 		this.levelWon = false
+		this.totalCombatants = 0
 		this.events.removeAllListeners('civilian-hit')
 
 		this.showInstruction(
@@ -230,8 +232,7 @@ export class Level14 extends BaseScene {
 		})
 
 		// Win: all enemies (elites + weak) dead
-		const combatants = this.enemies.filter(e => e.role !== 'civilian')
-		if (combatants.length > 0 && combatants.every(e => !this.world.resources.bodies.has(e.eid))) {
+		if (this.totalCombatants > 0 && this.enemies.length === 0) {
 			this.onMissionSuccess()
 		}
 	}
@@ -257,6 +258,7 @@ export class Level14 extends BaseScene {
 			this.civilians.push(tracked)
 		} else {
 			this.enemies.push(tracked)
+			this.totalCombatants++
 		}
 		return tracked
 	}
