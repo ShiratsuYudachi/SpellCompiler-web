@@ -1,6 +1,6 @@
 /**
- * TripleIllusionSkill - 真假三重奏（重做）
- * Boss原地蓄力5秒，生成2幻影，幻影冲撞挥砍
+ * TripleIllusionSkill - triple illusion(text)
+ * Bosstext5sec,Spawned2illusion,text
  */
 
 import Phaser from 'phaser';
@@ -20,9 +20,9 @@ export class TripleIllusionSkill extends BossSkill {
   
   async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[TripleIllusion] 2幻影冲撞');
+    console.log('[TripleIllusion] 2 illusion charge');
     
-    // 蓄力5秒
+    // charge5sec
     const chargeEffect = this.scene.add.circle(bossX, bossY, 40, 0xff00ff, 0.3);
     
     for (let i = 0; i < 5; i++) {
@@ -39,11 +39,11 @@ export class TripleIllusionSkill extends BossSkill {
     
     chargeEffect.destroy();
     
-    // 生成2个幻影
+    // Spawned2text
     const illusion1 = this.createIllusion(bossX - 100, bossY - 50);
     const illusion2 = this.createIllusion(bossX + 100, bossY - 50);
     
-    // 幻影攻击（各2次冲撞挥砍）
+    // text(text2charge slashes)
     const attacks = [
       this.illusionRush(illusion1, playerX, playerY),
       this.delay(800).then(() => this.illusionRush(illusion1, playerX, playerY)),
@@ -53,7 +53,7 @@ export class TripleIllusionSkill extends BossSkill {
     
     await Promise.all(attacks);
     
-    // 幻影消失
+    // text
     this.scene.tweens.add({
       targets: [illusion1, illusion2],
       alpha: 0,
@@ -71,14 +71,14 @@ export class TripleIllusionSkill extends BossSkill {
   private createIllusion(x: number, y: number): Phaser.GameObjects.Container {
     const container = this.scene.add.container(x, y);
     
-    // 半透明紫色形体
+    // text
     const body = this.scene.add.circle(0, 0, 25, 0x8b00ff, 0.6);
     const label = this.scene.add.text(0, -40, 'ILLUSION', worldFloatingTextStyle('10px', '#ee88ff', { bold: true }));
     label.setOrigin(0.5);
     
     container.add([body, label]);
     
-    // 脉冲效果
+    // text
     this.scene.tweens.add({
       targets: body,
       alpha: { from: 0.6, to: 0.3 },
@@ -94,11 +94,11 @@ export class TripleIllusionSkill extends BossSkill {
     const player = this.scene.children.getByName('player') as any;
     if (!player) return;
     
-    // 更新目标位置
+    // text
     targetX = player.x;
     targetY = player.y;
     
-    // 蓄力前摇
+    // text
     const chargeCircle = this.scene.add.circle(illusion.x, illusion.y, 20, 0xff00ff, 0.5);
     this.scene.tweens.add({
       targets: chargeCircle,
@@ -110,7 +110,7 @@ export class TripleIllusionSkill extends BossSkill {
     await this.delay(600);
     chargeCircle.destroy();
 
-    // 冲撞
+    // charge
     this.scene.tweens.add({
       targets: illusion,
       x: targetX,
@@ -118,13 +118,13 @@ export class TripleIllusionSkill extends BossSkill {
       duration: 400,
       ease: 'Cubic.easeOut',
       onComplete: () => {
-        // 挥砍
+        // slash
         const slashGraphics = this.scene.add.graphics();
         slashGraphics.lineStyle(6, 0xff00ff, 0.8);
         slashGraphics.arc(illusion.x, illusion.y, 60, -Math.PI * 0.5, Math.PI * 0.5, false);
         slashGraphics.strokePath();
         
-        // 检测伤害
+        // text
         const dist = Phaser.Math.Distance.Between(illusion.x, illusion.y, player.x, player.y);
         if (dist < 60 && player.takeDamage) {
           player.takeDamage(40);

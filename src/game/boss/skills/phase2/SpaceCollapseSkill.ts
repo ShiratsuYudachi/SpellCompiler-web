@@ -1,6 +1,6 @@
 /**
- * SpaceCollapseSkill - 空间坍缩（修复版）
- * 黑洞出现在玩家脚下
+ * SpaceCollapseSkill - space collapse(text)
+ * black hole appears under player
  */
 
 import Phaser from 'phaser';
@@ -19,9 +19,9 @@ export class SpaceCollapseSkill extends BossSkill {
   
   async execute(_bossX: number, _bossY: number, playerX: number, playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[SpaceCollapse] 玩家脚下黑洞');
+    console.log('[SpaceCollapse] Black hole under player');
     
-    // 预警圈（玩家位置）
+    // warning circle(text)
     const warning = this.scene.add.circle(playerX, playerY, 70, 0x8b00ff, 0);
     warning.setStrokeStyle(3, 0x8b00ff, 1);
     
@@ -36,7 +36,7 @@ export class SpaceCollapseSkill extends BossSkill {
     await this.delay(1500);
     warning.destroy();
     
-    // 黑洞出现
+    // text
     const blackhole = this.scene.add.circle(playerX, playerY, 5, 0x000000, 1);
     blackhole.setStrokeStyle(4, 0x8b00ff, 1);
     
@@ -47,7 +47,7 @@ export class SpaceCollapseSkill extends BossSkill {
       ease: 'Cubic.easeOut'
     });
     
-    // 拉扯玩家
+    // pull player
     const pullLoop = this.scene.time.addEvent({
       delay: 100,
       callback: () => {
@@ -59,10 +59,10 @@ export class SpaceCollapseSkill extends BossSkill {
         const dist = Math.sqrt(dx * dx + dy * dy);
         
         if (dist < 60) {
-          // 中心伤害
+          // center damage
           if (player.takeDamage) player.takeDamage(this.config.damage);
           
-          // 爆炸
+          // explode
           for (let i = 0; i < 12; i++) {
             const angle = (Math.PI * 2 / 12) * i;
             const particle = this.scene.add.circle(
@@ -85,7 +85,7 @@ export class SpaceCollapseSkill extends BossSkill {
           pullLoop.destroy();
           blackhole.destroy();
         } else if (dist < 150) {
-          // 拉扯力
+          // pull force
           const pullStrength = 150;
           player.x += (dx / dist) * pullStrength * 0.016;
           player.y += (dy / dist) * pullStrength * 0.016;

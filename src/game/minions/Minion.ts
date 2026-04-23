@@ -1,5 +1,5 @@
 /**
- * 小怪基类
+ * miniontext
  */
 
 import Phaser from 'phaser';
@@ -27,11 +27,11 @@ export abstract class Minion {
     this.maxHealth = health;
     this.damage = damage;
     
-    // 创建精灵（矩形占位符）
+    // create sprite(rect placeholder)
     this.sprite = scene.add.rectangle(x, y, 30, 30, color);
     this.sprite.setName('minion');
     
-    // 创建血条
+    // text
     this.createHealthBar();
   }
   
@@ -50,11 +50,11 @@ export abstract class Minion {
     const x = this.sprite.x - barWidth / 2;
     const y = this.sprite.y - 25;
     
-    // 背景
+    // background
     this.healthBar.fillStyle(0x000000, 0.5);
     this.healthBar.fillRect(x, y, barWidth, barHeight);
     
-    // 血量
+    // health
     const healthPercent = this.health / this.maxHealth;
     const currentWidth = barWidth * healthPercent;
     
@@ -69,7 +69,7 @@ export abstract class Minion {
     this.health -= amount;
     this.updateHealthBar();
     
-    // 受击闪烁
+    // text
     this.sprite.setAlpha(0.5);
     this.scene.time.delayedCall(100, () => {
       if (this.sprite && this.sprite.active) {
@@ -85,7 +85,7 @@ export abstract class Minion {
   protected die(): void {
     this.isDead = true;
     
-    // 死亡特效
+    // Diedtext
     const particles = this.scene.add.particles(this.sprite.x, this.sprite.y, 'particle', {
       speed: { min: 50, max: 150 },
       scale: { start: 1, end: 0 },

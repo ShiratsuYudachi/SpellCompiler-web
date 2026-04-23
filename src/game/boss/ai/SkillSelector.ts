@@ -1,6 +1,6 @@
 /**
- * SkillSelector - 技能选择器
- * 根据当前状态选择最合适的技能
+ * SkillSelector - text
+ * text
  */
 
 import { BossSkill } from '../skills/BossSkill';
@@ -18,7 +18,7 @@ export interface SelectionContext {
 
 export class SkillSelector {
   /**
-   * 从可用技能中选择一个执行
+   * textoneexecute
    */
   selectSkill(
     availableSkills: BossSkill[],
@@ -28,35 +28,35 @@ export class SkillSelector {
       return null;
     }
     
-    // 计算到玩家的距离
+    // text
     const dx = context.playerX - context.bossX;
     const dy = context.playerY - context.bossY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // 根据距离和阶段选择技能
+    // textandphaseSelected skill
     const scoredSkills = availableSkills.map(skill => {
       const config = skill.getConfig();
-      let score = config.priority; // 基础分数来自优先级
+      let score = config.priority; // text
       
-      // 距离因素
+      // text
       if (distance < 100) {
-        // 近距离：优先近战技能
+        // text:text
         if (config.name.includes('Melee') || config.name.includes('Slash')) {
           score += 5;
         }
       } else if (distance > 200) {
-        // 远距离：优先远程技能
+        // text:text
         if (config.name.includes('Ranged') || config.name.includes('Rush')) {
           score += 5;
         }
       }
       
-      // 阶段因素：当前阶段的技能优先级更高
+      // text:text
       if (config.phase === context.currentPhase) {
         score += 3;
       }
       
-      // 血量因素：低血量时优先强力技能
+      // text:text
       const healthPercent = context.bossHealth / context.bossMaxHealth;
       if (healthPercent < 0.3 && config.damage > 50) {
         score += 4;
@@ -65,10 +65,10 @@ export class SkillSelector {
       return { skill, score };
     });
     
-    // 按分数排序
+    // text
     scoredSkills.sort((a, b) => b.score - a.score);
     
-    // 前3个技能中随机选一个（增加变化性）
+    // text3textone(text)
     const topSkills = scoredSkills.slice(0, Math.min(3, scoredSkills.length));
     const randomIndex = Math.floor(Math.random() * topSkills.length);
     
@@ -76,7 +76,7 @@ export class SkillSelector {
   }
   
   /**
-   * 简单的技能选择（随机）
+   * text(random)
    */
   selectRandom(availableSkills: BossSkill[]): BossSkill | null {
     if (availableSkills.length === 0) {

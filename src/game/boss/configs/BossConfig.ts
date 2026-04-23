@@ -1,40 +1,40 @@
 /**
- * Boss配置定义
+ * Bosstext
  */
 
 export interface BossConfig {
-  // 基础属性
+  // text
   maxHealth: number;
   
-  // 移动配置
+  // text
   moveSpeed: number;
   detectionRange: number;
   attackRange: number;
   stopDistance: number;
   
-  // 攻击配置
+  // text
   attackDamage: number;
   attackCooldown: number;
   criticalMultiplier: number;
   
-  // 阶段配置
+  // text
   phases: PhaseConfig[];
 }
 
 export interface PhaseConfig {
   phaseNumber: number;
-  healthThreshold: number;      // 血量百分比 (0.0-1.0)
-  damageMultiplier: number;      // 伤害倍率
-  moveSpeedMultiplier: number;   // 移速倍率
-  attackIntervalMultiplier: number; // 攻击间隔倍率
-  invincibleDuration: number;    // 转阶段无敌时间（秒）
-  screenShake?: boolean;         // 是否屏幕震动
-  shakeIntensity?: number;       // 震动强度
-  shakeDuration?: number;        // 震动时长（秒）
+  healthThreshold: number;      // text (0.0-1.0)
+  damageMultiplier: number;      // text
+  moveSpeedMultiplier: number;   // text
+  attackIntervalMultiplier: number; // text
+  invincibleDuration: number;    // text(sec)
+  screenShake?: boolean;         // text
+  shakeIntensity?: number;       // text
+  shakeDuration?: number;        // text(sec)
 }
 
 /**
- * 默认Boss配置 - 用于测试
+ * textBossconfig - text
  */
 export const defaultBossConfig: BossConfig = {
   maxHealth: 1000,

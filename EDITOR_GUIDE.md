@@ -1,86 +1,86 @@
-# AST Node Editor - 使用指南
+# AST Node Editor - text
 
-## 🎨 界面布局
+## 🎨 text
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  [Node Palette]  │    [Canvas]    │  [Code Preview]      │
-│  左侧工具栏       │    主画布      │   右侧预览面板        │
+│  text       │    text      │   text        │
 └──────────────────────────────────────────────────────────┘
 ```
 
-## 🚀 快速开始
+## 🚀 text
 
-### 创建你的第一个表达式：`x + 5`
+### textonetext:`x + 5`
 
-#### 步骤 1: 添加变量节点
-1. 点击左侧 **"+ Variable"** 按钮
-2. 一个紫色的变量节点出现在画布上
-3. 在节点中输入变量名 `x`
+#### text 1: text
+1. text **"+ Variable"** text
+2. onetext
+3. text `x`
 
-#### 步骤 2: 添加字面量节点
-1. 点击左侧 **"+ Literal"** 按钮
-2. 一个橙色的字面量节点出现
-3. 在节点中输入数值 `5`
+#### text 2: text
+1. text **"+ Literal"** text
+2. onetext
+3. text `5`
 
-#### 步骤 3: 添加二元运算节点
-1. 点击左侧 **"+ Binary Op"** 按钮
-2. 一个黄色的运算节点出现
-3. 在下拉菜单中选择 `+` 运算符
+#### text 3: text
+1. text **"+ Binary Op"** text
+2. onetext
+3. text `+` Operators
 
-#### 步骤 4: 连接节点
-1. 从 **变量 x 节点** 的右侧圆点拖出一条线
-2. 连接到 **Binary Op 节点** 左侧上方的 `left` 端口
-3. 从 **字面量 5 节点** 的右侧圆点拖出一条线
-4. 连接到 **Binary Op 节点** 左侧下方的 `right` 端口
+#### text 4: text
+1. text **text x text** text
+2. text **Binary Op text** text `left` text
+3. text **text 5 text** text
+4. text **Binary Op text** text `right` text
 
-#### 步骤 5: 生成预览
-1. 点击左侧的 **"Generate Preview"** 按钮
-2. 在右侧预览面板看到生成的代码：`(x + 5)`
-
----
-
-## 🎯 节点类型说明
-
-### 🟧 Literal (字面量)
-- **作用**: 表示常量值
-- **类型**: 数字、字符串、布尔值
-- **输出**: 1个 (右侧)
-- **示例**: `5`, `"hello"`, `true`
-
-### 🟪 Variable (变量)
-- **作用**: 表示变量名
-- **输出**: 1个 (右侧)
-- **示例**: `x`, `count`, `name`
-
-### 🟨 Binary Op (二元运算)
-- **作用**: 两个值之间的运算
-- **输入**: 2个 (left, right)
-- **输出**: 1个 (右侧)
-- **运算符**:
-  - 算术: `+`, `-`, `*`, `/`
-  - 比较: `>`, `<`, `==`
-  - 逻辑: `&&`, `||`
-
-### 🔷 Unary Op (一元运算)
-- **作用**: 单个值的运算
-- **输入**: 1个 (operand)
-- **输出**: 1个 (右侧)
-- **运算符**: `!` (非), `-` (负号), `+` (正号)
-
-### 🟩 Assignment (赋值)
-- **作用**: 给变量赋值
-- **输入**: 2个 (variable, value)
-- **输出**: 1个控制流 (底部)
-- **生成代码**: `x = 5;`
+#### text 5: Spawnedtext
+1. text **"Generate Preview"** text
+2. textSpawnedtext:`(x + 5)`
 
 ---
 
-## 📝 示例场景
+## 🎯 text
 
-### 示例 1: 简单计算 `result = (10 + 5) * 2`
+### 🟧 Literal (text)
+- **text**: text
+- **type**: text,text,text
+- **text**: 1text (text)
+- **text**: `5`, `"hello"`, `true`
 
-**节点连接：**
+### 🟪 Variable (text)
+- **text**: text
+- **text**: 1text (text)
+- **text**: `x`, `count`, `name`
+
+### 🟨 Binary Op (text)
+- **text**: text
+- **text**: 2text (left, right)
+- **text**: 1text (text)
+- **Operators**:
+  - text: `+`, `-`, `*`, `/`
+  - text: `>`, `<`, `==`
+  - logic: `&&`, `||`
+
+### 🔷 Unary Op (text)
+- **text**: text
+- **text**: 1text (operand)
+- **text**: 1text (text)
+- **Operators**: `!` (not), `-` (negative sign), `+` (positive sign)
+
+### 🟩 Assignment (text)
+- **text**: text
+- **text**: 2text (variable, value)
+- **text**: 1text (text)
+- **Spawnedtext**: `x = 5;`
+
+---
+
+## 📝 text
+
+### text 1: text `result = (10 + 5) * 2`
+
+**text:**
 ```
 Literal(10) ──┐
               ├─→ Binary(+) ─→ Binary(*) ─→ Assignment
@@ -89,26 +89,26 @@ Literal(5)  ──┘                   ↑             ↑
                               Literal(2)    Variable(result)
 ```
 
-**步骤：**
-1. 创建 3 个 Literal 节点: `10`, `5`, `2`
-2. 创建 1 个 Variable 节点: `result`
-3. 创建 2 个 Binary Op 节点: 一个 `+`, 一个 `*`
-4. 创建 1 个 Assignment 节点
-5. 连接：
-   - `10` 和 `5` → `+` 的 left/right
-   - `+` 的输出 → `*` 的 left
-   - `2` → `*` 的 right
-   - `*` 的输出 → Assignment 的 value
-   - `result` → Assignment 的 variable
+**text:**
+1. create 3 text Literal text: `10`, `5`, `2`
+2. create 1 text Variable text: `result`
+3. Create 2 Binary Op nodes: one `+`, one `*`
+4. create 1 text Assignment text
+5. text:
+   - `10` and `5` → `+` to left/right
+   - `+` output of → `*` text left
+   - `2` → `*` text right
+   - `*` output of → Assignment text value
+   - `result` → Assignment text variable
 
-**生成代码：**
+**Spawnedtext:**
 ```javascript
 result = ((10 + 5) * 2);
 ```
 
-### 示例 2: 条件表达式 `x > 0 && y < 10`
+### text 2: text `x > 0 && y < 10`
 
-**节点连接：**
+**text:**
 ```
 Variable(x) ─→ Binary(>) ─┐
                  ↑         │
@@ -119,64 +119,64 @@ Variable(y) ─→ Binary(<) ──┘  Literal(10)
 
 ---
 
-## 🎮 操作技巧
+## 🎮 text
 
-### 拖动和缩放
-- **拖动画布**: 按住鼠标左键拖动
-- **缩放**: 使用鼠标滚轮或右下角的 +/- 按钮
-- **移动节点**: 拖动节点的标题区域
+### textandtext
+- **text**: text
+- **text**: text +/- text
+- **text**: text
 
-### 连线操作
-- **创建连线**: 从输出端口拖到输入端口
-- **删除连线**: 选中连线后按 Delete 键
-- **删除节点**: 选中节点后按 Delete 键
+### text
+- **text**: text
+- **text**: text Delete text
+- **text**: text Delete text
 
-### 编辑节点
-- **修改值**: 直接在节点输入框中修改
-- **修改运算符**: 使用下拉菜单选择
+### text
+- **text**: text
+- **textOperators**: text
 
 ---
 
-## 🎨 颜色说明
+## 🎨 text
 
-| 颜色 | 节点类型 | 含义 |
+| color | text | text |
 |------|---------|------|
-| 🟧 橙色 | Literal | 字面量常量 |
-| 🟪 紫色 | Variable | 变量名 |
-| 🟨 黄色 | Binary Op | 二元运算 |
-| 🔷 青色 | Unary Op | 一元运算 |
-| 🟩 绿色 | Assignment | 赋值语句 |
-| 🔵 蓝色圆点 | 输入端口 | 接收数据 |
-| 🟠 彩色圆点 | 输出端口 | 输出数据 |
+| 🟧 text | Literal | text |
+| 🟪 purple | Variable | text |
+| 🟨 yellow | Binary Op | text |
+| 🔷 text | Unary Op | text |
+| 🟩 text | Assignment | text |
+| 🔵 text | text | text |
+| 🟠 text | text | text |
 
 ---
 
-## 💡 常见问题
+## 💡 text
 
-### Q: 为什么连线连不上？
-A: 检查端口类型是否匹配。表达式的输出只能连到表达式的输入。
+### Q: text?
+A: text.textoutput oftext.
 
-### Q: 如何删除节点？
-A: 选中节点后按键盘 Delete 键。
+### Q: text?
+A: text Delete text.
 
-### Q: 预览面板没有显示代码？
-A: 点击 "Generate Preview" 按钮生成预览。
+### Q: text?
+A: text "Generate Preview" textSpawnedtext.
 
-### Q: 节点太多找不到了怎么办？
-A: 使用右下角的控制面板中的 "Fit View" 按钮。
-
----
-
-## 🚧 当前限制
-
-- 暂未实现 If Statement 和 While Loop 节点
-- 暂不支持导入/导出 AST
-- 暂不支持撤销/重做功能
+### Q: text?
+A: text "Fit View" text.
 
 ---
 
-## 🎯 下一步
+## 🚧 text
 
-尝试创建更复杂的表达式，熟悉节点连接的逻辑！
+- text If Statement and While Loop text
+- text/text AST
+- text/text
+
+---
+
+## 🎯 text
+
+text,text!
 
 Happy Coding! 🎉

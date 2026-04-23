@@ -1,6 +1,6 @@
 /**
- * FragmentedPhantomBoss - 破碎幻影Boss视觉（修复版）
- * 修复：使用相对坐标避免错位
+ * FragmentedPhantomBoss - textBossvisual(text)
+ * fix:text
  */
 
 import Phaser from 'phaser';
@@ -31,16 +31,16 @@ export class FragmentedPhantomBoss {
     this.y = y;
     this.effects = new BossEffects(scene);
     
-    // 创建容器
+    // text
     this.container = scene.add.container(x, y);
     
-    // 创建所有碎片（使用相对坐标）
+    // text(text)
     this.createFragments();
     
-    // 创建武器
+    // text
     this.createBlades();
     
-    // 启动动画
+    // text
     this.startIdleAnimation();
   }
   
@@ -53,7 +53,7 @@ export class FragmentedPhantomBoss {
   private createHeadFragments(): void {
     const headColor = 0x2b2b2b;
     
-    // 中央三角 - 相对坐标
+    // text - text
     const centerHead = new BossFragment(this.scene, {
       x: 0,
       y: -60,
@@ -64,7 +64,7 @@ export class FragmentedPhantomBoss {
     this.headFragments.push(centerHead);
     this.container.add(centerHead.getGraphics());
     
-    // 左侧三角
+    // text
     const leftHead = new BossFragment(this.scene, {
       x: -15,
       y: -50,
@@ -76,7 +76,7 @@ export class FragmentedPhantomBoss {
     this.headFragments.push(leftHead);
     this.container.add(leftHead.getGraphics());
     
-    // 右侧三角
+    // text
     const rightHead = new BossFragment(this.scene, {
       x: 15,
       y: -50,
@@ -92,7 +92,7 @@ export class FragmentedPhantomBoss {
   private createBodyFragments(): void {
     const bodyColor = 0x1a1a1a;
     
-    // 躯干中央
+    // text
     const center = new BossFragment(this.scene, {
       x: 0,
       y: -20,
@@ -103,7 +103,7 @@ export class FragmentedPhantomBoss {
     this.bodyFragments.push(center);
     this.container.add(center.getGraphics());
     
-    // 左肩
+    // text
     const leftShoulder = new BossFragment(this.scene, {
       x: -30,
       y: -30,
@@ -115,7 +115,7 @@ export class FragmentedPhantomBoss {
     this.bodyFragments.push(leftShoulder);
     this.container.add(leftShoulder.getGraphics());
     
-    // 右肩
+    // text
     const rightShoulder = new BossFragment(this.scene, {
       x: 30,
       y: -30,
@@ -127,7 +127,7 @@ export class FragmentedPhantomBoss {
     this.bodyFragments.push(rightShoulder);
     this.container.add(rightShoulder.getGraphics());
     
-    // 腰部
+    // text
     const waist = new BossFragment(this.scene, {
       x: 0,
       y: 10,
@@ -139,7 +139,7 @@ export class FragmentedPhantomBoss {
     this.bodyFragments.push(waist);
     this.container.add(waist.getGraphics());
     
-    // 下身
+    // text
     const lower = new BossFragment(this.scene, {
       x: 0,
       y: 35,
@@ -174,23 +174,23 @@ export class FragmentedPhantomBoss {
   }
   
   private createBlades(): void {
-    // 左刀
+    // text
     this.leftBlade = this.scene.add.graphics();
     this.leftBlade.lineStyle(3, 0x8b00ff, 1);
     this.leftBlade.lineBetween(0, 0, -30, -40);
-    this.leftBlade.setPosition(-20, -20); // 相对容器
+    this.leftBlade.setPosition(-20, -20); // text
     this.container.add(this.leftBlade);
     
-    // 右刀
+    // text
     this.rightBlade = this.scene.add.graphics();
     this.rightBlade.lineStyle(3, 0x8b00ff, 1);
     this.rightBlade.lineBetween(0, 0, 30, -40);
-    this.rightBlade.setPosition(20, -20); // 相对容器
+    this.rightBlade.setPosition(20, -20); // text
     this.container.add(this.rightBlade);
   }
   
   private startIdleAnimation(): void {
-    // 碎片浮动
+    // text
     [...this.headFragments, ...this.bodyFragments, ...this.cloakFragments].forEach((frag, i) => {
       this.scene.tweens.add({
         targets: frag.getGraphics(),
@@ -203,7 +203,7 @@ export class FragmentedPhantomBoss {
       });
     });
     
-    // 武器摆动
+    // text
     if (this.leftBlade && this.rightBlade) {
       this.scene.tweens.add({
         targets: [this.leftBlade, this.rightBlade],
@@ -224,12 +224,12 @@ export class FragmentedPhantomBoss {
   }
   
   updatePosition(x: number, y: number): void {
-    // 别名方法，兼容旧代码
+    // text,text
     this.setPosition(x, y);
   }
   
   private updatePhantoms(): void {
-    // 残影效果（简化）
+    // text(text)
     if (this.phantoms.length > 3) {
       const oldest = this.phantoms.shift();
       oldest?.destroy();
@@ -253,7 +253,7 @@ export class FragmentedPhantomBoss {
   }
   
   changePhase(phase: number): void {
-    console.log(`[FragmentedPhantomBoss] 切换到阶段 ${phase}`);
+    console.log(`[FragmentedPhantomBoss] Switch to phase ${phase}`);
     
     const newColor = phase === 0 ? 0x3a1a4d : phase === 1 ? 0x8b1a8b : 0xff0066;
     
@@ -275,20 +275,20 @@ export class FragmentedPhantomBoss {
   }
   
   updatePhase(phase: number): void {
-    // 别名方法，兼容旧代码
+    // text,text
     this.changePhase(phase);
   }
   
   flash(duration: number = 100): void {
-    // Graphics对象没有setTint，使用alpha闪烁效果
+    // GraphicstextsetTint,usealphatext
 
-    // 创建白色闪光覆盖层
+    // text
     const flashOverlay = this.scene.add.graphics();
     flashOverlay.fillStyle(0xffffff, 0.6);
-    flashOverlay.fillCircle(0, 0, 100); // 相对容器
+    flashOverlay.fillCircle(0, 0, 100); // text
     this.container.add(flashOverlay);
     
-    // 闪光淡出
+    // text
     this.scene.tweens.add({
       targets: flashOverlay,
       alpha: 0,
@@ -298,7 +298,7 @@ export class FragmentedPhantomBoss {
   }
   
   explode(): void {
-    console.log('[FragmentedPhantomBoss] 死亡爆炸');
+    console.log('[FragmentedPhantomBoss] Death explosion');
     
     const allFragments = [...this.headFragments, ...this.bodyFragments, ...this.cloakFragments];
     

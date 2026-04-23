@@ -1,5 +1,5 @@
 /**
- * 追击型小怪 - 持续追击玩家
+ * textminion - chase player continuously
  */
 
 import Phaser from 'phaser';
@@ -16,20 +16,20 @@ export class ChaserMinion extends Minion {
     damage: number,
     speed: number
   ) {
-    super(scene, x, y, health, damage, 0xff6b6b); // 红色
+    super(scene, x, y, health, damage, 0xff6b6b); // red
     this.speed = speed;
   }
   
   update(delta: number, playerX: number, playerY: number): void {
     if (this.isDead) return;
     
-    // 计算方向
+    // compute direction
     const dx = playerX - this.sprite.x;
     const dy = playerY - this.sprite.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
     if (distance > 30) {
-      // 移动
+      // move
       const moveX = (dx / distance) * this.speed * (delta / 1000);
       const moveY = (dy / distance) * this.speed * (delta / 1000);
       

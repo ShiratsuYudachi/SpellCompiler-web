@@ -1,5 +1,5 @@
 /**
- * BossWeapon - Boss几何体长剑
+ * BossWeapon - Bossgeometric long sword
  */
 
 import Phaser from 'phaser';
@@ -21,7 +21,7 @@ export class BossWeapon {
   private drawBlade(): void {
     this.blade.clear();
     
-    // 三角剑尖
+    // triangular tip
     this.blade.fillStyle(0xaa00ff, 1);
     this.blade.beginPath();
     this.blade.moveTo(0, -40);
@@ -30,7 +30,7 @@ export class BossWeapon {
     this.blade.closePath();
     this.blade.fillPath();
     
-    // 菱形剑身
+    // diamond blade
     const gradient = [0x8b00ff, 0x6600cc, 0x8b00ff];
     for (let i = 0; i < 3; i++) {
       this.blade.fillStyle(gradient[i], 1);
@@ -44,11 +44,11 @@ export class BossWeapon {
       this.blade.fillPath();
     }
     
-    // 护手
+    // crossguard
     this.blade.fillStyle(0xd4af37, 1);
     this.blade.fillRect(-10, 35, 20, 4);
     
-    // 剑柄
+    // hilt
     this.blade.fillStyle(0x4a0080, 1);
     this.blade.fillRect(-3, 39, 6, 12);
   }
@@ -57,10 +57,10 @@ export class BossWeapon {
     this.container.setPosition(x + 25, y);
   }
   
-  // 斩击动画
+  // slash animation
   async slash(angle: number): Promise<void> {
     return new Promise(resolve => {
-      // 拖尾
+      // trail
       const trailGraphics = this.scene.add.graphics();
       trailGraphics.lineStyle(4, 0x8b00ff, 0.5);
       this.trail.push(trailGraphics);
@@ -71,7 +71,7 @@ export class BossWeapon {
         duration: 200,
         ease: 'Cubic.easeOut',
         onUpdate: () => {
-          // 绘制拖尾
+          // draw trail
           trailGraphics.clear();
           trailGraphics.lineStyle(4, 0x8b00ff, 0.3);
           trailGraphics.arc(
@@ -106,7 +106,7 @@ export class BossWeapon {
     });
   }
   
-  // 蓄力动画
+  // charge animation
   charge(duration: number): void {
     this.scene.tweens.add({
       targets: this.container,

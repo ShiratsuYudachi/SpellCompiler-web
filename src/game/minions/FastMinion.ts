@@ -1,24 +1,24 @@
 /**
- * 快速冲刺型小怪 - 快速移动，定期冲刺
+ * textminion - fast move,text
  */
 
 import Phaser from 'phaser';
 import { BaseMinion, MinionConfig } from './BaseMinion';
 
 export class FastMinion extends BaseMinion {
-  private dashCooldown: number = 4000; // 4秒冲刺一次
+  private dashCooldown: number = 4000; // 4text
   private lastDashTime: number = 0;
   private isDashing: boolean = false;
   private dashDuration: number = 500;
   
   constructor(scene: Phaser.Scene, x: number, y: number, config: MinionConfig) {
     super(scene, x, y, config);
-    this.setFillStyle(0xffff00); // 黄色
+    this.setFillStyle(0xffff00); // yellow
     
-    // 快速型更小
+    // text
     this.setSize(25, 25);
     
-    // 速度更快
+    // text
     this.speed *= 1.5;
   }
   
@@ -31,13 +31,13 @@ export class FastMinion extends BaseMinion {
     
     const body = this.body as Phaser.Physics.Arcade.Body;
     
-    // 冲刺逻辑
+    // text
     if (!this.isDashing && distance > 150 && distance < 400 && now - this.lastDashTime > this.dashCooldown) {
       this.performDash(dx, dy, distance);
       return;
     }
     
-    // 正常追击（速度快）
+    // normal chase(text)
     if (distance > 50 && !this.isDashing) {
       const moveX = (dx / distance) * this.speed;
       const moveY = (dy / distance) * this.speed;
@@ -54,13 +54,13 @@ export class FastMinion extends BaseMinion {
     const body = this.body as Phaser.Physics.Arcade.Body;
     const dashSpeed = this.speed * 3;
     
-    // 冲刺速度
+    // text
     body.setVelocity(
       (dx / distance) * dashSpeed,
       (dy / distance) * dashSpeed
     );
     
-    // 冲刺特效（拖尾）
+    // text(trail)
     const originalFill = this.fillColor;
     this.setFillStyle(0xffffff);
     const trail = this.scene.add.rectangle(this.x, this.y, 25, 25, 0xffff00, 0.5);
@@ -71,7 +71,7 @@ export class FastMinion extends BaseMinion {
       onComplete: () => trail.destroy(),
     });
 
-    // 冲刺结束
+    // text
     this.scene.time.delayedCall(this.dashDuration, () => {
       this.isDashing = false;
       this.setFillStyle(originalFill);

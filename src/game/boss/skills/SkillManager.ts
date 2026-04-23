@@ -1,6 +1,6 @@
 /**
- * SkillManager - 技能管理器
- * 管理所有Boss技能的注册、选择和执行
+ * SkillManager - text
+ * textBosstext,selectandexecute
  */
 
 import Phaser from 'phaser';
@@ -16,22 +16,22 @@ export class SkillManager {
   }
   
   /**
-   * 注册技能
+   * Register skill
    */
   registerSkill(skill: BossSkill): void {
     this.skills.set(skill.getName(), skill);
-    console.log(`[SkillManager] 注册技能: ${skill.getName()}`);
+    console.log(`[SkillManager] Register skill: ${skill.getName()}`);
   }
   
   /**
-   * 注册多个技能
+   * text
    */
   registerSkills(skills: BossSkill[]): void {
     skills.forEach(skill => this.registerSkill(skill));
   }
   
   /**
-   * 获取当前阶段可用的技能
+   * text
    */
   getAvailableSkills(currentTime: number): BossSkill[] {
     const available: BossSkill[] = [];
@@ -39,7 +39,7 @@ export class SkillManager {
     this.skills.forEach(skill => {
       const config = skill.getConfig();
       
-      // 检查阶段和冷却
+      // textandcooldown
       if (config.phase <= this.currentPhase && skill.canUse(currentTime)) {
         available.push(skill);
       }
@@ -49,14 +49,14 @@ export class SkillManager {
   }
   
   /**
-   * 通过名称获取技能
+   * text
    */
   getSkill(name: string): BossSkill | undefined {
     return this.skills.get(name);
   }
   
   /**
-   * 执行技能
+   * Execute skill
    */
   async executeSkill(
     skill: BossSkill,
@@ -66,62 +66,62 @@ export class SkillManager {
     playerY: number
   ): Promise<void> {
     if (this.isExecutingSkill) {
-      console.warn('[SkillManager] 技能执行中，忽略新技能');
+      console.warn('[SkillManager] Skill executing, ignore new request');
       return;
     }
     
     this.isExecutingSkill = true;
     skill.setLastUsedTime(Date.now());
     
-    console.log(`[SkillManager] 执行技能: ${skill.getName()}`);
+    console.log(`[SkillManager] Execute skill: ${skill.getName()}`);
     
     try {
       await skill.execute(bossX, bossY, playerX, playerY);
     } catch (error) {
-      console.error(`[SkillManager] 技能执行错误:`, error);
+      console.error(`[SkillManager] Skill execution error:`, error);
     } finally {
       this.isExecutingSkill = false;
     }
   }
   
   /**
-   * 设置当前阶段
+   * text
    */
   setPhase(phase: SkillPhase): void {
     this.currentPhase = phase;
-    console.log(`[SkillManager] 切换到阶段: ${phase + 1}`);
+    console.log(`[SkillManager] Switch to phase: ${phase + 1}`);
   }
   
   /**
-   * 获取当前阶段
+   * text
    */
   getCurrentPhase(): SkillPhase {
     return this.currentPhase;
   }
   
   /**
-   * 是否正在执行技能
+   * textExecute skill
    */
   isExecuting(): boolean {
     return this.isExecutingSkill;
   }
   
   /**
-   * 重置所有技能冷却
+   * text
    */
   resetAllCooldowns(): void {
     this.skills.forEach(skill => skill.resetCooldown());
   }
   
   /**
-   * 获取所有技能
+   * text
    */
   getAllSkills(): BossSkill[] {
     return Array.from(this.skills.values());
   }
   
   /**
-   * 销毁
+   * destroy
    */
   destroy(): void {
     this.skills.forEach(skill => skill.destroy());

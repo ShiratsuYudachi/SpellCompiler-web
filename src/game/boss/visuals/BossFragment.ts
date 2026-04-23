@@ -1,6 +1,6 @@
 /**
- * BossFragment - Boss碎片组件
- * 管理单个几何体碎片的创建、动画和销毁
+ * BossFragment - Bosstext
+ * text,animationanddestroy
  */
 
 import Phaser from 'phaser';
@@ -30,7 +30,7 @@ export class BossFragment {
   private baseColor: number;
   private currentAlpha: number;
   
-  // 动画相关
+  // text
   private floatTween?: Phaser.Tweens.Tween;
   private rotateTween?: Phaser.Tweens.Tween;
   
@@ -41,7 +41,7 @@ export class BossFragment {
     this.baseColor = config.color;
     this.currentAlpha = config.alpha || 1;
     
-    // 创建图形对象
+    // text
     this.graphics = scene.add.graphics();
     this.graphics.setPosition(config.x, config.y);
     this.graphics.setRotation(config.rotation || 0);
@@ -72,7 +72,7 @@ export class BossFragment {
   private drawTriangle(): void {
     const half = this.size / 2;
     
-    // 填充
+    // fill
     this.graphics.fillStyle(this.baseColor, 1);
     this.graphics.beginPath();
     this.graphics.moveTo(0, -half);
@@ -81,7 +81,7 @@ export class BossFragment {
     this.graphics.closePath();
     this.graphics.fillPath();
     
-    // 描边
+    // stroke
     this.graphics.lineStyle(2, 0x8b0000, 0.8);
     this.graphics.strokePath();
   }
@@ -89,11 +89,11 @@ export class BossFragment {
   private drawRectangle(): void {
     const half = this.size / 2;
     
-    // 填充
+    // fill
     this.graphics.fillStyle(this.baseColor, 1);
     this.graphics.fillRect(-half, -half, this.size, this.size);
     
-    // 描边
+    // stroke
     this.graphics.lineStyle(2, 0x8b0000, 0.8);
     this.graphics.strokeRect(-half, -half, this.size, this.size);
   }
@@ -101,7 +101,7 @@ export class BossFragment {
   private drawDiamond(): void {
     const half = this.size / 2;
     
-    // 填充
+    // fill
     this.graphics.fillStyle(this.baseColor, 1);
     this.graphics.beginPath();
     this.graphics.moveTo(0, -half);
@@ -111,7 +111,7 @@ export class BossFragment {
     this.graphics.closePath();
     this.graphics.fillPath();
     
-    // 描边
+    // stroke
     this.graphics.lineStyle(2, 0x8b0000, 0.8);
     this.graphics.strokePath();
   }
@@ -119,17 +119,17 @@ export class BossFragment {
   private drawQuadrilateral(): void {
     const half = this.size / 2;
 
-    // 填充
+    // fill
     this.graphics.fillStyle(this.baseColor, 1);
     this.graphics.fillRect(-half, -half, this.size, this.size);
 
-    // 描边
+    // stroke
     this.graphics.lineStyle(2, 0x8b0000, 0.8);
     this.graphics.strokeRect(-half, -half, this.size, this.size);
   }
 
   /**
-   * 开始飘动动画
+   * start float animation
    */
   startFloating(amplitude: number = 5, duration: number = 2000): void {
     const startY = this.graphics.y;
@@ -145,7 +145,7 @@ export class BossFragment {
   }
   
   /**
-   * 开始旋转动画
+   * start spin animation
    */
   startRotating(speed: number = 1): void {
     this.rotateTween = this.scene.tweens.add({
@@ -158,7 +158,7 @@ export class BossFragment {
   }
   
   /**
-   * 爆炸分离效果
+   * text
    */
   explode(force: number = 100): void {
     const angle = Math.random() * Math.PI * 2;
@@ -178,7 +178,7 @@ export class BossFragment {
   }
   
   /**
-   * 更新颜色
+   * update color
    */
   setColor(color: number): void {
     this.baseColor = color;
@@ -186,7 +186,7 @@ export class BossFragment {
   }
   
   /**
-   * 更新透明度
+   * update alpha
    */
   setAlpha(alpha: number): void {
     this.currentAlpha = alpha;
@@ -194,7 +194,7 @@ export class BossFragment {
   }
   
   /**
-   * 闪烁效果
+   * text
    */
   flash(duration: number = 100, toAlpha: number = 0.3): void {
     const originalAlpha = this.currentAlpha;
@@ -211,7 +211,7 @@ export class BossFragment {
   }
   
   /**
-   * 移动到指定位置
+   * move to position
    */
   moveTo(x: number, y: number, duration: number = 500): Phaser.Tweens.Tween {
     return this.scene.tweens.add({
@@ -224,28 +224,28 @@ export class BossFragment {
   }
   
   /**
-   * 获取位置
+   * get position
    */
   getPosition(): { x: number; y: number } {
     return { x: this.graphics.x, y: this.graphics.y };
   }
   
   /**
-   * 设置位置
+   * set position
    */
   setPosition(x: number, y: number): void {
     this.graphics.setPosition(x, y);
   }
   
   /**
-   * 获取Graphics对象
+   * getGraphicstext
    */
   getGraphics(): Phaser.GameObjects.Graphics {
     return this.graphics;
   }
   
   /**
-   * 销毁
+   * destroy
    */
   destroy(): void {
     if (this.floatTween) {

@@ -1,6 +1,6 @@
 /**
- * FullScreenPurgeSkill - 全屏肃清
- * 屏幕布满50条随机扫描线，1.5秒后所有交点爆炸，玩家必须找到唯一安全缝隙
+ * FullScreenPurgeSkill - text
+ * text50text,1.5text,text
  */
 
 import Phaser from 'phaser';
@@ -30,10 +30,10 @@ export class FullScreenPurgeSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
     const config: SkillConfig = {
       name: 'FullScreenPurge',
-      damage: 80, // 单次爆炸80伤害
-      cooldown: 25.0, // 终极技能，长冷却
+      damage: 80, // text80damage
+      cooldown: 25.0, // text,text
       phase: SkillPhase.Phase3,
-      priority: 10, // 最高优先级
+      priority: 10, // text
     };
     
     super(scene, config);
@@ -48,34 +48,34 @@ export class FullScreenPurgeSkill extends BossSkill {
   ): Promise<void> {
     this.isExecuting = true;
     
-    console.log('[FullScreenPurge] 全屏肃清！');
+    console.log('[FullScreenPurge] Full-screen purge!');
     
-    // 清理旧数据
+    // text
     this.cleanup();
     
-    // 屏幕变暗
+    // text
     await this.darkenScreen();
     
-    // 生成扫描线网格
+    // Spawnedtext
     this.generateScanLines();
     
-    // 计算交点
+    // text
     this.calculateIntersections();
     
-    // 1.5秒警告期
+    // 1.5text
     await this.warningPhase();
     
-    // 所有交点爆炸
+    // text
     await this.explodeIntersections();
     
-    // 清理
+    // cleanup
     this.cleanup();
     
     this.onComplete();
   }
   
   /**
-   * 屏幕变暗
+   * text
    */
   private async darkenScreen(): Promise<void> {
     const darkOverlay = this.scene.add.rectangle(
@@ -100,13 +100,13 @@ export class FullScreenPurgeSkill extends BossSkill {
   }
   
   /**
-   * 生成扫描线
+   * Spawnedscan lines
    */
   private generateScanLines(): void {
     const width = this.scene.cameras.main.width;
     const height = this.scene.cameras.main.height;
     
-    // 生成25条横线
+    // Spawned25text
     for (let i = 0; i < 25; i++) {
       const y = Math.random() * height;
       const line = this.effects.createScanLine(0, y, width, y);
@@ -122,7 +122,7 @@ export class FullScreenPurgeSkill extends BossSkill {
       });
     }
     
-    // 生成25条竖线
+    // Spawned25text
     for (let i = 0; i < 25; i++) {
       const x = Math.random() * width;
       const line = this.effects.createScanLine(x, 0, x, height);
@@ -138,17 +138,17 @@ export class FullScreenPurgeSkill extends BossSkill {
       });
     }
     
-    console.log(`[FullScreenPurge] 生成了 ${this.scanLines.length} 条扫描线`);
+    console.log(`[FullScreenPurge] Generated ${this.scanLines.length} scan lines`);
   }
   
   /**
-   * 计算所有交点
+   * text
    */
   private calculateIntersections(): void {
     const horizontalLines = this.scanLines.filter(l => l.isHorizontal);
     const verticalLines = this.scanLines.filter(l => !l.isHorizontal);
     
-    // 计算所有横竖线的交点
+    // text
     for (const h of horizontalLines) {
       for (const v of verticalLines) {
         this.intersections.push({
@@ -158,20 +158,20 @@ export class FullScreenPurgeSkill extends BossSkill {
       }
     }
     
-    // 找到并移除一个安全缝隙（随机选择玩家附近的一个区域）
+    // textonetext(textonetext)
     this.createSafeGap();
     
-    console.log(`[FullScreenPurge] 计算了 ${this.intersections.length} 个交点`);
+    console.log(`[FullScreenPurge] Calculated ${this.intersections.length} intersections`);
   }
   
   /**
-   * 创建安全缝隙
+   * text
    */
   private createSafeGap(): void {
     const player = this.scene.children.getByName('player') as any;
     if (!player) return;
     
-    // 在玩家附近50px范围内移除交点，创造安全区
+    // text50pxtext,text
     const safeRadius = 40;
     
     this.intersections = this.intersections.filter(inter => {
@@ -181,7 +181,7 @@ export class FullScreenPurgeSkill extends BossSkill {
       return distance > safeRadius;
     });
     
-    // 绘制安全区标记（绿色圆圈）
+    // text(text)
     const safeZone = this.scene.add.circle(
       player.x,
       player.y,
@@ -193,7 +193,7 @@ export class FullScreenPurgeSkill extends BossSkill {
     safeZone.setDepth(52);
     safeZone.setName('safe-zone');
     
-    // 脉动提示
+    // text
     this.scene.tweens.add({
       targets: safeZone,
       alpha: { from: 0.3, to: 0.1 },
@@ -204,12 +204,12 @@ export class FullScreenPurgeSkill extends BossSkill {
   }
   
   /**
-   * 警告阶段
+   * text
    */
   private async warningPhase(): Promise<void> {
     showDomBanner('!!! FULL PURGE !!!', '#ff4444', 48, 1600);
     
-    // 绘制交点预警（红色小圆点）
+    // text(text)
     this.intersections.forEach(inter => {
       const dot = this.scene.add.circle(inter.x, inter.y, 3, 0xff0000, 0.6);
       dot.setDepth(52);
@@ -231,22 +231,22 @@ export class FullScreenPurgeSkill extends BossSkill {
   }
   
   /**
-   * 爆炸所有交点
+   * text
    */
   private async explodeIntersections(): Promise<void> {
-    console.log('[FullScreenPurge] 交点爆炸！');
+    console.log('[FullScreenPurge] Intersections detonated!');
     
-    // 屏幕强烈闪烁
+    // text
     this.effects.flashScreen(0xff0000, 200);
     
-    // 相机剧烈震动
+    // text
     this.scene.cameras.main.shake(500, 0.02);
     
-    // 所有交点同时爆炸
+    // text
     this.intersections.forEach((inter, index) => {
-      // 稍微错开爆炸时间（增加视觉效果）
+      // text(text)
       this.scene.time.delayedCall(index * 2, () => {
-        // 紫色光球
+        // text
         const explosion = this.scene.add.circle(
           inter.x,
           inter.y,
@@ -267,7 +267,7 @@ export class FullScreenPurgeSkill extends BossSkill {
       });
     });
     
-    // 等待100ms后检测玩家碰撞
+    // wait100mstext
     await this.delay(100);
     this.checkPlayerDamage();
     
@@ -275,13 +275,13 @@ export class FullScreenPurgeSkill extends BossSkill {
   }
   
   /**
-   * 检测玩家伤害
+   * text
    */
   private checkPlayerDamage(): void {
     const player = this.scene.children.getByName('player') as any;
     if (!player) return;
     
-    // 检测玩家是否在任意爆炸范围内
+    // text
     let hitCount = 0;
     
     for (const inter of this.intersections) {
@@ -289,23 +289,23 @@ export class FullScreenPurgeSkill extends BossSkill {
       const dy = player.y - inter.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      // 爆炸半径30px
+      // text30px
       if (distance < 30) {
         hitCount++;
       }
     }
     
     if (hitCount > 0) {
-      console.log(`[FullScreenPurge] 命中玩家！爆炸数: ${hitCount}`);
+      console.log(`[FullScreenPurge] Player hit! Explosion count: ${hitCount}`);
       
-      // 每个爆炸造成伤害
+      // text
       const totalDamage = this.config.damage * hitCount;
       
       if (typeof player.takeDamage === 'function') {
         player.takeDamage(totalDamage);
       }
       
-      // 强烈击退
+      // text
       const centerX = this.scene.cameras.main.centerX;
       const centerY = this.scene.cameras.main.centerY;
       const dx = player.x - centerX;
@@ -321,22 +321,22 @@ export class FullScreenPurgeSkill extends BossSkill {
         ease: 'Cubic.easeOut',
       });
     } else {
-      console.log('[FullScreenPurge] 玩家成功躲避！');
+      console.log('[FullScreenPurge] Player dodged successfully!');
     }
   }
   
   /**
-   * 清理
+   * cleanup
    */
   private cleanup(): void {
-    // 清理扫描线
+    // text
     this.scanLines.forEach(line => line.graphics.destroy());
     this.scanLines = [];
     
-    // 清理交点
+    // text
     this.intersections = [];
     
-    // 清理叠加层
+    // text
     const overlay = this.scene.children.getByName('purge-overlay');
     if (overlay) {
       this.scene.tweens.add({
@@ -347,11 +347,11 @@ export class FullScreenPurgeSkill extends BossSkill {
       });
     }
     
-    // 清理安全区
+    // text
     const safeZone = this.scene.children.getByName('safe-zone');
     if (safeZone) safeZone.destroy();
     
-    // 清理交点标记
+    // text
     const dots = this.scene.children.getAll().filter(
       (obj: any) => obj.name === 'intersection-dot'
     );
@@ -359,7 +359,7 @@ export class FullScreenPurgeSkill extends BossSkill {
   }
   
   /**
-   * 销毁
+   * destroy
    */
   destroy(): void {
     this.cleanup();

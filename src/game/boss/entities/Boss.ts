@@ -1,6 +1,6 @@
 /**
- * Boss实体 - 协调所有Boss逻辑
- * 集成破碎幻影视觉、技能系统和碰撞检测
+ * Bossentity - textBosslogic
+ * text,textandtext
  */
 
 import Phaser from 'phaser';
@@ -16,20 +16,20 @@ import { SkillSelector } from '../ai/SkillSelector';
 import { HitboxManager } from '../collision/HitboxManager';
 import { SkillPhase } from '../skills/BossSkill';
 
-// 导入第一阶段技能
+// text
 import { LinearCutSkill } from '../skills/phase1/LinearCutSkill';
 import { GeometricBladeSkill } from '../skills/phase1/GeometricBladeSkill';
 import { FragmentDecoySkill } from '../skills/phase1/FragmentDecoySkill';
 import { RotatingShieldSkill } from '../skills/phase1/RotatingShieldSkill';
 
-// 导入第二阶段技能
+// text
 import { ShadowEchoSkill } from '../skills/phase2/ShadowEchoSkill';
 import { SpaceCollapseSkill } from '../skills/phase2/SpaceCollapseSkill';
 import { CloakTrackingSkill } from '../skills/phase2/CloakTrackingSkill';
 import { ZigzagRushSkill } from '../skills/phase2/ZigzagRushSkill';
 import { RedMoonSlashSkill } from '../skills/phase2/RedMoonSlashSkill';
 
-// 导入第三阶段技能
+// text
 import { FullScreenPurgeSkill } from '../skills/phase3/FullScreenPurgeSkill';
 import { TripleIllusionSkill } from '../skills/phase3/TripleIllusionSkill';
 import { FinalCollapseSkill } from '../skills/phase3/FinalCollapseSkill';
@@ -40,24 +40,24 @@ export class Boss {
   private scene: Phaser.Scene;
   private config: BossConfig;
   
-  // 新视觉系统
+  // text
   private visualBoss: FragmentedPhantomBoss;
   private effects: BossEffects;
   private weapon: BossWeapon;
   
-  // 技能系统
+  // text
   private skillManager: SkillManager;
   private skillSelector: SkillSelector;
   private hitboxManager: HitboxManager;
   
   
-  // 边界
+  // bounds
   private bounds: { left: number; right: number; top: number; bottom: number };
   
-  // 阶段管理
+  // text
   private currentPhaseConfig: PhaseConfig;
   
-  // 普攻系统
+  // text
   private lastBasicAttackTime: number = 0;
   private nextBasicAttackDelay: number = 0;
   
@@ -68,12 +68,12 @@ export class Boss {
     this.store = new BossStore(config.maxHealth);
     this.currentPhaseConfig = config.phases[0];
     
-    // 初始化技能系统
+    // text
     this.skillManager = new SkillManager(scene);
     this.skillSelector = new SkillSelector();
     this.hitboxManager = new HitboxManager(scene);
     
-    // 计算边界
+    // text
     this.bounds = {
       left: 50,
       right: 910,
@@ -81,25 +81,25 @@ export class Boss {
       bottom: 490,
     };
     
-    // 创建视觉效果
+    // text
     this.visualBoss = new FragmentedPhantomBoss(scene, x, y);
     this.effects = new BossEffects(scene);
     this.weapon = new BossWeapon(scene);
     this.nextBasicAttackDelay = 3000 + Math.random() * 3000;
     
-    // 创建UI
+    // createUI
     this.createUI(x, y);
     
-    // 设置初始位置
+    // text
     this.store.dispatch({ type: 'SET_POSITION', payload: { x, y } });
     
-    // 监听状态变化
+    // text
     this.setupListeners();
     
-    // 注册技能（阶段A暂时为空，等阶段B再添加）
+    // Register skill(phaseAtext,textBtext)
     this.registerSkills();
     
-    console.log('[Boss] 破碎幻影Boss已创建');
+    console.log('[Boss] Fragmented Phantom Boss created');
   }
   
   private createUI(_x: number, _y: number): void {
@@ -121,7 +121,7 @@ export class Boss {
   }
   
   private setupListeners(): void {
-    // 监听位置变化
+    // text
     this.store.subscribe('position', (pos) => {
       this.visualBoss.updatePosition(pos.x, pos.y);
       this.weapon.setPosition(pos.x, pos.y);
@@ -129,20 +129,20 @@ export class Boss {
       this.updateStateText();
     });
     
-    // 监听血量变化
+    // text
     this.store.subscribe('health', (health) => {
       this.updateHealthBar();
       this.checkPhaseTransition(health);
       this.eventBus.emit({ type: 'healthChanged', health });
     });
     
-    // 监听状态变化
+    // text
     this.store.subscribe('currentState', (state, oldState) => {
       this.updateStateText();
       this.eventBus.emit({ type: 'stateChanged', state, oldState });
     });
     
-    // 监听阶段变化
+    // text
     this.store.subscribe('currentPhase', (phase) => {
       this.currentPhaseConfig = this.config.phases[phase];
       this.visualBoss.updatePhase(phase);
@@ -152,23 +152,23 @@ export class Boss {
   }
   
   /**
-   * 注册技能
+   * Register skill
    */
   private registerSkills(): void {
-    // 第一阶段技能
+    // text
     const linearCut = new LinearCutSkill(this.scene);
     const geometricBlade = new GeometricBladeSkill(this.scene);
     const fragmentDecoy = new FragmentDecoySkill(this.scene);
     const rotatingShield = new RotatingShieldSkill(this.scene);
     
-    // 第二阶段技能
+    // text
     const shadowEcho = new ShadowEchoSkill(this.scene);
     const spaceCollapse = new SpaceCollapseSkill(this.scene);
     const cloakTracking = new CloakTrackingSkill(this.scene);
     const zigzagRush = new ZigzagRushSkill(this.scene);
     const redMoonSlash = new RedMoonSlashSkill(this.scene);
     
-    // 第三阶段技能
+    // text
     const fullScreenPurge = new FullScreenPurgeSkill(this.scene);
     const tripleIllusion = new TripleIllusionSkill(this.scene);
     const finalCollapse = new FinalCollapseSkill(this.scene);
@@ -191,9 +191,9 @@ export class Boss {
       finalCollapse,
     ]);
     
-    console.log('[Boss] 已注册12个技能（4个阶段1 + 5个阶段2 + 3个阶段3）');
+    console.log('[Boss] Registered 12 skills (4 phase-1 + 5 phase-2 + 3 phase-3)');
     
-    // 监听Boss瞬移事件（技能触发）
+    // listenBosstext(text)
     this.scene.events.on('boss-teleport', this.onTeleport, this);
   }
   
@@ -203,24 +203,24 @@ export class Boss {
     const deltaSeconds = delta / 1000;
     const pos = this.store.get('position');
     
-    // 更新目标距离
+    // text
     const dx = playerX - pos.x;
     const dy = playerY - pos.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     this.store.dispatch({ type: 'UPDATE_TARGET_DISTANCE', payload: distance });
     
-    // 更新攻击冷却
+    // text
     const lastAttackTime = this.store.get('lastAttackTime');
     const attackCooldown = this.config.attackCooldown * 
       (this.currentPhaseConfig?.attackIntervalMultiplier || 1);
     
-    // 简单AI状态机
+    // simpleAItext
     this.updateAI(distance, dx, dy, deltaSeconds, attackCooldown, lastAttackTime);
     
-    // 应用速度
+    // text
     this.applyVelocity(deltaSeconds);
     
-    // 同步视觉Boss位置
+    // textBossposition
     const currentPos = this.store.get('position');
     this.visualBoss.setPosition(currentPos.x, currentPos.y);
   }
@@ -272,7 +272,7 @@ export class Boss {
           break;
         }
         
-        // 使用技能系统
+        // text
         if (!isAttacking && !this.skillManager.isExecuting()) {
           const timeSinceLastAttack = (Date.now() - lastAttackTime) / 1000;
           if (timeSinceLastAttack >= attackCooldown) {
@@ -288,7 +288,7 @@ export class Boss {
   }
   
   /**
-   * 使用技能系统执行攻击
+   * text
    */
   private async executeSkillAttack(dx: number, dy: number, distance: number): Promise<void> {
     this.store.dispatch({ type: 'START_ATTACK' });
@@ -300,21 +300,21 @@ export class Boss {
     const player = level2Scene.world?.resources?.bodies?.get(level2Scene.world?.resources?.playerEid);
 
     if (!player) {
-      console.log('[Boss] 找不到玩家实体');
+      console.log('[Boss] Player entity not found');
       this.store.dispatch({ type: 'END_ATTACK' });
       return;
     }
 
-    // 获取可用技能
+    // text
     const availableSkills = this.skillManager.getAvailableSkills(Date.now());
     
     if (availableSkills.length === 0) {
-      console.log('[Boss] 无可用技能，使用简单攻击');
+      console.log('[Boss] No available skill, using basic attack');
       this.executeSimpleAttack(dx, dy, distance);
       return;
     }
     
-    // 使用AI选择技能
+    // useAISelected skill
     const selectedSkill = this.skillSelector.selectSkill(availableSkills, {
       bossX: pos.x,
       bossY: pos.y,
@@ -327,14 +327,14 @@ export class Boss {
     });
     
     if (!selectedSkill) {
-      console.log('[Boss] 技能选择失败，使用简单攻击');
+      console.log('[Boss] Skill selection failed, using basic attack');
       this.executeSimpleAttack(dx, dy, distance);
       return;
     }
     
-    console.log(`[Boss] 选择技能: ${selectedSkill.getName()}`);
+    console.log(`[Boss] Selected skill: ${selectedSkill.getName()}`);
     
-    // 执行技能
+    // Execute skill
     await this.skillManager.executeSkill(
       selectedSkill,
       pos.x,
@@ -360,12 +360,12 @@ export class Boss {
     const player = level2Scene.world?.resources?.bodies?.get(level2Scene.world?.resources?.playerEid);
 
     if (!player) {
-      console.log('[Boss] 找不到玩家实体 (简单攻击)');
+      console.log('[Boss] Player entity not found (basic attack)');
       this.store.dispatch({ type: 'END_ATTACK' });
       return;
     }
     
-    // 随机普攻间隔检查
+    // text
     const now = Date.now();
     if (now - this.lastBasicAttackTime < this.nextBasicAttackDelay) {
       this.store.dispatch({ type: 'END_ATTACK' });
@@ -373,13 +373,13 @@ export class Boss {
     }
     
     this.lastBasicAttackTime = now;
-    this.nextBasicAttackDelay = 3000 + Math.random() * 3000; // 下次3-6秒
+    this.nextBasicAttackDelay = 3000 + Math.random() * 3000; // next time3-6sec
     
     const isRanged = distance > 150;
     
     if (isRanged) {
-      // === 远程射击 ===
-      console.log('[Boss] 远程射击');
+      // === Ranged shot ===
+      console.log('[Boss] Ranged shot');
       
       const chargeCircle = this.scene.add.circle(pos.x, pos.y, 20, 0xff00ff, 0.5);
       this.scene.tweens.add({
@@ -392,7 +392,7 @@ export class Boss {
       await this.delay(500);
       chargeCircle.destroy();
       
-      // 发射追踪弹
+      // text
       const bullet = this.scene.add.circle(pos.x, pos.y, 8, 0x8b00ff);
       bullet.setStrokeStyle(2, 0xff00ff);
       
@@ -424,20 +424,20 @@ export class Boss {
       });
       
     } else {
-      // === 近战斩击（使用武器） ===
-      console.log('[Boss] 近战斩击');
+      // === Melee slash(text) ===
+      console.log('[Boss] Melee slash');
       
-      // 预警
+      // warning
       const telegraphCircle = this.scene.add.circle(pos.x, pos.y, 120, 0x8b00ff, 0.3);
       telegraphCircle.setStrokeStyle(3, 0x8b00ff);
       
       await this.delay(800);
       telegraphCircle.destroy();
       
-      // 武器斩击动画
+      // text
       await this.weapon.slash(120);
       
-      // 检测伤害
+      // text
       const currentDist = Phaser.Math.Distance.Between(pos.x, pos.y, player.x, player.y);
       if (currentDist < 120) {
         if (player.takeDamage) player.takeDamage(60);
@@ -479,7 +479,7 @@ export class Boss {
   
   private transitionToPhase(phaseIndex: number): void {
     const phase = this.config.phases[phaseIndex];
-    console.log(`[Boss] 进入阶段 ${phase.phaseNumber}`);
+    console.log(`[Boss] Entered phase ${phase.phaseNumber}`);
     
     this.store.dispatch({ type: 'CHANGE_PHASE', payload: phaseIndex });
     
@@ -490,7 +490,7 @@ export class Boss {
       );
     }
     
-    // 触发视觉闪烁 - 修复：flashEffect() 改为 flash()
+    // text - fix:flashEffect() text flash()
     this.visualBoss.flash(200);
     
     if (phase.invincibleDuration > 0) {
@@ -503,16 +503,16 @@ export class Boss {
   takeDamage(amount: number, isCritical: boolean = false): void {
     const finalAmount = isCritical ? amount * this.config.criticalMultiplier : amount;
     
-    // 尝试触发碎片替身（被动技能）
+    // text(text)
     const fragmentDecoy = this.skillManager.getSkill('FragmentDecoy');
     if (fragmentDecoy && fragmentDecoy.canUse(Date.now())) {
-      console.log('[Boss] 碎片替身触发！');
+      console.log('[Boss] Fragment decoy triggered!');
       
       const pos = this.store.get('position');
       const player = this.scene.children.getByName('player') as any;
       
       if (player) {
-        // 异步执行技能（不阻塞）
+        // asyncExecute skill(non-blocking)
         this.skillManager.executeSkill(
           fragmentDecoy,
           pos.x,
@@ -522,14 +522,14 @@ export class Boss {
         );
       }
       
-      // 闪避成功，不受伤
+      // text,no damage
       return;
     }
     
-    // 正常受伤
+    // text
     this.store.dispatch({ type: 'TAKE_DAMAGE', payload: finalAmount });
     
-    // 受击闪烁
+    // text
     this.visualBoss.flash(100);
     
     this.eventBus.emit({ type: 'damaged', amount: finalAmount, isCritical });
@@ -540,7 +540,7 @@ export class Boss {
   }
   
   private onDeath(): void {
-    console.log('[Boss] 死亡');
+    console.log('[Boss] Died');
     this.visualBoss.explode();
     this.eventBus.emit({ type: 'died' });
   }
@@ -566,10 +566,10 @@ export class Boss {
   }
   
   /**
-   * 技能触发的瞬移
+   * text
    */
   private onTeleport(data: { x: number; y: number }): void {
-    console.log(`[Boss] 瞬移到 (${data.x}, ${data.y})`);
+    console.log(`[Boss] Teleported to (${data.x}, ${data.y})`);
     this.store.dispatch({ type: 'SET_POSITION', payload: { x: data.x, y: data.y } });
   }
   

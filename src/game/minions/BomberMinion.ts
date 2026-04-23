@@ -1,5 +1,5 @@
 /**
- * 自爆兵 - 快速冲向玩家并自爆
+ * bomber minion - text
  */
 
 import Phaser from 'phaser';
@@ -18,7 +18,7 @@ export class BomberMinion extends Minion {
     damage: number,
     speed: number
   ) {
-    super(scene, x, y, health, damage, 0xe74c3c); // 橙红色
+    super(scene, x, y, health, damage, 0xe74c3c); // orange-red
     this.speed = speed;
   }
   
@@ -29,20 +29,20 @@ export class BomberMinion extends Minion {
     const dy = playerY - this.sprite.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // 接近玩家时自爆
+    // text
     if (distance < 50) {
       this.explode(playerX, playerY);
       return;
     }
     
-    // 快速移动
+    // fast move
     const moveX = (dx / distance) * this.speed * (delta / 1000);
     const moveY = (dy / distance) * this.speed * (delta / 1000);
     
     this.sprite.x += moveX;
     this.sprite.y += moveY;
     
-    // 闪烁警告（接近时）
+    // text(text)
     if (distance < 100) {
       this.sprite.setAlpha(0.5 + Math.sin(Date.now() / 100) * 0.5);
     }
@@ -51,7 +51,7 @@ export class BomberMinion extends Minion {
   private explode(playerX: number, playerY: number): void {
     this.isExploding = true;
     
-    // 爆炸特效
+    // text
     const explosion = this.scene.add.circle(
       this.sprite.x,
       this.sprite.y,
@@ -68,13 +68,13 @@ export class BomberMinion extends Minion {
       onComplete: () => explosion.destroy(),
     });
     
-    // 检测玩家是否在爆炸范围内
+    // text
     const dx = playerX - this.sprite.x;
     const dy = playerY - this.sprite.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
     if (distance < this.explosionRadius) {
-      // 通过事件通知场景（玩家受伤）
+      // notify scene via event(text)
       this.scene.events.emit('bomber-hit-player', this.damage);
     }
     
@@ -82,7 +82,7 @@ export class BomberMinion extends Minion {
   }
   
   protected die(): void {
-    // 如果被击杀（非自爆），也会爆炸
+    // text(notself-destruct),text
     if (!this.isExploding) {
       const player = this.scene.children.getByName('player') as any;
       if (player) {

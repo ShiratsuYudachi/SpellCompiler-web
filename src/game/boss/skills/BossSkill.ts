@@ -1,6 +1,6 @@
 /**
- * BossSkill - Boss技能基类
- * 所有Boss技能都继承此类
+ * BossSkill - Bosstext
+ * allBosstext
  */
 
 import Phaser from 'phaser';
@@ -14,9 +14,9 @@ export enum SkillPhase {
 export interface SkillConfig {
   name: string;
   damage: number;
-  cooldown: number;       // 冷却时间（秒）
-  phase: SkillPhase;      // 所属阶段
-  priority: number;       // 优先级（1-10）
+  cooldown: number;       // text(sec)
+  phase: SkillPhase;      // text
+  priority: number;       // priority(1-10)
 }
 
 export abstract class BossSkill {
@@ -31,7 +31,7 @@ export abstract class BossSkill {
   }
   
   /**
-   * 检查技能是否可用
+   * text
    */
   canUse(currentTime: number): boolean {
     if (this.isExecuting) return false;
@@ -41,8 +41,8 @@ export abstract class BossSkill {
   }
   
   /**
-   * 执行技能（异步）
-   * 子类必须实现此方法
+   * Execute skill(async)
+   * text
    */
   abstract execute(
     bossX: number,
@@ -52,63 +52,63 @@ export abstract class BossSkill {
   ): Promise<void>;
   
   /**
-   * 技能执行完毕的回调
+   * text
    */
   protected onComplete(): void {
     this.isExecuting = false;
   }
   
   /**
-   * 获取技能配置
+   * text
    */
   getConfig(): SkillConfig {
     return this.config;
   }
   
   /**
-   * 获取技能名称
+   * text
    */
   getName(): string {
     return this.config.name;
   }
   
   /**
-   * 获取技能冷却时间
+   * text
    */
   getCooldown(): number {
     return this.config.cooldown;
   }
   
   /**
-   * 获取上次使用时间
+   * text
    */
   getLastUsedTime(): number {
     return this.lastUsedTime;
   }
   
   /**
-   * 设置上次使用时间
+   * text
    */
   setLastUsedTime(time: number): void {
     this.lastUsedTime = time;
   }
   
   /**
-   * 重置冷却
+   * text
    */
   resetCooldown(): void {
     this.lastUsedTime = 0;
   }
   
   /**
-   * 销毁技能
+   * text
    */
   destroy(): void {
-    // 子类可以重写此方法清理资源
+    // text
   }
 
   /**
-   * 延迟辅助方法
+   * text
    */
   protected delay(ms: number): Promise<void> {
     return new Promise(resolve => this.scene.time.delayedCall(ms, resolve));

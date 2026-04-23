@@ -1,6 +1,6 @@
 /**
- * BossEffects - Boss特效系统
- * 管理各种视觉特效（粒子、闪烁、残影等）
+ * BossEffects - Bosseffects system
+ * text(particles,flash,text)
  */
 
 import Phaser from 'phaser';
@@ -13,7 +13,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建粒子爆发效果
+   * text
    */
   createParticleBurst(
     x: number,
@@ -43,7 +43,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建紫色裂痕线（线状切割技能用）
+   * text(for linear cut skill)
    */
   createCrackLine(
     x1: number,
@@ -56,7 +56,7 @@ export class BossEffects {
     line.lineStyle(3, 0x8b00ff, 0.6);
     line.lineBetween(x1, y1, x2, y2);
     
-    // 闪烁效果
+    // text
     this.scene.tweens.add({
       targets: line,
       alpha: { from: 0.6, to: 0.2 },
@@ -65,11 +65,11 @@ export class BossEffects {
       repeat: 4,
     });
     
-    // 1秒后爆炸
+    // 1text
     this.scene.time.delayedCall(1000, () => {
       onExplode();
       
-      // 爆炸粒子
+      // text
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
       this.createParticleBurst(midX, midY, 0x8b00ff, 30, 200);
@@ -81,7 +81,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建残影效果
+   * text
    */
   createPhantom(
     sourceGraphics: Phaser.GameObjects.Graphics,
@@ -98,7 +98,7 @@ export class BossEffects {
     phantom.setRotation(sourceGraphics.rotation);
     phantom.setAlpha(alpha);
     
-    // 复制源图形的路径（简化版，只复制矩形）
+    // copy source shape path(simplified,rectangles only)
     phantom.fillStyle(color, 1);
     phantom.fillRect(-40, -60, 80, 120);
     
@@ -106,7 +106,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建传送闪光效果
+   * text
    */
   createTeleportFlash(x: number, y: number, radius: number = 60): void {
     const flash = this.scene.add.circle(x, y, radius, 0x8b00ff, 0.8);
@@ -122,7 +122,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建冲击波效果
+   * text
    */
   createShockwave(
     x: number,
@@ -145,7 +145,7 @@ export class BossEffects {
   }
   
   /**
-   * 屏幕闪烁效果
+   * screen flash effect
    */
   flashScreen(color: number = 0xffffff, duration: number = 100): void {
     const flash = this.scene.add.rectangle(
@@ -167,7 +167,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建发光线条（刀光）
+   * text(blade glow)
    */
   createGlowingLine(
     x1: number,
@@ -180,11 +180,11 @@ export class BossEffects {
   ): Phaser.GameObjects.Graphics {
     const line = this.scene.add.graphics();
     
-    // 外层发光
+    // outer glow
     line.lineStyle(thickness + glowIntensity, color, 0.3);
     line.lineBetween(x1, y1, x2, y2);
     
-    // 内层亮线
+    // inner bright line
     line.lineStyle(thickness, color, 1);
     line.lineBetween(x1, y1, x2, y2);
     
@@ -192,7 +192,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建拖尾效果
+   * text
    */
   createTrail(
     x: number,
@@ -213,7 +213,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建紫色扫描线（全屏肃清用）
+   * text(text)
    */
   createScanLine(
     x1: number,
@@ -225,7 +225,7 @@ export class BossEffects {
     line.lineStyle(2, 0x8b00ff, 0.8);
     line.lineBetween(x1, y1, x2, y2);
     
-    // 脉动效果
+    // text
     this.scene.tweens.add({
       targets: line,
       alpha: { from: 0.8, to: 0.3 },
@@ -238,7 +238,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建黑洞效果（空间坍缩用）
+   * text(for space collapse)
    */
   createBlackHole(
     x: number,
@@ -258,7 +258,7 @@ export class BossEffects {
         currentSize = Math.max(20, currentSize - shrinkRate);
         blackHole.clear();
         
-        // 黑色填充
+        // black fill
         blackHole.fillStyle(0x000000, 0.9);
         blackHole.fillRect(
           x - currentSize / 2,
@@ -267,7 +267,7 @@ export class BossEffects {
           currentSize
         );
         
-        // 紫色描边
+        // purple stroke
         blackHole.lineStyle(3, 0x8b00ff, 1);
         blackHole.strokeRect(
           x - currentSize / 2,
@@ -279,7 +279,7 @@ export class BossEffects {
       loop: true,
     });
     
-    // 自动销毁
+    // auto destroy
     this.scene.time.delayedCall(duration, () => {
       updateInterval.destroy();
       blackHole.destroy();
@@ -295,7 +295,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建追踪粒子（斗篷追踪用）
+   * text(for cloak tracking)
    */
   createTrackingParticle(
     startX: number,
@@ -310,13 +310,13 @@ export class BossEffects {
     particle.fillTriangle(0, -8, 6, 4, -6, 4);
     particle.setPosition(startX, startY);
     
-    // 计算角度
+    // calculate angle
     const dx = targetX - startX;
     const dy = targetY - startY;
     const angle = Math.atan2(dy, dx);
     particle.setRotation(angle + Math.PI / 2);
     
-    // 移动到目标
+    // move to target
     const distance = Math.sqrt(dx * dx + dy * dy);
     const duration = (distance / speed) * 1000;
     
@@ -337,7 +337,7 @@ export class BossEffects {
   }
   
   /**
-   * 创建爆炸效果
+   * text
    */
   createExplosion(
     x: number,
@@ -345,7 +345,7 @@ export class BossEffects {
     radius: number = 100,
     color: number = 0x8b00ff
   ): void {
-    // 中心闪光
+    // center flash
     const flash = this.scene.add.circle(x, y, radius * 0.5, 0xffffff, 0.8);
     this.scene.tweens.add({
       targets: flash,
@@ -355,7 +355,7 @@ export class BossEffects {
       onComplete: () => flash.destroy(),
     });
 
-    // 冲击波
+    // text
     const shockwave = this.scene.add.circle(x, y, 10, color, 0);
     shockwave.setStrokeStyle(4, color, 1);
     this.scene.tweens.add({
@@ -367,15 +367,15 @@ export class BossEffects {
       onComplete: () => shockwave.destroy(),
     });
 
-    // 粒子爆发
+    // text
     this.createParticleBurst(x, y, color, 40, 200);
 
-    // 屏幕震动
+    // screen shake
     this.scene.cameras.main.shake(300, 0.015);
   }
 
   /**
-   * 创建冲击闪光效果
+   * text
    */
   createImpactFlash(
     x: number,
@@ -383,7 +383,7 @@ export class BossEffects {
     color: number = 0xffffff,
     radius: number = 30
   ): void {
-    // 创建闪光圆圈
+    // create flash circle
     const flash = this.scene.add.circle(x, y, radius, color, 0.9);
 
     this.scene.tweens.add({
@@ -395,7 +395,7 @@ export class BossEffects {
       onComplete: () => flash.destroy(),
     });
 
-    // 添加一些粒子效果
+    // add some particle effects
     this.createParticleBurst(x, y, color, 8, 80);
   }
 }

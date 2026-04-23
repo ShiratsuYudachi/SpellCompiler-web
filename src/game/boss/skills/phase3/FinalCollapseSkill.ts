@@ -1,6 +1,6 @@
 /**
- * FinalCollapseSkill - 垂死挣扎（修复版）
- * 24碎片追踪玩家3秒
+ * FinalCollapseSkill - final struggle(text)
+ * 24text3sec
  */
 
 import Phaser from 'phaser';
@@ -22,15 +22,15 @@ export class FinalCollapseSkill extends BossSkill {
   
   async execute(_bossX: number, _bossY: number, _playerX: number, _playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[FinalCollapse] 垂死挣扎！');
+    console.log('[FinalCollapse] Final struggle!');
     
-    // 警告
+    // warning
     this.scene.cameras.main.shake(1000, 0.03);
     showDomBanner('!!! LAST STAND !!!', '#ff3333', 56, 1000);
     
     await this.delay(1000);
     
-    // 生成24碎片
+    // Spawned24fragment
     for (let i = 0; i < 24; i++) {
       const angle = (Math.PI * 2 / 24) * i;
       const fragment = this.scene.add.graphics();
@@ -43,7 +43,7 @@ export class FinalCollapseSkill extends BossSkill {
       this.fragments.push(fragment);
     }
     
-    // 追踪3秒
+    // tracking3sec
     const startTime = Date.now();
     const trackLoop = this.scene.time.addEvent({
       delay: 50,
@@ -58,8 +58,8 @@ export class FinalCollapseSkill extends BossSkill {
           const dy = player.y - frag.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           
-          // 追踪速度300px/s
-          const speed = 300 * 0.05; // 50ms更新
+          // text300px/s
+          const speed = 300 * 0.05; // 50msupdate
           if (dist > 0) {
             frag.x += (dx / dist) * speed;
             frag.y += (dy / dist) * speed;
@@ -67,7 +67,7 @@ export class FinalCollapseSkill extends BossSkill {
           
           frag.rotation += 0.2;
           
-          // 拖尾
+          // trail
           if (Math.random() < 0.3) {
             const trail = this.scene.add.circle(frag.x, frag.y, 3, 0xff0000, 0.5);
             this.scene.tweens.add({
@@ -78,14 +78,14 @@ export class FinalCollapseSkill extends BossSkill {
             });
           }
           
-          // 碰撞检测
+          // text
           if (dist < 25) {
             if (player.takeDamage) {
               player.takeDamage(this.config.damage);
-              console.log('[FinalCollapse] 同归于尽！');
+              console.log('[FinalCollapse] Mutual destruction!');
             }
             
-            // 爆炸
+            // explode
             for (let i = 0; i < 8; i++) {
               const angle = (Math.PI * 2 / 8) * i;
               const particle = this.scene.add.circle(frag.x, frag.y, 4, 0xff0000);
@@ -103,17 +103,17 @@ export class FinalCollapseSkill extends BossSkill {
           }
         });
         
-        // 3秒后结束
+        // 3end after seconds
         if (Date.now() - startTime > 3000) {
           trackLoop.destroy();
           
-          // 完美闪避
+          // text
           const allDestroyed = this.fragments.every(f => !f.active);
           if (!allDestroyed) {
             showDomBanner('PERFECT DODGE!', '#66ff88', 40, 1500);
           }
           
-          // 清理剩余碎片
+          // text
           this.fragments.forEach(f => {
             if (f.active) {
               this.scene.tweens.add({

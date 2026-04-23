@@ -1,6 +1,6 @@
 /**
- * 小怪生成器
- * 位置：game/MinionSpawner.ts
+ * minionSpawnedtext
+ * position:game/MinionSpawner.ts
  */
 
 import Phaser from 'phaser'
@@ -22,13 +22,13 @@ export class MinionSpawner {
 		this.scene = scene
 		this.difficulty = difficulty
 
-		// 随机生成数量
+		// randomSpawnedtext
 		const { min, max } = difficulty.minionCount
 		this.remainingCount = Math.floor(Math.random() * (max - min + 1)) + min
 	}
 
 	/**
-	 * 开始生成小怪
+	 * textSpawnedminion
 	 */
 	startSpawning(): void {
 		this.spawnTimer = this.scene.time.addEvent({
@@ -37,12 +37,12 @@ export class MinionSpawner {
 			loop: true,
 		})
 
-		// 立即生成第一波
+		// textSpawnedtext
 		this.spawnMinion()
 	}
 
 	/**
-	 * 停止生成
+	 * textSpawned
 	 */
 	stopSpawning(): void {
 		if (this.spawnTimer) {
@@ -52,7 +52,7 @@ export class MinionSpawner {
 	}
 
 	/**
-	 * 生成单个小怪
+	 * Spawnedsingleminion
 	 */
 	private spawnMinion(): void {
 		if (this.remainingCount <= 0) {
@@ -86,11 +86,11 @@ export class MinionSpawner {
 		this.minions.push(minion)
 		this.remainingCount--
 
-		console.log(`[MinionSpawner] 生成 ${type} 小怪，剩余: ${this.remainingCount}`)
+		console.log(`[MinionSpawner] Spawned ${type} minion,remaining: ${this.remainingCount}`)
 	}
 
 	/**
-	 * 随机选择小怪类型
+	 * textminiontype
 	 */
 	private getRandomMinionType(): string {
 		const types = this.difficulty.minionTypes
@@ -99,19 +99,19 @@ export class MinionSpawner {
 	}
 
 	/**
-	 * 随机生成位置（屏幕边缘）
+	 * randomSpawnedposition(text)
 	 */
 	private getRandomSpawnPosition(): { x: number; y: number } {
 		const side = Math.floor(Math.random() * 4)
 
 		switch (side) {
-			case 0: // 上
+			case 0: // top
 				return { x: Math.random() * 960, y: -50 }
-			case 1: // 下
+			case 1: // bottom
 				return { x: Math.random() * 960, y: 590 }
-			case 2: // 左
+			case 2: // left
 				return { x: -50, y: Math.random() * 540 }
-			case 3: // 右
+			case 3: // right
 				return { x: 1010, y: Math.random() * 540 }
 			default:
 				return { x: 480, y: 270 }
@@ -119,7 +119,7 @@ export class MinionSpawner {
 	}
 
 	/**
-	 * 随机生成小怪配置
+	 * randomSpawnedminionconfig
 	 */
 	private getRandomMinionConfig(): MinionConfig {
 		const { minionHealth, minionSpeed, minionDamage } = this.difficulty
@@ -132,7 +132,7 @@ export class MinionSpawner {
 	}
 
 	/**
-	 * 更新所有小怪
+	 * textminion
 	 */
 	update(delta: number): void {
 		for (let i = this.minions.length - 1; i >= 0; i--) {
@@ -147,21 +147,21 @@ export class MinionSpawner {
 	}
 
 	/**
-	 * 获取所有存活小怪
+	 * textminion
 	 */
 	getMinions(): BaseMinion[] {
 		return this.minions.filter((m) => m.active)
 	}
 
 	/**
-	 * 是否还有小怪
+	 * textminion
 	 */
 	hasMinions(): boolean {
 		return this.getMinions().length > 0 || this.remainingCount > 0
 	}
 
 	/**
-	 * 清理所有小怪
+	 * textminion
 	 */
 	destroy(): void {
 		this.stopSpawning()

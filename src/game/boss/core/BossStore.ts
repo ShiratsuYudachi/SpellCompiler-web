@@ -1,28 +1,28 @@
 /**
- * BossStore - Boss状态管理中心
- * 集中管理Boss的所有状态数据
+ * BossStore - Bosstext
+ * textBosstext
  */
 
 export interface BossState {
-  // 基础属性
+  // text
   health: number;
   maxHealth: number;
   
-  // 位置与移动
+  // text
   position: { x: number; y: number };
   velocity: { x: number; y: number };
   
-  // 状态标识
+  // text
   currentState: 'idle' | 'chase' | 'attack' | 'dead';
   currentPhase: number;
   isAttacking: boolean;
   isInvincible: boolean;
   
-  // 攻击相关
+  // text
   attackCooldown: number;
   lastAttackTime: number;
   
-  // 目标追踪
+  // text
   targetDistance: number;
 }
 

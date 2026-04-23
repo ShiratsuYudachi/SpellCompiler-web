@@ -40,14 +40,14 @@ export function createGameWorld(
 		// REMOVED: input - no longer needed, using Event System
 		// REMOVED: triggers - migrated to Event System
 		// REMOVED: triggerIdCounter
-		// 压力板和感应器状态
+		// pressure plateandtext
 		currentPlateColor: 'NONE',
 		sensorState: true,
 		pressurePlates: [],
 		sensors: [],
-		// 关卡特定数据
+		// text
 		levelData: {},
-		// 墙体碰撞
+		// text
 		walls: [],
 	}
 

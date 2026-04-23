@@ -1,6 +1,6 @@
 /**
- * RotatingShieldSkill - 旋转护盾
- * Boss周围生成旋转的矩形护盾，弹开子弹
+ * RotatingShieldSkill - rotating shield
+ * BossaroundSpawnedtext,deflect bullets
  */
 
 import Phaser from 'phaser';
@@ -20,7 +20,7 @@ export class RotatingShieldSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
     const config: SkillConfig = {
       name: 'RotatingShield',
-      damage: 0, // 防御技能
+      damage: 0, // defensive skill
       cooldown: 12.0,
       phase: SkillPhase.Phase1,
       priority: 5,
@@ -37,21 +37,21 @@ export class RotatingShieldSkill extends BossSkill {
   ): Promise<void> {
     this.isExecuting = true;
     
-    console.log('[RotatingShield] 激活旋转护盾');
+    console.log('[RotatingShield] Rotating shield activated');
     
-    // 清理之前的护盾
+    // text
     this.cleanup();
     
-    // 创建3个护盾
+    // create3text
     this.createShields(bossX, bossY);
     
-    // 开始旋转
+    // start rotating
     this.startRotation();
     
-    // 开始碰撞检测
+    // start collision detection
     this.startCollisionDetection();
     
-    // 8秒后结束
+    // 8end after seconds
     await this.delay(8000);
     
     this.cleanup();
@@ -59,7 +59,7 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 创建护盾
+   * text
    */
   private createShields(centerX: number, centerY: number): void {
     const shieldCount = 3;
@@ -68,7 +68,7 @@ export class RotatingShieldSkill extends BossSkill {
     for (let i = 0; i < shieldCount; i++) {
       const angle = (Math.PI * 2 / shieldCount) * i;
       
-      // 创建矩形护盾
+      // text
       const shield = this.scene.add.graphics();
       shield.fillStyle(0x4a2b8b, 0.8);
       shield.fillRect(-30, -10, 60, 20);
@@ -76,7 +76,7 @@ export class RotatingShieldSkill extends BossSkill {
       shield.lineStyle(2, 0x8b00ff, 1);
       shield.strokeRect(-30, -10, 60, 20);
       
-      // 发光效果
+      // glow effect
       shield.lineStyle(4, 0x8b00ff, 0.3);
       shield.strokeRect(-32, -12, 64, 24);
       
@@ -94,10 +94,10 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 开始旋转动画
+   * start spin animation
    */
   private startRotation(): void {
-    const rotationSpeed = 90; // 度/秒
+    const rotationSpeed = 90; // degrees/sec
     
     this.updateEvent = this.scene.time.addEvent({
       delay: 16, // ~60 FPS
@@ -105,7 +105,7 @@ export class RotatingShieldSkill extends BossSkill {
       loop: true,
     });
     
-    // 每个护盾的旋转动画
+    // text
     this.shields.forEach(shield => {
       this.scene.tweens.add({
         targets: shield,
@@ -119,10 +119,10 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 更新单个护盾位置
+   * text
    */
   private updateShieldPosition(shield: Shield): void {
-    // 获取Boss当前位置
+    // getBosstext
     const boss = this.scene.children.getByName('boss-container');
     if (!boss) return;
     
@@ -137,25 +137,25 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 更新所有护盾位置
+   * text
    */
   private updateShieldPositions(): void {
     this.shields.forEach(shield => this.updateShieldPosition(shield));
   }
   
   /**
-   * 开始碰撞检测
+   * start collision detection
    */
   private startCollisionDetection(): void {
-    // 每帧检测子弹碰撞
+    // text
     this.scene.events.on('update', this.checkBulletCollision, this);
   }
   
   /**
-   * 检测子弹碰撞
+   * text
    */
   private checkBulletCollision(): void {
-    // 获取场景中的子弹（从BossBattleTestScene）
+    // text(textBossBattleTestScene)
     const scene = this.scene as any;
     if (!scene.bullets || !Array.isArray(scene.bullets)) return;
     
@@ -164,7 +164,7 @@ export class RotatingShieldSkill extends BossSkill {
     for (let i = bullets.length - 1; i >= 0; i--) {
       const bullet = bullets[i];
       
-      // 检测子弹是否与任意护盾碰撞
+      // text
       for (const shield of this.shields) {
         const distance = Phaser.Math.Distance.Between(
           bullet.x,
@@ -174,12 +174,12 @@ export class RotatingShieldSkill extends BossSkill {
         );
         
         if (distance < 40) {
-          console.log('[RotatingShield] 护盾弹开子弹！');
+          console.log('[RotatingShield] Shield deflected bullet!');
           
-          // 反弹子弹
+          // reflect bullet
           this.reflectBullet(bullet, shield);
           
-          // 护盾闪光
+          // text
           this.flashShield(shield.graphics);
           
           break;
@@ -189,14 +189,14 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 反弹子弹
+   * reflect bullet
    */
   private reflectBullet(bullet: any, _shield: Shield): void {
-    // 计算反弹方向（简化版：反向）
+    // text(simplified:reverse)
     bullet.vx = -bullet.vx;
     bullet.vy = -bullet.vy;
     
-    // 反弹特效
+    // text
     const flash = this.scene.add.circle(bullet.x, bullet.y, 15, 0x8b00ff, 0.6);
     this.scene.tweens.add({
       targets: flash,
@@ -208,7 +208,7 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 护盾闪光
+   * text
    */
   private flashShield(shield: Phaser.GameObjects.Graphics): void {
     this.scene.tweens.add({
@@ -221,7 +221,7 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 清理护盾
+   * text
    */
   private cleanup(): void {
     this.shields.forEach(shield => shield.graphics.destroy());
@@ -241,7 +241,7 @@ export class RotatingShieldSkill extends BossSkill {
   }
   
   /**
-   * 销毁技能
+   * text
    */
   destroy(): void {
     this.cleanup();

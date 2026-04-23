@@ -1,6 +1,6 @@
 /**
- * CloakTrackingSkill - 斗篷追踪
- * Boss斗篷的12个碎片全部飞出，独立追踪玩家
+ * CloakTrackingSkill - cloak tracking
+ * Bosstext12text,independently track player
  */
 
 import Phaser from 'phaser';
@@ -21,7 +21,7 @@ export class CloakTrackingSkill extends BossSkill {
   constructor(scene: Phaser.Scene) {
     const config: SkillConfig = {
       name: 'CloakTracking',
-      damage: 10, // 每个碎片10伤害
+      damage: 10, // each fragment10damage
       cooldown: 10.0,
       phase: SkillPhase.Phase2,
       priority: 7,
@@ -39,18 +39,18 @@ export class CloakTrackingSkill extends BossSkill {
   ): Promise<void> {
     this.isExecuting = true;
     
-    console.log('[CloakTracking] 斗篷追踪激活！');
+    console.log('[CloakTracking] Cloak tracking activated!');
     
-    // 清理旧碎片
+    // text
     this.cleanup();
     
-    // 创建12个追踪碎片
+    // create12text
     this.createTrackingFragments(bossX, bossY);
     
-    // 开始追踪玩家
+    // text
     this.startTracking();
     
-    // 持续5秒或全部碎片消失
+    // duration5seconds or until all fragments disappear
     await this.delay(5000);
     
     this.cleanup();
@@ -58,7 +58,7 @@ export class CloakTrackingSkill extends BossSkill {
   }
   
   /**
-   * 创建追踪碎片
+   * text
    */
   private createTrackingFragments(centerX: number, centerY: number): void {
     const fragmentCount = 12;
@@ -67,7 +67,7 @@ export class CloakTrackingSkill extends BossSkill {
       const angle = (Math.PI * 2 / fragmentCount) * i;
       const startRadius = 60;
       
-      // 创建三角形碎片
+      // text
       const fragment = this.scene.add.graphics();
       fragment.fillStyle(0x8b00ff, 1);
       fragment.beginPath();
@@ -85,7 +85,7 @@ export class CloakTrackingSkill extends BossSkill {
       fragment.setPosition(x, y);
       fragment.setRotation(angle + Math.PI / 2);
       
-      // 每个碎片速度略有不同
+      // text
       const speed = 120 + Math.random() * 30;
       
       this.fragments.push({
@@ -94,13 +94,13 @@ export class CloakTrackingSkill extends BossSkill {
         hasHit: false,
       });
       
-      // 启动拖尾效果
+      // start trail effect
       this.startTrailEffect(fragment);
     }
   }
   
   /**
-   * 启动拖尾效果
+   * start trail effect
    */
   private startTrailEffect(fragment: Phaser.GameObjects.Graphics): void {
     this.scene.time.addEvent({
@@ -114,7 +114,7 @@ export class CloakTrackingSkill extends BossSkill {
   }
   
   /**
-   * 开始追踪
+   * start tracking
    */
   private startTracking(): void {
     this.updateEvent = this.scene.time.addEvent({
@@ -125,7 +125,7 @@ export class CloakTrackingSkill extends BossSkill {
   }
   
   /**
-   * 更新碎片位置
+   * update fragment positions
    */
   private updateFragments(): void {
     const player = this.scene.children.getByName('player') as any;
@@ -138,23 +138,23 @@ export class CloakTrackingSkill extends BossSkill {
       
       if (fragment.hasHit) continue;
       
-      // 计算到玩家的方向
+      // calculate direction to player
       const dx = player.x - fragment.graphics.x;
       const dy = player.y - fragment.graphics.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
-      // 移动碎片
+      // move fragment
       const moveX = (dx / distance) * fragment.speed * delta;
       const moveY = (dy / distance) * fragment.speed * delta;
       
       fragment.graphics.x += moveX;
       fragment.graphics.y += moveY;
       
-      // 旋转朝向玩家
+      // rotate toward player
       const angle = Math.atan2(dy, dx);
       fragment.graphics.setRotation(angle + Math.PI / 2);
       
-      // 检测碰撞
+      // collision check
       if (distance < 20) {
         this.onFragmentHit(fragment, player);
       }
@@ -162,40 +162,40 @@ export class CloakTrackingSkill extends BossSkill {
   }
   
   /**
-   * 碎片命中玩家
+   * fragment hits player
    */
   private onFragmentHit(fragment: TrackingFragment, player: any): void {
     fragment.hasHit = true;
     
-    console.log('[CloakTracking] 碎片命中玩家！');
+    console.log('[CloakTracking] Fragment hit player!');
     
-    // 造成伤害
+    // deal damage
     if (typeof player.takeDamage === 'function') {
       player.takeDamage(this.config.damage);
     }
     
-    // 碎片爆炸
+    // text
     const x = fragment.graphics.x;
     const y = fragment.graphics.y;
     
     this.effects.createParticleBurst(x, y, 0x8b00ff, 10, 100);
     
-    // 移除碎片
+    // remove fragment
     fragment.graphics.destroy();
     const index = this.fragments.indexOf(fragment);
     if (index !== -1) {
       this.fragments.splice(index, 1);
     }
     
-    // 如果所有碎片都消失了，提前结束
+    // if all fragments are gone,end early
     if (this.fragments.length === 0) {
-      console.log('[CloakTracking] 所有碎片已消失');
+      console.log('[CloakTracking] All fragments disappeared');
       this.cleanup();
     }
   }
   
   /**
-   * 清理
+   * cleanup
    */
   private cleanup(): void {
     this.fragments.forEach(fragment => {
@@ -212,7 +212,7 @@ export class CloakTrackingSkill extends BossSkill {
   }
   
   /**
-   * 销毁
+   * destroy
    */
   destroy(): void {
     this.cleanup();

@@ -4,12 +4,12 @@ import type Phaser from 'phaser'
 // REMOVED: TriggerType, TriggerConfig - migrated to Event System
 
 /**
- * 压力板颜色类型
+ * text
  */
 export type PlateColor = 'NONE' | 'RED' | 'YELLOW'
 
 /**
- * 压力板信息
+ * text
  */
 export interface PressurePlateInfo {
 	x: number
@@ -21,14 +21,14 @@ export interface PressurePlateInfo {
 }
 
 /**
- * 感应器信息
+ * text
  */
 export interface SensorInfo {
 	x: number
 	y: number
 	width: number
 	height: number
-	active: boolean  // 感应器是否被激活（未被遮挡）
+	active: boolean  // text(text)
 	rect: Phaser.GameObjects.Rectangle
 }
 
@@ -42,14 +42,14 @@ export type GameResources = {
 	// REMOVED: triggers - use Event System instead
 	// REMOVED: triggerIdCounter
 	score?: number // Optional score for scenes that use it
-	// 压力板和感应器状态
-	currentPlateColor: PlateColor        // 当前踩踏的压力板颜色
-	sensorState: boolean                 // 感应器状态（true=未被遮挡）
-	pressurePlates: PressurePlateInfo[]  // 所有压力板
-	sensors: SensorInfo[]                // 所有感应器
-	// 关卡特定数据
-	levelData?: Record<string, any>      // 关卡特定的数据存储（如收集的物品等）
-	// 墙体碰撞组（用于火球碰撞检测）
-	walls: Phaser.GameObjects.Rectangle[] // 所有墙体
+	// pressure plateandtext
+	currentPlateColor: PlateColor        // text
+	sensorState: boolean                 // text(true=text)
+	pressurePlates: PressurePlateInfo[]  // text
+	sensors: SensorInfo[]                // text
+	// text
+	levelData?: Record<string, any>      // text(text)
+	// text(text)
+	walls: Phaser.GameObjects.Rectangle[] // text
 }
 

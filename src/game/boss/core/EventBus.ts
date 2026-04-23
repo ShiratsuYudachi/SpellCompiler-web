@@ -1,6 +1,6 @@
 /**
- * EventBus - Boss事件总线
- * 用于组件间通信，解耦各个模块
+ * EventBus - Bossevent bus
+ * text,text
  */
 
 export type BossEvent = 

@@ -1,6 +1,6 @@
 /**
- * ZigzagRushSkill - 折线突袭（修复版）
- * Boss向玩家进行3次冲撞挥砍
+ * ZigzagRushSkill - zigzag assault(text)
+ * Bosstoward player3 charge slashes
  */
 
 import Phaser from 'phaser';
@@ -19,7 +19,7 @@ export class ZigzagRushSkill extends BossSkill {
   
   async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[ZigzagRush] 3次冲撞挥砍');
+    console.log('[ZigzagRush] 3 charge slashes');
     
     for (let i = 0; i < 3; i++) {
       await this.rushAndSlash(bossX, bossY, playerX, playerY);
@@ -33,11 +33,11 @@ export class ZigzagRushSkill extends BossSkill {
     const player = this.scene.children.getByName('player') as any;
     if (!player) return;
     
-    // 更新玩家位置
+    // text
     targetX = player.x;
     targetY = player.y;
     
-    // 警告闪光
+    // warning flash
     const flash = this.scene.add.circle(startX, startY, 40, 0xff00ff, 0.6);
     this.scene.tweens.add({
       targets: flash,
@@ -49,14 +49,14 @@ export class ZigzagRushSkill extends BossSkill {
     
     await this.delay(300);
     
-    // Boss冲刺
+    // Bossdash
     const boss = this.scene.children.getByName('boss-container') as any;
     if (!boss) return;
     
     const distance = Phaser.Math.Distance.Between(startX, startY, targetX, targetY);
     const rushDuration = Math.min((distance / 600) * 1000, 500);
     
-    // 残影
+    // afterimage
     const phantom = this.scene.add.circle(startX, startY, 30, 0x8b00ff, 0.3);
     this.scene.tweens.add({
       targets: phantom,
@@ -65,7 +65,7 @@ export class ZigzagRushSkill extends BossSkill {
       onComplete: () => phantom.destroy()
     });
     
-    // 冲刺动画
+    // dash animation
     this.scene.tweens.add({
       targets: boss,
       x: targetX,
@@ -73,18 +73,18 @@ export class ZigzagRushSkill extends BossSkill {
       duration: rushDuration,
       ease: 'Cubic.easeOut',
       onComplete: () => {
-        // 挥砍
+        // slash
         const slashGraphics = this.scene.add.graphics();
         slashGraphics.lineStyle(8, 0xff00ff, 1);
         slashGraphics.arc(boss.x, boss.y, 70, -Math.PI * 0.6, Math.PI * 0.6, false);
         slashGraphics.strokePath();
         
-        // 检测伤害
+        // text
         const dist = Phaser.Math.Distance.Between(boss.x, boss.y, player.x, player.y);
         if (dist < 70 && player.takeDamage) {
           player.takeDamage(this.config.damage);
           
-          // 击退
+          // knockback
           const dx = player.x - boss.x;
           const dy = player.y - boss.y;
           const knockbackDist = Math.sqrt(dx * dx + dy * dy);

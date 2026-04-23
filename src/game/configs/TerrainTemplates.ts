@@ -1,6 +1,6 @@
 /**
- * 地形模板 - 8种障碍物布局
- * 障碍物用矩形表示: { x, y, width, height }
+ * terrain templates - 8text
+ * text: { x, y, width, height }
  */
 
 export interface Obstacle {
@@ -17,22 +17,22 @@ export interface TerrainTemplate {
 }
 
 export const TERRAIN_TEMPLATES: TerrainTemplate[] = [
-  // 模板1：十字分隔
+  // template1:Cross Split
   {
     id: 1,
-    name: '十字分隔',
+    name: 'Cross Split',
     obstacles: [
-      { x: 400, y: 100, width: 160, height: 60 },  // 上横
-      { x: 400, y: 380, width: 160, height: 60 },  // 下横
-      { x: 200, y: 200, width: 60, height: 140 },  // 左竖
-      { x: 700, y: 200, width: 60, height: 140 },  // 右竖
+      { x: 400, y: 100, width: 160, height: 60 },  // top horizontal
+      { x: 400, y: 380, width: 160, height: 60 },  // bottom horizontal
+      { x: 200, y: 200, width: 60, height: 140 },  // left vertical
+      { x: 700, y: 200, width: 60, height: 140 },  // right vertical
     ],
   },
 
-  // 模板2：围栏迷宫
+  // template2:Fence Maze
   {
     id: 2,
-    name: '围栏迷宫',
+    name: 'Fence Maze',
     obstacles: [
       { x: 150, y: 150, width: 200, height: 40 },
       { x: 610, y: 150, width: 200, height: 40 },
@@ -42,23 +42,23 @@ export const TERRAIN_TEMPLATES: TerrainTemplate[] = [
     ],
   },
 
-  // 模板3：中心堡垒
+  // template3:Central Fortress
   {
     id: 3,
-    name: '中心堡垒',
+    name: 'Central Fortress',
     obstacles: [
-      { x: 380, y: 200, width: 200, height: 140 },  // 中心大块
-      { x: 200, y: 120, width: 80, height: 80 },    // 左上
-      { x: 680, y: 120, width: 80, height: 80 },    // 右上
-      { x: 200, y: 340, width: 80, height: 80 },    // 左下
-      { x: 680, y: 340, width: 80, height: 80 },    // 右下
+      { x: 380, y: 200, width: 200, height: 140 },  // text
+      { x: 200, y: 120, width: 80, height: 80 },    // top-left
+      { x: 680, y: 120, width: 80, height: 80 },    // top-right
+      { x: 200, y: 340, width: 80, height: 80 },    // bottom-left
+      { x: 680, y: 340, width: 80, height: 80 },    // bottom-right
     ],
   },
 
-  // 模板4：对角通道
+  // template4:Diagonal Corridor
   {
     id: 4,
-    name: '对角通道',
+    name: 'Diagonal Corridor',
     obstacles: [
       { x: 150, y: 100, width: 120, height: 120 },
       { x: 300, y: 240, width: 120, height: 120 },
@@ -67,10 +67,10 @@ export const TERRAIN_TEMPLATES: TerrainTemplate[] = [
     ],
   },
 
-  // 模板5：S型通道
+  // template5:S Corridor
   {
     id: 5,
-    name: 'S型通道',
+    name: 'S Corridor',
     obstacles: [
       { x: 100, y: 150, width: 400, height: 50 },
       { x: 460, y: 340, width: 400, height: 50 },
@@ -78,10 +78,10 @@ export const TERRAIN_TEMPLATES: TerrainTemplate[] = [
     ],
   },
 
-  // 模板6：散落岩石
+  // template6:Scattered Rocks
   {
     id: 6,
-    name: '散落岩石',
+    name: 'Scattered Rocks',
     obstacles: [
       { x: 180, y: 120, width: 70, height: 70 },
       { x: 360, y: 180, width: 60, height: 60 },
@@ -93,33 +93,33 @@ export const TERRAIN_TEMPLATES: TerrainTemplate[] = [
     ],
   },
 
-  // 模板7：环形竞技场
+  // template7:Ring Arena
   {
     id: 7,
-    name: '环形竞技场',
+    name: 'Ring Arena',
     obstacles: [
-      { x: 200, y: 200, width: 60, height: 140 },   // 左
-      { x: 700, y: 200, width: 60, height: 140 },   // 右
-      { x: 380, y: 100, width: 200, height: 60 },   // 上
-      { x: 380, y: 380, width: 200, height: 60 },   // 下
+      { x: 200, y: 200, width: 60, height: 140 },   // left
+      { x: 700, y: 200, width: 60, height: 140 },   // right
+      { x: 380, y: 100, width: 200, height: 60 },   // top
+      { x: 380, y: 380, width: 200, height: 60 },   // bottom
     ],
   },
 
-  // 模板8：四角堡垒
+  // template8:Four-Corner Fortress
   {
     id: 8,
-    name: '四角堡垒',
+    name: 'Four-Corner Fortress',
     obstacles: [
-      { x: 120, y: 100, width: 140, height: 100 },  // 左上
-      { x: 700, y: 100, width: 140, height: 100 },  // 右上
-      { x: 120, y: 340, width: 140, height: 100 },  // 左下
-      { x: 700, y: 340, width: 140, height: 100 },  // 右下
+      { x: 120, y: 100, width: 140, height: 100 },  // top-left
+      { x: 700, y: 100, width: 140, height: 100 },  // top-right
+      { x: 120, y: 340, width: 140, height: 100 },  // bottom-left
+      { x: 700, y: 340, width: 140, height: 100 },  // bottom-right
     ],
   },
 ];
 
 /**
- * 随机获取地形模板
+ * get random terrain template
  */
 export function getRandomTerrain(): TerrainTemplate {
   const index = Math.floor(Math.random() * TERRAIN_TEMPLATES.length);
@@ -127,7 +127,7 @@ export function getRandomTerrain(): TerrainTemplate {
 }
 
 /**
- * 根据ID获取地形模板
+ * byIDget terrain template
  */
 export function getTerrainById(id: number): TerrainTemplate | null {
   return TERRAIN_TEMPLATES.find(t => t.id === id) || null;

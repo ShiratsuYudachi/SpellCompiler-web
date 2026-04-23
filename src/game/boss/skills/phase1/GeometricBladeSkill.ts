@@ -1,6 +1,6 @@
 /**
- * GeometricBladeSkill - 几何飞刃（修复版）
- * 3把旋转几何飞刃射向玩家
+ * GeometricBladeSkill - geometric blades(text)
+ * 3launch rotating blades toward player
  */
 
 import Phaser from 'phaser';
@@ -19,7 +19,7 @@ export class GeometricBladeSkill extends BossSkill {
   
   async execute(bossX: number, bossY: number, playerX: number, playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[GeometricBlade] 3把飞刃');
+    console.log('[GeometricBlade] 3 flying blades');
     
     const shapes = ['triangle', 'rectangle', 'diamond'];
     
@@ -36,7 +36,7 @@ export class GeometricBladeSkill extends BossSkill {
     const blade = this.scene.add.graphics();
     blade.setPosition(startX, startY);
     
-    // 绘制形状
+    // draw shape
     blade.fillStyle(0x8b00ff, 1);
     blade.lineStyle(2, 0xff00ff, 1);
     
@@ -63,7 +63,7 @@ export class GeometricBladeSkill extends BossSkill {
     
     const distance = Phaser.Math.Distance.Between(startX, startY, targetX, targetY);
     
-    // 旋转+移动
+    // text+move
     this.scene.tweens.add({
       targets: blade,
       x: targetX,
@@ -71,14 +71,14 @@ export class GeometricBladeSkill extends BossSkill {
       angle: 720,
       duration: (distance / 200) * 1000,
       onUpdate: () => {
-        // 碰撞检测
+        // text
         const player = this.scene.children.getByName('player') as any;
         if (player) {
           const dist = Phaser.Math.Distance.Between(blade.x, blade.y, player.x, player.y);
           if (dist < 30) {
             if (player.takeDamage) player.takeDamage(this.config.damage);
             
-            // 爆炸粒子
+            // text
             for (let i = 0; i < 8; i++) {
               const angle = (Math.PI * 2 / 8) * i;
               const particle = this.scene.add.rectangle(blade.x, blade.y, 4, 4, 0x8b00ff);

@@ -1,6 +1,6 @@
 /**
- * ShadowEchoSkill - Phase2替身（重做）
- * Phase2开始时生成替身，50%血量，只会斩击和射击
+ * ShadowEchoSkill - Phase2decoy(text)
+ * Phase2at startSpawn decoy,50%health,textandshoot
  */
 
 import Phaser from 'phaser';
@@ -16,7 +16,7 @@ export class ShadowEchoSkill extends BossSkill {
     super(scene, {
       name: 'ShadowEcho',
       damage: 30,
-      cooldown: 999, // Phase2开始时触发一次
+      cooldown: 999, // Phase2text
       phase: SkillPhase.Phase2,
       priority: 8,
     });
@@ -24,17 +24,17 @@ export class ShadowEchoSkill extends BossSkill {
   
   async execute(bossX: number, bossY: number, _playerX: number, _playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[ShadowEcho] 生成替身');
+    console.log('[ShadowEcho] Spawn decoy');
     
-    // 获取Boss血量
+    // getBosshealth
     const boss = this.scene.children.getByName('boss-container') as any;
     this.shadowMaxHealth = boss ? Math.floor((boss.health || 500) * 0.5) : 250;
     this.shadowHealth = this.shadowMaxHealth;
     
-    // 创建替身
+    // text
     this.createShadow(bossX + 150, bossY);
     
-    // 替身AI循环
+    // decoyAIloop
     this.startShadowAI();
     
     this.onComplete();
@@ -44,12 +44,12 @@ export class ShadowEchoSkill extends BossSkill {
     this.shadow = this.scene.add.container(x, y);
     this.shadow.setName('boss-shadow');
     
-    // 半透明暗紫色碎片
+    // text
     const bodyGraphics = this.scene.add.graphics();
     bodyGraphics.fillStyle(0x4a0080, 0.7);
     bodyGraphics.fillCircle(0, 0, 30);
     
-    // 替身标记
+    // text
     const label = this.scene.add.text(0, -50, 'SHADOW', worldFloatingTextStyle('12px', '#c090c8', { bold: true }));
     label.setOrigin(0.5);
     
@@ -76,10 +76,10 @@ export class ShadowEchoSkill extends BossSkill {
         );
         
         if (dist < 120) {
-          // 近战斩击
+          // Melee slash
           this.shadowSlash(player);
         } else if (dist < 300) {
-          // 远程射击
+          // Ranged shot
           this.shadowShoot(player);
         }
       },
@@ -135,14 +135,14 @@ export class ShadowEchoSkill extends BossSkill {
     });
   }
   
-  // 供外部调用的受伤方法
+  // public damage API
   public damageShadow(amount: number): void {
     if (!this.shadow) return;
     
     this.shadowHealth -= amount;
     
     if (this.shadowHealth <= 0) {
-      // 替身死亡
+      // decoyDied
       this.scene.tweens.add({
         targets: this.shadow,
         alpha: 0,

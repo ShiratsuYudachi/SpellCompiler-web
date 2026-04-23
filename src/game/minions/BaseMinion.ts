@@ -1,5 +1,5 @@
 /**
- * 小怪基类
+ * miniontext
  */
 
 import Phaser from 'phaser';
@@ -32,16 +32,16 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
     
     this.setName('minion');
     
-    // 添加血条
+    // text
     this.createHealthBar();
   }
   
   private createHealthBar(): void {
-    // 将在子类中实现具体的血条显示
+    // implemented by subclass
   }
   
   /**
-   * 更新逻辑（每帧调用）
+   * text(called every frame)
    */
   update(delta: number): void {
     if (this.isDead) return;
@@ -50,12 +50,12 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
   }
   
   /**
-   * 子类实现具体行为
+   * implemented by subclass
    */
   protected abstract updateBehavior(delta: number): void;
   
   /**
-   * 受到伤害
+   * take damage
    */
   takeDamage(amount: number): void {
     if (this.isDead) return;
@@ -69,7 +69,7 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
   }
   
   /**
-   * 受击闪烁
+   * text
    */
   private flashDamage(): void {
     const originalFill = this.fillColor;
@@ -80,22 +80,22 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
   }
   
   /**
-   * 死亡
+   * Died
    */
   protected die(): void {
     this.isDead = true;
     
-    // 死亡粒子效果
+    // Diedtext
     this.createDeathEffect();
     
-    // 通知场景
+    // notify scene
     this.scene.events.emit('minion-killed', this);
     
     this.destroy();
   }
   
   /**
-   * 死亡特效
+   * Diedtext
    */
   private createDeathEffect(): void {
     for (let i = 0; i < 8; i++) {
@@ -120,7 +120,7 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
   }
   
   /**
-   * 获取玩家引用
+   * get player ref
    */
   protected getPlayer(): Phaser.GameObjects.GameObject | null {
     if (!this.player) {
@@ -130,7 +130,7 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
   }
   
   /**
-   * 获取到玩家的方向
+   * get direction to player
    */
   protected getDirectionToPlayer(): { dx: number; dy: number; distance: number } | null {
     const player = this.getPlayer() as any;
@@ -144,7 +144,7 @@ export abstract class BaseMinion extends Phaser.GameObjects.Rectangle {
   }
   
   /**
-   * 获取伤害值
+   * get damage value
    */
   getDamage(): number {
     return this.damage;

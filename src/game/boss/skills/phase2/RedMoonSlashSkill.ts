@@ -1,6 +1,6 @@
 /**
- * RedMoonSlashSkill - 红月大横斩（重做）
- * Boss移到屏幕上方中心，随机挥砍半屏
+ * RedMoonSlashSkill - red moon wide slash(text)
+ * Bossmove to top center,random half-screen slash
  */
 
 import Phaser from 'phaser';
@@ -19,7 +19,7 @@ export class RedMoonSlashSkill extends BossSkill {
   
   async execute(_bossX: number, _bossY: number, _playerX: number, _playerY: number): Promise<void> {
     this.isExecuting = true;
-    console.log('[RedMoonSlash] 红月挥砍');
+    console.log('[RedMoonSlash] Red moon slash');
     
     const boss = this.scene.children.getByName('boss-container') as any;
     if (!boss) {
@@ -27,7 +27,7 @@ export class RedMoonSlashSkill extends BossSkill {
       return;
     }
     
-    // Boss移到屏幕上方中心
+    // Bossmove to top center
     const originalX = boss.x;
     const originalY = boss.y;
     const topCenterX = 480;
@@ -43,13 +43,13 @@ export class RedMoonSlashSkill extends BossSkill {
     
     await this.delay(500);
     
-    // 随机选择挥砍区域
+    // text
     const slashTypes = ['left', 'right', 'center', 'top'];
     const selectedSlash = Phaser.Utils.Array.GetRandom(slashTypes);
     
     await this.executeSlash(selectedSlash, topCenterX, topCenterY);
     
-    // Boss返回
+    // Bossreturn
     this.scene.tweens.add({
       targets: boss,
       x: originalX,
@@ -63,7 +63,7 @@ export class RedMoonSlashSkill extends BossSkill {
   }
   
   private async executeSlash(type: string, bossX: number, bossY: number): Promise<void> {
-    // 蓄力
+    // charge
     const chargeCircle = this.scene.add.circle(bossX, bossY, 30, 0xff0066, 0.5);
     this.scene.tweens.add({
       targets: chargeCircle,
@@ -75,38 +75,38 @@ export class RedMoonSlashSkill extends BossSkill {
     await this.delay(800);
     chargeCircle.destroy();
     
-    // 挥砍
+    // slash
     const slashGraphics = this.scene.add.graphics();
     slashGraphics.lineStyle(12, 0xff0066, 1);
     
     
     switch (type) {
       case 'left':
-        // 左半屏
+        // left half
         slashGraphics.arc(bossX, bossY, 400, Math.PI * 0.5, Math.PI * 1.5, false);
         break;
       case 'right':
-        // 右半屏
+        // right half
         slashGraphics.arc(bossX, bossY, 400, -Math.PI * 0.5, Math.PI * 0.5, false);
         break;
       case 'center':
-        // 中间竖斩
+        // middle vertical slash
         slashGraphics.lineBetween(bossX, bossY, bossX, 540);
         break;
       case 'top':
-        // 上半屏横斩
+        // top half horizontal slash
         slashGraphics.lineBetween(50, bossY, 910, bossY);
         break;
     }
     
     slashGraphics.strokePath();
     
-    // 检测伤害
+    // text
     const player = this.scene.children.getByName('player') as any;
     if (player && this.checkPlayerInSlashZone(type, bossX, bossY, player.x, player.y)) {
       if (player.takeDamage) player.takeDamage(this.config.damage);
       
-      // 击退
+      // knockback
       const dx = player.x - bossX;
       const dy = player.y - bossY;
       const dist = Math.sqrt(dx * dx + dy * dy);

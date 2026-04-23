@@ -1,6 +1,6 @@
 /**
- * HitboxManager - 碰撞检测管理器
- * 管理技能的伤害区域和碰撞检测
+ * HitboxManager - text
+ * textandtext
  */
 
 import Phaser from 'phaser';
@@ -26,7 +26,7 @@ export class HitboxManager {
   }
   
   /**
-   * 创建矩形伤害区域
+   * text
    */
   createRectZone(
     x: number,
@@ -52,7 +52,7 @@ export class HitboxManager {
     
     this.activeZones.push(zone);
     
-    // 自动移除
+    // text
     this.scene.time.delayedCall(lifetime, () => {
       this.removeZone(zone);
     });
@@ -61,7 +61,7 @@ export class HitboxManager {
   }
   
   /**
-   * 创建圆形伤害区域
+   * text
    */
   createCircleZone(
     x: number,
@@ -85,7 +85,7 @@ export class HitboxManager {
     
     this.activeZones.push(zone);
     
-    // 自动移除
+    // text
     this.scene.time.delayedCall(lifetime, () => {
       this.removeZone(zone);
     });
@@ -94,7 +94,7 @@ export class HitboxManager {
   }
   
   /**
-   * 创建线形伤害区域
+   * text
    */
   createLineZone(
     x1: number,
@@ -128,7 +128,7 @@ export class HitboxManager {
     
     this.activeZones.push(zone);
     
-    // 自动移除
+    // text
     this.scene.time.delayedCall(lifetime, () => {
       this.removeZone(zone);
     });
@@ -137,7 +137,7 @@ export class HitboxManager {
   }
   
   /**
-   * 检测点是否在伤害区域内
+   * text
    */
   checkPointCollision(x: number, y: number): DamageZone | null {
     for (const zone of this.activeZones) {
@@ -149,17 +149,17 @@ export class HitboxManager {
   }
   
   /**
-   * 判断点是否在区域内
+   * text
    */
   private isPointInZone(x: number, y: number, zone: DamageZone): boolean {
     if (zone.radius !== undefined) {
-      // 圆形检测
+      // text
       const dx = x - zone.x;
       const dy = y - zone.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       return distance <= zone.radius;
     } else if (zone.width !== undefined && zone.height !== undefined) {
-      // 矩形检测
+      // text
       const left = zone.x - zone.width / 2;
       const right = zone.x + zone.width / 2;
       const top = zone.y - zone.height / 2;
@@ -172,7 +172,7 @@ export class HitboxManager {
   }
   
   /**
-   * 移除伤害区域
+   * text
    */
   removeZone(zone: DamageZone): void {
     const index = this.activeZones.indexOf(zone);
@@ -181,7 +181,7 @@ export class HitboxManager {
     }
     
     if (zone.graphics && !zone.graphics.scene) {
-      // 已经被销毁了
+      // text
       return;
     }
     
@@ -189,14 +189,14 @@ export class HitboxManager {
   }
   
   /**
-   * 获取所有活跃的伤害区域
+   * text
    */
   getActiveZones(): DamageZone[] {
     return this.activeZones;
   }
   
   /**
-   * 清除所有伤害区域
+   * text
    */
   clearAll(): void {
     this.activeZones.forEach(zone => {
@@ -206,7 +206,7 @@ export class HitboxManager {
   }
   
   /**
-   * 销毁
+   * destroy
    */
   destroy(): void {
     this.clearAll();
