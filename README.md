@@ -1,3 +1,5 @@
+# Comments
+On May 6, 2026, this game has stopped updating and already initially fulfilled the goal as the Final Year Project for Undergraduate studies, if you have any enquiry, feel free to contact.
 
 ***This Readme is deprecated.***
 
